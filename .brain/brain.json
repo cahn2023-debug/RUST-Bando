@@ -1,0 +1,14 @@
+{
+  "project": {
+    "name": "Project Manager",
+    "description": "Phần mềm desktop gồm 3 phần: 1. Hồ sơ thiết kế, 2. Quản lý triển khai, 3. Quản lý vận hành",
+    "created_at": "2026-03-05T23:13:20+07:00"
+  },
+  "tech_stack": ["Rust", "Tauri", "React", "TypeScript", "SQLite"],
+  "features": [
+    "Hồ sơ thiết kế",
+    "Quản lý triển khai",
+    "Quản lý vận hành"
+  ],
+  "decisions": []
+}

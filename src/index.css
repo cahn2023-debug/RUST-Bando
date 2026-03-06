@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme {
+  /* AutoCAD Professional Theme Tokens */
+  --color-cad-bg: #16171B;
+  --color-cad-surface: #1E2026;
+  --color-cad-elevated: #232529;
+  --color-cad-border: #2A2B30;
+  --color-cad-accent: #22C55E;
+  --color-cad-warn: #F59E0B;
+  --color-cad-text-primary: #F4F4F5;
+  --color-cad-text-secondary: #71717A;
+  --color-cad-text-muted: #3F3F46;
+
+  --font-sans: "Inter", "Segoe UI", Roboto, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "Roboto Mono", monospace;
+}
+
+/* Base resets & typography */
+@layer base {
+  html, body {
+    @apply h-full w-full m-0 p-0 text-surface-900 bg-surface-50;
+    font-family: var(--font-sans);
+  }
+
+  /* Custom scrollbar for Windows - Dark Mode */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-50;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-300 rounded-full border-2 border-solid border-surface-50;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-surface-400;
+  }
+
+  /* Selection color */
+  ::selection {
+    @apply bg-brand-500/30 text-white;
+  }
+}
+
+/* Layout utilities */
+@layer utilities {
+  .flex-center {
+    @apply flex items-center justify-center;
+  }
+
+  .glass-panel {
+    @apply bg-surface-100/70 backdrop-blur border border-surface-200 shadow-sm rounded-xl;
+  }
+  
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-surface-300) transparent;
+  }
+}
