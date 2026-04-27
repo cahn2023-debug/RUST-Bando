@@ -1,0 +1,237 @@
+cargo :     Checking 
+project-manager v0.1.0 
+(D:\Code Antinigaty\Phan 
+mem quan ly file 
+V4\RUST\src-tauri)
+At line:1 char:1
++ cargo check 2>&1 | 
+Out-File -Encoding ascii 
+cargo_errors.txt
++ ~~~~~~~~~~~~~~~~
+    + CategoryInfo         
+     : NotSpecified: (     
+   Checking pr...RUST\sr   
+ c-tauri):String) [], R    
+emoteException
+    + FullyQualifiedErrorI 
+   d : NativeCommandError
+ 
+error[E0432]: unresolved 
+import `design_core::domain
+::implement::db::v2`
+ --> src\bin\verify_v4_life
+cycle.rs:2:41
+  |
+2 | use design_core::domain
+::implement::db::v2::V2Data
+base;
+  |                        
+                 ^^ could 
+not find `v2` in `db`
+
+warning: unused import: 
+`std::sync::Arc`
+ --> src\bin\verify_v4_life
+cycle.rs:7:5
+  |
+7 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+  |
+  = note: 
+`#[warn(unused_imports)]` 
+(part of 
+`#[warn(unused)]`) on by 
+default
+
+error[E0599]: no method 
+named `save_batch` found 
+for struct `EventStore` in 
+the current scope
+   --> src\bin\verify_v4_li
+fecycle.rs:104:27
+    |
+104 |     let saved_ids = s
+tore.save_batch(project_id,
+ events).map_err(|e| 
+e.to_string())?;
+    |                      
+     ^^^^^^^^^^ method not 
+found in `EventStore`
+
+error[E0282]: type 
+annotations needed
+   --> src\bin\verify_v4_li
+fecycle.rs:104:67
+    |
+104 |     let saved_ids = s
+tore.save_batch(project_id,
+ events).map_err(|e| 
+e.to_string())?;
+    |                      
+                           
+                  ^  - 
+type must be known at this 
+point
+    |
+help: consider giving this 
+closure parameter an 
+explicit type
+    |
+104 |     let saved_ids = s
+tore.save_batch(project_id,
+ events).map_err(|e: /* 
+Type */| e.to_string())?;
+    |                      
+                           
+                   
+++++++++++++
+
+error[E0282]: type 
+annotations needed
+   --> src\bin\verify_v4_li
+fecycle.rs:116:36
+    |
+116 |     let rows = 
+stmt.query_map([], |row| {
+    |                      
+              ^^^
+117 |         let payload: 
+String = row.get(0)?;
+    |                      
+         --- type must be 
+known at this point
+    |
+help: consider giving this 
+closure parameter an 
+explicit type
+    |
+116 |     let rows = 
+stmt.query_map([], |row: 
+/* Type */| {
+    |                      
+                 
+++++++++++++
+
+error[E0277]: the size for 
+values of type `str` 
+cannot be known at 
+compilation time
+   --> src\bin\verify_v4_li
+fecycle.rs:124:13
+    |
+124 |         let payload 
+= row?;
+    |             ^^^^^^^ 
+doesn't have a size known 
+at compile-time
+    |
+    = help: the trait 
+`Sized` is not implemented 
+for `str`
+    = note: all local 
+variables must have a 
+statically known size
+
+error[E0277]: the size for 
+values of type `str` 
+cannot be known at 
+compilation time
+   --> src\bin\verify_v4_li
+fecycle.rs:124:23
+    |
+124 |         let payload 
+= row?;
+    |                      
+ ^^^^ doesn't have a size 
+known at compile-time
+    |
+    = help: the trait 
+`Sized` is not implemented 
+for `str`
+    = note: all local 
+variables must have a 
+statically known size
+
+error[E0277]: the size for 
+values of type `str` 
+cannot be known at 
+compilation time
+   --> src\bin\verify_v4_li
+fecycle.rs:124:26
+    |
+124 |         let payload 
+= row?;
+    |                      
+    ^ doesn't have a size 
+known at compile-time
+    |
+    = help: the trait 
+`Sized` is not implemented 
+for `str`
+note: required by an 
+implicit `Sized` bound in 
+`ControlFlow`
+   --> C:\Users\ThanhBui\.r
+ustup\toolchains\stable-x86
+_64-pc-windows-msvc\lib/rus
+tlib/src/rust\library\core\
+src\ops\control_flow.rs:89:
+25
+    |
+ 89 | pub enum 
+ControlFlow<B, C = ()> {
+    |                      
+   ^^^^^^ required by the 
+implicit `Sized` 
+requirement on this type 
+parameter in `ControlFlow`
+
+error[E0277]: the size for 
+values of type `str` 
+cannot be known at 
+compilation time
+   --> src\bin\verify_v4_li
+fecycle.rs:124:23
+    |
+124 |         let payload 
+= row?;
+    |                      
+ ^^^^ doesn't have a size 
+known at compile-time
+    |
+    = help: the trait 
+`Sized` is not implemented 
+for `str`
+note: required by an 
+implicit `Sized` bound in 
+`ControlFlow`
+   --> C:\Users\ThanhBui\.r
+ustup\toolchains\stable-x86
+_64-pc-windows-msvc\lib/rus
+tlib/src/rust\library\core\
+src\ops\control_flow.rs:89:
+25
+    |
+ 89 | pub enum 
+ControlFlow<B, C = ()> {
+    |                      
+   ^^^^^^ required by the 
+implicit `Sized` 
+requirement on this type 
+parameter in `ControlFlow`
+
+Some errors have detailed 
+explanations: E0277, 
+E0282, E0432, E0599.
+For more information about 
+an error, try `rustc 
+--explain E0277`.
+warning: `project-manager` 
+(bin 
+"verify_v4_lifecycle") 
+generated 1 warning
+error: could not compile 
+`project-manager` (bin 
+"verify_v4_lifecycle") due 
+to 8 previous errors; 1 
+warning emitted

@@ -1,0 +1,70 @@
+﻿cargo :     Checking 
+project-manager 
+v0.1.0 (D:\Code 
+Antinigaty\Phan mem 
+quan ly file 
+V4\RUST\src-tauri)
+At line:1 char:1
++ cargo check 2>&1 | 
+Out-File -FilePath 
+check_log.txt 
+-Encoding utf8
++ ~~~~~~~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (    Che   
+ cking pr...RUST\    
+src-tauri):Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+warning: unused 
+import: `crate::domai
+n::implement::modules
+::v2::gis::topology::
+TopologyValidator`
+ --> src\domain\imple
+ment\commands\gis.rs:
+2:5
+  |
+2 | use crate::domain
+::implement::modules:
+:v2::gis::topology::T
+opologyValidator;
+  |     ^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unu
+sed_imports)]` (part 
+of 
+`#[warn(unused)]`) 
+on by default
+
+warning: unused 
+import: 
+`rusqlite::params`
+ --> src\domain\imple
+ment\commands\gis.rs:
+5:5
+  |
+5 | use 
+rusqlite::params;
+  |     
+^^^^^^^^^^^^^^^^
+
+warning: 
+`project-manager` 
+(lib) generated 2 
+warnings (run `cargo 
+fix --lib -p 
+project-manager` to 
+apply 2 suggestions)
+    Finished `dev` 
+profile [unoptimized 
++ debuginfo] 
+target(s) in 6.20s

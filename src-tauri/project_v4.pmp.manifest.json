@@ -1,0 +1,14 @@
+{
+  "format_version": "2.0",
+  "app_version": "0.1.0",
+  "project_id": "22e10d56-6d7e-4b16-905c-4f9c12ca2b98",
+  "created_at": "2026-04-16T12:02:42.189050700+00:00",
+  "updated_at": "2026-04-16T13:41:41.669629400+00:00",
+  "features": [
+    "event_sourcing"
+  ],
+  "db_schema_version": 1,
+  "metadata_schema_version": 1,
+  "device_id": "local-desktop",
+  "last_global_seq": 0
+}

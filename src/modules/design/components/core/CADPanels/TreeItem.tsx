@@ -1,0 +1,162 @@
+import React from "react";
+import { Eye, EyeOff, GripVertical } from "lucide-react";
+import { cn } from "@TOOL/utils/cn";
+import { EditableText } from "@DESIGN/components/core/CADPanels/EditableText";
+
+export interface TreeItemProps {
+  name: string;
+  expanded: boolean;
+  onClick: () => void;
+  children?: React.ReactNode;
+  onRename: (newName: string) => void;
+  visible?: boolean;
+  onToggleVisible?: (e: React.MouseEvent) => void;
+  customAction?: React.ReactNode;
+  level?: number;
+  icon?: React.ReactNode;
+  className?: string;
+  onDoubleClick?: (e: React.MouseEvent) => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
+  // Drag & Drop
+  draggable?: boolean;
+  dragType?: string;
+  dragId?: string;
+  onDragStart?: (e: React.DragEvent, type: string, id: string) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDragLeave?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  isDropTarget?: boolean;
+  checked?: boolean;
+  indeterminate?: boolean;
+  onToggleCheck?: () => void;
+  onMouseDown?: (e: React.MouseEvent) => void;
+}
+
+
+export const TreeItem = React.memo(({
+  name,
+  expanded,
+  onClick,
+  children,
+  onRename,
+  visible = true,
+  onToggleVisible,
+  customAction,
+  level = 0,
+  icon,
+  className,
+  draggable: _draggable = false,
+  dragType,
+  dragId,
+  onDragStart: _onDragStart,
+  onDragEnd: _onDragEnd,
+  onDragOver: _onDragOver,
+  onDragLeave: _onDragLeave,
+  onDrop: _onDrop,
+  isDropTarget,
+  onDoubleClick,
+  onContextMenu,
+  checked,
+  indeterminate,
+  onToggleCheck,
+  onMouseDown
+}: TreeItemProps) => {
+  const checkboxRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (checkboxRef.current) {
+      checkboxRef.current.indeterminate = !!indeterminate;
+    }
+  }, [indeterminate]);
+
+  return (
+    <div
+      className="mb-0.5"
+      data-drag-id={dragId}
+      data-drag-type={dragType}
+    >
+      <div
+        className={cn(
+          "flex items-center justify-between hover:bg-emerald-500/5 px-2 py-1 relative rounded-sm cursor-pointer group transition-all select-none",
+          expanded && "bg-emerald-500/[0.02] border-b border-white/5",
+          isDropTarget && "ring-1 ring-emerald-500 bg-emerald-500/10",
+          className
+        )}
+        onClick={onClick}
+        onDoubleClick={onDoubleClick}
+        onContextMenu={onContextMenu}
+        onMouseDown={onMouseDown}
+      >
+        <div className="flex items-center gap-0 flex-1 min-w-0">
+          <div className="w-2 shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-40 transition-opacity">
+            <GripVertical size={8} className="text-white shrink-0 cursor-grab active:cursor-grabbing" />
+          </div>
+
+          <div className="flex-1 flex items-center gap-1.5 min-w-0" style={{ paddingLeft: level * 14 }}>
+            <span className={cn(
+              "text-white text-[8px] transition-transform w-3 font-bold shrink-0 text-center -ml-0.5",
+              expanded ? "rotate-0 opacity-40" : "-rotate-90 opacity-20"
+            )}>
+              {children ? '▼' : ''}
+            </span>
+
+            {onToggleCheck && (
+              <input
+                ref={checkboxRef}
+                type="checkbox"
+                checked={checked}
+                onChange={() => { }}
+                onClick={(e) => { e.stopPropagation(); onToggleCheck(); }}
+                className="rounded-sm border-white/20 bg-black/40 text-emerald-500 focus:ring-emerald-500 cursor-pointer shrink-0 w-3 h-3"
+              />
+            )}
+
+            <div className="shrink-0 flex items-center justify-center w-5 scale-90 opacity-80 group-hover:opacity-100 transition-opacity">
+              {icon}
+            </div>
+            <EditableText
+              value={name}
+              onSave={onRename}
+              className={cn(
+                "truncate tracking-tight transition-colors",
+                level === 0 ? "text-[10px] uppercase font-bold text-emerald-500/90" :
+                  level === 1 ? "text-[9.5px] uppercase font-bold text-white/80 group-hover:text-white" :
+                    "text-[9px] font-medium text-white/60 group-hover:text-white/90"
+              )}
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <div className={cn(
+            "flex items-center gap-1 transition-all duration-200",
+            !visible ? "opacity-100" : "opacity-0 group-hover:opacity-100 translate-x-1 group-hover:translate-x-0"
+          )}>
+            {customAction}
+            {onToggleVisible && (
+              <button
+                className="text-white/40 hover:text-white p-0.5 transition-colors"
+                onClick={(e) => { e.stopPropagation(); onToggleVisible(e); }}
+                title={visible ? "Hide" : "Show"}
+              >
+                {visible ? <Eye size={10} className="text-emerald-500" /> : <EyeOff size={10} className="opacity-80 text-emerald-500" />}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+      {expanded && children && (
+        <div className="relative">
+          {/* Vertical Guide Line */}
+          <div
+            className="absolute top-0 bottom-0 border-l border-cad-border/20 z-0 pointer-events-none"
+            style={{ left: `${14 + level * 16}px` }}
+          />
+          <div className="relative z-10">
+            {children}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});

@@ -1,0 +1,5254 @@
+{
+  "total_pmp_files": 13,
+  "projects": [
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "name": "122",
+      "contract_number": null,
+      "investor": null,
+      "contractor": null,
+      "signed_date": null,
+      "duration": null,
+      "end_date": null
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "name": "2234",
+      "contract_number": null,
+      "investor": null,
+      "contractor": null,
+      "signed_date": null,
+      "duration": null,
+      "end_date": null
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\Du an Lam Dong.pmp",
+      "name": "Dự án Lâm Đồng",
+      "contract_number": null,
+      "investor": null,
+      "contractor": null,
+      "signed_date": null,
+      "duration": null,
+      "end_date": null
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\Lam_Dong.pmp",
+      "name": "Lam Dong",
+      "contract_number": null,
+      "investor": null,
+      "contractor": null,
+      "signed_date": null,
+      "duration": null,
+      "end_date": null
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\Xuat du lieu cho Mr. Tu.pmp",
+      "name": "Xuat du lieu cho Mr. Tu",
+      "contract_number": null,
+      "investor": null,
+      "contractor": null,
+      "signed_date": null,
+      "duration": null,
+      "end_date": null
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\RUST\\1213.pmp",
+      "name": "1213",
+      "contract_number": null,
+      "investor": null,
+      "contractor": null,
+      "signed_date": null,
+      "duration": null,
+      "end_date": null
+    }
+  ],
+  "contracts": [
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "name": null,
+      "contract_number": null,
+      "vendor": null,
+      "value": 0.0,
+      "signed_date": null
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "name": null,
+      "contract_number": null,
+      "vendor": null,
+      "value": 0.0,
+      "signed_date": null
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "name": null,
+      "contract_number": null,
+      "vendor": null,
+      "value": 0.0,
+      "signed_date": null
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "name": null,
+      "contract_number": null,
+      "vendor": null,
+      "value": 0.0,
+      "signed_date": null
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "name": null,
+      "contract_number": null,
+      "vendor": null,
+      "value": 0.0,
+      "signed_date": null
+    }
+  ],
+  "file_analyses": [
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_10.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_4.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_04.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_15.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_16.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_16.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_17.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_26.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_9.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_21.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_27.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_27.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_28.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_31.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_32.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_1.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_32.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_1.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_10.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_36.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_41.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_46.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_42.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_47.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_42.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_47.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_43.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_48.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_43.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_48.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_51.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "So do lien nut 1.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "So do lien nut 2.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Drawing2.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_7.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_12.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_7.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_11.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_4.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_11.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_8.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_12.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_05.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_12.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_8.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_13.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_17.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_13.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_9.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_9.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_9.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "BKL lien nut 1.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "BKL lien nut 2.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "BKL lien nut 1.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "BKL lien nut 2.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_28.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_29.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_10.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_33.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_37.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_33.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_37.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_44.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_34.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_34.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_44.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_35.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_45.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_35.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_45.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_36.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_46.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_40.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_49.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_50.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_52.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "plot.log",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_52.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_1.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_53.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_1.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_53.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_10.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_54.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_10.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_54.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_11.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "plot.log",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_11.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "PT&ECO-A3V-FRAME.....dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_3.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_12.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_5.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_05.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_5.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_18.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_06.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_3.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_01.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_22.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "BTH Ring 01.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_22.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_02_03_09.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_02_03_09.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_04.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "BTH Ring 01.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_29.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_01.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_30.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_12.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_30.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_3.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_11.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_3.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_31.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_11.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_38.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_7.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_38.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_02_03_09.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_39.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_8.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_40.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_02_03_09.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_8.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_04.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_49.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_08.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_25.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_20.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_25.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_08.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_26.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_20.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_10.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_50.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_21.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_51.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Ring 01_Dai Lo Thang Long.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_6.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_18.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_6.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_06.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_07.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_07.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_14.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_23.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_01.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_04.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_01.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "plot.log",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Ring 01_Dai Lo Thang Long.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "So do lien nut 1.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "So do lien nut 2.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_12.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_39.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_41.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_4.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_7.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_4.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_5.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_5.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_6.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ADSS_6.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_14.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_23.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_15.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_24.dwg",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "DB_24.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "camera_2026-01-10 15_02_23.xls",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Bao cao tong hop tin hieu TT den.xls",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "~$DS Duy tu 2025.xlsx",
+      "metadata": {
+        "attributes": "Hidden, Archive, NotContentIndexed"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 08 _ Hai Bà Trưng - Quán Sứ.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 09 _ Hai Bà Trưng - Quang Trung.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 10 _ Trần Nhật Duật - Hàng Đậu.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 11 _ Hàng Thùng - Nguyễn Hữu Huân.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 12 _ Nút Hoà Mã - Ngô Thì Nhậm.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 13 _ Hoàng Quốc Việt - Nguyễn Phong Sắc.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 14 _ Lê Thanh Nghị - Trần Đại Nghĩa.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 15 _ Lê Duẩn - Hai Bà Trưng.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 16 _ Lê Duẩn - Khâm Thiên.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 17 _ Lê Duẩn - Trần Nhân Tông.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 01 _ Bà Triệu - Lê Đại Hành.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 02 _ Bà Triệu - Trần Nhân Tông.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 03 _ Cầu Trung Hòa.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 23 _ Nguyễn Chí Thanh - La Thành.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 24 _ Tràng Thi - Quán Sứ.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 37 _ Cổng Viện 108.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 39 _ Phố Huế - Nguyễn Du.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 40 _ Phố Huế - Tô Hiến Thành.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 25 _ Tràng Thi - Quang Trung.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 26 _ Tràng Tiền - Hàng Bài.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 45 _ Trần Duy Hưng - Hoàng Minh Giám.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 27 _ Tràng Tiền - Ngô Quyền.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 47 _ Trần Nhật Duật - Hàng Muối.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 48 _ Trần Hưng Đạo - Phan Chu Trinh.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 28 _ Tràng Tiền - Trần Quang Khải.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "R2.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "R3.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 30 _ Văn Cao - Hoàng Hoa Thám.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 38 _ Phan Đình Phùng - Cửa Bắc.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 18 _ Lê Văn Lương - Hoàng Đạo Thuý.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 19 _ Võ Chí Công - Xuân La.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 20 _ Lương Yên - Trần Khánh Dư.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 21 _ Lý Thường Kiệt - Quang Trung.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 22 _ Ngã Tư Sở.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 31 _ Giải phóng - Nguyễn Hữu Thọ.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 04 _ Chùa Bộc - Tôn Thất Tùng.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 05 _ Đội Cấn - Giang Văn Minh.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 35 _ Lý Thường Kiệt - Hàng Bài.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 36 _ Ngô Quyền - Hàm Long.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 41 _ Quang Trung - Trần Hưng Đạo.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 43 _ Võ Chí Công - Nguyễn Hoàng Tôn.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 42 _ Quang Trung - Trần Phú (Hà Đông).xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 49 _ Kim Mã - Núi Trúc.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 50 _ Quán Thánh - Thanh Niên.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 51 _ Nguyễn Trãi - Khuất Duy Tiến.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "R1.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 29 _ Trần Hưng Đạo - Trần Khánh Dư.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 32 _ Giải Phóng - Pháp Vân.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 06 _ Giang Văn Minh - Kim Mã.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 33 _ Giải phóng - Trương Định.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 34 _ Lên xuống Cầu Mai Dịch.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 44 _ Tôn Đức Thắng - Cát Linh.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 46 _ Trần Duy Hưng - Hoàng Đạo Thuý.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 07 _ Hàng Bông - Hàng Trống.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 12 _ Nút Hoà Mã - Ngô Thì Nhậm_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 01 _ Bà Triệu - Lê Đại Hành_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 02 _ Bà Triệu - Trần Nhân Tông_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 05 _ Đội Cấn - Giang Văn Minh_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 15 _ Lê Duẩn - Hai Bà Trưng_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 07 _ Hàng Bông - Hàng Trống_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 08 _ Hai Bà Trưng - Quán Sứ_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 16 _ Lê Duẩn - Khâm Thiên_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 18 _ Lê Văn Lương - Hoàng Đạo Thuý_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 21 _ Lý Thường Kiệt - Quang Trung_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 27 _ Tràng Tiền - Ngô Quyền_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 35 _ Lý Thường Kiệt - Hàng Bài_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 36 _ Ngô Quyền - Hàm Long_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 24 _ Tràng Thi - Quán Sứ_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 25 _ Tràng Thi - Quang Trung_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 39 _ Phố Huế - Nguyễn Du_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 40 _ Phố Huế - Tô Hiến Thành_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 41 _ Quang Trung - Trần Hưng Đạo_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 26 _ Tràng Tiền - Hàng Bài_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 44 _ Tôn Đức Thắng - Cát Linh_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 45 _ Trần Duy Hưng - Hoàng Minh Giám_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 47 _ Trần Nhật Duật - Hàng Muối _OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "check_consistency.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "consolidate_excel.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "consolidate_sum_data.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "inspect_columns.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "inspect_excel.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Tong_Hop_Khoi_Luong_Duy_Tu.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "~$Tong_Hop_Khoi_Luong_Duy_Tu.xlsx",
+      "metadata": {
+        "attributes": "Hidden, Archive, NotContentIndexed"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "inspect.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "download.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "lazy_wheel.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "session.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "utils.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_jaraco_text.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "idnadata.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_log.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "constrain.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "theme.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "themes.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "traceback.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "tree.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_cell_widths.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_emoji_codes.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_emoji_replace.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_mapping.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "fields.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "filepost.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "LICENSE.txt",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "poolmanager.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "request.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__main__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "install.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__pip-runner__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "sphinxext.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "entry_points.txt",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "intranges.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "build_env.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "bazaar.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "cache.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "containers.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "configuration.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_export_format.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "exceptions.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "main.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_mapping.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "pyproject.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "self_outdated_check.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "wheel_builder.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "vendor.txt",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "response.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "xmlrpc.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "check.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "freeze.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "prepare.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "list.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "style.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "lock.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "token.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "search.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "unistring.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "show.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "util.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "uninstall.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "wheel.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__main__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_impl.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "base.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "installed.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "adapters.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "sdist.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "api.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "wheel.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "auth.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "certs.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "collector.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "compat.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "package_finder.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "cookies.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "sources.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "exceptions.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "help.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "base.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "hooks.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_distutils.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "models.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_sysconfig.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "packages.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "sessions.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "base.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "status_codes.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "pkg_resources.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "structures.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_json.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "utils.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_internal_utils.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "candidate.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "direct_url.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__version__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "format_control.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "providers.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "index.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "reporters.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "installation_report.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "structs.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "link.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "pylock.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "abc.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "scheme.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "align.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "search_scope.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ansi.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "selection_prefs.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "bar.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "target_python.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "box.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "wheel.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "cells.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "color.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "auth.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "color_triplet.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "cache.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "columns.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "req_uninstall.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "console.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "default_styles.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "base.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "diagnose.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "emoji.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "appdirs.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "errors.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "compat.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "filesize.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "compatibility_tags.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "file_proxy.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "datetime.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "highlighter.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "deprecation.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "json.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "direct_url_helpers.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "jupyter.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "egg_link.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "layout.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "entrypoints.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "live.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "filesystem.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "live_render.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "filetypes.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "logging.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "glibc.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "markup.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "hashes.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "measure.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "logging.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "padding.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "misc.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "pager.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "packaging.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "palette.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "retry.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "panel.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "subprocess.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "pretty.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "temp_dir.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "progress.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "unpacking.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "progress_bar.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "urls.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "prompt.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "virtualenv.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "protocol.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "wheel.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "region.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "versioncontrol.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "repr.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "rule.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "adapter.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "scope.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "cache.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "screen.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "controller.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "segment.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "filewrapper.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "spinner.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "heuristics.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "status.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "LICENSE.txt",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "style.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "serialize.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "styled.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "wrapper.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "syntax.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_cmd.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "table.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "terminal_theme.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "core.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "text.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_pick.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__main__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_ratio.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "LICENSE.txt",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_spinners.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_implementation.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_stack.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_lint_dependency_groups.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_timer.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_pip_wrapper.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_win32_console.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_toml_compat.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_windows.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_windows_renderer.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__main__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_wrap.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "compat.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "LICENSE.txt",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__main__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "resources.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_parser.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "scripts.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_re.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "util.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_types.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "distro.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_writer.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__main__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_in_process.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "abstract.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "criterion.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 22 _ Ngã Tư Sở _OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 23 _ Nguyễn Chí Thanh - La Thành _OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "AUTHORS.txt",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "LICENSE.txt",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "gui_consolidator.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "HUONG_DAN_SU_DUNG.md",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 04 _ Chùa Bộc - Tôn Thất Tùng_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_collections.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "constructors.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "LICENSE.md",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "req_dependency_group.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "package_data.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "req_file.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "uts46data.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "req_install.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "req_set.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "exceptions.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "compat.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ext.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "core.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "fallback.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "utils.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "version.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "markers.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_elffile.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "metadata.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_manylinux.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "requirements.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_musllinux.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "specifiers.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_parser.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "tags.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_structures.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_tokenizer.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__main__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "console.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "filter.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "android.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "formatter.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "api.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "lexer.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "macos.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "modeline.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "unix.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "plugin.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "version.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "regexopt.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "windows.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "scanner.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "metadata_editable.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "wheel.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "file_cache.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "wheel_editable.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "redis_cache.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "wheel.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_spdx.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "resolver.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_mapping.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "base.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "candidates.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "python.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "factory.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "socks.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "found_candidates.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_appengine_environ.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "provider.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "reporter.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "six.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "requirements.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "resolver.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "connection.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "wait.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "proxy.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "queue.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "bindings.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "request.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "low_level.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "response.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "retry.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "makefile.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ssltransport.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "weakref_finalize.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ssl_.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ssl_match_hostname.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "LICENSE.txt",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "timeout.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "LICENSE.txt",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "url.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "LICENSE.txt",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_extension.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_api.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_macos.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_openssl.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "codec.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "exceptions.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "autocompletion.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 42 _ Quang Trung - Trần Phú (Hà Đông) _OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "cache.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_version.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "git.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "mercurial.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_compat.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "LICENSE.md",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_dists.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_envs.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_fileno.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_inspect.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "build_tracker.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_log_render.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "metadata.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_loop.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_null_file.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_ssl_constants.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_windows.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "connection.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "connectionpool.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "exceptions.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "resolution.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "appengine.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "ntlmpool.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "pyopenssl.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "securetransport.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "base_command.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "check.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "cmdoptions.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "completion.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "command_context.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "configuration.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "index_command.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "debug.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "main.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "download.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "main_parser.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "freeze.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "parser.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "hash.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "progress_bars.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "help.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "req_command.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "index.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "spinners.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "subversion.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "LICENSE.txt",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "_palettes.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "control.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "status_codes.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "__init__.py",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 30 _ Văn Cao - Hoàng Hoa Thám OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 06 _ Giang Văn Minh - Kim Mã OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 10 _ Trần Nhật Duật - Hàng Đậu OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 11 _ Hàng Thùng - Nguyễn Hữu Huân _OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 13 _ Hoàng Quốc Việt - Nguyễn Phong Sắc _OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 20 _ Lương Yên - Trần Khánh Dư OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 48 _ Trần Hưng Đạo - Phan Chu Trinh OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N1.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N15.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N28.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N18.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N29.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N22.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N3.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 31 _ Giải phóng - Nguyễn Hữu Thọ ok.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N30.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N23.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N31.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 37 _ Cổng Viện 108 OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 28 _ Tràng Tiền - Trần Quang Khải OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 29 _ Trần Hưng Đạo - Trần Khánh Dư OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 33 _ Giải phóng - Trương Định ok.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 03 _ Cầu Trung Hòa_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N12.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N13.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 49 _ Kim Mã - Núi Trúc OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N10.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N19.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N11.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N25.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 32 _ Giải Phóng - Pháp Vân_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N24.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N8.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N32.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Tong_Hop_Khoi_Luong_Duy_Tu_GUI.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 34 _ Lên xuống Cầu Mai Dịch_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 17 _ Lê Duẩn - Trần Nhân Tông_OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N14.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N2.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Nút 50 _ Quán Thánh - Thanh Niên OK.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N20.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N21.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N26.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N9.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N27.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N4.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N5.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N6.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "N7.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "08. Hợp đồng (DUY TU).docx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "08.Hợp đồng brt.docx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "08. hop dong (DUY TU).docx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "08.hop dong brt.doc",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "debug_log.txt",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Tổng hợp khối lượng gói Duy Tu.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "BTH gia tri khoi luong thi cong duy tu.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "Quyết toán Duy Tu.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "15. phu luc 3a thanh toán đợt 2 Nut 475 (Cost).xls",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "15. phu luc 3a thanh toán đợt 2 Nut 475.xls",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "01. Scan hợp đồng duy tu.pdf",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "2026.01.29. KL TT 208 - duy tu.xlsx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    },
+    {
+      "source": "d:\\Code Antinigaty\\Phan mem quan ly file V4\\122.pmp",
+      "filename": "2026.12.02 Báo cáo kết quả khảo sát - buoc thiet ke.docx",
+      "metadata": {
+        "attributes": "Archive"
+      }
+    }
+  ]
+}

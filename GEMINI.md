@@ -54,6 +54,9 @@ Vui lòng sử dụng các kỹ năng phù hợp nhất cho **Phát triển chun
 12. **UI/UX Pro Max**: Tương tác nâng cao.
 13. **Vitals Templates**: Tiêu chuẩn Hiệu năng.
 
+## Lệnh tùy chỉnh (Custom Commands)
+- `/trienkhai`: Kích hoạt quy trình triển khai toàn diện.
+
 ## Hướng dẫn tùy chỉnh
 
 Thêm các hướng dẫn cụ thể cho dự án của bạn tại đây.

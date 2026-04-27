@@ -1,0 +1,221 @@
+import { useState, useEffect, useRef, KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
+import { Layout, FileText, Briefcase, Activity, Layers, ShieldCheck, BarChart3 } from "lucide-react";
+
+import { Project } from "@CONTRACT/types";
+import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
+import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
+import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
+import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
+import { safeInvoke } from "@IMPLEMENT/lib/tauri";
+import { ImportDialog } from "@IMPLEMENT/features/files/ImportDialog";
+import { HomeRibbonTools, DesignRibbonTools, ContractRibbonTools } from "./RibbonTabContent";
+import { useRibbonActions } from "@IMPLEMENT/hooks/useRibbonActions";
+import { useClickOutside } from "@IMPLEMENT/hooks/useClickOutside";
+import { cn } from "@TOOL/utils/cn";
+import { exportProjectData } from "@IMPLEMENT/services/exportService";
+import { announce, moveFocus } from "@TOOL/utils/accessibility";
+
+interface RibbonProps {
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+  project?: Project | null;
+  onForceSave?: () => void;
+  contractType?: 'INVESTOR' | 'SUBCONTRACTOR' | 'FINANCE';
+  onContractTypeChange?: (type: 'INVESTOR' | 'SUBCONTRACTOR' | 'FINANCE') => void;
+}
+
+export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractType, onContractTypeChange }: RibbonProps) {
+  const { t } = useTranslation();
+  const undo = useDesignSync(s => s.undo);
+  const redo = useDesignSync(s => s.redo);
+  const isCoordinatePanelOpen = useDesignSync(s => s.isCoordinatePanelOpen);
+  const toggleCoordinatePanel = useDesignSync(s => s.toggleCoordinatePanel);
+  const drawingMode = useDesignSync(s => s.drawingMode);
+  const setDrawingMode = useDesignSync(s => s.setDrawingMode);
+  const selectedGroupId = useDesignSync(s => s.selectedGroupId);
+  const setAnyDialogOpen = useDesignSync(s => s.setAnyDialogOpen);
+
+  const { enableAi, setEnableAi } = useSettingsStore();
+  const { togglePalette, activePaletteId } = useLayoutStore();
+  const { openStandaloneWindow, onReleaseAiMemory } = useRibbonActions(project);
+
+  const { user } = useAuthStore();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [showSystemConfig, setShowSystemConfig] = useState(false);
+  const systemConfigRef = useRef<HTMLDivElement>(null);
+
+  useClickOutside(systemConfigRef, () => setShowSystemConfig(false), showSystemConfig);
+
+  useEffect(() => {
+    setAnyDialogOpen(isImportOpen);
+  }, [isImportOpen, setAnyDialogOpen]);
+
+  useEffect(() => {
+    const checkRole = async () => {
+      if (user?.email) {
+        try {
+          const config = await safeInvoke<any>('get_app_config');
+          if (config?.admins && config.admins[user.email] === 'Admin') {
+            setIsAdmin(true);
+          } else {
+            setIsAdmin(false);
+          }
+        } catch (e) {
+          console.error("Failed to check admin role:", e);
+        }
+      }
+    };
+    checkRole();
+  }, [user]);
+
+  const tabs = [
+    { id: "HOME", label: t('project.newProject'), icon: Layout },
+    { id: "DESIGN", label: t('project.design'), icon: FileText },
+    { id: "IMPLEMENT", label: t('project.operate'), icon: Briefcase },
+    { id: "CONTRACT", label: t('project.contracts'), icon: Activity },
+    { id: "RESOURCES", label: t('project.resources'), icon: Layers },
+    { id: "ANALYTICS", label: "ANALYTICS", icon: BarChart3 },
+  ];
+
+
+  if (isAdmin) {
+    tabs.push({ id: "ADMIN", label: "ADMIN", icon: ShieldCheck });
+  }
+
+  /** Keyboard navigation for ribbon tabs — arrow keys move between tabs. */
+  const handleTabKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>): void => {
+    const currentButton = e.currentTarget;
+    const tabBar = currentButton.parentElement;
+    if (!tabBar) return;
+
+    switch (e.key) {
+      case "ArrowRight": {
+        e.preventDefault();
+        const next = moveFocus(currentButton, "next", tabBar);
+        if (next) next.click();
+        break;
+      }
+      case "ArrowLeft": {
+        e.preventDefault();
+        const prev = moveFocus(currentButton, "previous", tabBar);
+        if (prev) prev.click();
+        break;
+      }
+      case "Home": {
+        e.preventDefault();
+        const first = moveFocus(currentButton, "first", tabBar);
+        if (first) first.click();
+        break;
+      }
+      case "End": {
+        e.preventDefault();
+        const last = moveFocus(currentButton, "last", tabBar);
+        if (last) last.click();
+        break;
+      }
+    }
+  };
+
+  return (
+    <div
+      role="navigation"
+      aria-label="Ribbon navigation"
+      className="flex flex-col bg-cad-surface border-b border-cad-border shrink-0 select-none"
+    >
+      <div
+        role="tablist"
+        aria-label="Ribbon tabs"
+        className="flex px-4 pt-1 gap-1 items-end"
+      >
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            aria-controls={`panel-${tab.id}`}
+            id={`tab-${tab.id}`}
+            onClick={() => {
+              onTabChange(tab.id);
+              announce(`Switched to ${tab.label} tab`);
+            }}
+            onKeyDown={handleTabKeyDown}
+            className={cn(
+              "px-6 py-1.5 text-[11px] font-black tracking-tight rounded-t-sm transition-all relative font-display",
+              activeTab === tab.id
+                ? "bg-cad-elevated text-cad-accent border-x border-t border-cad-border"
+                : "text-cad-text-secondary hover:text-cad-text-primary hover:bg-cad-elevated/50"
+            )}
+          >
+            <div className="flex items-center gap-2">
+              {tab.id === 'ADMIN' && <tab.icon size={12} className="text-cad-accent" aria-hidden="true" />}
+              {tab.label}
+            </div>
+            {activeTab === tab.id && <div className="absolute -bottom-[1px] left-0 right-0 h-[1px] bg-cad-elevated" aria-hidden="true" />}
+          </button>
+        ))}
+      </div>
+
+      <div
+        role="toolbar"
+        aria-label={`${activeTab} tools`}
+        id={`panel-${activeTab}`}
+        aria-labelledby={`tab-${activeTab}`}
+        className="h-[80px] bg-cad-elevated flex items-center px-6 gap-8 border-t border-cad-border overflow-x-auto no-scrollbar"
+      >
+        {activeTab === 'ADMIN' ? (
+          <div className="flex items-center gap-6 animate-in slide-in-from-left duration-300">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black text-cad-accent uppercase tracking-[0.2em] mb-1">{t('settings.settings')}</span>
+              <span className="text-[9px] font-bold text-cad-text-muted uppercase">{t('project.projectSettings')}</span>
+            </div>
+            <div className="h-8 w-[1px] bg-cad-border" />
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-cad-accent/5 border border-cad-accent/10 rounded-md">
+              <ShieldCheck size={14} className="text-cad-accent" />
+              <span className="text-[10px] font-bold text-white uppercase italic">{t('settings.general')}</span>
+            </div>
+          </div>
+        ) : activeTab === 'HOME' || activeTab === 'IMPLEMENT' || activeTab === 'RESOURCES' ? (
+          <HomeRibbonTools
+            enableAi={enableAi}
+            setEnableAi={setEnableAi}
+            onReleaseAiMemory={onReleaseAiMemory}
+            onImport={() => setIsImportOpen(true)}
+            onForceSave={onForceSave}
+          />
+        ) : activeTab === 'DESIGN' ? (
+          <DesignRibbonTools
+            enableAi={enableAi} setEnableAi={setEnableAi} onReleaseAiMemory={onReleaseAiMemory}
+            onForceSave={onForceSave}
+            undo={undo} redo={redo}
+            showSystemConfig={showSystemConfig} setShowSystemConfig={setShowSystemConfig} systemConfigRef={systemConfigRef}
+            togglePalette={togglePalette} activePaletteId={activePaletteId}
+            drawingMode={drawingMode} setDrawingMode={setDrawingMode} selectedGroupId={selectedGroupId}
+            toggleCoordinatePanel={toggleCoordinatePanel} isCoordinatePanelOpen={isCoordinatePanelOpen}
+            onOpenStandalone={openStandaloneWindow}
+            onExport={async () => {
+              const { state } = useDesignSync.getState();
+              if (state) {
+                await exportProjectData(state, project?.name || 'Project', project || undefined);
+              }
+            }}
+          />
+        ) : activeTab === 'CONTRACT' ? (
+          <ContractRibbonTools
+            enableAi={enableAi} setEnableAi={setEnableAi} onReleaseAiMemory={onReleaseAiMemory}
+            contractType={contractType} onContractTypeChange={onContractTypeChange}
+          />
+        ) : null}
+      </div>
+
+      {isImportOpen && (
+        <ImportDialog
+          onClose={() => setIsImportOpen(false)}
+          onSuccess={(id) => console.log("Imported dataset:", id)}
+        />
+      )}
+    </div>
+  );
+}

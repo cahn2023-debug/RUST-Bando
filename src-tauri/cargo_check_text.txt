@@ -1,0 +1,28 @@
+﻿cargo :    Compiling 
+project-manager v0.1.0 
+(D:\Code 
+Antinigaty\Phan mem 
+quan ly file 
+V4\RUST\src-tauri)
+At line:1 char:33
++ cargo clean -p 
+project-manager; cargo 
+check 2>&1 | Out-File 
+-Encoding ...
++                      
+           
+~~~~~~~~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (   Compiling    
+ pr...RUST\src-taur    
+i):String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+    Finished `dev` 
+profile [unoptimized + 
+debuginfo] target(s) 
+in 8.58s

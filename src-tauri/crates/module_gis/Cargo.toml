@@ -1,0 +1,16 @@
+[package]
+name = "module_gis"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+app_domain = { path = "../app_domain" }
+geo = "0.29"
+serde = { version = "1", features = ["derive"] }
+anyhow = "1.0"
+async-trait = "0.1"
+url = "2.5"
+reqwest = { version = "0.12", features = ["json"] }
+hmac = "0.12.1"
+sha1 = "0.10.1"
+base64 = "0.22.1"

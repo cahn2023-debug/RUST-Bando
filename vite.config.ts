@@ -1,33 +1,45 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import wasm from "vite-plugin-wasm";
+import topLevelAwait from "vite-plugin-top-level-await";
+import path from "path";
 
-// @ts-expect-error process is a nodejs global
-const host = process.env.TAURI_DEV_HOST;
-
-// https://vite.dev/config/
-export default defineConfig(async () => ({
-  plugins: [react(), tailwindcss()],
-
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent Vite from obscuring rust errors
-  clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [
+    react(),
+    tailwindcss(),
+    wasm(),
+    topLevelAwait()
+  ],
   server: {
-    port: 1420,
+    port: 3000,
     strictPort: true,
-    host: host || false,
-    hmr: host
-      ? {
-          protocol: "ws",
-          host,
-          port: 1421,
-        }
-      : undefined,
-    watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
-    },
+    host: "127.0.0.1",
   },
-}));
+  envPrefix: ["VITE_", "TAURI_"],
+  build: {
+    target: process.env.TAURI_PLATFORM === "windows" ? "chrome105" : "safari13",
+    minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
+    sourcemap: !!process.env.TAURI_DEBUG,
+  },
+  resolve: {
+    alias: {
+      "design_renderer": path.resolve(__dirname, "src/modules/implement/lib"),
+      "@HOME": path.resolve(__dirname, "src/modules/home"),
+      "@DESIGN": path.resolve(__dirname, "src/modules/design"),
+      "@CONTRACT": path.resolve(__dirname, "src/modules/contract"),
+      "@IMPLEMENT": path.resolve(__dirname, "src/modules/implement"),
+      "@TOOL": path.resolve(__dirname, "src/modules/tool"),
+      "@ANALYTICS": path.resolve(__dirname, "src/modules/analytics"),
+      "@": path.resolve(__dirname, "src"),
+    }
+  },
+  // @ts-ignore
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: "src/test-setup.ts",
+  }
+});

@@ -1,0 +1,73 @@
+import { useState, useEffect, useCallback } from 'react';
+import { safeInvoke as invoke } from '@IMPLEMENT/lib/tauri';
+
+export interface SyncResult {
+    pushed: number;
+    pulled: number;
+    conflicts: number;
+}
+
+export function useSyncV2() {
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [lastError, setLastError] = useState<string | null>(null);
+    const [isOnline, setIsOnline] = useState(true);
+    const [lastResult, setLastResult] = useState<SyncResult | null>(null);
+
+    const fetchStatus = useCallback(async () => {
+        try {
+            const error = await invoke<string | null>('sync_v2_get_status');
+            setLastError(error);
+
+            const online = await invoke<boolean>('sync_v2_is_online');
+            setIsOnline(online);
+        } catch (e) {
+            console.error('Failed to fetch sync status:', e);
+        }
+    }, []);
+
+    const triggerSync = useCallback(async () => {
+        if (isSyncing) return;
+
+        setIsSyncing(true);
+        setLastError(null);
+
+        try {
+            const result = await invoke<SyncResult>('sync_v2_start');
+            setLastResult(result);
+        } catch (e: any) {
+            setLastError(e.toString());
+        } finally {
+            setIsSyncing(false);
+        }
+    }, [isSyncing]);
+
+    const toggleOnline = useCallback(async () => {
+        try {
+            if (isOnline) {
+                await invoke('sync_v2_go_offline');
+            } else {
+                await invoke('sync_v2_go_online');
+            }
+            setIsOnline(!isOnline);
+        } catch (e) {
+            console.error('Failed to toggle online status:', e);
+        }
+    }, [isOnline]);
+
+    // Polling status occasionally
+    useEffect(() => {
+        fetchStatus();
+        const interval = setInterval(fetchStatus, 30000); // 30s
+        return () => clearInterval(interval);
+    }, [fetchStatus]);
+
+    return {
+        isSyncing,
+        isOnline,
+        lastError,
+        lastResult,
+        triggerSync,
+        toggleOnline,
+        refreshStatus: fetchStatus
+    };
+}

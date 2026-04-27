@@ -1,0 +1,246 @@
+    Blocking waiting for file lock on build directory
+    Checking project-manager v0.1.0 (D:\Code Antinigaty\Phan mem quan ly file V4\RUST\src-tauri)
+warning: variable `projectId` should have a snake case name
+  --> src\domain\implement\commands\contract.rs:17:5
+   |
+17 |     projectId: String,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `project_id`
+   |
+   = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: variable `projectId` should have a snake case name
+  --> src\domain\implement\commands\contract.rs:70:5
+   |
+70 |     projectId: String,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `project_id`
+
+warning: variable `contractNumber` should have a snake case name
+  --> src\domain\implement\commands\contract.rs:72:5
+   |
+72 |     contractNumber: Option<String>,
+   |     ^^^^^^^^^^^^^^ help: convert the identifier to snake case: `contract_number`
+
+warning: variable `signedDate` should have a snake case name
+  --> src\domain\implement\commands\contract.rs:75:5
+   |
+75 |     signedDate: Option<String>,
+   |     ^^^^^^^^^^ help: convert the identifier to snake case: `signed_date`
+
+warning: variable `filePath` should have a snake case name
+  --> src\domain\implement\commands\contract.rs:77:5
+   |
+77 |     filePath: Option<String>,
+   |     ^^^^^^^^ help: convert the identifier to snake case: `file_path`
+
+warning: variable `contractId` should have a snake case name
+   --> src\domain\implement\commands\contract.rs:131:5
+    |
+131 |     contractId: String,
+    |     ^^^^^^^^^^ help: convert the identifier to snake case: `contract_id`
+
+warning: variable `projectId` should have a snake case name
+   --> src\domain\implement\commands\material.rs:122:5
+    |
+122 |     projectId: String,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `project_id`
+
+warning: variable `projectId` should have a snake case name
+   --> src\domain\implement\commands\material.rs:168:5
+    |
+168 |     projectId: String,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `project_id`
+
+warning: variable `featureId` should have a snake case name
+   --> src\domain\implement\commands\material.rs:169:5
+    |
+169 |     featureId: Option<String>,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `feature_id`
+
+warning: variable `materialId` should have a snake case name
+   --> src\domain\implement\commands\material.rs:171:5
+    |
+171 |     materialId: Option<String>,
+    |     ^^^^^^^^^^ help: convert the identifier to snake case: `material_id`
+
+warning: variable `unitPrice` should have a snake case name
+   --> src\domain\implement\commands\material.rs:173:5
+    |
+173 |     unitPrice: f64,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `unit_price`
+
+warning: variable `projectId` should have a snake case name
+  --> src\domain\implement\commands\note.rs:17:5
+   |
+17 |     projectId: String,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `project_id`
+
+warning: variable `projectId` should have a snake case name
+  --> src\domain\implement\commands\note.rs:54:5
+   |
+54 |     projectId: String,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `project_id`
+
+warning: variable `targetFilePath` should have a snake case name
+  --> src\domain\implement\commands\note.rs:57:5
+   |
+57 |     targetFilePath: Option<String>,
+   |     ^^^^^^^^^^^^^^ help: convert the identifier to snake case: `target_file_path`
+
+warning: variable `noteId` should have a snake case name
+   --> src\domain\implement\commands\note.rs:105:5
+    |
+105 |     noteId: String,
+    |     ^^^^^^ help: convert the identifier to snake case: `note_id`
+
+warning: variable `projectId` should have a snake case name
+ --> src\domain\implement\commands\project_v4.rs:9:5
+  |
+9 |     projectId: String,
+  |     ^^^^^^^^^ help: convert the identifier to snake case: `project_id`
+
+warning: variable `_projectId` should have a snake case name
+  --> src\domain\implement\commands\project_v4.rs:65:5
+   |
+65 |     _projectId: String,
+   |     ^^^^^^^^^^ help: convert the identifier to snake case: `_project_id`
+
+warning: variable `_projectId` should have a snake case name
+  --> src\domain\implement\commands\project_v4.rs:73:5
+   |
+73 |     _projectId: String,
+   |     ^^^^^^^^^^ help: convert the identifier to snake case: `_project_id`
+
+warning: variable `projectId` should have a snake case name
+  --> src\domain\implement\commands\task.rs:18:5
+   |
+18 |     projectId: String,
+   |     ^^^^^^^^^ help: convert the identifier to snake case: `project_id`
+
+warning: variable `_projectId` should have a snake case name
+  --> src\domain\implement\commands\task.rs:63:5
+   |
+63 |     _projectId: String,
+   |     ^^^^^^^^^^ help: convert the identifier to snake case: `_project_id`
+
+warning: variable `projectId` should have a snake case name
+   --> src\domain\implement\commands\task.rs:102:5
+    |
+102 |     projectId: String,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `project_id`
+
+warning: variable `parentId` should have a snake case name
+   --> src\domain\implement\commands\task.rs:103:5
+    |
+103 |     parentId: Option<String>,
+    |     ^^^^^^^^ help: convert the identifier to snake case: `parent_id`
+
+warning: variable `startDate` should have a snake case name
+   --> src\domain\implement\commands\task.rs:105:5
+    |
+105 |     startDate: Option<String>,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `start_date`
+
+warning: variable `endDate` should have a snake case name
+   --> src\domain\implement\commands\task.rs:106:5
+    |
+106 |     endDate: Option<String>,
+    |     ^^^^^^^ help: convert the identifier to snake case: `end_date`
+
+warning: variable `taskId` should have a snake case name
+   --> src\domain\implement\commands\task.rs:136:5
+    |
+136 |     taskId: String,
+    |     ^^^^^^ help: convert the identifier to snake case: `task_id`
+
+warning: variable `taskId` should have a snake case name
+   --> src\domain\implement\commands\task.rs:155:5
+    |
+155 |     taskId: String,
+    |     ^^^^^^ help: convert the identifier to snake case: `task_id`
+
+warning: variable `taskId` should have a snake case name
+   --> src\domain\implement\commands\task.rs:175:5
+    |
+175 |     taskId: String,
+    |     ^^^^^^ help: convert the identifier to snake case: `task_id`
+
+warning: variable `_projectId` should have a snake case name
+   --> src\domain\implement\commands\task.rs:193:5
+    |
+193 |     _projectId: String,
+    |     ^^^^^^^^^^ help: convert the identifier to snake case: `_project_id`
+
+warning: variable `fromTaskId` should have a snake case name
+   --> src\domain\implement\commands\task.rs:194:5
+    |
+194 |     fromTaskId: String,
+    |     ^^^^^^^^^^ help: convert the identifier to snake case: `from_task_id`
+
+warning: variable `toTaskId` should have a snake case name
+   --> src\domain\implement\commands\task.rs:195:5
+    |
+195 |     toTaskId: String,
+    |     ^^^^^^^^ help: convert the identifier to snake case: `to_task_id`
+
+warning: variable `_taskName` should have a snake case name
+   --> src\domain\implement\commands\task.rs:213:21
+    |
+213 | pub fn predict_task(_taskName: String) -> Result<i32, String> {
+    |                     ^^^^^^^^^ help: convert the identifier to snake case: `_task_name`
+
+warning: variable `taskId` should have a snake case name
+   --> src\domain\implement\commands\task.rs:220:5
+    |
+220 |     taskId: String,
+    |     ^^^^^^ help: convert the identifier to snake case: `task_id`
+
+warning: variable `startDate` should have a snake case name
+   --> src\domain\implement\commands\task.rs:221:5
+    |
+221 |     startDate: Option<String>,
+    |     ^^^^^^^^^ help: convert the identifier to snake case: `start_date`
+
+warning: variable `endDate` should have a snake case name
+   --> src\domain\implement\commands\task.rs:222:5
+    |
+222 |     endDate: Option<String>,
+    |     ^^^^^^^ help: convert the identifier to snake case: `end_date`
+
+warning: variable `taskId` should have a snake case name
+   --> src\domain\implement\commands\task.rs:239:5
+    |
+239 |     taskId: String,
+    |     ^^^^^^ help: convert the identifier to snake case: `task_id`
+
+warning: variable `parentId` should have a snake case name
+   --> src\domain\implement\commands\task.rs:240:5
+    |
+240 |     parentId: Option<String>,
+    |     ^^^^^^^^ help: convert the identifier to snake case: `parent_id`
+
+warning: variable `taskId` should have a snake case name
+   --> src\domain\implement\commands\task.rs:257:5
+    |
+257 |     taskId: String,
+    |     ^^^^^^ help: convert the identifier to snake case: `task_id`
+
+warning: variable `filePath` should have a snake case name
+   --> src\domain\implement\commands\task.rs:258:5
+    |
+258 |     filePath: String,
+    |     ^^^^^^^^ help: convert the identifier to snake case: `file_path`
+
+warning: variable `pmpPath` should have a snake case name
+ --> src\domain\implement\modules\v2\reporting\commands.rs:8:5
+  |
+8 |     pmpPath: String,
+  |     ^^^^^^^ help: convert the identifier to snake case: `pmp_path`
+
+warning: variable `projectId` should have a snake case name
+ --> src\domain\implement\modules\v2\reporting\commands.rs:9:5
+  |
+9 |     projectId: String,
+  |     ^^^^^^^^^ help: convert the identifier to snake case: `project_id`
+
+warning: `project-manager` (lib) generated 40 warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 32.92s

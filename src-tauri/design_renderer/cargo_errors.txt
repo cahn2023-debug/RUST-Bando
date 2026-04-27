@@ -1,0 +1,127 @@
+﻿cargo : warning: profiles for the non root 
+package will be ignored, specify profiles 
+at the workspace root:
+At line:1 char:1
++ cargo check --target 
+wasm32-unknown-unknown 2>&1 | Out-File 
+-Encoding ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~
+    + CategoryInfo          : NotSpecified 
+   : (warning: profil...workspace root::S  
+  tring) [], RemoteException
+    + FullyQualifiedErrorId : NativeComman 
+   dError
+ 
+package:   D:\Code Antinigaty\Phan mem 
+quan ly file V4\RUST\src-tauri\design_rende
+rer\Cargo.toml
+workspace: D:\Code Antinigaty\Phan mem 
+quan ly file V4\RUST\src-tauri\Cargo.toml
+    Checking design_renderer v0.1.0 
+(D:\Code Antinigaty\Phan mem quan ly file 
+V4\RUST\src-tauri\design_renderer)
+error[E0433]: failed to resolve: use of 
+unresolved module or unlinked crate `winit`
+  --> design_renderer\src\lib.rs:21:11
+   |
+21 |     size: 
+winit::dpi::PhysicalSize<u32>,
+   |           ^^^^^ use of unresolved 
+module or unlinked crate `winit`
+   |
+   = help: if you wanted to use a crate 
+named `winit`, use `cargo add winit` to 
+add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of 
+unresolved module or unlinked crate `winit`
+  --> design_renderer\src\lib.rs:33:20
+   |
+33 |         let size = 
+winit::dpi::PhysicalSize::new(width, 
+height);
+   |                    ^^^^^ use of 
+unresolved module or unlinked crate `winit`
+   |
+   = help: if you wanted to use a crate 
+named `winit`, use `cargo add winit` to 
+add it to your `Cargo.toml`
+
+warning: use of deprecated function `Render
+erState::new::{closure#0}::_::constructor`:
+ async constructors produce invalid TS 
+code and support will be removed in the 
+future
+  --> design_renderer\src\lib.rs:27:18
+   |
+27 |     pub async fn new(canvas: 
+HtmlCanvasElement) -> Self {
+   |                  ^^^
+   |
+   = note: `#[warn(deprecated)]` on by 
+default
+
+error[E0599]: no method named 
+`create_surface_from_canvas` found for 
+struct `wgpu::Instance` in the current 
+scope
+  --> design_renderer\src\lib.rs:42:32
+   |
+42 |         let surface = instance.create_
+surface_from_canvas(canvas).unwrap();
+   |                                
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+help: there is a method `create_surface` 
+with a similar name
+   |
+42 -         let surface = instance.create_
+surface_from_canvas(canvas).unwrap();
+42 +         let surface = 
+instance.create_surface(canvas).unwrap();
+   |
+
+error[E0282]: type annotations needed
+  --> design_renderer\src\lib.rs:69:20
+   |
+69 |             .find(|f| f.is_srgb())    
+        
+   |                    ^  - type must be 
+known at this point
+   |
+help: consider giving this closure 
+parameter an explicit type
+   |
+69 |             .find(|f: /* Type */| 
+f.is_srgb())            
+   |                     ++++++++++++
+
+error[E0433]: failed to resolve: use of 
+unresolved module or unlinked crate 
+`wasm_bindgen_futures`
+  --> design_renderer\src\lib.rs:24:1
+   |
+24 | #[wasm_bindgen]
+   | ^^^^^^^^^^^^^^^ use of unresolved 
+module or unlinked crate 
+`wasm_bindgen_futures`
+   |
+   = help: if you wanted to use a crate 
+named `wasm_bindgen_futures`, use `cargo 
+add wasm_bindgen_futures` to add it to 
+your `Cargo.toml`
+   = note: this error originates in the 
+attribute macro `wasm_bindgen` (in Nightly 
+builds, run with -Z macro-backtrace for 
+more info)
+
+Some errors have detailed explanations: 
+E0282, E0433, E0599.
+For more information about an error, try 
+`rustc --explain E0282`.
+warning: `design_renderer` (lib) generated 
+1 warning
+error: could not compile `design_renderer` 
+(lib) due to 5 previous errors; 1 warning 
+emitted

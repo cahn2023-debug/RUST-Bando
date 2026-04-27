@@ -1,0 +1,22 @@
+﻿cargo :    Compiling 
+librocksdb-sys 
+v0.16.0+8.10.0
+At line:1 char:1
++ cargo check 2>&1 | 
+Out-File -FilePath 
+"current_error.txt" 
+-Encoding u ...
++ ~~~~~~~~~~~~~~~~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (   Comp   
+ iling li... v0.1    
+6.0+8.10.0:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+   Compiling 
+libduckdb-sys v1.2.2

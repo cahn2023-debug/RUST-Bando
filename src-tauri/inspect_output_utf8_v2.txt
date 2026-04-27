@@ -1,0 +1,132 @@
+   Compiling project-manager v0.1.0 (D:\Code Antinigaty\Phan mem quan ly file V4\RUST\src-tauri)
+warning: unused imports: `Arc` and `Mutex`
+    --> src\IMPLEMENT\modules\v2\migration\engine.rs:1232:25
+     |
+1232 |         use std::sync::{Arc, Mutex};
+     |                         ^^^  ^^^^^
+     |
+     = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `project_id`
+  --> src\IMPLEMENT\commands\task.rs:71:5
+   |
+71 |     project_id: String,
+   |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_project_id`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `project_id`
+   --> src\IMPLEMENT\commands\task.rs:362:5
+    |
+362 |     project_id: String,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_project_id`
+
+warning: function `table_exists` is never used
+  --> src\IMPLEMENT\commands\content.rs:40:4
+   |
+40 | fn table_exists(conn: &Connection, table_name: &str) -> Result<bool, String> {
+   |    ^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `content_types_table` is never used
+  --> src\IMPLEMENT\commands\content.rs:51:4
+   |
+51 | fn content_types_table(conn: &Connection) -> Result<Option<&'static str>, String> {
+   |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `content_fields_table` is never used
+  --> src\IMPLEMENT\commands\content.rs:61:4
+   |
+61 | fn content_fields_table(conn: &Connection) -> Result<Option<&'static str>, String> {
+   |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `content_items_table` is never used
+  --> src\IMPLEMENT\commands\content.rs:71:4
+   |
+71 | fn content_items_table(conn: &Connection) -> Result<Option<&'static str>, String> {
+   |    ^^^^^^^^^^^^^^^^^^^
+
+warning: function `value_to_string` is never used
+  --> src\IMPLEMENT\commands\content.rs:81:4
+   |
+81 | fn value_to_string(value: Value) -> String {
+   |    ^^^^^^^^^^^^^^^
+
+warning: type alias `ContentTypeRow` is never used
+  --> src\IMPLEMENT\commands\content.rs:91:6
+   |
+91 | type ContentTypeRow = (String, String, Option<String>, Option<String>);
+   |      ^^^^^^^^^^^^^^
+
+warning: type alias `ContentFieldRow` is never used
+  --> src\IMPLEMENT\commands\content.rs:92:6
+   |
+92 | type ContentFieldRow = (String, String, String, String, String, bool, Option<String>);
+   |      ^^^^^^^^^^^^^^^
+
+warning: function `load_content_type_rows` is never used
+  --> src\IMPLEMENT\commands\content.rs:94:4
+   |
+94 | fn load_content_type_rows(conn: &Connection) -> Result<Vec<ContentTypeRow>, String> {
+   |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `resolve_content_type_db_id` is never used
+   --> src\IMPLEMENT\commands\content.rs:121:4
+    |
+121 | fn resolve_content_type_db_id(conn: &Connection, legacy_type_id: i32) -> Result<String, String> {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `load_content_field_rows` is never used
+   --> src\IMPLEMENT\commands\content.rs:132:4
+    |
+132 | fn load_content_field_rows(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `resolve_content_item_legacy_id` is never used
+   --> src\IMPLEMENT\commands\content.rs:168:4
+    |
+168 | fn resolve_content_item_legacy_id(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `project-manager` (lib) generated 14 warnings (run `cargo fix --lib -p project-manager` to apply 3 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.55s
+     Running `target\debug\inspect_pmp.exe`
+Inspecting file: D:\Code Antinigaty\Phan mem quan ly file V4\Du_an_165.pmp
+Tables found: ["v1_projects", "v1_files", "sqlite_sequence", "v1_personnel", "v1_contracts", "v1_tasks", "v1_notes", "v1_project_folders", "content_index", "task_dependencies", "file_search", "file_search_data", "file_search_idx", "file_search_content", "file_search_docsize", "file_search_config", "v1_design_events", "design_snapshots", "v1_materials", "v1_work_items", "v1_contract_execution_groups", "ai_corrections", "v1_content_types", "v1_content_fields", "v1_content_items", "v1_project_settings", "v1_audit_logs", "v1_feature_attachments", "v1_design_styles", "v1_roles", "v1_personnel_roles", "task_search", "task_search_data", "task_search_idx", "task_search_content", "task_search_docsize", "task_search_config", "note_search", "note_search_data", "note_search_idx", "note_search_content", "note_search_docsize", "note_search_config", "features", "migrations", "sync_state", "pmp_metadata", "entity_id_aliases", "design_command_batches", "event_store", "metadata_registry", "entity_index", "entity_search", "entity_search_data", "entity_search_idx", "entity_search_docsize", "entity_search_config", "blob_registry", "projects", "tasks", "layers", "feature_groups", "files", "work_items", "materials", "contracts", "personnel", "notes", "content_types", "content_items", "roles", "personnel_roles", "audit_logs", "feature_attachments", "design_styles", "contract_execution_groups", "task_links", "project_folders", "content_fields", "project_settings", "design_events"]
+
+--- Table: v1_design_events ---
+Count: 7042
+Columns: ["event_id", "project_id", "event_type", "payload_json", "timestamp", "is_undone"]
+Sample (top 3):
+  191b20a9-0b44-4ef6-bebb-a7686857d0e9 | 20260404185149 | RegionCreated | {"type":"RegionCreated","payload":{"id":"7b87c345-9456-4139-853f-5d23fc93d4f0","parent_id":null,"name":"Dự án 165"}} | 2026-03-28 06:11:15 | 0
+  4cd56a29-e980-4a6f-ba6d-465582aa2648 | 20260404185149 | LayerCreated | {"type":"LayerCreated","payload":{"id":"7b87c345-9456-4139-853f-5d23fc93d4f0_default_layer","region_id":"7b87c345-9456-4139-853f-5d23fc93d4f0","name":"Default Layer"}} | 2026-03-28 06:11:15 | 0
+  bddfaec4-16ef-4a1c-bbb4-1b3735a77342 | 20260404185149 | FeatureGroupCreated | {"type":"FeatureGroupCreated","payload":{"id":"ad627a53-7955-416b-8d03-aea52c32313e","layer_id":"7b87c345-9456-4139-853f-5d23fc93d4f0_default_layer","parent_id":null,"name":"Nút giao","group_type":"FOLDER"}} | 2026-03-28 06:11:22 | 0
+Project IDs in this table:
+  - Integer(20260404185149)
+
+--- Table: design_events ---
+Count: 0
+
+--- Table: event_store ---
+Count: 7056
+Columns: ["id", "project_id", "entity_type", "entity_id", "event_type", "payload_json", "metadata_json", "version", "global_seq", "device_id", "correlation_id", "causation_id", "created_at"]
+Sample (top 3):
+  191b20a9-0b44-4ef6-bebb-a7686857d0e9 | d9d7986b-c630-4e9d-a9ff-ed5309164c0f | feature | 483647ed-52db-427e-a0c8-1c3ed6955580 | RegionCreated | {"type":"RegionCreated","payload":{"id":"7b87c345-9456-4139-853f-5d23fc93d4f0","parent_id":null,"name":"Dự án 165"}} | NULL | 1 | 0 | migration | NULL | NULL | 2026-03-28 06:11:15
+  4cd56a29-e980-4a6f-ba6d-465582aa2648 | d9d7986b-c630-4e9d-a9ff-ed5309164c0f | feature | 5acfaecd-27f1-4f0d-bbfb-bfb7782a3b24 | LayerCreated | {"type":"LayerCreated","payload":{"id":"7b87c345-9456-4139-853f-5d23fc93d4f0_default_layer","region_id":"7b87c345-9456-4139-853f-5d23fc93d4f0","name":"Default Layer"}} | NULL | 1 | 1 | migration | NULL | NULL | 2026-03-28 06:11:15
+  bddfaec4-16ef-4a1c-bbb4-1b3735a77342 | d9d7986b-c630-4e9d-a9ff-ed5309164c0f | feature | eb2aaac2-7f64-4ace-9a71-82fa7f9c1c7b | FeatureGroupCreated | {"type":"FeatureGroupCreated","payload":{"id":"ad627a53-7955-416b-8d03-aea52c32313e","layer_id":"7b87c345-9456-4139-853f-5d23fc93d4f0_default_layer","parent_id":null,"name":"Nút giao","group_type":"FOLDER"}} | NULL | 1 | 2 | migration | NULL | NULL | 2026-03-28 06:11:22
+Project IDs in this table:
+  - Text("d9d7986b-c630-4e9d-a9ff-ed5309164c0f")
+
+--- Table: v1_projects ---
+Count: 1
+Columns: ["id", "name", "root_path", "path", "description", "contract_number", "investor", "contractor", "signed_date", "duration", "end_date", "status", "created_at", "updated_at", "metadata_json"]
+Sample (top 3):
+  20260404185149 | Du_an_165 | D:\Code Antinigaty\Phan mem quan ly file V4 | D:\Code Antinigaty\Phan mem quan ly file V4\Du_an_165.pmp | Legacy PMP Project | NULL | NULL | NULL | NULL | NULL | NULL | active | 2026-03-28 06:10:56 | 2026-03-28 06:10:56 | NULL
+
+--- Table: projects ---
+Count: 2
+Columns: ["id", "name", "root_path", "path", "description", "contract_number", "investor", "contractor", "signed_date", "duration", "end_date", "status", "metadata_json", "current_version", "created_at", "updated_at"]
+Sample (top 3):
+  db8f30de-3ba2-462a-86ca-cbcedb990355 | Du_an_165 | D:\Code Antinigaty\Phan mem quan ly file V4 | NULL | NULL | NULL | NULL | NULL | NULL | NULL | NULL | active | {} | 1 | 2026-04-19T02:10:47.139650500+00:00 | 2026-04-19T02:10:47.139650500+00:00
+  d9d7986b-c630-4e9d-a9ff-ed5309164c0f | Du_an_165 | D:\Code Antinigaty\Phan mem quan ly file V4 | NULL | NULL | NULL | NULL | NULL | NULL | NULL | NULL | active | {} | 1 | 2026-04-19T02:10:47.140156600+00:00 | 2026-04-19T02:10:47.140156600+00:00

@@ -1,0 +1,55 @@
+{
+  "updated_at": "2026-03-17T14:20:00Z",
+  "working_at": "Hoàn tất tích hợp Window Controls (Minimize/Maximize) và tinh chỉnh giao diện Frameless cho Analysis/Print windows.",
+  "working_on": {
+    "feature": "Standalone Window Enhancements",
+    "task": "Window Controls & Custom Titlebar implementation.",
+    "status": "completed",
+    "files": [
+      "src/components/AnalysisDialog.tsx",
+      "src/components/PrintDialog.tsx",
+      "src-tauri/capabilities/default.json"
+    ],
+    "blockers": [],
+    "notes": "Added Minimize/Maximize/Restore buttons to Analysis and Print standalone windows. Synchronized maximized state via Tauri events. Fixed syntax errors and store destructuring issues."
+  },
+  "recent_changes": [
+    {
+      "type": "feature",
+      "description": "Implemented custom window controls (Min/Max/Restore) for standalone windows.",
+      "files": ["src/components/AnalysisDialog.tsx", "src/components/PrintDialog.tsx"]
+    },
+    {
+      "type": "ux",
+      "description": "Removed native decorations and enabled custom header dragging for better professional look.",
+      "files": ["src-tauri/tauri.conf.json", "src/components/AnalysisDialog.tsx"]
+    },
+    {
+      "type": "security",
+      "description": "Updated Tauri capabilities to allow window dragging and control actions.",
+      "files": ["src-tauri/capabilities/default.json"]
+    }
+  ],
+  "decisions_made": [
+    {
+      "decision": "Remove native titlebars (decorations: false)",
+      "reason": "To create a seamless professional UI that matches the application's clean design system."
+    },
+    {
+      "decision": "Use useEffect + onResized listener",
+      "reason": "To ensure the Maximize/Restore icon accurately reflects the actual window state, even when triggered by system shortcuts or double-clicks."
+    }
+  ],
+  "errors_encountered": [
+    {
+      "error": "SyntaxError: Unexpected token 'import' (backtick leak)",
+      "resolved": true,
+      "solution": "Manually cleaned up accidental markdown-style backticks from source files."
+    },
+    {
+      "error": "Tauri Window drag/control permission errors",
+      "resolved": true,
+      "solution": "Added missing core:window permissions to capabilities/default.json."
+    }
+  ]
+}

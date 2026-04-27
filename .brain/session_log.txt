@@ -1,0 +1,2 @@
+[2026-03-10 14:00:45] RUN SUCCESS: App running at http://localhost:1420
+[2026-04-07 13:06:45] SAVE BRAIN: Fixed PMP Auto-Open and Recursive Explorer Visibility (v6.5.66).

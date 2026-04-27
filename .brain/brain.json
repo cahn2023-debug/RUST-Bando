@@ -1,14 +1,102 @@
 {
+  "meta": {
+    "schema_version": "1.1.0",
+    "awf_version": "4.0.2"
+  },
   "project": {
     "name": "Project Manager",
-    "description": "Phần mềm desktop gồm 3 phần: 1. Hồ sơ thiết kế, 2. Quản lý triển khai, 3. Quản lý vận hành",
-    "created_at": "2026-03-05T23:13:20+07:00"
+    "type": "Tauri V2 Desktop App",
+    "status": "Refactor & GIS Expansion (V5.4) Complete"
   },
-  "tech_stack": ["Rust", "Tauri", "React", "TypeScript", "SQLite"],
+  "tech_stack": {
+    "frontend": {
+      "framework": "React 19",
+      "bundler": "Vite",
+      "styling": "Tailwind CSS v4",
+      "state_management": "Zustand",
+      "map_library": "Leaflet",
+      "ui_components": "Lucide React, TanStack Table, React Virtuoso",
+      "external_sdk": "Google Maps (Street View)"
+    },
+    "backend": {
+      "runtime": "Tauri v2 (Rust)",
+      "database": "SQLite (WAL Mode), RocksDB (KV Cache), DuckDB (Analytics)",
+      "libraries": "design_renderer (WASM), geozero (GIS), rusqlite, tauri-plugin-fs, tauri-plugin-dialog"
+    }
+  },
   "features": [
-    "Hồ sơ thiết kế",
-    "Quản lý triển khai",
-    "Quản lý vận hành"
+    {
+      "name": "Sync Engine V2",
+      "desc": "Hệ thống đồng bộ dữ liệu cải tiến với tính năng index đệ quy and serialization tự động."
+    },
+    {
+      "name": "AI Core Optimization",
+      "desc": "Tối ưu hóa bộ nhớ Embedding và xử lý OCR ở background."
+    },
+    {
+      "name": "Technical PDF Preview",
+      "desc": "Trình tạo preview PDF chế độ trích xuất văn bản siêu nhanh."
+    },
+    {
+      "name": "StreetView Rotation Lock",
+      "desc": "Khóa góc xoay Street View ±90° và cố định đường chân trời (Horizon Lock)."
+    },
+    {
+      "name": "Advanced GIS & Audit",
+      "desc": "Công cụ vẽ (Point, Line, Poly) n8n-style, tích hợp BBOX Spatial Indexing và Audit Logs vĩnh viễn."
+    },
+    {
+      "name": "Advanced Search & DMP Optimization",
+      "desc": "Tối ưu hóa Auto-Commit 5s, Parallel Entity Search và đồng bộ Recent Projects V2."
+    },
+    {
+      "name": "GIS Topology & Export (V5.4)",
+      "desc": "Bổ sung TopologyValidator cho polygon overlap và export GeoJSON."
+    }
   ],
-  "decisions": []
+  "api_endpoints": [
+    {
+      "path": "project::get_projects",
+      "desc": "Lấy danh sách dự án"
+    },
+    {
+      "path": "project::load_pmp_file",
+      "desc": "Mở file dự án .pmp (hỗ trợ V2 migration)"
+    },
+    {
+      "path": "design_events::dispatch_design_events",
+      "desc": "Xử lý hàng loạt sự kiện thiết kế (Batch Sync)"
+    },
+    {
+      "path": "project_v4::get_audit_logs",
+      "desc": "Truy xuất nhật ký thay đổi của dự án"
+    }
+  ],
+  "knowledge_items": {
+    "conventions": [
+      "Sử dụng snake_case cho Tauri commands/parameters",
+      "STT phải hiển thị dạng số nguyên trong view layer",
+      "Sử dụng log::info! thay cho println! trong backend code",
+      "Tuyệt đối không sử dụng 'any' trong các module logic React quan trọng"
+    ],
+    "patterns": [
+      "PDF Text-Mode Preview: Tiết kiệm RAM bằng cách trích xuất text thay vì render viewport nặng.",
+      "Rotation Guard: Giới hạn góc nhìn Street View để tập trung vào đối tượng kỹ thuật.",
+      "Pooled Hydration: Parallelizing data loading in Rust to prevent UI blocking.",
+      "Lazy Spatial Index Update: Skipping R-tree write locks for metadata-only feature updates.",
+      "BBOX Spatial Filtering: Tối ưu hóa Map Tiles bằng cách lọc tọa độ [minX, minY, maxX, maxY] trực tiếp tại SQL level.",
+      "n8n-style GIS Toolbar: Thiết kế UI công cụ vẽ nổi (floating) với hiệu ứng Glassmorphism và Lucide icons.",
+      "Periodic Auto-Commit: Sử dụng tokio intervals (5s) để tự động flush-and-sync cho Project V2.",
+      "Parallel Entity Scanning: Quét song song Task, Personnel và Feature để tối ưu I/O SQLite.",
+      "Topology Integrity Check: Sử dụng BBOX check trước khi thực hiện spatial validation phức tạp.",
+      "GeoJSON Standard Export: Chuyển đổi FeatureState sang chuẩn RFC 7946 GeoJSON."
+    ],
+    "gotchas": [
+      "SQL BBOX Match: Tọa độ BBOX trong database cần lưu dạng FLOAT để khớp với độ chính xác của SlipMap Tile conversion.",
+      "Audit ID Collision: Cần đảm bảo feature_id được sync đồng nhất giữa Client (Draw-random-id) và Server (Serial-id) nếu dùng fallback.",
+      "SQLite Busy Timeout: Tăng lên 30s để tránh lock khi migration dữ liệu lớn.",
+      "Unwrap Panic: Cần sử dụng ? hoặc expect thay cho unwrap trong database layers.",
+      "Module Resolution Hierarchy: Trong Tauri V2 plugin, nên dùng path tuyệt đối (crate::implement::commands::...) trong generate_handler! để tránh lỗi resolution khi có alias trùng tên."
+    ]
+  }
 }

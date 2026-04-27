@@ -1,0 +1,1131 @@
+﻿cargo :     Blocking 
+waiting for file lock 
+on build directory
+At line:1 char:1
++ cargo check 2>&1 | 
+Out-File -FilePath 
+errors_v2.txt 
+-Encoding utf8
++ ~~~~~~~~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (    Blocking    
+ wa...build directo    
+ry:String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+    Checking 
+project-manager v0.1.0 
+(D:\Code 
+Antinigaty\Phan mem 
+quan ly file 
+V4\RUST\src-tauri)
+warning: unused 
+import: `tauri::State`
+ --> src\domain\design\
+design_events\mod.rs:1:
+5
+  |
+1 | use tauri::State;
+  |     ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unuse
+d_imports)]` (part of 
+`#[warn(unused)]`) on 
+by default
+
+warning: unused 
+import: `crate::impleme
+nt::modules::core::conf
+ig::ConfigState`
+ --> src\domain\design\
+design_events\mod.rs:2:
+5
+  |
+2 | use crate::implemen
+t::modules::core::confi
+g::ConfigState;
+  |     ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^
+
+warning: unused 
+import: `uuid::Uuid`
+ --> src\domain\impleme
+nt\commands\project_v4.
+rs:6:5
+  |
+6 | use uuid::Uuid;
+  |     ^^^^^^^^^^
+
+warning: unused 
+import: `crate::domain:
+:implement::db::event_s
+tore::EventStore`
+ --> src\domain\impleme
+nt\db\migration_v2.rs:1
+:5
+  |
+1 | use crate::domain::
+implement::db::event_st
+ore::EventStore;
+  |     ^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^
+
+warning: unused 
+import: `AppConfig`
+ --> src\domain\impleme
+nt\modules\core\active_
+pmp.rs:4:60
+  |
+4 | use crate::implemen
+t::modules::core::confi
+g::{ConfigState, 
+AppConfig};
+  |                    
+                       
+                 
+^^^^^^^^^
+
+warning: unused 
+import: 
+`arc_swap::ArcSwap`
+ --> src\domain\impleme
+nt\modules\core\active_
+pmp.rs:7:5
+  |
+7 | use 
+arc_swap::ArcSwap;
+  |     
+^^^^^^^^^^^^^^^^^
+
+warning: unused 
+import: 
+`std::sync::Arc`
+ --> src\domain\impleme
+nt\modules\core\bridge.
+rs:4:5
+  |
+4 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused 
+import: `AppHandle`
+ --> src\domain\impleme
+nt\modules\core\config.
+rs:7:20
+  |
+7 | use tauri::{State, 
+AppHandle};
+  |                    
+^^^^^^^^^
+
+warning: unused 
+import: 
+`parking_lot::Mutex`
+ --> src\domain\impleme
+nt\modules\v2\projectio
+ns\engine.rs:1:5
+  |
+1 | use 
+parking_lot::Mutex;
+  |     
+^^^^^^^^^^^^^^^^^^
+
+warning: unused 
+import: `std::collectio
+ns::HashMap`
+ --> src\domain\impleme
+nt\modules\v2\projectio
+ns\engine.rs:7:5
+  |
+7 | use std::collection
+s::HashMap;
+  |     ^^^^^^^^^^^^^^^
+^^^^^^^^^^
+
+warning: unused 
+import: 
+`std::sync::Arc`
+ --> src\domain\impleme
+nt\modules\v2\projectio
+ns\engine.rs:8:5
+  |
+8 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused 
+import: `AppEvent`
+ --> src\domain\impleme
+nt\modules\v2\projectio
+ns\ingestion.rs:2:33
+  |
+2 | use crate::domain::
+models::v2::{AppEvent, 
+EventEnvelope};
+  |                    
+             ^^^^^^^^
+
+warning: variable does 
+not need to be mutable
+  --> src\domain\implem
+ent\modules\v2\storage\
+worker.rs:44:53
+   |
+44 |     async fn 
+run(mut self, 
+event_store: 
+EventStore, mut 
+projection_engine: 
+ProjectionEngine) {
+   |                   
+                       
+           
+----^^^^^^^^^^^^^^^^^
+   |                   
+                       
+           |
+   |                   
+                       
+           help: 
+remove this `mut`
+   |
+   = note: 
+`#[warn(unused_mut)]` 
+(part of 
+`#[warn(unused)]`) on 
+by default
+
+warning: unused 
+variable: `db_state`
+  --> src\domain\implem
+ent\commands\project_un
+ified.rs:26:5
+   |
+26 |     db_state: 
+State<'_, 
+DatabaseState>,
+   |     ^^^^^^^^ 
+help: if this is 
+intentional, prefix it 
+with an underscore: 
+`_db_state`
+   |
+   = note: `#[warn(unus
+ed_variables)]` (part 
+of `#[warn(unused)]`) 
+on by default
+
+warning: unused 
+variable: `config`
+  --> src\domain\implem
+ent\modules\core\config
+.rs:56:50
+   |
+56 | #[tauri::command] 
+pub async fn update_app
+_config(config: 
+serde_json::Value) -> 
+Result<(), String> { 
+Ok(()) }
+   |                   
+                       
+        ^^^^^^ help: 
+if this is 
+intentional, prefix it 
+with an underscore: 
+`_config`
+
+warning: unused 
+variable: `path`
+  --> src\domain\implem
+ent\modules\core\config
+.rs:59:54
+   |
+59 | #[tauri::command] 
+pub async fn remove_rec
+ent_project(path: 
+String) -> Result<(), 
+String> { Ok(()) }
+   |                   
+                       
+            ^^^^ help: 
+if this is 
+intentional, prefix it 
+with an underscore: 
+`_path`
+
+warning: variable does 
+not need to be mutable
+  --> src\domain\implem
+ent\modules\ingestion\i
+mport\kmz_import.rs:41:
+69
+   |
+41 |             match 
+KmlParser::parse_reader
+(reader, 
+mapping.clone(), |mut 
+r| {
+   |                   
+                       
+                       
+    ----^
+   |                   
+                       
+                       
+    |
+   |                   
+                       
+                       
+    help: remove this 
+`mut`
+
+warning: unused 
+variable: `metadata`
+   --> src\domain\imple
+ment\modules\v2\project
+ions\engine.rs:804:17
+    |
+804 |                 
+metadata,
+    |                 
+^^^^^^^^ help: try 
+ignoring the field: 
+`metadata: _`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\design
+\design_events\mod.rs:4
+4:80
+   |
+44 | ...ent(#[allow(unu
+sed_variables)] 
+projectId: String, #[al
+low(unused_variables)] 
+t: String, #[allow(unus
+ed_variables)] 
+payload: Value...
+   |                   
+                
+^^^^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`project_id`
+   |
+   = note: `#[warn(non_
+snake_case)]` (part of 
+`#[warn(nonstandard_sty
+le)]`) on by default
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\design
+\design_events\mod.rs:4
+5:76
+   |
+45 | ...ate(#[allow(unu
+sed_variables)] 
+projectId: String) -> 
+Result<Value, String> 
+{ Ok(serde_json::json!(
+{})) }
+   |                   
+                
+^^^^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\design
+\design_events\mod.rs:4
+6:82
+   |
+46 | ...nts(#[allow(unu
+sed_variables)] 
+projectId: String, #[al
+low(unused_variables)] 
+events: Vec<Value>) -> 
+Result<Value, String> 
+{ Ok(se...
+   |                   
+                
+^^^^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\design
+\design_events\mod.rs:4
+7:77
+   |
+47 | ...ate(#[allow(unu
+sed_variables)] 
+projectId: i64) -> 
+Result<Value, String> 
+{ Ok(serde_json::json!(
+{})) }
+   |                   
+                
+^^^^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\design
+\design_events\mod.rs:4
+8:77
+   |
+48 | #[tauri::command] 
+pub async fn undo_desig
+n_event(#[allow(unused_
+variables)] projectId: 
+String) -> Result<(), 
+String> { Ok(()) }
+   |                   
+                       
+                       
+            ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\design
+\design_events\mod.rs:4
+9:77
+   |
+49 | #[tauri::command] 
+pub async fn redo_desig
+n_event(#[allow(unused_
+variables)] projectId: 
+String) -> Result<(), 
+String> { Ok(()) }
+   |                   
+                       
+                       
+            ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\design
+\design_events\mod.rs:5
+0:84
+   |
+50 | #[tauri::command] 
+pub async fn deduplicat
+e_project_data(#[allow(
+unused_variables)] 
+projectId: String) -> 
+Result<(), String> { 
+Ok(()) }
+   |                   
+                       
+                       
+                   
+^^^^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\design
+\design_events\mod.rs:5
+1:82
+   |
+51 | ...ata(#[allow(unu
+sed_variables)] 
+projectId: String) -> 
+Result<Value, String> 
+{ Ok(serde_json::json!(
+{})) }
+   |                   
+                
+^^^^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\design
+\design_events\mod.rs:5
+2:82
+   |
+52 | ...rea(#[allow(unu
+sed_variables)] 
+projectId: String, #[al
+low(unused_variables)] 
+bounds: Value) -> 
+Result<Vec<Value>, 
+String> { Ok(ve...
+   |                   
+                
+^^^^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\design
+\design_events\mod.rs:5
+3:83
+   |
+53 | ...int(#[allow(unu
+sed_variables)] 
+projectId: String, #[al
+low(unused_variables)] 
+point: Value) -> 
+Result<Option<Value>, 
+String> { Ok(...
+   |                   
+                
+^^^^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\implem
+ent\commands\contract.r
+s:17:5
+   |
+17 |     projectId: 
+String,
+   |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\implem
+ent\commands\contract.r
+s:70:5
+   |
+70 |     projectId: 
+String,
+   |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `project_id`
+
+warning: variable 
+`contractNumber` 
+should have a snake 
+case name
+  --> src\domain\implem
+ent\commands\contract.r
+s:72:5
+   |
+72 |     
+contractNumber: 
+Option<String>,
+   |     
+^^^^^^^^^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`contract_number`
+
+warning: variable 
+`signedDate` should 
+have a snake case name
+  --> src\domain\implem
+ent\commands\contract.r
+s:75:5
+   |
+75 |     signedDate: 
+Option<String>,
+   |     ^^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `signed_date`
+
+warning: variable 
+`filePath` should have 
+a snake case name
+  --> src\domain\implem
+ent\commands\contract.r
+s:77:5
+   |
+77 |     filePath: 
+Option<String>,
+   |     ^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `file_path`
+
+warning: variable 
+`contractId` should 
+have a snake case name
+   --> src\domain\imple
+ment\commands\contract.
+rs:131:5
+    |
+131 |     contractId: 
+String,
+    |     ^^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `contract_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+   --> src\domain\imple
+ment\commands\material.
+rs:122:5
+    |
+122 |     projectId: 
+String,
+    |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+   --> src\domain\imple
+ment\commands\material.
+rs:168:5
+    |
+168 |     projectId: 
+String,
+    |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `project_id`
+
+warning: variable 
+`featureId` should 
+have a snake case name
+   --> src\domain\imple
+ment\commands\material.
+rs:169:5
+    |
+169 |     featureId: 
+Option<String>,
+    |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `feature_id`
+
+warning: variable 
+`materialId` should 
+have a snake case name
+   --> src\domain\imple
+ment\commands\material.
+rs:171:5
+    |
+171 |     materialId: 
+Option<String>,
+    |     ^^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `material_id`
+
+warning: variable 
+`unitPrice` should 
+have a snake case name
+   --> src\domain\imple
+ment\commands\material.
+rs:173:5
+    |
+173 |     unitPrice: 
+f64,
+    |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `unit_price`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\implem
+ent\commands\note.rs:17
+:5
+   |
+17 |     projectId: 
+String,
+   |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\implem
+ent\commands\note.rs:54
+:5
+   |
+54 |     projectId: 
+String,
+   |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `project_id`
+
+warning: variable 
+`targetFilePath` 
+should have a snake 
+case name
+  --> src\domain\implem
+ent\commands\note.rs:57
+:5
+   |
+57 |     
+targetFilePath: 
+Option<String>,
+   |     
+^^^^^^^^^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`target_file_path`
+
+warning: variable 
+`noteId` should have a 
+snake case name
+   --> src\domain\imple
+ment\commands\note.rs:1
+05:5
+    |
+105 |     noteId: 
+String,
+    |     ^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`note_id`
+
+warning: unused 
+`Result` that must be 
+used
+  --> src\domain\implem
+ent\commands\project_v2
+.rs:50:5
+   |
+50 | /     active_pmp
+51 | |         
+.bind_project(
+52 | |             Path
+Buf::from(project.path.
+as_deref().unwrap_or(""
+)),
+53 | |             
+project_id,
+54 | |             
+None,
+55 | |         );
+   | |_________^
+   |
+   = note: this 
+`Result` may be an 
+`Err` variant, which 
+should be handled
+   = note: `#[warn(unus
+ed_must_use)]` (part 
+of `#[warn(unused)]`) 
+on by default
+help: use `let _ = 
+...` to ignore the 
+resulting value
+   |
+50 |     let _ = 
+active_pmp
+   |     +++++++
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\implem
+ent\commands\project_v4
+.rs:10:5
+   |
+10 |     projectId: 
+String,
+   |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `project_id`
+
+warning: variable 
+`_projectId` should 
+have a snake case name
+  --> src\domain\implem
+ent\commands\project_v4
+.rs:66:5
+   |
+66 |     _projectId: 
+String,
+   |     ^^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `_project_id`
+
+warning: variable 
+`_projectId` should 
+have a snake case name
+  --> src\domain\implem
+ent\commands\project_v4
+.rs:74:5
+   |
+74 |     _projectId: 
+String,
+   |     ^^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `_project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+  --> src\domain\implem
+ent\commands\task.rs:18
+:5
+   |
+18 |     projectId: 
+String,
+   |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `project_id`
+
+warning: variable 
+`_projectId` should 
+have a snake case name
+  --> src\domain\implem
+ent\commands\task.rs:63
+:5
+   |
+63 |     _projectId: 
+String,
+   |     ^^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `_project_id`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+   --> src\domain\imple
+ment\commands\task.rs:1
+02:5
+    |
+102 |     projectId: 
+String,
+    |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `project_id`
+
+warning: variable 
+`parentId` should have 
+a snake case name
+   --> src\domain\imple
+ment\commands\task.rs:1
+03:5
+    |
+103 |     parentId: 
+Option<String>,
+    |     ^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `parent_id`
+
+warning: variable 
+`startDate` should 
+have a snake case name
+   --> src\domain\imple
+ment\commands\task.rs:1
+05:5
+    |
+105 |     startDate: 
+Option<String>,
+    |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `start_date`
+
+warning: variable 
+`endDate` should have 
+a snake case name
+   --> src\domain\imple
+ment\commands\task.rs:1
+06:5
+    |
+106 |     endDate: 
+Option<String>,
+    |     ^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `end_date`
+
+warning: variable 
+`taskId` should have a 
+snake case name
+   --> src\domain\imple
+ment\commands\task.rs:1
+36:5
+    |
+136 |     taskId: 
+String,
+    |     ^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`task_id`
+
+warning: variable 
+`taskId` should have a 
+snake case name
+   --> src\domain\imple
+ment\commands\task.rs:1
+55:5
+    |
+155 |     taskId: 
+String,
+    |     ^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`task_id`
+
+warning: variable 
+`taskId` should have a 
+snake case name
+   --> src\domain\imple
+ment\commands\task.rs:1
+75:5
+    |
+175 |     taskId: 
+String,
+    |     ^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`task_id`
+
+warning: variable 
+`_projectId` should 
+have a snake case name
+   --> src\domain\imple
+ment\commands\task.rs:1
+93:5
+    |
+193 |     _projectId: 
+String,
+    |     ^^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `_project_id`
+
+warning: variable 
+`fromTaskId` should 
+have a snake case name
+   --> src\domain\imple
+ment\commands\task.rs:1
+94:5
+    |
+194 |     fromTaskId: 
+String,
+    |     ^^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `from_task_id`
+
+warning: variable 
+`toTaskId` should have 
+a snake case name
+   --> src\domain\imple
+ment\commands\task.rs:1
+95:5
+    |
+195 |     toTaskId: 
+String,
+    |     ^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `to_task_id`
+
+warning: variable 
+`_taskName` should 
+have a snake case name
+   --> src\domain\imple
+ment\commands\task.rs:2
+13:21
+    |
+213 | pub fn predict_ta
+sk(_taskName: String) 
+-> Result<i32, String> 
+{
+    |                  
+   ^^^^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`_task_name`
+
+warning: variable 
+`taskId` should have a 
+snake case name
+   --> src\domain\imple
+ment\commands\task.rs:2
+20:5
+    |
+220 |     taskId: 
+String,
+    |     ^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`task_id`
+
+warning: variable 
+`startDate` should 
+have a snake case name
+   --> src\domain\imple
+ment\commands\task.rs:2
+21:5
+    |
+221 |     startDate: 
+Option<String>,
+    |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `start_date`
+
+warning: variable 
+`endDate` should have 
+a snake case name
+   --> src\domain\imple
+ment\commands\task.rs:2
+22:5
+    |
+222 |     endDate: 
+Option<String>,
+    |     ^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `end_date`
+
+warning: variable 
+`taskId` should have a 
+snake case name
+   --> src\domain\imple
+ment\commands\task.rs:2
+39:5
+    |
+239 |     taskId: 
+String,
+    |     ^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`task_id`
+
+warning: variable 
+`parentId` should have 
+a snake case name
+   --> src\domain\imple
+ment\commands\task.rs:2
+40:5
+    |
+240 |     parentId: 
+Option<String>,
+    |     ^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `parent_id`
+
+warning: variable 
+`taskId` should have a 
+snake case name
+   --> src\domain\imple
+ment\commands\task.rs:2
+57:5
+    |
+257 |     taskId: 
+String,
+    |     ^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`task_id`
+
+warning: variable 
+`filePath` should have 
+a snake case name
+   --> src\domain\imple
+ment\commands\task.rs:2
+58:5
+    |
+258 |     filePath: 
+String,
+    |     ^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `file_path`
+
+warning: variable 
+`pmpPath` should have 
+a snake case name
+ --> src\domain\impleme
+nt\modules\v2\reporting
+\commands.rs:8:5
+  |
+8 |     pmpPath: 
+String,
+  |     ^^^^^^^ help: 
+convert the identifier 
+to snake case: 
+`pmp_path`
+
+warning: variable 
+`projectId` should 
+have a snake case name
+ --> src\domain\impleme
+nt\modules\v2\reporting
+\commands.rs:9:5
+  |
+9 |     projectId: 
+String,
+  |     ^^^^^^^^^ 
+help: convert the 
+identifier to snake 
+case: `project_id`
+
+warning: 
+`project-manager` 
+(lib) generated 69 
+warnings (run `cargo 
+fix --lib -p 
+project-manager` to 
+apply 18 suggestions)
+    Finished `dev` 
+profile [unoptimized + 
+debuginfo] target(s) 
+in 5.80s

@@ -44,6 +44,7 @@
   - Xử lý lock file thông minh bằng hệ thống I/O của Rust.
 
 ### 🧠 Giai đoạn 4 (AI/ML)
+- [x] **Lazy Loading AI Engine:** Tích hợp YOLO, OCR, Embedding chỉ nạp vào RAM khi cần.
 - [ ] Tích hợp mô hình ML Offline để phân tích rủi ro task hoặc gợi ý thời lượng task.
 
 ## 4. RỦI RO KỸ THUẬT & LƯU Ý

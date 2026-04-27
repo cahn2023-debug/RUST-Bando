@@ -1,0 +1,90 @@
+{
+    "version": 8,
+    "name": "ProjectGIS",
+    "sources": {
+        "google-tiles": {
+            "type": "raster",
+            "tiles": [
+                "https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+            ],
+            "tileSize": 256,
+            "attribution": "&copy; Google"
+        },
+        "design-features": {
+            "type": "vector",
+            "tiles": [
+                "tiles://{z}/{x}/{y}.pbf"
+            ],
+            "minzoom": 0,
+            "maxzoom": 22
+        }
+    },
+    "layers": [
+        {
+            "id": "background",
+            "type": "background",
+            "paint": {
+                "background-color": "#000000"
+            }
+        },
+        {
+            "id": "google-raster",
+            "type": "raster",
+            "source": "google-tiles"
+        },
+        {
+            "id": "design-points",
+            "type": "circle",
+            "source": "design-features",
+            "source-layer": "design_features",
+            "filter": [
+                "==",
+                [
+                    "geometry-type"
+                ],
+                "Point"
+            ],
+            "paint": {
+                "circle-radius": 5,
+                "circle-color": "#00ffff",
+                "circle-stroke-width": 1,
+                "circle-stroke-color": "#ffffff"
+            }
+        },
+        {
+            "id": "design-lines",
+            "type": "line",
+            "source": "design-features",
+            "source-layer": "design_features",
+            "filter": [
+                "==",
+                [
+                    "geometry-type"
+                ],
+                "LineString"
+            ],
+            "paint": {
+                "line-color": "#ffff00",
+                "line-width": 2
+            }
+        },
+        {
+            "id": "design-polygons",
+            "type": "fill",
+            "source": "design-features",
+            "source-layer": "design_features",
+            "filter": [
+                "==",
+                [
+                    "geometry-type"
+                ],
+                "Polygon"
+            ],
+            "paint": {
+                "fill-color": "#ff00ff",
+                "fill-opacity": 0.3,
+                "fill-outline-color": "#ffffff"
+            }
+        }
+    ]
+}

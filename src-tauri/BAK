@@ -1,0 +1,37 @@
+use rusqlite::{Connection, Result};
+
+fn main() -> Result<()> {
+    let db_path = "D:\\Code Antinigaty\\Phan mem quan ly file V4\\Du_an_165.pmp";
+    let conn = Connection::open(db_path)?;
+
+    println!("Checking tables in DB: {}", db_path);
+    let mut stmt = conn.prepare("SELECT name FROM sqlite_master WHERE type='table'")?;
+    let table_names = stmt.query_map([], |row| row.get::<_, String>(0))?;
+
+    for name in table_names {
+        let name = name?;
+        let count: i64 = conn
+            .query_row(&format!("SELECT count(*) FROM {}", name), [], |row| {
+                row.get(0)
+            })
+            .unwrap_or(-1);
+        println!("Table: {} | Rows: {}", name, count);
+
+        if name == "features" {
+            println!("Schema for features:");
+            let mut pragma = conn.prepare(&format!("PRAGMA table_info({})", name))?;
+            let info = pragma.query_map([], |row| {
+                Ok(format!(
+                    "  {} ({})",
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?
+                ))
+            })?;
+            for row in info {
+                println!("{}", row?);
+            }
+        }
+    }
+
+    Ok(())
+}

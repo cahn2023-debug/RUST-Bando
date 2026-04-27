@@ -1,0 +1,264 @@
+@import "tailwindcss";
+
+@theme {
+  /* Deep Dark Theme Tokens */
+  --color-cad-header: #111111;
+  --color-cad-bg: #111111;
+  --color-cad-surface: #1E2026;
+  --color-cad-elevated: #25282E;
+  --color-cad-border: #2D3039;
+  --color-cad-accent: #10B981;
+  --color-cad-active: #34D399;
+  --color-cad-warn: #F59E0B;
+  --color-cad-text-primary: #E5E7EB;
+  --color-cad-text-secondary: #9CA3AF;
+  --color-cad-text-muted: #4B5563;
+
+  --font-sans: "Inter", "Segoe UI", Roboto, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "Roboto Mono", monospace;
+
+  /* Custom Animations for Tailwind v4 */
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-slide-up: slide-up 0.3s ease-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      transform: translateY(1rem);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+
+    50% {
+      transform: scale(1.5);
+      opacity: 0.2;
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+  }
+}
+
+/* Base resets & typography */
+@layer base {
+
+  html,
+  body {
+    @apply h-full w-full m-0 p-0 text-cad-text-primary bg-cad-bg;
+    font-family: var(--font-sans);
+    overflow: hidden;
+  }
+
+  html.streetview-window,
+  body.streetview-window {
+    background: #ffffff !important;
+    color: #111827 !important;
+    color-scheme: light !important;
+    forced-color-adjust: none !important;
+  }
+
+  /* Google Street View Visual Fixes */
+  .streetview-canvas,
+  .gm-style,
+  .gm-style img,
+  .gm-style canvas {
+    filter: none !important;
+    -webkit-filter: none !important;
+    color-scheme: light !important;
+  }
+
+  .gm-style-cc,
+  .gmnoprint,
+  .gm-style-pbc,
+  .gm-style-mtc,
+  .gm-err-container,
+  div.gm-style-cc+div,
+  .gm-style iframe+div[style*="z-index: 1000000"],
+  a[href*="maps.google.com/maps/contrib"],
+  a[title*="Report errors"],
+  div[style*="background-color: rgba(0, 0, 0, 0.4)"],
+  div[style*="z-index: 1000001"],
+  div[style*="z-index: 1000000"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .street-view-container-premium {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    background: #000;
+  }
+
+  /* Oversizing the panorama slightly and clipping to hide the bottom-right text if any survives display:none */
+  .street-view-panorama-premium {
+    width: 100% !important;
+    height: calc(100% + 40px) !important;
+    margin-bottom: -40px !important;
+  }
+
+  /* Custom scrollbar for Windows - Dark Mode */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-zinc-700/50 rounded-full;
+    transition: background 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-zinc-500;
+  }
+
+  /* Selection color */
+  ::selection {
+    @apply bg-cad-accent/30 text-white;
+  }
+}
+
+/* Layout utilities */
+@layer utilities {
+  .flex-center {
+    @apply flex items-center justify-center;
+  }
+
+  .glass-panel {
+    @apply bg-cad-surface/60 backdrop-blur-xl border border-cad-border/40 shadow-xl rounded-sm;
+    box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.6);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Monospace Typography for Technical Parameters */
+  .ribbon-toolbar,
+  .toolbar-item,
+  .technical-parameter,
+  .coordinate-display,
+  .analysis-value {
+    font-family: var(--font-mono) !important;
+    letter-spacing: -0.02em;
+  }
+
+  .glass-panel:hover {
+    @apply border-cad-active/30 bg-cad-surface/50;
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-cad-text-secondary) transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--color-cad-text-muted);
+    border-radius: 10px;
+    border: 1px solid transparent;
+    background-clip: content-box;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-cad-text-secondary);
+  }
+
+  .summary-overlay {
+    @apply absolute bottom-8 left-1/2 -translate-x-1/2 z-40 w-[420px] bg-cad-surface/90 backdrop-blur-md border border-cad-accent/30 rounded-sm overflow-hidden animate-fade-in animate-slide-up;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+
+  .will-change-layout {
+    will-change: transform, width, height, left, top;
+  }
+}
+
+/* Low Power Mode Optimizations */
+.low-power-active * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  animation: none !important;
+  transition: none !important;
+  text-shadow: none !important;
+}
+
+.low-power-active .shadow-sm,
+.low-power-active .shadow-md,
+.low-power-active .shadow-lg,
+.low-power-active .shadow-xl,
+.low-power-active .shadow-2xl {
+  box-shadow: none !important;
+}
+
+/* Force pointer-events: none on drawing UI so maps receive clicks */
+.snap-indicator-marker,
+.drawing-point-marker,
+.pointer-events-none {
+  pointer-events: none !important;
+}
+
+/* V3.1: Enable interaction for GIS handles in custom panes */
+.leaflet-editing-handles-pane {
+  pointer-events: none !important;
+}
+
+.vertex-handle-modern,
+.midpoint-handle {
+  pointer-events: auto !important;
+  cursor: grab !important;
+  touch-action: none !important;
+}
+
+.vertex-handle-modern:active,
+.midpoint-handle:active {
+  cursor: grabbing !important;
+}
+
+.custom-scrollbar-horizontal::-webkit-scrollbar {
+  height: 8px;
+}
+
+.custom-scrollbar-horizontal::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.custom-scrollbar-horizontal::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.custom-scrollbar-horizontal::-webkit-scrollbar-thumb:hover {
+  background: var(--color-cad-accent);
+}

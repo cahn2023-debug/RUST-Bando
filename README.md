@@ -7,16 +7,18 @@ Phần mềm desktop tích hợp quản lý hồ sơ thiết kế, triển khai 
 2. **Quản lý triển khai**: Theo dõi tiến độ, vật tư, nhân lực trên công trường.
 3. **Quản lý vận hành**: Bảo trì, vận hành và quản lý tài sản.
 
-## Status: 🚧 Planning
+## Status: 🚧 In Development
 
-Dự án đang trong giai đoạn lên ý tưởng và thiết kế UI/UX.
+Dễ dàng quản lý hàng ngàn file và task với hiệu năng tối ưu. Hệ thống AI (YOLO, OCR, Embedding) đã được tích hợp với cơ chế Lazy Loading.
 
-## Công nghệ (Dự kiến):
-- **Backend/Core**: Rust (Tauri)
-- **Frontend**: React + TypeScript
-- **Database**: SQLite
+## Công nghệ:
+- **Backend/Core**: Rust (Tauri v2) - Multithreading, Async Runtime.
+- **Frontend**: React 19 + TypeScript + Tailwind CSS v4.
+- **Database**: SQLite (rusqlite) + FTS5 Search.
+- **AI**: ONNX Runtime (ort) với cơ chế nạp model linh hoạt.
 
 ## Next Steps
 
-1. Gõ `/visualize` để bắt đầu thiết kế UI mockup (theo yêu cầu của bạn).
-2. Hoặc `/plan` để bóc tách chi tiết tính năng.
+1. Gõ `/recap` để AI nhớ lại tiến độ hiện tại.
+2. Gõ `/code` để tiếp tục phát triển tính năng mới.
+3. Gõ `/run` để khởi chạy ứng dụng môi trường dev.
