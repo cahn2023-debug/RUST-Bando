@@ -24,8 +24,8 @@ export const RecentWorkspaces: React.FC<RecentWorkspacesProps> = ({
     hideHeader = false,
 }) => {
     return (
-        <div className="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar">
-            <div className="max-w-5xl mx-auto w-full">
+        <div className={hideHeader ? "w-full" : "flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar"}>
+            <div className={hideHeader ? "w-full animate-fade-in" : "max-w-5xl mx-auto w-full"}>
                 {!hideHeader && (
                     <div className="flex items-center justify-between border-b border-cad-border pb-4 mb-8">
                         <div className="flex items-center gap-3">

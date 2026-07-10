@@ -1,14 +1,16 @@
+use rusqlite::Connection;
+
 pub const V2_SCHEMA_SQL: &str = r#"
     PRAGMA journal_mode=WAL;
     PRAGMA synchronous=NORMAL;
     PRAGMA foreign_keys=ON;
-    PRAGMA user_version = 2;
+    PRAGMA user_version = 3;
 
     CREATE TABLE IF NOT EXISTS sys_config (
         key TEXT PRIMARY KEY, value TEXT NOT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
-    INSERT OR IGNORE INTO sys_config (key, value) VALUES ('schema_version', '2.0.0');
+    INSERT OR IGNORE INTO sys_config (key, value) VALUES ('schema_version', '3.0.0');
 
     CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT,
@@ -25,7 +27,75 @@ pub const V2_SCHEMA_SQL: &str = r#"
         FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
     CREATE UNIQUE INDEX IF NOT EXISTS idx_file_rel_path ON files (rel_path);
-    
+
+    CREATE TABLE IF NOT EXISTS regions (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        parent_id TEXT,
+        name TEXT NOT NULL,
+        description TEXT,
+        metadata_json TEXT DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_regions_project ON regions (project_id);
+
+    CREATE TABLE IF NOT EXISTS layers (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        region_id TEXT,
+        name TEXT NOT NULL,
+        is_visible INTEGER NOT NULL DEFAULT 1,
+        metadata_json TEXT DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_layers_project ON layers (project_id);
+
+    CREATE TABLE IF NOT EXISTS feature_groups (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        layer_id TEXT NOT NULL,
+        parent_id TEXT,
+        name TEXT NOT NULL,
+        group_type TEXT,
+        is_visible INTEGER NOT NULL DEFAULT 1,
+        metadata_json TEXT DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_feature_groups_project ON feature_groups (project_id);
+
+    CREATE TABLE IF NOT EXISTS features (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        layer_id TEXT NOT NULL,
+        group_id TEXT,
+        name TEXT NOT NULL,
+        geom_type TEXT NOT NULL,
+        coordinates_json TEXT,
+        properties_json TEXT DEFAULT '{}',
+        metadata_json TEXT DEFAULT '{}',
+        bbox_json TEXT,
+        is_visible INTEGER NOT NULL DEFAULT 1,
+        note TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_features_project ON features (project_id);
+
+    CREATE TABLE IF NOT EXISTS project_settings (
+        project_id TEXT PRIMARY KEY,
+        settings_json TEXT DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS events (
         global_seq INTEGER PRIMARY KEY AUTOINCREMENT,
         id TEXT NOT NULL UNIQUE,
@@ -56,7 +126,6 @@ pub const V2_SCHEMA_SQL: &str = r#"
         file_id UNINDEXED, content, tokenize="unicode61"
     );
 
-    -- FTS5 Sync Triggers
     CREATE TRIGGER IF NOT EXISTS fts_file_insert AFTER INSERT ON files BEGIN
         INSERT INTO fts_files_content(file_id, content) VALUES (new.id, new.filename || ' ' || new.metadata_json);
     END;
@@ -68,3 +137,7 @@ pub const V2_SCHEMA_SQL: &str = r#"
         DELETE FROM fts_files_content WHERE file_id = old.id;
     END;
 "#;
+
+pub fn apply_v2_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute_batch(V2_SCHEMA_SQL)
+}

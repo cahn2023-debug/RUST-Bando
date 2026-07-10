@@ -3,376 +3,364 @@ import { emit } from '@tauri-apps/api/event';
 import { initGoogleMaps, waitForGoogleMaps } from '@TOOL/utils/googleMapsLoader';
 import { cn } from '@TOOL/utils/cn';
 
-declare var google: any; // Global Google Maps namespace populated by loader script
+declare var google: any;
 
 interface StreetViewJSProps {
-    lat: number;
-    lng: number;
-    heading: number;
-    fov: number;
-    pitch?: number;
-    apiKey: string;
-    rotationLock?: boolean;
+  lat: number;
+  lng: number;
+  heading: number;
+  fov: number;
+  pitch?: number;
+  apiKey: string;
+  rotationLock?: boolean;
 }
 
+const normalizeHeading = (value: number) => ((value % 360) + 360) % 360;
+const zoomToFov = (zoom: number | undefined) => 180 / Math.pow(2, zoom || 1);
+const fovToZoom = (value: number) => Math.max(0, Math.log2(180 / Math.max(1, value)));
+
 export const StreetViewJS: React.FC<StreetViewJSProps> = ({
-    lat,
-    lng,
-    heading,
-    fov,
-    pitch = 0,
-    apiKey,
-    rotationLock = true
+  lat,
+  lng,
+  heading,
+  fov,
+  pitch = 0,
+  apiKey,
+  rotationLock = true
 }) => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const panoramaRef = useRef<any>(null);
-    const initialHeadingRef = useRef<number>(heading); // 🔒 Store starting heading
-    const isExternalUpdate = useRef(false); // 🛡️ Infinite Loop Guard
-    const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-    const trimmedApiKey = apiKey.trim();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const panoramaRef = useRef<any>(null);
+  const initialHeadingRef = useRef<number>(heading);
+  const isExternalUpdate = useRef(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const trimmedApiKey = apiKey.trim();
 
-    // 🕵️ Stealth Mode: Hide Watermarks aggressively
-    useEffect(() => {
-        const style = document.createElement('style');
-        style.innerHTML = `
-            .gm-style iframe + div { display: none !important; } 
-            .gmnoprint { display: none !important; }
-            .gm-err-container { display: none !important; }
-            .gm-err-content { display: none !important; }
-            .gm-err-icon { display: none !important; }
-            .gm-err-title { display: none !important; }
-            .gm-err-message { display: none !important; }
-            /* Hide the "For development purposes only" glass pane & Watermarks */
-            .gm-style > div:first-child > div:nth-child(2) { pointer-events: none !important; display: none !important; }
-            .gm-style > div:nth-child(2) { display: none !important; }
-            .gm-style-cc { display: none !important; }
-            .gm-control-active { display: none !important; }
-            /* Hide any unexpected console-like overlays from Google JS */
-            div[style*="z-index: 1000001"] { display: none !important; }
-            div[style*="z-index: 1000002"] { display: none !important; }
-            .dismissButton { display: none !important; }
-        `;
-        document.head.appendChild(style);
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .gm-style iframe + div,
+      .gm-style-cc,
+      .gmnoprint,
+      .dismissButton,
+      .widget-pane-section-back,
+      .widget-minimap,
+      .widget-minimap-shim,
+      .widget-reveal-card,
+      .scene-footer,
+      .watermark,
+      #minimap {
+        display: none !important;
+      }
+      .gm-style > div:first-child > div:nth-child(2) {
+        display: none !important;
+        pointer-events: none !important;
+      }
+    `;
+    document.head.appendChild(style);
 
-        const observer = new MutationObserver(() => {
-            const overlays = document.querySelectorAll('.gm-style > div:first-child > div:nth-child(2)');
-            overlays.forEach(el => {
-                (el as HTMLElement).style.display = 'none';
-                (el as HTMLElement).style.pointerEvents = 'none';
-            });
-            // Hide "Report a problem" and terms
-            document.querySelectorAll('.gm-style-cc').forEach(el => (el as HTMLElement).style.display = 'none');
+    const observer = new MutationObserver(() => {
+      document
+        .querySelectorAll('.gm-style > div:first-child > div:nth-child(2), .gm-style-cc, .dismissButton')
+        .forEach((element) => {
+          (element as HTMLElement).style.display = 'none';
+          (element as HTMLElement).style.pointerEvents = 'none';
         });
+    });
 
-        observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    };
+  }, []);
 
-        return () => {
-            if (document.head.contains(style)) document.head.removeChild(style);
-            observer.disconnect();
-        };
-    }, []);
+  const findNearestPano = async (
+    nextLat: number,
+    nextLng: number
+  ): Promise<{ lat: number; lng: number } | null> => {
+    return new Promise((resolve) => {
+      if (typeof google === 'undefined') {
+        resolve(null);
+        return;
+      }
 
-    // 📍 Smart Snapping Logic
-    const findNearestPano = async (lat: number, lng: number): Promise<{ lat: number, lng: number } | null> => {
-        return new Promise((resolve) => {
-            if (typeof google === 'undefined') return resolve(null);
-            const service = new google.maps.StreetViewService();
-            service.getPanorama({
-                location: { lat, lng },
-                radius: 200, // Increased to 200m for better snapping
-                source: google.maps.StreetViewSource.OUTDOOR
-            }, (data: any, status: string) => {
-                if (status === google.maps.StreetViewStatus.OK && data.location) {
-                    resolve({
-                        lat: data.location.latLng.lat(),
-                        lng: data.location.latLng.lng()
-                    });
-                } else {
-                    resolve(null);
-                }
+      const service = new google.maps.StreetViewService();
+      service.getPanorama(
+        {
+          location: { lat: nextLat, lng: nextLng },
+          radius: 200,
+          source: google.maps.StreetViewSource.OUTDOOR
+        },
+        (data: any, status: string) => {
+          if (status === google.maps.StreetViewStatus.OK && data.location) {
+            resolve({
+              lat: data.location.latLng.lat(),
+              lng: data.location.latLng.lng()
             });
-        });
+            return;
+          }
+          resolve(null);
+        }
+      );
+    });
+  };
+
+  useEffect(() => {
+    let disposed = false;
+    const windowWithGoogle = window as Window & { gm_authFailure?: () => void };
+
+    windowWithGoogle.gm_authFailure = () => {
+      if (disposed) return;
+      setError('Google Maps Auth Failed. Vui long kiem tra billing.');
     };
 
-    // Main initialization effect - runs once
-    useEffect(() => {
-        let disposed = false;
-        const windowWithGoogle = window as Window & { gm_authFailure?: () => void };
+    if (!trimmedApiKey) {
+      setError('Missing API Configuration.');
+      return;
+    }
 
-        windowWithGoogle.gm_authFailure = () => {
-            if (disposed) return;
-            setError('Google Maps Auth Failed. Vui lòng kiểm tra Billing.');
-        };
-
-        if (!trimmedApiKey) {
-            setError('Missing API Configuration.');
-            return;
+    const initPanorama = async () => {
+      try {
+        const ok = initGoogleMaps(trimmedApiKey);
+        if (!ok) {
+          setError('SDK Initialization Failed.');
+          return;
         }
 
-        const initPanorama = async () => {
-            try {
-                const ok = initGoogleMaps(trimmedApiKey);
-                if (!ok) {
-                    setError('SDK Initialization Failed.');
-                    return;
-                }
+        await waitForGoogleMaps();
+        if (disposed || !containerRef.current) return;
 
-                await waitForGoogleMaps();
-                if (disposed || !containerRef.current) return;
+        const nearest = await findNearestPano(lat, lng);
+        if (!nearest) {
+          setError('Khong tim thay du lieu Street View tai vi tri nay.');
+          setLoading(false);
+          return;
+        }
 
-                const nearest = await findNearestPano(lat, lng);
-                if (!nearest) {
-                    setError('Không tìm thấy dữ liệu Street View (Panorama) tại vị trí này.');
-                    setLoading(false);
-                    return;
-                }
-                const finalPos = nearest;
+        const g = (window as any).google;
+        if (!g?.maps) throw new Error('Maps SDK not found');
 
-                const g = (window as any).google;
-                if (!g?.maps) throw new Error('Maps SDK not found');
-
-                // Create panorama
-                const panorama = new g.maps.StreetViewPanorama(containerRef.current, {
-                    position: finalPos,
-                    pov: { heading, pitch },
-                    zoom: 1,
-                    addressControl: false,
-                    linksControl: true,
-                    panControl: true,
-                    enableCloseButton: false,
-                    showRoadLabels: true,
-                    clickToGo: true
-                });
-
-                panoramaRef.current = panorama;
-                initialHeadingRef.current = heading; // Set the baseline for 180° rotation
-
-                const updateBrowserUrl = (l: number, g: number, h: number, f: number) => {
-                    const cleanLat = l.toFixed(7);
-                    const cleanLng = g.toFixed(7);
-                    const cleanHeading = h.toFixed(1);
-                    const cleanFov = f.toFixed(1);
-                    const newPath = `/@${cleanLat},${cleanLng},${cleanFov}y,${cleanHeading}t`;
-                    window.history.replaceState(null, '', newPath);
-                };
-
-                // Helper to normalize heading to 0-360
-                const normalizeHeading = (h: number) => ((h % 360) + 360) % 360;
-
-                // Helper to calculate shortest angular distance
-                const getAngleDiff = (a: number, b: number) => {
-                    let diff = a - b;
-                    while (diff < -180) diff += 360;
-                    while (diff > 180) diff -= 360;
-                    return diff;
-                };
-
-                // 🔄 Sync Pegman Position (Map -> View)
-                panorama.addListener('position_changed', () => {
-                    if (isExternalUpdate.current) return;
-
-                    const pos = panorama.getPosition();
-                    if (pos) {
-                        const pLat = pos.lat();
-                        const pLng = pos.lng();
-                        const pPov = panorama.getPov();
-                        const pFov = 180 / Math.pow(2, panorama.getZoom() || 1);
-
-                        updateBrowserUrl(pLat, pLng, pPov.heading, pFov);
-
-                        emit('pano-changed', {
-                            pano: panorama.getPano(),
-                            lat: pLat,
-                            lng: pLng
-                        });
-                    }
-                });
-
-                // 🔄 Sync POV (View -> Map) + 🔒 Rotation Lock (180 deg) + 🔒 Pitch Lock (0 deg)
-                panorama.addListener('pov_changed', () => {
-                    if (isExternalUpdate.current) return;
-
-                    const pPov = panorama.getPov();
-                    const currentHeading = pPov.heading;
-                    const currentPitch = pPov.pitch;
-
-                    // 🔒 Rotation Lock: Limit to ±90° from starting position (only if locked)
-                    const angleDiff = getAngleDiff(currentHeading, initialHeadingRef.current);
-                    let constrainedHeading = currentHeading;
-
-                    if (rotationLock && Math.abs(angleDiff) > 90) {
-                        constrainedHeading = normalizeHeading(initialHeadingRef.current + (angleDiff > 0 ? 90 : -90));
-                    }
-
-                    // 🔒 Pitch Lock: Always 0° (Horizon)
-                    if (constrainedHeading !== currentHeading || currentPitch !== 0) {
-                        panorama.setPov({
-                            heading: constrainedHeading,
-                            pitch: 0,
-                            zoom: panorama.getZoom()
-                        });
-                        return;
-                    }
-
-                    const pos = panorama.getPosition();
-                    const pFov = 180 / Math.pow(2, panorama.getZoom() || 1);
-
-                    if (pos) {
-                        updateBrowserUrl(pos.lat(), pos.lng(), constrainedHeading, pFov);
-                    }
-
-                    emit('pov-changed', {
-                        heading: constrainedHeading,
-                        pitch: 0,
-                        zoom: panorama.getZoom()
-                    });
-                });
-
-                panorama.addListener('status_changed', () => {
-                    const s = panorama.getStatus();
-                    if (s !== 'OK' && s !== 'INITIALIZING') {
-                        setError('Street View data is not available for this precise location.');
-                    } else if (s === 'OK') {
-                        setError(null);
-                        emit('panorama-ready');
-                    }
-                });
-
-                const initialZoom = Math.max(0, Math.log2(180 / Math.max(1, fov)));
-                panorama.setZoom(initialZoom);
-
-                // Auto-dismiss development-only warning & Clean up UI
-                setTimeout(() => {
-                    if (disposed) return;
-                    // Try to click dismiss if it exists
-                    const dismissBtn = document.querySelector('.dismissButton') as HTMLElement;
-                    if (dismissBtn) dismissBtn.click();
-
-                    // Double check if error container appeared and nuke it
-                    const errContainer = document.querySelector('.gm-err-container');
-                    if (errContainer) (errContainer as HTMLElement).style.display = 'none';
-                }, 1000);
-
-            } catch (sdkError: unknown) {
-                console.error('[StreetViewJS] Initialization error:', sdkError);
-                setError('Failed to load Map system. Please check your internet connection and API configuration.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        initPanorama();
-
-        return () => {
-            disposed = true;
-            if (panoramaRef.current) {
-                const gMaps = (window as any).google?.maps;
-                if (gMaps) gMaps.event.clearInstanceListeners(panoramaRef.current);
-                panoramaRef.current = null;
-            }
-            windowWithGoogle.gm_authFailure = undefined;
-        };
-    }, [trimmedApiKey]);
-
-    // Reactive position/POV updates with snapping & Loop Protection
-    useEffect(() => {
-        if (!panoramaRef.current) return;
-
-        const updatePos = async () => {
-            isExternalUpdate.current = true; // 🛡️ Start Guard
-
-            try {
-                const currentPos = panoramaRef.current.getPosition();
-                const dist = google.maps.geometry.spherical.computeDistanceBetween(
-                    currentPos,
-                    new google.maps.LatLng(lat, lng)
-                );
-
-                if (dist > 5) {
-                    const nearest = await findNearestPano(lat, lng);
-                    panoramaRef.current.setPosition(nearest || { lat, lng });
-                }
-
-                panoramaRef.current.setPov({ heading, pitch: 0 }); // 🛡️ Force Horizontal Lock
-                const zoom = Math.max(0, Math.log2(180 / Math.max(1, fov)));
-                panoramaRef.current.setZoom(zoom);
-            } finally {
-                // Ensure guard is released after a short delay to allow SDK events to clear
-                setTimeout(() => {
-                    isExternalUpdate.current = false;
-                }, 100);
-            }
-        };
-
-        updatePos();
-    }, [lat, lng, heading, fov]); // Removed pitch dependency
-
-    const handleClose = () => {
-        import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
-            getCurrentWebviewWindow()?.close();
+        const panorama = new g.maps.StreetViewPanorama(containerRef.current, {
+          position: nearest,
+          pov: { heading, pitch },
+          zoom: 1,
+          addressControl: false,
+          linksControl: true,
+          panControl: true,
+          enableCloseButton: false,
+          showRoadLabels: true,
+          clickToGo: true
         });
+
+        panoramaRef.current = panorama;
+        initialHeadingRef.current = normalizeHeading(heading);
+
+        const updateBrowserUrl = (
+          nextLat: number,
+          nextLng: number,
+          nextHeading: number,
+          nextFov: number
+        ) => {
+          window.history.replaceState(
+            null,
+            '',
+            `/@${nextLat.toFixed(7)},${nextLng.toFixed(7)},${nextFov.toFixed(1)}y,${normalizeHeading(nextHeading).toFixed(1)}t`
+          );
+        };
+
+        const getAngleDiff = (a: number, b: number) => {
+          let diff = a - b;
+          while (diff < -180) diff += 360;
+          while (diff > 180) diff -= 360;
+          return diff;
+        };
+
+        panorama.addListener('position_changed', () => {
+          if (isExternalUpdate.current) return;
+          const pos = panorama.getPosition();
+          if (!pos) return;
+
+          const pLat = pos.lat();
+          const pLng = pos.lng();
+          const pov = panorama.getPov();
+          const nextFov = zoomToFov(panorama.getZoom());
+
+          updateBrowserUrl(pLat, pLng, pov.heading, nextFov);
+          emit('pano-changed', {
+            pano: panorama.getPano(),
+            lat: pLat,
+            lng: pLng,
+            heading: normalizeHeading(pov.heading),
+            fov: nextFov
+          });
+        });
+
+        panorama.addListener('pov_changed', () => {
+          if (isExternalUpdate.current) return;
+
+          const pov = panorama.getPov();
+          const currentHeading = normalizeHeading(pov.heading);
+          const angleDiff = getAngleDiff(currentHeading, initialHeadingRef.current);
+          let constrainedHeading = currentHeading;
+
+          if (rotationLock && Math.abs(angleDiff) > 90) {
+            constrainedHeading = normalizeHeading(
+              initialHeadingRef.current + (angleDiff > 0 ? 90 : -90)
+            );
+          }
+
+          if (constrainedHeading !== currentHeading || pov.pitch !== 0) {
+            panorama.setPov({
+              heading: constrainedHeading,
+              pitch: 0,
+              zoom: panorama.getZoom()
+            });
+            return;
+          }
+
+          const pos = panorama.getPosition();
+          const nextFov = zoomToFov(panorama.getZoom());
+          if (pos) {
+            updateBrowserUrl(pos.lat(), pos.lng(), constrainedHeading, nextFov);
+          }
+
+          emit('pov-changed', {
+            heading: constrainedHeading,
+            pitch: 0,
+            zoom: panorama.getZoom(),
+            fov: nextFov
+          });
+        });
+
+        panorama.addListener('status_changed', () => {
+          const status = panorama.getStatus();
+          if (status !== 'OK' && status !== 'INITIALIZING') {
+            setError('Street View data is not available for this precise location.');
+            return;
+          }
+          if (status === 'OK') {
+            setError(null);
+            emit('panorama-ready');
+          }
+        });
+
+        panorama.setZoom(fovToZoom(fov));
+      } catch (sdkError) {
+        console.error('[StreetViewJS] Initialization error:', sdkError);
+        setError('Failed to load Map system. Please check your internet connection and API configuration.');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    return (
-        <div className="street-view-container-premium bg-[#16171B]">
-            {/* Custom Header for Dragging & Close */}
-            <div
-                data-tauri-drag-region
-                className="absolute top-0 left-0 right-0 h-10 z-[1000] cursor-move active:cursor-grabbing flex justify-between items-center px-4"
-            >
-                <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pointer-events-none">
-                    Street View 180° Perspective
-                </div>
+    void initPanorama();
 
-                <button
-                    onClick={handleClose}
-                    className="w-6 h-6 flex items-center justify-center rounded-full bg-red-500/10 hover:bg-red-500/80 text-red-500 hover:text-white transition-all group scale-75"
-                >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                        <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
+    return () => {
+      disposed = true;
+      if (panoramaRef.current) {
+        const gMaps = (window as any).google?.maps;
+        if (gMaps) {
+          gMaps.event.clearInstanceListeners(panoramaRef.current);
+        }
+        panoramaRef.current = null;
+      }
+      windowWithGoogle.gm_authFailure = undefined;
+    };
+  }, [trimmedApiKey]);
 
-            <div
-                ref={containerRef}
-                className={cn(
-                    "street-view-panorama-premium streetview-canvas w-full h-full transition-opacity duration-500",
-                    (error || loading) ? "opacity-0 scale-95" : "opacity-100 scale-100"
-                )}
-                style={{
-                    display: error ? 'none' : 'block' // Hard hide if error, preventing SDK from showing anything
-                }}
-            />
+  useEffect(() => {
+    if (!panoramaRef.current || typeof google === 'undefined') return;
 
-            {loading && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#16171B] z-50">
-                    <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
-                </div>
-            )}
+    const updatePosition = async () => {
+      isExternalUpdate.current = true;
+      try {
+        const currentPos = panoramaRef.current.getPosition();
+        if (currentPos) {
+          const dist = google.maps.geometry.spherical.computeDistanceBetween(
+            currentPos,
+            new google.maps.LatLng(lat, lng)
+          );
+          if (dist > 5) {
+            const nearest = await findNearestPano(lat, lng);
+            panoramaRef.current.setPosition(nearest || { lat, lng });
+          }
+        }
 
-            {error && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#16171B]/95 text-white p-8 z-[9999]">
-                    <div className="w-12 h-12 mb-4 text-red-500/50">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                    </div>
-                    <div className="text-sm font-medium text-center text-gray-400 mb-6">{error}</div>
-                    <button
-                        onClick={() => window.location.reload()}
-                        className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-sm text-xs font-bold transition-all uppercase tracking-widest shadow-lg active:scale-95"
-                    >
-                        Thử lại
-                    </button>
-                </div>
-            )}
-            {/* Perspective Shield Indicator */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-black/60 backdrop-blur-md rounded-full border border-white/5 text-[9px] text-gray-400 font-medium tracking-[0.2em] uppercase pointer-events-none z-50 flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                180° Horizontal Lock Active
-            </div>
+        panoramaRef.current.setPov({ heading: normalizeHeading(heading), pitch: 0 });
+        panoramaRef.current.setZoom(fovToZoom(fov));
+      } finally {
+        window.setTimeout(() => {
+          isExternalUpdate.current = false;
+        }, 120);
+      }
+    };
+
+    void updatePosition();
+  }, [lat, lng, heading, fov]);
+
+  const handleClose = () => {
+    import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
+      getCurrentWebviewWindow()?.close();
+    });
+  };
+
+  return (
+    <div className="street-view-container-premium bg-[#111318]">
+      <div
+        data-tauri-drag-region
+        className="absolute top-0 left-0 right-0 h-9 z-[1000] cursor-move active:cursor-grabbing flex justify-between items-center px-3 bg-[#111318]/82 backdrop-blur-md border-b border-white/5"
+      >
+        <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.24em] pointer-events-none">
+          Street View
         </div>
-    );
+
+        <button
+          onClick={handleClose}
+          className="w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-red-500/80 text-slate-400 hover:text-white transition-all"
+        >
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div
+        ref={containerRef}
+        className={cn(
+          'street-view-panorama-premium streetview-canvas w-full h-full transition-opacity duration-300',
+          error || loading ? 'opacity-0' : 'opacity-100'
+        )}
+        style={{ display: error ? 'none' : 'block' }}
+      />
+
+      {loading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#111318] z-50">
+          <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+          <div className="mt-3 text-[10px] uppercase tracking-[0.24em] text-slate-500">
+            Dang tai panorama
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#111318]/96 text-white p-8 z-[9999]">
+          <div className="w-12 h-12 mb-4 text-red-500/55">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div className="text-sm font-medium text-center text-slate-300 mb-5 max-w-md">{error}</div>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-sm text-[11px] font-semibold transition-all uppercase tracking-[0.2em]"
+          >
+            Thu lai
+          </button>
+        </div>
+      )}
+    </div>
+  );
 };

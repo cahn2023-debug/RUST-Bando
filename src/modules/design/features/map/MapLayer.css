@@ -198,6 +198,16 @@
     pointer-events: auto !important;
 }
 
+.custom-pegman-marker {
+    background: transparent !important;
+    border: none !important;
+}
+
+.custom-pegman-marker svg {
+    display: block;
+    overflow: visible;
+}
+
 .custom-map-marker.pointer-events-none {
     pointer-events: none !important;
     cursor: default;

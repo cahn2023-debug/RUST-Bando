@@ -163,7 +163,7 @@ export const ProjectMainView: React.FC<ProjectMainViewProps> = ({
     };
 
     return (
-        <div className="flex-1 flex flex-col overflow-hidden bg-cad-bg relative font-sans">
+        <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden bg-cad-bg relative font-sans">
             <Toolbar activeTab={activeTab} viewMode={viewMode as any} setViewMode={setViewMode as any} onAddTask={() => { }} />
 
             {renderContent()}

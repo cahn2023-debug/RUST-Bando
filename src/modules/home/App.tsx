@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, Suspense, lazy } from "react";
+import { useEffect, useState, Suspense, lazy } from "react";
 import { Loader2 } from "lucide-react";
 import { Ribbon } from "@DESIGN/components/ui/Ribbon";
 import { StatusBar } from "@DESIGN/components/ui/StatusBar";
@@ -17,7 +17,6 @@ import { AdminPanel } from "@IMPLEMENT/features/admin/AdminPanel";
 import { TabContainer } from "@IMPLEMENT/TabInProgram/TabContainer";
 import { useTabStore } from "@IMPLEMENT/TabInProgram/useTabStore";
 import { safeInvoke } from "@IMPLEMENT/lib/tauri";
-import { updateProjectStateV2 } from "@TOOL/utils/designIpc";
 import { announce } from "@TOOL/utils/accessibility";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -37,7 +36,6 @@ export default function App() {
   const syncError = useDesignSync((state) => state.error);
   const flushPendingPersists = useDesignSync((state) => state.flushPendingPersists);
   const [showCreate, setShowCreate] = useState(false);
-  const autoPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeTab, setActiveTab] = useState("HOME");
   const [contractType, setContractType] = useState<"INVESTOR" | "SUBCONTRACTOR" | "FINANCE">("INVESTOR");
 
@@ -70,13 +68,6 @@ export default function App() {
       if (pendingSync && !syncError) {
         await flushPendingPersists();
       }
-      const currentState = useDesignSync.getState();
-      await updateProjectStateV2(selectedProject.id, {
-          features: currentState.features,
-          layers: currentState.layers,
-          regions: currentState.regions,
-          projectKey: currentState.projectKey
-      });
       await safeInvoke("save_project");
       announce("Project saved successfully");
       console.log("[App] Project saved successfully");
@@ -92,13 +83,6 @@ export default function App() {
       if (pendingSync && !syncError) {
         await flushPendingPersists();
       }
-      const currentState = useDesignSync.getState();
-      await updateProjectStateV2(selectedProject.id, {
-          features: currentState.features,
-          layers: currentState.layers,
-          regions: currentState.regions,
-          projectKey: currentState.projectKey
-      });
       await safeInvoke("force_save_project");
       announce("Project force-saved and flushed successfully");
       console.log("[App] Project force-saved successfully");
@@ -196,48 +180,6 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [pendingSync, syncError, flushPendingPersists, selectedProject]);
 
-  useEffect(() => {
-    if (autoPersistTimerRef.current) {
-      clearTimeout(autoPersistTimerRef.current);
-      autoPersistTimerRef.current = null;
-    }
-
-    if (!selectedProject) {
-      return;
-    }
-
-    // Persist project state automatically after sync pipeline goes idle.
-    if (!pendingSync && !syncError) {
-      autoPersistTimerRef.current = setTimeout(() => {
-        void (async () => {
-          try {
-            const currentState = useDesignSync.getState();
-            if (!currentState.projectId || currentState.projectId !== selectedProject.id) {
-              return;
-            }
-
-            await updateProjectStateV2(selectedProject.id, {
-              features: currentState.features,
-              layers: currentState.layers,
-              regions: currentState.regions,
-              projectKey: currentState.projectKey
-            });
-            await safeInvoke("save_project");
-          } catch (e) {
-            console.error("[App] Auto-persist failed:", e);
-          }
-        })();
-      }, 1500);
-    }
-
-    return () => {
-      if (autoPersistTimerRef.current) {
-        clearTimeout(autoPersistTimerRef.current);
-        autoPersistTimerRef.current = null;
-      }
-    };
-  }, [pendingSync, syncError, selectedProject?.id]);
-
   const selectFeature = useDesignSync(s => s.selectFeature);
   const setSelectedGroup = useDesignSync(s => s.setSelectedGroup);
 
@@ -249,13 +191,6 @@ export default function App() {
             if (pendingSync && !syncError) {
               await flushPendingPersists();
             }
-            const currentState = useDesignSync.getState();
-            await updateProjectStateV2(selectedProject.id, {
-              features: currentState.features,
-              layers: currentState.layers,
-              regions: currentState.regions,
-              projectKey: currentState.projectKey
-            });
             await safeInvoke("save_project");
           } catch (e) {
             console.error("[App] Auto-save before closing project failed:", e);
@@ -271,7 +206,7 @@ export default function App() {
 
   return (
     <AppBootstrap>
-      <div className="h-screen w-screen flex flex-col overflow-hidden bg-cad-bg text-cad-text-primary font-sans">
+      <div className="h-full w-full min-h-0 min-w-0 flex flex-col overflow-hidden bg-cad-bg text-cad-text-primary font-sans">
         <TopToolbar
           onSave={handleSaveProject}
           onUndo={() => announce("Undo action triggered")}
@@ -308,8 +243,8 @@ export default function App() {
           onContractTypeChange={setContractType}
         />
 
-        <div className="flex-1 flex overflow-hidden relative">
-          <main className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 min-h-0 min-w-0 flex overflow-hidden relative">
+          <main className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
             {activeTab === "ADMIN" ? (
               <AdminPanel />
             ) : selectedProject && activeTab !== "HOME" ? (

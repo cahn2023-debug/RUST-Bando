@@ -1,6 +1,5 @@
 use rusqlite::{Connection, OpenFlags};
 use std::path::PathBuf;
-use crate::domain::implement::modules::v2::storage::schema::V2_SCHEMA_SQL;
 use serde_json::json;
 
 #[derive(Debug)]
@@ -29,15 +28,15 @@ impl PmpDatabase {
 
         // 1. Strict Version Check
         let version: i32 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version != 0 && version != 2 {
+        if version != 0 && version != 2 && version != 3 {
             return Err(rusqlite::Error::SqliteFailure(
                 rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_ERROR),
-                Some(format!("[V2 STRICT] Unsupported DB version {}. Only 0 or 2 allowed.", version))
+                Some(format!("[V2 STRICT] Unsupported DB version {}. Only 0, 2 or 3 allowed.", version))
             ));
         }
 
         // 2. Force Apply V2 Schema
-        conn.execute_batch(V2_SCHEMA_SQL)?;
+        crate::domain::implement::modules::v2::storage::schema::apply_v2_schema(&conn)?;
 
         // 3. Integrity Check (Self-Healing Stage)
         let integrity: String = conn.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;

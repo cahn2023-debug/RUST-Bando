@@ -25,7 +25,11 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
         active: false,
         location: null,
         heading: 0,
-        fov: 90
+        fov: 90,
+        windowOpen: false,
+        source: 'map',
+        lastSyncAt: 0,
+        featureId: null
     },
 
     setPegmanState: (updates) => set((s) => ({

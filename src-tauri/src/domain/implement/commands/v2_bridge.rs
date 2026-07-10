@@ -1,6 +1,7 @@
 use tauri::State;
 use serde_json::{json, Value};
 use crate::domain::implement::commands::v2::ActorState;
+use crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand;
 
 fn extract_project_metadata(rows: &Value) -> Value {
     let metadata = rows
@@ -15,6 +16,150 @@ fn extract_project_metadata(rows: &Value) -> Value {
     } else {
         json!({})
     }
+}
+
+async fn exec_query(state: &ActorState, sql: &str, params: Vec<String>) -> Result<Value, String> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    state.gateway_tx.send(StorageCommand::Query {
+        sql: sql.to_string(),
+        params,
+        reply: tx,
+    }).await.map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+fn empty_design_state() -> Value {
+    json!({
+        "regions": {},
+        "layers": {},
+        "feature_groups": {},
+        "features": {},
+        "settings": {}
+    })
+}
+
+fn has_design_data(state: &Value) -> bool {
+    ["regions", "layers", "feature_groups", "features"]
+        .iter()
+        .any(|key| state.get(*key).and_then(Value::as_object).map(|obj| !obj.is_empty()).unwrap_or(false))
+}
+
+fn ensure_design_shape(state: Value) -> Value {
+    let mut shaped = empty_design_state();
+    if let Some(src) = state.as_object() {
+        if let Some(dst) = shaped.as_object_mut() {
+            for key in ["regions", "layers", "feature_groups", "features", "settings"] {
+                if let Some(value) = src.get(key) {
+                    dst.insert(key.to_string(), value.clone());
+                }
+            }
+        }
+    }
+    shaped
+}
+
+fn row_array(value: Value) -> Vec<Value> {
+    value.as_array().cloned().unwrap_or_default()
+}
+
+async fn load_design_state_from_tables(state: &ActorState, project_id: &str) -> Result<Value, String> {
+    let regions = exec_query(
+        state,
+        "SELECT id, parent_id, name, description FROM regions WHERE project_id = ?1 ORDER BY created_at, id",
+        vec![project_id.to_string()],
+    ).await?;
+    let layers = exec_query(
+        state,
+        "SELECT id, region_id, name, is_visible FROM layers WHERE project_id = ?1 ORDER BY created_at, id",
+        vec![project_id.to_string()],
+    ).await?;
+    let feature_groups = exec_query(
+        state,
+        "SELECT id, layer_id, parent_id, name, group_type, is_visible, metadata_json FROM feature_groups WHERE project_id = ?1 ORDER BY created_at, id",
+        vec![project_id.to_string()],
+    ).await?;
+    let features = exec_query(
+        state,
+        "SELECT id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json FROM features WHERE project_id = ?1 ORDER BY created_at, id",
+        vec![project_id.to_string()],
+    ).await?;
+    let settings = exec_query(
+        state,
+        "SELECT settings_json FROM project_settings WHERE project_id = ?1",
+        vec![project_id.to_string()],
+    ).await?;
+
+    let mut result = empty_design_state();
+    let result_obj = result.as_object_mut().expect("state object");
+
+    let mut regions_obj = serde_json::Map::new();
+    for row in row_array(regions) {
+        if let Some(id) = row.get("id").and_then(Value::as_str) {
+            regions_obj.insert(id.to_string(), row);
+        }
+    }
+    result_obj.insert("regions".to_string(), Value::Object(regions_obj));
+
+    let mut layers_obj = serde_json::Map::new();
+    for row in row_array(layers) {
+        if let Some(id) = row.get("id").and_then(Value::as_str) {
+            layers_obj.insert(id.to_string(), row);
+        }
+    }
+    result_obj.insert("layers".to_string(), Value::Object(layers_obj));
+
+    let mut groups_obj = serde_json::Map::new();
+    for row in row_array(feature_groups) {
+        if let Some(id) = row.get("id").and_then(Value::as_str) {
+            let metadata = row
+                .get("metadata_json")
+                .cloned()
+                .unwrap_or_else(|| json!({}))
+                .to_string();
+            groups_obj.insert(id.to_string(), json!({
+                "id": id,
+                "layer_id": row.get("layer_id").cloned().unwrap_or(Value::Null),
+                "parent_id": row.get("parent_id").cloned().unwrap_or(Value::Null),
+                "name": row.get("name").cloned().unwrap_or_else(|| json!("Untitled Group")),
+                "type": row.get("group_type").cloned().unwrap_or(Value::Null),
+                "is_visible": row.get("is_visible").and_then(Value::as_i64).unwrap_or(1) != 0,
+                "metadata": metadata,
+            }));
+        }
+    }
+    result_obj.insert("feature_groups".to_string(), Value::Object(groups_obj));
+
+    let mut features_obj = serde_json::Map::new();
+    for row in row_array(features) {
+        if let Some(id) = row.get("id").and_then(Value::as_str) {
+            let metadata = row
+                .get("metadata_json")
+                .cloned()
+                .unwrap_or_else(|| json!({}))
+                .to_string();
+            features_obj.insert(id.to_string(), json!({
+                "id": id,
+                "layer_id": row.get("layer_id").cloned().unwrap_or(Value::Null),
+                "group_id": row.get("group_id").cloned().unwrap_or(Value::Null),
+                "name": row.get("name").cloned().unwrap_or_else(|| json!("Untitled Feature")),
+                "geom_type": row.get("geom_type").cloned().unwrap_or_else(|| json!("Point")),
+                "coordinates": row.get("coordinates_json").cloned().unwrap_or(Value::Null),
+                "properties": row.get("properties_json").cloned().unwrap_or_else(|| json!({})),
+                "metadata": metadata,
+                "bbox": row.get("bbox_json").cloned().unwrap_or(Value::Null),
+            }));
+        }
+    }
+    result_obj.insert("features".to_string(), Value::Object(features_obj));
+
+    let settings_value = row_array(settings)
+        .into_iter()
+        .next()
+        .and_then(|row| row.get("settings_json").cloned())
+        .unwrap_or_else(|| json!({}));
+    result_obj.insert("settings".to_string(), settings_value);
+
+    Ok(result)
 }
 
 // ============================================================================
@@ -70,16 +215,30 @@ pub async fn load_design_state_v2(
     state: State<'_, ActorState>,
     projectId: String,
 ) -> Result<Value, String> {
-    let sql = "SELECT metadata_json FROM projects WHERE id = ?1";
-    let (tx, rx) = tokio::sync::oneshot::channel();
-    state.gateway_tx.send(crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand::Query {
-        sql: sql.to_string(),
-        params: vec![projectId.clone()],
-        reply: tx,
-    }).await.map_err(|e| e.to_string())?;
-    
-    let rows = rx.await.map_err(|e| e.to_string())??;
-    Ok(extract_project_metadata(&rows))
+    let read_model_state = ensure_design_shape(load_design_state_from_tables(&state, &projectId).await?);
+    if has_design_data(&read_model_state) {
+        return Ok(read_model_state);
+    }
+
+    let rows = exec_query(
+        &state,
+        "SELECT metadata_json FROM projects WHERE id = ?1",
+        vec![projectId.clone()],
+    ).await?;
+    let metadata_state = ensure_design_shape(extract_project_metadata(&rows));
+
+    if has_design_data(&metadata_state) {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        state.gateway_tx.send(StorageCommand::UpdateProjectState {
+            project_id: projectId,
+            state: metadata_state.clone(),
+            reply: tx,
+        }).await.map_err(|e| e.to_string())?;
+        rx.await.map_err(|e| e.to_string())??;
+        return Ok(metadata_state);
+    }
+
+    Ok(metadata_state)
 }
 
 #[tauri::command]
@@ -155,6 +314,42 @@ pub async fn get_materials(
 }
 
 /// Stub cho các lệnh V1 đã deprecated
+#[tauri::command]
+pub fn navigate_webview(app: tauri::AppHandle, label: String, url: String) -> Result<(), String> {
+    use tauri::Manager;
+
+    let webview = app
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("Webview not found: {}", label))?;
+    let parsed_url = url
+        .parse()
+        .map_err(|e| format!("Invalid URL for webview navigation: {}", e))?;
+
+    webview.navigate(parsed_url).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn eval_webview(app: tauri::AppHandle, label: String, script: String) -> Result<(), String> {
+    use tauri::Manager;
+
+    let webview = app
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("Webview not found: {}", label))?;
+
+    webview.eval(&script).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_webview_url(app: tauri::AppHandle, label: String) -> Result<String, String> {
+    use tauri::Manager;
+
+    let webview = app
+        .get_webview_window(&label)
+        .ok_or_else(|| format!("Webview not found: {}", label))?;
+
+    webview.url().map(|url| url.to_string()).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn get_task_dependencies_v2() -> Result<Value, String> {
     Ok(json!([]))

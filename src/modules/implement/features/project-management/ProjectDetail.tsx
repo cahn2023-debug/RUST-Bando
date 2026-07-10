@@ -61,10 +61,10 @@ export function ProjectDetail({
 
   return (
     <div className={cn(
-      "flex-1 flex overflow-hidden bg-cad-bg",
+      "flex-1 min-h-0 min-w-0 flex overflow-hidden bg-cad-bg",
       lowPowerMode && "low-power-active"
     )}>
-      <div className="border-r border-cad-border flex flex-col shrink-0 bg-cad-surface group/sidebar relative" style={{ width: leftWidth }}>
+      <div className="border-r border-cad-border flex flex-col shrink-0 bg-cad-surface group/sidebar relative min-h-0" style={{ width: leftWidth }}>
         <ResizeHandle direction="left" onResize={handleLeftResize} />
         <ProjectSidebar
           activeTab={activeTab}

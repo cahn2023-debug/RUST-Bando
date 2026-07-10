@@ -4,7 +4,8 @@ use tokio::sync::oneshot;
 #[derive(Debug)]
 pub enum StorageCommand {
     OpenDatabase { 
-        path: PathBuf 
+        path: PathBuf,
+        reply: oneshot::Sender<Result<(), String>>,
     },
     CreateProject { 
         id: String, 
@@ -27,13 +28,15 @@ pub enum StorageCommand {
     },
     UpdateProjectState {
         project_id: String,
-        state: serde_json::Value
+        state: serde_json::Value,
+        reply: oneshot::Sender<Result<(), String>>,
     },
     DeleteFile { 
         file_id: String 
     },
     DispatchEvents {
-        events: Vec<crate::domain::models::v2::EventEnvelope>
+        events: Vec<crate::domain::models::v2::EventEnvelope>,
+        reply: oneshot::Sender<Result<usize, String>>,
     },
     SaveProject {
         reply: oneshot::Sender<Result<(), String>>

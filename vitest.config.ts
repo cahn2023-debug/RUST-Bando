@@ -6,11 +6,14 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@HOME': path.resolve(__dirname, './src/HOME'),
-      '@DESIGN': path.resolve(__dirname, './src/DESIGN'),
-      '@CONTRACT': path.resolve(__dirname, './src/CONTRACT'),
-      '@IMPLEMENT': path.resolve(__dirname, './src/IMPLEMENT'),
-      '@TOOL': path.resolve(__dirname, './src/TOOL'),
+      'design_renderer': path.resolve(__dirname, './src/modules/implement/lib'),
+      '@HOME': path.resolve(__dirname, './src/modules/home'),
+      '@DESIGN': path.resolve(__dirname, './src/modules/design'),
+      '@CONTRACT': path.resolve(__dirname, './src/modules/contract'),
+      '@IMPLEMENT': path.resolve(__dirname, './src/modules/implement'),
+      '@TOOL': path.resolve(__dirname, './src/modules/tool'),
+      '@ANALYTICS': path.resolve(__dirname, './src/modules/analytics'),
+      '@': path.resolve(__dirname, './src'),
     },
   },
   test: {

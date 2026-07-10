@@ -33,10 +33,10 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({
             {showCreate && (
                 <CreateProjectModal
                     onClose={() => setShowCreate(false)}
-                    onSuccess={(newProjPath?: string) => {
+                    onSuccess={(project?: Project) => {
                         loadProjects();
-                        if (newProjPath) {
-                            handleOpenProject(newProjPath).then((success) => {
+                        if (project?.path) {
+                            handleOpenProject(project.path).then((success) => {
                                 if (success) setActiveTab("DESIGN");
                             });
                         }

@@ -1,19 +1,139 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import { useMap, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
-import { invoke } from '@tauri-apps/api/core';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getEffectiveCameraSpecs, getParsedMetadata } from '@TOOL/utils/featureMetadata';
 import { calculateHFOV, mapRotationToHeading, SENSOR_SIZES } from '@TOOL/utils/cameraMath';
+import { checkStreetViewMetadata } from '@TOOL/utils/googleMapsLoader';
+import { getGoogleMapsApiKey } from '@TOOL/utils/googleMapsRuntime';
 
-// SVG Pegman icon component with Dynamic FOV
-function PegmanIcon({ isActive, heading = 0, fov = 90 }: { isActive: boolean, heading?: number, fov?: number }) {
-  const color = '#10B981'; // Emerald-500
+const STREET_VIEW_WINDOW_LABEL = 'street-view-window';
+const DEFAULT_FOV = 90;
+const POSITION_EPSILON = 0.0000008;
+const HEADING_EPSILON = 0.5;
+const FOV_EPSILON = 0.5;
+const POSITION_JITTER_EPSILON = 0.000003;
+const HEADING_JITTER_EPSILON = 1.5;
+const FOV_JITTER_EPSILON = 1;
+const STREETVIEW_SYNC_INTERVAL_MS = 500;
+const STREETVIEW_SYNC_MIN_APPLY_MS = 120;
+const STREETVIEW_SMOOTH_FACTOR = 0.45;
+
+type PegmanSource = 'map' | 'streetview';
+
+type StreetViewLocationPayload = {
+  lat: number;
+  lng: number;
+  heading?: number;
+  fov?: number;
+  pano?: string;
+};
+
+type StreetViewPovPayload = {
+  heading: number;
+  pitch?: number;
+  zoom?: number;
+  fov?: number;
+};
+
+function normalizeHeading(value: number) {
+  return ((value % 360) + 360) % 360;
+}
+
+function clampFov(value: number) {
+  return Math.max(30, Math.min(150, value || DEFAULT_FOV));
+}
+
+function getHeadingDelta(from: number, to: number) {
+  let delta = normalizeHeading(to) - normalizeHeading(from);
+  while (delta > 180) delta -= 360;
+  while (delta < -180) delta += 360;
+  return delta;
+}
+
+function blendHeading(from: number, to: number, factor: number) {
+  return normalizeHeading(from + getHeadingDelta(from, to) * factor);
+}
+
+function hasMeaningfulMovement(
+  previous: [number, number] | null,
+  nextLat: number,
+  nextLng: number
+) {
+  if (!previous) return true;
+  return (
+    Math.abs(previous[0] - nextLat) > POSITION_EPSILON ||
+    Math.abs(previous[1] - nextLng) > POSITION_EPSILON
+  );
+}
+
+function describeStreetViewError(status: string) {
+  switch (status) {
+    case 'ZERO_RESULTS':
+      return 'Khong tim thay Street View gan vi tri nay.';
+    case 'REQUEST_DENIED':
+      return 'Street View dang bi tu choi truy cap. Kiem tra API key va billing.';
+    case 'OVER_QUERY_LIMIT':
+      return 'Street View tam thoi vuot gioi han truy van.';
+    default:
+      return 'Khong mo duoc Street View cho vi tri nay.';
+  }
+}
+
+function formatCoords(location: [number, number] | null) {
+  if (!location) return '--';
+  return `${location[0].toFixed(6)}, ${location[1].toFixed(6)}`;
+}
+
+function buildStreetViewUrl(lat: number, lng: number, heading: number, fov: number, panoId = '') {
+  const panoParam = panoId ? `&pano=${panoId}` : '';
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}${panoParam}&heading=${normalizeHeading(
+    heading
+  )}&pitch=0&fov=${clampFov(fov)}`;
+}
+
+function parseStreetViewUrl(rawUrl: string | null) {
+  if (!rawUrl) return null;
+  const num = '(-?\\d+(?:\\.\\d+)?)';
+  const pointMatch =
+    rawUrl.match(new RegExp(`@${num},${num}`)) ||
+    rawUrl.match(new RegExp(`!3d${num}!4d${num}`)) ||
+    rawUrl.match(new RegExp(`viewpoint=${num},${num}`));
+
+  if (!pointMatch) return null;
+
+  const headingMatch =
+    rawUrl.match(/heading=(-?\d+(?:\.\d+)?)/) ||
+    rawUrl.match(/,(-?\d+(?:\.\d+)?)t/) ||
+    rawUrl.match(/,(-?\d+(?:\.\d+)?)h/);
+  const fovMatch =
+    rawUrl.match(/fov=(\d+(?:\.\d+)?)/) ||
+    rawUrl.match(/,(\d+(?:\.\d+)?)y/) ||
+    rawUrl.match(/,(\d+(?:\.\d+)?)f/);
+
+  return {
+    lat: parseFloat(pointMatch[1]),
+    lng: parseFloat(pointMatch[2]),
+    heading: headingMatch ? normalizeHeading(parseFloat(headingMatch[1])) : 0,
+    fov: fovMatch ? clampFov(parseFloat(fovMatch[1])) : DEFAULT_FOV
+  };
+}
+
+function PegmanIcon({
+  isActive,
+  heading = 0,
+  fov = DEFAULT_FOV
+}: {
+  isActive: boolean;
+  heading?: number;
+  fov?: number;
+}) {
+  const color = '#10B981';
   const fovColor = 'rgba(16,185,129,0.15)';
   const glowColor = 'rgba(16,185,129,0.5)';
-
-  // Calculate FOV Arc Path
   const radius = 24;
   const startAngle = (-fov / 2 - 90) * Math.PI / 180;
   const endAngle = (fov / 2 - 90) * Math.PI / 180;
@@ -27,10 +147,7 @@ function PegmanIcon({ isActive, heading = 0, fov = 90 }: { isActive: boolean, he
   const fovPath = `M 12 12 L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
 
   return (
-    <div
-      className="relative transition-transform duration-200"
-      style={{ transform: `rotate(${heading}deg)` }}
-    >
+    <div className="relative transition-transform duration-200" style={{ transform: `rotate(${heading}deg)` }}>
       <style>{`
         @keyframes radar {
           0% { transform: scale(1); opacity: 0.6; }
@@ -49,20 +166,11 @@ function PegmanIcon({ isActive, heading = 0, fov = 90 }: { isActive: boolean, he
           overflow: 'visible'
         }}
       >
-        {/* Radar Effect */}
         {isActive && (
           <circle cx="12" cy="12" r="8" stroke={color} strokeWidth="1" style={{ animation: 'radar 1.5s infinite ease-out' }} />
         )}
-
-        {/* FOV Sector */}
-        {isActive && (
-          <path d={fovPath} fill={fovColor} className="animate-pulse" />
-        )}
-
-        {/* Outer Ring */}
+        {isActive && <path d={fovPath} fill={fovColor} className="animate-pulse" />}
         <circle cx="12" cy="12" r="10" stroke={color} strokeWidth="1" strokeDasharray="3 3" opacity="0.4" />
-
-        {/* Camera Body (Top-down) */}
         <circle cx="6" cy="12" r="3" fill={color} />
         <circle cx="18" cy="12" r="3" fill={color} />
         <circle cx="12" cy="12" r="7" fill={color} />
@@ -73,9 +181,8 @@ function PegmanIcon({ isActive, heading = 0, fov = 90 }: { isActive: boolean, he
   );
 }
 
-// Custom Pegman Marker Icon for Leaflet
-const createPegmanIcon = (heading: number, fov: number = 90) => {
-  const color = '#10B981'; // Emerald-500
+function createPegmanIcon(heading: number, fov: number = DEFAULT_FOV) {
+  const color = '#10B981';
   const fovColor = 'rgba(16,185,129,0.25)';
   const radius = 24;
   const startAngle = (-fov / 2 - 90) * Math.PI / 180;
@@ -89,7 +196,7 @@ const createPegmanIcon = (heading: number, fov: number = 90) => {
 
   return L.divIcon({
     html: `
-      <div style="filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5)); transform: rotate(${heading}deg);">
+      <div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5));transform:rotate(${heading}deg);">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="overflow: visible;">
           <path d="${fovPath}" fill="${fovColor}" />
           <circle cx="12" cy="12" r="10" stroke="${color}" stroke-width="1" stroke-dasharray="2 2" opacity="0.4" />
@@ -103,69 +210,74 @@ const createPegmanIcon = (heading: number, fov: number = 90) => {
     `,
     className: 'custom-pegman-marker',
     iconSize: [24, 24],
-    iconAnchor: [12, 12],
+    iconAnchor: [12, 12]
   });
-};
+}
+
+const CLEANUP_STREET_VIEW_SCRIPT = `
+  (() => {
+    const styleId = 'street-view-cleanup-style';
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement('style');
+      style.id = styleId;
+      style.innerHTML = [
+        '.widget-pane-section-back,.widget-minimap,.widget-minimap-shim,.widget-reveal-card,.scene-footer,.watermark,#minimap,.gm-style-cc{display:none!important;}',
+        '.gm-style > div:first-child > div:nth-child(2){display:none!important;pointer-events:none!important;}',
+        '.dismissButton{display:none!important;}'
+      ].join('');
+      document.head.appendChild(style);
+    }
+  })();
+`;
 
 const SURVIVOR_SYNC_SCRIPT = `
-  (function() {
-    // 1. CSS Cleanup
-    const style = document.createElement('style');
-    style.innerHTML = \`
-      .widget-pane-section-back, .widget-minimap, .widget-minimap-shim,
-      .widget-reveal-card, .scene-footer, .watermark, #minimap, .gm-style-cc { display: none !important; }
-    \`;
-    document.head.appendChild(style);
-    
-    const syncToTitle = () => {
+  (() => {
+    const syncMarker = 'SYNC_POS:';
+    const parseCurrentPayload = () => {
       try {
         const url = window.location.href;
-        const num = "(-?\\\\d+(?:\\\\.\\\\d+)?)";
-        const latLngMatch = url.match(new RegExp("@" + num + "," + num)) || url.match(new RegExp("!3d" + num + "!4d" + num));
-        
-        const hMatch = url.match(/,(-?\\d+(?:\\.\\d+)?)h/) || url.match(/,(-?\\d+(?:\\.\\d+)?)y/);
-        const fMatch = url.match(/,(\\d+(?:\\.\\d+)?)y/) || url.match(/,(\\d+(?:\\.\\d+)?)f/);
-        
-        if (latLngMatch) {
-          const h = hMatch ? hMatch[1] : "0";
-          const f = fMatch ? fMatch[1] : "90";
-          const payload = "SYNC_POS:" + latLngMatch[1] + "," + latLngMatch[2] + "," + h + "," + f;
+        const num = '(-?\\\\d+(?:\\\\.\\\\d+)?)';
+        const pointMatch =
+          url.match(new RegExp('@' + num + ',' + num)) ||
+          url.match(new RegExp('!3d' + num + '!4d' + num)) ||
+          url.match(new RegExp('viewpoint=' + num + ',' + num));
 
-          window._SURVIVOR_PAYLOAD = payload;
-          const baseTitle = document.title.replace(/SYNC_POS:[^ ]+/, "").replace(/^[ |]+/, "").trim();
-          document.title = payload + " | " + baseTitle;
-        }
-      } catch(e) {
-        console.warn('[StreetViewControl] Failed to sync position from URL:', e);
+        if (!pointMatch) return null;
+
+        const headingMatch =
+          url.match(/heading=(-?\\d+(?:\\.\\d+)?)/) ||
+          url.match(/,(-?\\d+(?:\\.\\d+)?)t/) ||
+          url.match(/,(-?\\d+(?:\\.\\d+)?)h/);
+        const fovMatch =
+          url.match(/fov=(\\d+(?:\\.\\d+)?)/) ||
+          url.match(/,(\\d+(?:\\.\\d+)?)y/) ||
+          url.match(/,(\\d+(?:\\.\\d+)?)f/);
+
+        const heading = headingMatch ? headingMatch[1] : '0';
+        const fov = fovMatch ? fovMatch[1] : '90';
+        return syncMarker + pointMatch[1] + ',' + pointMatch[2] + ',' + heading + ',' + fov;
+      } catch (error) {
+        console.warn('[StreetViewControl] Failed to parse current Street View payload:', error);
+        return null;
       }
     };
 
-    // ⚔️ TITLE HIJACKING: Bắt cóc thuộc tính title để ngăn Google ghi đè
-    try {
-      if (!document.__titleHijacked) {
-        let currentTitle = document.title;
-        Object.defineProperty(document, 'title', {
-          get: function() { return currentTitle; },
-          set: function(val) {
-            const payload = window._SURVIVOR_PAYLOAD || "";
-            currentTitle = payload ? (payload + " | " + val.replace(/SYNC_POS:[^ ]+/, "").trim()) : val;
-            // Cập nhật DOM thực tế
-            const t = document.querySelector('title');
-            if (t) t.innerText = currentTitle;
-          },
-          configurable: true
-        });
-        document.__titleHijacked = true;
-      }
-    } catch(e) {
-      console.warn('[StreetViewControl] Failed to hijack title:', e);
+    const writeTitleSync = () => {
+      const payload = parseCurrentPayload();
+      if (!payload) return;
+      const baseTitle = (document.title || 'Street View').replace(/SYNC_POS:[^|]+\\|?\\s*/g, '').trim();
+      document.title = payload + ' | ' + (baseTitle || 'Street View');
+      window.__streetViewSyncPayload = payload;
+    };
+
+    if (!window.__streetViewSyncInstalled) {
+      window.__streetViewSyncInstalled = true;
+      setInterval(writeTitleSync, 500);
+      window.addEventListener('popstate', writeTitleSync);
+      window.addEventListener('hashchange', writeTitleSync);
     }
 
-    // 🛡️ TITLE SYNC & CLEAN TITLE
-    setInterval(syncToTitle, 1000);
-    setInterval(() => {
-      document.querySelectorAll('.gm-style-cc, .gmnoprint').forEach(el => (el.style.display = 'none'));
-    }, 2000);
+    writeTitleSync();
   })();
 `;
 
@@ -173,12 +285,26 @@ export function StreetViewControl() {
   const map = useMap();
   const [isActive, setIsActive] = useState(false);
   const [container, setContainer] = useState<HTMLElement | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const pegmanState = useDesignSync((s) => s.pegmanState);
   const setPegmanState = useDesignSync((s) => s.setPegmanState);
-
   const selectedFeatureId = useDesignSync((s) => s.selectedFeatureId);
   const state = useDesignSync((s) => s.state);
+
+  const latestPegmanState = useRef(pegmanState);
+  latestPegmanState.current = pegmanState;
+  const pendingStreetViewSyncRef = useRef<Partial<typeof pegmanState> | null>(null);
+  const streetViewSyncTimerRef = useRef<number | null>(null);
+  const lastStreetViewApplyAtRef = useRef(0);
+
+  const showFeedback = useCallback((message: string) => {
+    setFeedback(message);
+    window.clearTimeout((showFeedback as unknown as { timer?: number }).timer);
+    (showFeedback as unknown as { timer?: number }).timer = window.setTimeout(() => {
+      setFeedback(null);
+    }, 2800);
+  }, []);
 
   useEffect(() => {
     const CustomControl = L.Control.extend({
@@ -201,209 +327,400 @@ export function StreetViewControl() {
     };
   }, [map]);
 
-  // Persistent Ref for the watcher
-  const latestPegmanState = useRef(pegmanState);
-  latestPegmanState.current = pegmanState;
-
-  const lastInjectionRef = useRef(0);
-
-  const injectSurvivorSync = useCallback(async (label: string) => {
-    const now = Date.now();
-    if (now - lastInjectionRef.current < 8000) return; // Cool-down 8s tránh spam
-    lastInjectionRef.current = now;
-
+  const injectCleanup = useCallback(async () => {
     try {
-      await invoke('eval_webview', { label, script: SURVIVOR_SYNC_SCRIPT });
-      console.log('[StreetView] Survivor-Sync reinforced (Throttle OK).');
-    } catch (err) {
-      console.error('[StreetView] Injection failed:', err);
+      await invoke('eval_webview', {
+        label: STREET_VIEW_WINDOW_LABEL,
+        script: CLEANUP_STREET_VIEW_SCRIPT
+      });
+    } catch (error) {
+      console.warn('[StreetViewControl] Cleanup injection skipped:', error);
     }
   }, []);
 
-  const openStreetViewWindow = useCallback(async (lat: number, lng: number) => {
+  const injectSurvivorSync = useCallback(async () => {
     try {
-      const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-      // Thống nhất label để tránh lỗi mở cửa sổ trùng ID hoặc không tìm thấy
-      const label = 'street-view-window';
-
-      const feature = selectedFeatureId ? state?.features?.[selectedFeatureId] : null;
-      let nextHeading = pegmanState.heading;
-      let nextFov = pegmanState.fov;
-      let panoId = '';
-
-      if (feature) {
-        const meta = getParsedMetadata(feature);
-        const rotation = parseFloat(meta?.gis?.rotation ?? meta.rotation ?? 0);
-        // Chuyển đổi Rotation (CAD) sang Heading (Compass)
-        nextHeading = mapRotationToHeading(rotation);
-
-        // Hỗ trợ Pano ID nếu có trong metadata
-        panoId = meta?.gis?.pano_id ?? meta.pano_id ?? '';
-
-        const specs = getEffectiveCameraSpecs(feature, state?.settings, meta);
-        const sensor = SENSOR_SIZES[specs.sensorSize as keyof typeof SENSOR_SIZES] || SENSOR_SIZES['1/3"'];
-        nextFov = parseFloat(meta?.specs?.hfov ?? meta.hfov ?? calculateHFOV(sensor.width, specs.focalLength).toString());
-      }
-
-      setPegmanState({
-        heading: nextHeading,
-        fov: nextFov,
-        location: [lat, lng]
+      await invoke('eval_webview', {
+        label: STREET_VIEW_WINDOW_LABEL,
+        script: SURVIVOR_SYNC_SCRIPT
       });
-
-      let webview = await WebviewWindow.getByLabel(label);
-
-      // 🔒 Áp đặt ràng buộc góc nhìn: Heading 0-270, Pitch 0 (Nhìn ngang)
-      const h = Math.max(0, Math.min(270, nextHeading || 0));
-      const p = 0; // Fixed horizontal
-      const f = nextFov || 90;
-
-      // 🌐 Cấu trúc Link Public chuẩn Google Street View (Ưu tiên pano nếu có)
-      const panoParam = panoId ? `&pano=${panoId}` : '';
-      const publicUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}${panoParam}&heading=${h}&pitch=${p}&fov=${f}`;
-
-      if (webview) {
-        // 🔄 Cập nhật tọa độ cho cửa sổ đang mở (Sử dụng Rust Bridge)
-        await invoke('navigate_webview', { label, url: publicUrl });
-        await webview.setFocus();
-        await webview.show();
-
-        // 💉 Re-inject after navigation (wait briefly for load)
-        setTimeout(() => injectSurvivorSync(label), 3000);
-      } else {
-        // ✨ Tạo mới cửa sổ Street View với cấu trúc link chuẩn
-        const projectTitle = (state as any)?.project?.name || 'Street View';
-        let newWebview = new WebviewWindow(label, {
-          url: publicUrl,
-          title: `${projectTitle} | @${lat.toFixed(6)}, ${lng.toFixed(6)}`,
-          width: 1024,
-          height: 768,
-          minWidth: 400,
-          minHeight: 300,
-          visible: true,
-          decorations: true,
-          transparent: false,
-          shadow: true,
-          focus: true,
-        } as any);
-
-        newWebview.once('tauri://created', async () => {
-          console.log('[StreetView] Public window created.');
-          // 🔒 Survivor-Sync: Initial injection
-          setTimeout(() => injectSurvivorSync(label), 3000);
-        });
-
-        newWebview.once('tauri://error', (e) => {
-          console.error('[StreetView] Window creation error:', e);
-        });
-      }
     } catch (error) {
-      console.error('Failed to manage Street View window:', error);
+      console.warn('[StreetViewControl] Survivor sync injection skipped:', error);
     }
-  }, [selectedFeatureId, state, pegmanState.heading, pegmanState.fov, setPegmanState]);
+  }, []);
 
-  // 🛰️ Survivor Watcher: Optimized for CPU performance
+  const syncPegmanState = useCallback(
+    (payload: Partial<typeof pegmanState> & { source?: PegmanSource }) => {
+      const current = latestPegmanState.current;
+      setPegmanState({
+        ...payload,
+        heading: payload.heading !== undefined ? normalizeHeading(payload.heading) : current.heading,
+        fov: payload.fov !== undefined ? clampFov(payload.fov) : current.fov,
+        source: payload.source ?? current.source ?? 'streetview',
+        windowOpen: payload.windowOpen ?? current.windowOpen ?? true,
+        lastSyncAt: Date.now()
+      });
+    },
+    [setPegmanState]
+  );
+
+  const flushStreetViewSync = useCallback(() => {
+    streetViewSyncTimerRef.current = null;
+    const pending = pendingStreetViewSyncRef.current;
+    pendingStreetViewSyncRef.current = null;
+    if (!pending) {
+      return;
+    }
+
+    lastStreetViewApplyAtRef.current = Date.now();
+    syncPegmanState({
+      ...pending,
+      source: 'streetview',
+      windowOpen: true
+    });
+  }, [syncPegmanState]);
+
+  const scheduleStreetViewSync = useCallback(
+    (payload: { location?: [number, number] | null; heading?: number; fov?: number }) => {
+      const current = latestPegmanState.current;
+      const currentLocation = current.location;
+      const nextLocation = payload.location ?? currentLocation;
+      const rawHeading = payload.heading ?? current.heading;
+      const rawFov = payload.fov ?? current.fov;
+      const normalizedHeading = normalizeHeading(rawHeading);
+      const normalizedFov = clampFov(rawFov);
+
+      let hasLocationDelta = false;
+      let smoothedLocation = nextLocation;
+      if (currentLocation && nextLocation) {
+        const latDelta = nextLocation[0] - currentLocation[0];
+        const lngDelta = nextLocation[1] - currentLocation[1];
+        hasLocationDelta =
+          Math.abs(latDelta) > POSITION_JITTER_EPSILON ||
+          Math.abs(lngDelta) > POSITION_JITTER_EPSILON;
+
+        if (hasLocationDelta) {
+          smoothedLocation = [
+            currentLocation[0] + latDelta * STREETVIEW_SMOOTH_FACTOR,
+            currentLocation[1] + lngDelta * STREETVIEW_SMOOTH_FACTOR
+          ];
+        }
+      } else if (nextLocation) {
+        hasLocationDelta = true;
+      }
+
+      const headingDelta = Math.abs(getHeadingDelta(current.heading, normalizedHeading));
+      const hasHeadingDelta = headingDelta > HEADING_JITTER_EPSILON;
+      const smoothedHeading =
+        hasHeadingDelta && headingDelta < 24
+          ? blendHeading(current.heading, normalizedHeading, STREETVIEW_SMOOTH_FACTOR)
+          : normalizedHeading;
+
+      const fovDelta = Math.abs(normalizedFov - current.fov);
+      const hasFovDelta = fovDelta > FOV_JITTER_EPSILON;
+      const smoothedFov =
+        hasFovDelta && fovDelta < 18
+          ? current.fov + (normalizedFov - current.fov) * STREETVIEW_SMOOTH_FACTOR
+          : normalizedFov;
+
+      if (!hasLocationDelta && !hasHeadingDelta && !hasFovDelta) {
+        return;
+      }
+
+      pendingStreetViewSyncRef.current = {
+        location: smoothedLocation ?? currentLocation,
+        heading: smoothedHeading,
+        fov: smoothedFov
+      };
+
+      if (streetViewSyncTimerRef.current !== null) {
+        return;
+      }
+
+      const elapsed = Date.now() - lastStreetViewApplyAtRef.current;
+      const delay = Math.max(0, STREETVIEW_SYNC_MIN_APPLY_MS - elapsed);
+      streetViewSyncTimerRef.current = window.setTimeout(flushStreetViewSync, delay);
+    },
+    [flushStreetViewSync]
+  );
+
+  const openStreetViewWindow = useCallback(
+    async (lat: number, lng: number) => {
+      try {
+        const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+        const feature = selectedFeatureId ? state?.features?.[selectedFeatureId] : null;
+        const shouldSeedFromFeature =
+          !!feature &&
+          (!latestPegmanState.current.windowOpen ||
+            latestPegmanState.current.featureId !== selectedFeatureId ||
+            !latestPegmanState.current.location);
+
+        let nextHeading = latestPegmanState.current.heading || 0;
+        let nextFov = latestPegmanState.current.fov || DEFAULT_FOV;
+        let panoId = '';
+
+        if (feature && shouldSeedFromFeature) {
+          const meta = getParsedMetadata(feature);
+          const rotation = parseFloat(meta?.gis?.rotation ?? meta.rotation ?? 0);
+          nextHeading = mapRotationToHeading(rotation);
+          panoId = meta?.gis?.pano_id ?? meta.pano_id ?? panoId;
+
+          const specs = getEffectiveCameraSpecs(feature, state?.settings, meta);
+          const sensor =
+            SENSOR_SIZES[specs.sensorSize as keyof typeof SENSOR_SIZES] || SENSOR_SIZES['1/3"'];
+          nextFov = parseFloat(
+            meta?.specs?.hfov ??
+              meta.hfov ??
+              calculateHFOV(sensor.width, specs.focalLength).toString()
+          );
+        }
+
+        const apiKey = getGoogleMapsApiKey().trim();
+        if (apiKey) {
+          const metadata = await checkStreetViewMetadata(lat, lng, apiKey);
+          if (metadata.ok) {
+            panoId = metadata.panoId || panoId;
+          } else {
+            console.warn(
+              `[StreetViewControl] Metadata unavailable (${metadata.status}), falling back to public URL.`
+            );
+          }
+        } else {
+          console.info('[StreetViewControl] Opening public Street View without metadata precheck.');
+        }
+
+        nextHeading = normalizeHeading(nextHeading);
+        nextFov = clampFov(nextFov);
+
+        syncPegmanState({
+          location: [lat, lng],
+          heading: nextHeading,
+          fov: nextFov,
+          source: 'map',
+          windowOpen: true,
+          featureId: selectedFeatureId ?? null
+        });
+
+        const publicUrl = buildStreetViewUrl(lat, lng, nextHeading, nextFov, panoId);
+        const existingWindow = await WebviewWindow.getByLabel(STREET_VIEW_WINDOW_LABEL);
+
+        if (existingWindow) {
+          await invoke('navigate_webview', { label: STREET_VIEW_WINDOW_LABEL, url: publicUrl });
+          await existingWindow.setTitle('Street View');
+          await existingWindow.show();
+          await existingWindow.setFocus();
+        } else {
+          const newWindow = new WebviewWindow(STREET_VIEW_WINDOW_LABEL, {
+            url: publicUrl,
+            title: 'Street View',
+            width: 920,
+            height: 620,
+            minWidth: 520,
+            minHeight: 360,
+            visible: true,
+            decorations: true,
+            transparent: false,
+            shadow: true,
+            focus: true
+          } as any);
+
+          newWindow.once('tauri://created', async () => {
+            syncPegmanState({ windowOpen: true, source: 'map' });
+            window.setTimeout(() => {
+              void injectCleanup();
+              void injectSurvivorSync();
+            }, 1200);
+          });
+
+          newWindow.once('tauri://error', () => {
+            syncPegmanState({ windowOpen: false });
+            showFeedback('Khong tao duoc cua so Street View.');
+          });
+        }
+
+        window.setTimeout(() => {
+          void injectCleanup();
+          void injectSurvivorSync();
+        }, 900);
+
+        if (!panoId) {
+          console.info('[StreetViewControl] Public Street View window opened without pano precheck.');
+        }
+
+        return true;
+      } catch (error) {
+        console.error('[StreetViewControl] Failed to manage Street View window:', error);
+        showFeedback('Street View gap loi khi khoi tao.');
+        syncPegmanState({ windowOpen: false });
+        return false;
+      }
+    },
+    [injectCleanup, selectedFeatureId, showFeedback, state, syncPegmanState]
+  );
+
   useEffect(() => {
-    if (!isActive) return;
+    let disposed = false;
 
-    let webviewRef: any = null;
+    const bindListeners = async () => {
+      const unlisteners = await Promise.all([
+        listen<StreetViewLocationPayload>('pano-changed', (event) => {
+          if (disposed) return;
+          const { lat, lng, heading, fov } = event.payload;
+          const current = latestPegmanState.current;
+          const nextLocation = hasMeaningfulMovement(current.location, lat, lng)
+            ? ([lat, lng] as [number, number])
+            : current.location;
+
+          scheduleStreetViewSync({
+            location: nextLocation ?? [lat, lng],
+            heading: heading ?? current.heading,
+            fov: fov ?? current.fov
+          });
+        }),
+        listen<StreetViewPovPayload>('pov-changed', (event) => {
+          if (disposed) return;
+          const { heading, fov } = event.payload;
+          const current = latestPegmanState.current;
+          if (
+            Math.abs(normalizeHeading(heading) - current.heading) < HEADING_EPSILON &&
+            Math.abs(clampFov(fov ?? current.fov) - current.fov) < FOV_EPSILON
+          ) {
+            return;
+          }
+
+          scheduleStreetViewSync({
+            heading,
+            fov: fov ?? current.fov
+          });
+        }),
+        listen('panorama-ready', () => {
+          if (disposed) return;
+          syncPegmanState({ windowOpen: true, source: 'streetview' });
+        })
+      ]);
+
+      return () => {
+        for (const unlisten of unlisteners) {
+          unlisten();
+        }
+      };
+    };
+
+    let cleanup: (() => void) | undefined;
+    void bindListeners().then((fn) => {
+      cleanup = fn;
+    });
+
+    return () => {
+      disposed = true;
+      cleanup?.();
+    };
+  }, [scheduleStreetViewSync, syncPegmanState]);
+
+  useEffect(() => {
+    if (!pegmanState.windowOpen) {
+      return;
+    }
+
+    let webviewRef: Awaited<ReturnType<typeof import('@tauri-apps/api/webviewWindow')>>['WebviewWindow'] | null = null;
     let isWindowAlive = true;
 
     const syncTask = async () => {
       try {
         if (!webviewRef) {
           const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-          webviewRef = await WebviewWindow.getByLabel('street-view-window');
+          webviewRef = await WebviewWindow.getByLabel(STREET_VIEW_WINDOW_LABEL);
         }
 
-        if (!webviewRef || !isWindowAlive) return;
-
-        const title = await webviewRef.title().catch(() => {
-          isWindowAlive = false;
-          return null;
-        });
-
-        if (!title) return;
-
-        const syncMarker = "SYNC_POS:";
-        let syncIdx = title.indexOf(syncMarker);
-        let finalTitle = title;
-
-        if (syncIdx === -1) {
-          try {
-            const rawUrl = await invoke('get_webview_url', { label: 'street-view-window' }) as string;
-            const num = "(-?\\d+(?:\\.\\d+)?)";
-            const m = rawUrl.match(new RegExp("@" + num + "," + num)) || rawUrl.match(new RegExp("!3d" + num + "!4d" + num));
-            const hM = rawUrl.match(/,(-?\d+(?:\.\d+)?)h/) || rawUrl.match(/,(-?\d+(?:\.\d+)?)y/);
-            const fM = rawUrl.match(/,(\d+(?:\.\d+)?)y/) || rawUrl.match(/,(\d+(?:\.\d+)?)f/);
-
-            if (m) {
-              const h = hM ? hM[1] : "0";
-              const f = fM ? fM[1] : "90";
-              finalTitle = `SYNC_POS:${m[1]},${m[2]},${h},${f}`;
-              syncIdx = 0;
-            }
-          } catch (e) {
-            console.warn('[StreetViewControl] Failed to parse streetview URL:', e);
-          }
-        }
-
-        if (syncIdx === -1) {
-          injectSurvivorSync('street-view-window');
+        if (!webviewRef || !isWindowAlive) {
           return;
         }
 
-        const payload = finalTitle.substring(syncIdx + syncMarker.length).split('|')[0].trim();
-        const parts = payload.split(',');
+        const current = latestPegmanState.current;
+        let syncPayload = '';
+        const title = await webviewRef.title().catch(() => null);
 
-        if (parts.length >= 4) {
-          const lat = parseFloat(parts[0]);
-          const lng = parseFloat(parts[1]);
-          const heading = parseFloat(parts[2]);
-          const fov = parseFloat(parts[3]);
-
-          if (isNaN(lat) || isNaN(lng)) return;
-
-          const current = latestPegmanState.current;
-          const currentPos = current.location || [0, 0];
-          const dist = Math.abs(lat - currentPos[0]) + Math.abs(lng - currentPos[1]);
-          const hDiff = Math.abs(heading - (current.heading || 0));
-          const fDiff = Math.abs(fov - (current.fov || 90));
-
-          // Threshold cực nhạy nhưng có guard để tránh re-render thừa
-          if (dist > 0.00000001 || hDiff > 0.01 || fDiff > 0.1) {
-            setPegmanState({ location: [lat, lng], heading, fov });
+        if (title && title.includes('SYNC_POS:')) {
+          syncPayload = title.substring(title.indexOf('SYNC_POS:') + 'SYNC_POS:'.length).split('|')[0].trim();
+        } else {
+          const rawUrl = (await invoke('get_webview_url', {
+            label: STREET_VIEW_WINDOW_LABEL
+          })) as string;
+          const parsed = parseStreetViewUrl(rawUrl);
+          if (!parsed) {
+            console.debug('[StreetViewControl] Unable to parse Street View URL, re-injecting sync helper.');
+            void injectSurvivorSync();
+            return;
           }
+          syncPayload = `${parsed.lat},${parsed.lng},${parsed.heading},${parsed.fov}`;
         }
-      } catch (err) {
-        webviewRef = null; // Reset on error
+
+        const parts = syncPayload.split(',');
+        if (parts.length < 4) {
+          return;
+        }
+
+        const nextLat = parseFloat(parts[0]);
+        const nextLng = parseFloat(parts[1]);
+        const nextHeading = normalizeHeading(parseFloat(parts[2]));
+        const nextFov = clampFov(parseFloat(parts[3]));
+
+        if (
+          Number.isNaN(nextLat) ||
+          Number.isNaN(nextLng) ||
+          Number.isNaN(nextHeading) ||
+          Number.isNaN(nextFov)
+        ) {
+          return;
+        }
+
+        if (
+          hasMeaningfulMovement(current.location, nextLat, nextLng) ||
+          Math.abs(nextHeading - current.heading) > HEADING_EPSILON ||
+          Math.abs(nextFov - current.fov) > FOV_EPSILON
+        ) {
+          scheduleStreetViewSync({
+            location: [nextLat, nextLng],
+            heading: nextHeading,
+            fov: nextFov
+          });
+        }
+      } catch (error) {
+        console.warn('[StreetViewControl] Street View sync read failed, preserving pegman session:', error);
       }
     };
 
-    const intervalId = setInterval(syncTask, 400);
+    const intervalId = window.setInterval(syncTask, STREETVIEW_SYNC_INTERVAL_MS);
+    void syncTask();
+
     return () => {
-      clearInterval(intervalId);
       isWindowAlive = false;
+      window.clearInterval(intervalId);
+      if (streetViewSyncTimerRef.current !== null) {
+        window.clearTimeout(streetViewSyncTimerRef.current);
+        streetViewSyncTimerRef.current = null;
+      }
+      pendingStreetViewSyncRef.current = null;
     };
-  }, [isActive, injectSurvivorSync, setPegmanState]);
+  }, [injectSurvivorSync, pegmanState.windowOpen, scheduleStreetViewSync]);
 
   useEffect(() => {
     if (!isActive) {
       setPegmanState({ active: false });
       return;
     }
-
     setPegmanState({ active: true });
-    // Note: Local listeners disabled to avoid conflict with Title-Sync
   }, [isActive, setPegmanState]);
-
 
   useEffect(() => {
     if (!isActive) return;
 
-    const onClick = (e: L.LeafletMouseEvent) => {
-      openStreetViewWindow(e.latlng.lat, e.latlng.lng);
-      setIsActive(false); // Auto-deactivate after opening to prevent accidental triggers
+    const onClick = (event: L.LeafletMouseEvent) => {
+      void openStreetViewWindow(event.latlng.lat, event.latlng.lng).then((opened) => {
+        if (opened) {
+          setIsActive(false);
+        }
+      });
     };
 
     map.on('click', onClick);
@@ -412,25 +729,30 @@ export function StreetViewControl() {
     };
   }, [isActive, map, openStreetViewWindow]);
 
-  const controlButton = container ? createPortal(
-    <button
-      onClick={() => setIsActive(!isActive)}
-      className={`
-        flex items-center justify-center 
-        w-[36px] h-[36px] 
-        bg-transparent rounded-full
-        transition-all duration-300
-        ${isActive
-          ? 'bg-blue-600/20 ring-2 ring-blue-500 ring-offset-2 ring-offset-transparent'
-          : 'hover:bg-black/10'
-        }
-      `}
-      title="Google Street View"
-    >
-      <PegmanIcon isActive={isActive} heading={0} fov={isActive ? pegmanState.fov : 90} />
-    </button>,
-    container
-  ) : null;
+  const shouldShowPegman = !!pegmanState.location && (isActive || pegmanState.windowOpen);
+  const hasStreetViewWindow = !!pegmanState.windowOpen;
+  const location = pegmanState.location;
+  const heading = normalizeHeading(pegmanState.heading || 0);
+  const fov = clampFov(pegmanState.fov || DEFAULT_FOV);
+
+  const controlButton = container
+    ? createPortal(
+        <button
+          onClick={() => setIsActive((value) => !value)}
+          className={`flex items-center justify-center w-[38px] h-[38px] rounded-full transition-all duration-300 ${
+            isActive
+              ? 'bg-emerald-500/18 ring-2 ring-emerald-400/70 shadow-[0_0_0_4px_rgba(16,185,129,0.08)]'
+              : hasStreetViewWindow
+                ? 'bg-black/20 hover:bg-black/30'
+                : 'bg-transparent hover:bg-black/10'
+          }`}
+          title="Google Street View"
+        >
+          <PegmanIcon isActive={isActive || hasStreetViewWindow} heading={heading} fov={fov} />
+        </button>,
+        container
+      )
+    : null;
 
   return (
     <>
@@ -439,32 +761,34 @@ export function StreetViewControl() {
       {isActive && (
         <TileLayer
           url="https://mt1.google.com/vt?lyrs=svv&style=40,18&hl=vi&gl=vn&x={x}&y={y}&z={z}"
-          opacity={0.8}
+          opacity={0.72}
           zIndex={1000}
         />
       )}
 
-      {isActive && pegmanState.location && (
+      {shouldShowPegman && location && (
         <Marker
-          position={new L.LatLng(pegmanState.location[0], pegmanState.location[1])}
-          icon={createPegmanIcon(pegmanState.heading, pegmanState.fov)}
+          position={new L.LatLng(location[0], location[1])}
+          icon={createPegmanIcon(heading, fov)}
           draggable={true}
           eventHandlers={{
-            dragend: (e) => {
-              const marker = e.target;
+            dragend: (event) => {
+              const marker = event.target;
               const position = marker.getLatLng();
-              openStreetViewWindow(position.lat, position.lng);
-              setIsActive(false);
-            },
+              void openStreetViewWindow(position.lat, position.lng);
+            }
           }}
-          zIndexOffset={2000}
+          zIndexOffset={2200}
         />
       )}
 
-      {isActive && !pegmanState.location && (
-        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[5000] bg-[#1C1D21] border border-emerald-500/30 text-emerald-400 px-6 py-2 rounded-full shadow-2xl text-[10px] uppercase font-bold tracking-widest backdrop-blur-md flex items-center gap-3">
-          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          Chọn vị trí trên đường màu xanh để xem Street View
+      {(feedback || (isActive && !location)) && (
+        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[5000] bg-[#1B1E24]/92 border border-emerald-400/25 text-emerald-200 px-5 py-2 rounded-full shadow-2xl text-[10px] uppercase font-bold tracking-[0.22em] backdrop-blur-md flex items-center gap-3">
+          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+          <span>
+            {feedback ||
+              `Chon vi tri de mo Street View | ${formatCoords(pegmanState.location)}`}
+          </span>
         </div>
       )}
     </>

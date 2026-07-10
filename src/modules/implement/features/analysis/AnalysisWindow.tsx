@@ -36,7 +36,7 @@ const AnalysisWindow: React.FC = () => {
     // 1. Wait for Auth
     if (!authInitialized) {
         return (
-            <div className="h-screen w-screen flex items-center justify-center bg-cad-bg text-cad-text-primary flex-col gap-4">
+            <div className="h-full w-full min-h-0 min-w-0 flex items-center justify-center bg-cad-bg text-cad-text-primary flex-col gap-4">
                 <div className="w-10 h-10 border-2 border-cad-accent border-t-transparent rounded-full animate-spin"></div>
                 <div className="text-[11px] font-mono text-cad-text-muted uppercase tracking-widest">
                     Đang xác thực hệ thống...
@@ -51,7 +51,7 @@ const AnalysisWindow: React.FC = () => {
     if (!user) {
         console.error("[AnalysisWindow] Auth failed: No user soul found after window warmup.");
         return (
-            <div className="h-screen w-screen flex items-center justify-center bg-cad-bg text-red-400 flex-col gap-4 p-8 text-center">
+            <div className="h-full w-full min-h-0 min-w-0 flex items-center justify-center bg-cad-bg text-red-400 flex-col gap-4 p-8 text-center">
                 <div className="text-xl font-bold italic">Phiên đăng nhập hết hạn</div>
                 <div className="text-[10px] text-cad-text-muted uppercase">Vui lòng đăng nhập lại ở cửa sổ chính hoặc làm mới trang.</div>
                 <button
@@ -66,7 +66,7 @@ const AnalysisWindow: React.FC = () => {
 
     if (projectError) {
         return (
-            <div className="h-screen w-screen flex items-center justify-center bg-cad-bg text-red-500 flex-col gap-4 p-8 text-center">
+            <div className="h-full w-full min-h-0 min-w-0 flex items-center justify-center bg-cad-bg text-red-500 flex-col gap-4 p-8 text-center">
                 <div className="text-xl font-bold">Lỗi khởi tạo</div>
                 <div className="text-sm border border-red-500/30 bg-red-500/10 p-4 rounded max-w-lg overflow-auto">
                     {projectError}
@@ -83,7 +83,7 @@ const AnalysisWindow: React.FC = () => {
 
     if (!state) {
         return (
-            <div className="h-screen w-screen flex items-center justify-center bg-cad-bg text-cad-text-primary flex-col gap-4">
+            <div className="h-full w-full min-h-0 min-w-0 flex items-center justify-center bg-cad-bg text-cad-text-primary flex-col gap-4">
                 <div className="w-10 h-10 border-2 border-cad-accent border-t-transparent rounded-full animate-spin"></div>
                 <div className="text-[11px] font-mono text-cad-text-muted uppercase tracking-widest">
                     Đang khởi tạo dữ liệu dự án...
@@ -93,8 +93,8 @@ const AnalysisWindow: React.FC = () => {
     }
 
     return (
-        <div className="h-screen w-screen bg-cad-bg overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-hidden relative">
+        <div className="h-full w-full min-h-0 min-w-0 bg-cad-bg overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 min-w-0 overflow-hidden relative">
                 <AnalysisDialog onClose={() => {
                     import('@tauri-apps/api/webviewWindow').then(m => {
                         m.getCurrentWebviewWindow().close();

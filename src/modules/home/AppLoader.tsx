@@ -4,7 +4,7 @@ import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
 
 export const AppLoader: React.FC = () => {
     return (
-        <div className="h-screen w-screen flex items-center justify-center bg-cad-bg">
+        <div className="h-full w-full min-h-0 min-w-0 flex items-center justify-center bg-cad-bg">
             <div className="flex flex-col items-center gap-4">
                 <div className="w-12 h-12 bg-cad-accent flex items-center justify-center rounded-lg animate-pulse shadow-lg shadow-cad-accent/10">
                     <span className="text-black font-black text-2xl italic">P</span>

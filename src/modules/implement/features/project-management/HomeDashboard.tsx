@@ -144,6 +144,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                             onSelectProject={onSelectProject}
                             onShowCreate={onShowCreate}
                             onRestoreFromConfig={onRestoreFromConfig}
+                            hideHeader={true}
                         />
                     </div>
                 </div>

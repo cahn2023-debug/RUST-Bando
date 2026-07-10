@@ -24,7 +24,6 @@ pub fn run() {
             app.manage(state);
             Ok(())
         })
-        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
@@ -36,6 +35,8 @@ pub fn run() {
             crate::domain::implement::commands::v2::get_app_config,
             crate::domain::implement::commands::v2::get_pending_pmp_path,
             crate::domain::implement::commands::v2::get_recent_projects,
+            crate::domain::implement::commands::v2::analyze_import_file,
+            crate::domain::implement::commands::v2::start_import_task,
             crate::domain::implement::commands::v2::sync_v2_get_status,
             crate::domain::implement::commands::v2::sync_v2_is_online,
             crate::domain::implement::commands::v2::load_pmp_file,
@@ -62,6 +63,9 @@ pub fn run() {
             crate::domain::implement::commands::v2_bridge::get_notes,
             crate::domain::implement::commands::v2_bridge::get_contracts,
             crate::domain::implement::commands::v2_bridge::get_materials,
+            crate::domain::implement::commands::v2_bridge::navigate_webview,
+            crate::domain::implement::commands::v2_bridge::eval_webview,
+            crate::domain::implement::commands::v2_bridge::get_webview_url,
             crate::domain::implement::commands::v2_bridge::get_task_dependencies,
             crate::domain::implement::commands::v2_bridge::get_content_types,
             crate::domain::implement::commands::v2_bridge::get_project_bom_table,

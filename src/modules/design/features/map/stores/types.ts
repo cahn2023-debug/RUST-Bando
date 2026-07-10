@@ -134,6 +134,10 @@ export type InitializationSlice = {
         location: [number, number] | null;
         heading: number;
         fov: number;
+        windowOpen?: boolean;
+        source?: 'map' | 'streetview';
+        lastSyncAt?: number;
+        featureId?: string | null;
     };
     setPegmanState: (state: Partial<InitializationSlice['pegmanState']>) => void;
 };

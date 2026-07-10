@@ -41,10 +41,14 @@ export function useProjectManager() {
 
     // Guard against stale hydration after F5. Any new open request invalidates older loaders.
     const requestIdRef = useRef(0);
+    const projectsRef = useRef<Project[]>([]);
     const selectedProjectRef = useRef<Project | null>(null);
     const indexingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const openingPathRef = useRef<string | null>(null);
-    const lastOpenAttemptRef = useRef<{ path: string; ts: number } | null>(null);
+
+    useEffect(() => {
+        projectsRef.current = projects;
+    }, [projects]);
 
     useEffect(() => {
         selectedProjectRef.current = selectedProject;
@@ -193,18 +197,11 @@ export function useProjectManager() {
                 return false;
             }
 
-            const now = Date.now();
-            const lastAttempt = lastOpenAttemptRef.current;
             if (openingPathRef.current === selectedPath) {
                 console.warn("[useProjectManager] Skip duplicate open while same path is already loading:", selectedPath);
                 return false;
             }
-            if (lastAttempt && lastAttempt.path === selectedPath && now - lastAttempt.ts < 2500) {
-                console.warn("[useProjectManager] Skip duplicate open attempt within cooldown:", selectedPath);
-                return false;
-            }
             openingPathRef.current = selectedPath;
-            lastOpenAttemptRef.current = { path: selectedPath, ts: now };
 
             // OPTIMISTIC RESET: Clear UI state immediately before backend starts heavy load
             const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
@@ -240,10 +237,11 @@ export function useProjectManager() {
                     indexingTimeoutRef.current = null;
                 }, 3000);
 
-                const nextRecent = [project, ...projects.filter((x) => x.path !== project.path)]
+                const nextRecent = [project, ...projectsRef.current.filter((x) => x.path !== project.path)]
                     .map(normalizeProject)
                     .filter((item): item is Project => item !== null)
                     .slice(0, 10);
+                projectsRef.current = nextRecent;
                 setProjects(nextRecent);
 
                 // Save to backend first
@@ -296,24 +294,20 @@ export function useProjectManager() {
             if (selectedProjectRef.current?.id === projectToDelete.id) {
                 selectedProjectRef.current = null;
                 setSelectedProject(null);
+                await invoke("close_active_project").catch((err) => {
+                    console.warn("Could not close active project while removing from recent:", err);
+                });
             }
 
             try {
-                await invoke("load_pmp_file", { path: projectToDelete.path });
                 await invoke("delete_project", { id: projectToDelete.id });
             } catch (err) {
-                console.warn("Could not delete from backend (might be already gone or locked):", err);
+                console.warn("Could not remove project metadata from backend:", err);
             }
 
             const updatedProjects = projects.filter((project) => project.path !== projectToDelete.path);
             setProjects(updatedProjects);
-
-            // Remove from backend first
-            invoke("remove_recent_project", { path: projectToDelete.path }).catch((err) => {
-                console.warn("Failed to remove from backend, using localStorage:", err);
-                // Fallback to localStorage if backend fails
-                localStorage.setItem("recent_pmps", JSON.stringify(updatedProjects));
-            });
+            localStorage.setItem("recent_pmps", JSON.stringify(updatedProjects));
 
             // V4.1: Remove from Tab Store
             useTabStore.getState().removeTab(projectToDelete.id);

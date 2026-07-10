@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import type { IconType } from '@CONTRACT/types';
 import {
@@ -12,7 +12,8 @@ import { IconSelector } from '@DESIGN/components/ui/IconSelector';
 import { designLogic } from '@TOOL/utils/designLogic';
 import { getFeatureDisplayInfo, safeString, getCleanName } from '@TOOL/utils/featureUtils';
 import { useCamera } from '@IMPLEMENT/hooks/useCamera';
-import { importFromExcel, importFromKML, getExcelHeaders } from '@IMPLEMENT/services/importService';
+import { importFromExcel, importFromKML, getExcelHeaders, applyImportedRecords } from '@IMPLEMENT/services/importService';
+import { safeOpenDialog } from '@IMPLEMENT/lib/tauri';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
 import { cn } from '@TOOL/utils/cn';
 import { useProjectData } from '@IMPLEMENT/hooks/useProjectData';
@@ -46,7 +47,6 @@ export const PropertyPanel: React.FC = () => {
 
   // Load contracts for the project
   const { contracts } = useProjectData({ id: projectId ?? 0, path: '' });
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
 
   // Multi-selection check will be handled in the final return block to avoid hook violations.
@@ -257,23 +257,41 @@ export const PropertyPanel: React.FC = () => {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!feature || !state || !e.target.files?.length) return;
-    const file = e.target.files[0];
-    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  const handleFileUpload = async () => {
+    if (!feature || !state) return;
     setIsImporting(true);
     try {
+      const selected = await safeOpenDialog({
+        filters: [{ name: 'GIS Data', extensions: ['xlsx', 'xls', 'xlsm', 'xlsb', 'kml', 'kmz'] }],
+        multiple: false,
+        directory: false,
+      });
+      if (!selected || typeof selected !== 'string') {
+        return;
+      }
+
+      const filePath = selected;
+      const fileName = filePath.split(/[\\/]/).pop() || filePath;
+      const ext = fileName.split('.').pop()?.toLowerCase() || '';
       // Virtual Folder Logic: Data goes to the same group, but is tied to this feature's ID
       const targetGroupId = feature.group_id;
 
-      if (['xls', 'xlsx', 'csv'].includes(ext)) {
-        const headers = await getExcelHeaders(file.name);
+      if (['xls', 'xlsx', 'xlsm', 'xlsb'].includes(ext)) {
+        const headers = await getExcelHeaders(filePath);
         if (headers.length === 0) { alert('File Excel rỗng hoặc không đọc được.'); return; }
-        const datasetId = await importFromExcel(file.name);
-        alert(`✅ Đã bắt đầu import Excel/CSV: ${file.name}\nID Task: ${datasetId}`);
+        const records = await importFromExcel(filePath, {
+          name_column: headers[0] || '',
+          lat_column: headers.find((header) => /lat|vĩ|vi_do|latitude/i.test(header)) || '',
+          lng_column: headers.find((header) => /lng|lon|kinh|longitude/i.test(header)) || '',
+          description_column: headers.find((header) => /mô tả|mo ta|description|ghi chú/i.test(header)),
+          order_column: headers.find((header) => /stt|order|mã hiệu|ma hieu|id/i.test(header)),
+        });
+        const importedCount = await applyImportedRecords(records, targetGroupId);
+        alert(`✅ Đã import ${importedCount} đối tượng từ ${fileName}.`);
       } else if (['kml', 'kmz'].includes(ext)) {
-        const datasetId = await importFromKML(file.name);
-        alert(`✅ Đã bắt đầu import KML/KMZ: ${file.name}\nID Task: ${datasetId}`);
+        const records = await importFromKML(filePath);
+        const importedCount = await applyImportedRecords(records, targetGroupId);
+        alert(`✅ Đã import ${importedCount} đối tượng từ ${fileName}.`);
       } else if (['gpx'].includes(ext)) {
         alert('Định dạng GPX sẽ được hỗ trợ trong phiên bản tiếp theo.');
       } else {
@@ -289,7 +307,6 @@ export const PropertyPanel: React.FC = () => {
       alert('Lỗi import: ' + errorMessage);
     } finally {
       setIsImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -452,19 +469,12 @@ export const PropertyPanel: React.FC = () => {
 
             {feature.geom_type === 'Point' && isIntersectionFeature && (
               <div className="pt-2 space-y-3">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".xlsx,.xls,.csv,.kml,.kmz,.gpx"
-                  className="hidden"
-                  onChange={handleFileUpload}
-                />
                 <div className="space-y-2 p-3 bg-orange-500/5 border border-orange-500/10 rounded-md">
                   <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
                     <Grid3X3 size={12} /> Bảng điều khiển Nút giao
                   </p>
                   <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={handleFileUpload}
                     disabled={isImporting}
                     className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 disabled:opacity-60 text-white rounded-md transition-all text-[10px] font-bold uppercase tracking-wider shadow-lg shadow-orange-500/20 group"
                   >
@@ -472,7 +482,7 @@ export const PropertyPanel: React.FC = () => {
                     {isImporting ? 'Đang import...' : 'Upload dữ liệu (Excel/KML/KMZ)'}
                   </button>
                   <p className="text-[7px] text-[#555] px-1 leading-relaxed">
-                    Hỗ trợ: .xlsx, .xls, .csv, .kml, .kmz
+                    Hỗ trợ: .xlsx, .xls, .xlsm, .xlsb, .kml, .kmz
                   </p>
                   <div className="h-px bg-orange-500/10 my-1" />
                   <p className="text-[8px] text-[#666] uppercase tracking-wider font-bold mb-1">Thêm thủ công:</p>

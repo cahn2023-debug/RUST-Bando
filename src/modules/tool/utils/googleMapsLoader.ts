@@ -66,8 +66,13 @@ export const initGoogleMaps = (apiKey?: string): boolean => {
  * Checks if Street View metadata is available for a location
  */
 export const checkStreetViewMetadata = async (lat: number, lng: number, apiKey: string): Promise<{ ok: boolean, status: string, panoId?: string }> => {
+    const trimmedKey = apiKey.trim();
+    if (!trimmedKey || trimmedKey === 'undefined') {
+        return { ok: false, status: 'API_KEY_MISSING' };
+    }
+
     try {
-        const response = await fetch(`https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${apiKey}`);
+        const response = await fetch(`https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${trimmedKey}`);
         const data = await response.json();
 
         if (data.status === 'OK') {

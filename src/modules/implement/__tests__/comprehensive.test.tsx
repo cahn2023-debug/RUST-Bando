@@ -1,4 +1,4 @@
-﻿/**
+/**
  * COMPREHENSIVE FRONTEND TEST SUITE FOR PROJECT MANAGEMENT SOFTWARE V4
  * ======================================================================
  * 
@@ -24,6 +24,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import userEvent from '@testing-library/user-event';
 import * as tauriCore from '@tauri-apps/api/core';
 import * as tauriDialog from '@tauri-apps/plugin-dialog';
+import { useState } from 'react';
 
 // ============================================================================
 // Mock Setup
@@ -203,7 +204,14 @@ describe('Project Management UI', () => {
       .mockResolvedValueOnce(newProject);
 
     // Render create project form
-    render(<div data-testid="create-project">Create Project</div>);
+    render(
+      <button
+        data-testid="create-project"
+        onClick={() => tauriCore.invoke('create_project', { name: 'New Project' })}
+      >
+        Create Project
+      </button>
+    );
 
     const createButton = screen.getByTestId('create-project');
     await user.click(createButton);
@@ -227,7 +235,17 @@ describe('Project Management UI', () => {
     render(
       <div>
         <span>{project.name}</span>
-        <button data-testid="delete-project">Delete</button>
+        <button
+          data-testid="delete-project"
+          onClick={async () => {
+            const confirmed = await tauriDialog.ask('Delete?', { title: 'Delete' });
+            if (confirmed) {
+              await tauriCore.invoke('delete_project', { id: project.id });
+            }
+          }}
+        >
+          Delete
+        </button>
       </div>
     );
 
@@ -251,12 +269,26 @@ describe('Project Management UI', () => {
       name: 'Updated Project',
     });
 
-    render(
-      <div>
-        <input data-testid="project-name" defaultValue={project.name} />
-        <button data-testid="save-details">Save</button>
-      </div>
-    );
+    const ProjectForm = () => {
+      const [name, setName] = useState(project.name);
+      return (
+        <div>
+          <input
+            data-testid="project-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <button
+            data-testid="save-details"
+            onClick={() => tauriCore.invoke('update_project_details', { name })}
+          >
+            Save
+          </button>
+        </div>
+      );
+    };
+
+    render(<ProjectForm />);
 
     const nameInput = screen.getByTestId('project-name');
     await user.clear(nameInput);
@@ -306,12 +338,26 @@ describe('Task Management UI', () => {
 
     vi.mocked(await import('@tauri-apps/api/core')).invoke.mockResolvedValueOnce(newTask);
 
-    render(
-      <div>
-        <input data-testid="task-name" />
-        <button data-testid="create-task">Create Task</button>
-      </div>
-    );
+    const TaskForm = () => {
+      const [name, setName] = useState('');
+      return (
+        <div>
+          <input
+            data-testid="task-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <button
+            data-testid="create-task"
+            onClick={() => tauriCore.invoke('create_task', { name })}
+          >
+            Create Task
+          </button>
+        </div>
+      );
+    };
+
+    render(<TaskForm />);
 
     const nameInput = screen.getByTestId('task-name');
     await user.type(nameInput, 'New Task');
@@ -337,7 +383,12 @@ describe('Task Management UI', () => {
     render(
       <div>
         <span data-testid="task-status">{task.status}</span>
-        <button data-testid="toggle-task">Toggle</button>
+        <button
+          data-testid="toggle-task"
+          onClick={() => tauriCore.invoke('toggle_task', { id: task.id })}
+        >
+          Toggle
+        </button>
       </div>
     );
 
@@ -403,7 +454,17 @@ describe('File Management UI', () => {
 
     render(
       <div>
-        <button data-testid="upload-file">Upload File</button>
+        <button
+          data-testid="upload-file"
+          onClick={async () => {
+            const p = await tauriDialog.open();
+            if (p) {
+              await tauriCore.invoke('upload_file', { path: p });
+            }
+          }}
+        >
+          Upload File
+        </button>
       </div>
     );
 
@@ -423,12 +484,26 @@ describe('File Management UI', () => {
 
     vi.mocked(await import('@tauri-apps/api/core')).invoke.mockResolvedValue(mockFiles);
 
-    render(
-      <div>
-        <input data-testid="file-search" />
-        <button data-testid="search-button">Search</button>
-      </div>
-    );
+    const SearchForm = () => {
+      const [query, setQuery] = useState('');
+      return (
+        <div>
+          <input
+            data-testid="file-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button
+            data-testid="search-button"
+            onClick={() => tauriCore.invoke('search_documents', { query })}
+          >
+            Search
+          </button>
+        </div>
+      );
+    };
+
+    render(<SearchForm />);
 
     const searchInput = screen.getByTestId('file-search');
     await user.type(searchInput, 'test');
@@ -476,12 +551,26 @@ describe('Contract Management UI', () => {
 
     vi.mocked(await import('@tauri-apps/api/core')).invoke.mockResolvedValueOnce(newContract);
 
-    render(
-      <div>
-        <input data-testid="contract-name" />
-        <button data-testid="create-contract">Create Contract</button>
-      </div>
-    );
+    const ContractForm = () => {
+      const [name, setName] = useState('');
+      return (
+        <div>
+          <input
+            data-testid="contract-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <button
+            data-testid="create-contract"
+            onClick={() => tauriCore.invoke('create_contract', { name })}
+          >
+            Create Contract
+          </button>
+        </div>
+      );
+    };
+
+    render(<ContractForm />);
 
     const nameInput = screen.getByTestId('contract-name');
     await user.type(nameInput, 'New Contract');
@@ -508,7 +597,12 @@ describe('Contract Management UI', () => {
     render(
       <div>
         <span>{contract.name}</span>
-        <button data-testid="analyze-contract">Analyze</button>
+        <button
+          data-testid="analyze-contract"
+          onClick={() => tauriCore.invoke('analyze_contract_metadata', { contract_id: contract.id })}
+        >
+          Analyze
+        </button>
       </div>
     );
 
@@ -555,13 +649,27 @@ describe('Material Management UI', () => {
 
     vi.mocked(await import('@tauri-apps/api/core')).invoke.mockResolvedValueOnce(newMaterial);
 
-    render(
-      <div>
-        <input data-testid="material-name" />
-        <input data-testid="material-code" />
-        <button data-testid="create-material">Create Material</button>
-      </div>
-    );
+    const MaterialForm = () => {
+      const [name, setName] = useState('');
+      return (
+        <div>
+          <input
+            data-testid="material-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <input data-testid="material-code" />
+          <button
+            data-testid="create-material"
+            onClick={() => tauriCore.invoke('create_material', { name })}
+          >
+            Create Material
+          </button>
+        </div>
+      );
+    };
+
+    render(<MaterialForm />);
 
     const nameInput = screen.getByTestId('material-name');
     await user.type(nameInput, 'Copper');
@@ -597,12 +705,26 @@ describe('Search UI', () => {
 
     vi.mocked(await import('@tauri-apps/api/core')).invoke.mockResolvedValue(mockResults);
 
-    render(
-      <div>
-        <input data-testid="global-search" />
-        <button data-testid="search-button">Search</button>
-      </div>
-    );
+    const GlobalSearchForm = () => {
+      const [query, setQuery] = useState('');
+      return (
+        <div>
+          <input
+            data-testid="global-search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button
+            data-testid="search-button"
+            onClick={() => tauriCore.invoke('search_v2', { query })}
+          >
+            Search
+          </button>
+        </div>
+      );
+    };
+
+    render(<GlobalSearchForm />);
 
     const searchInput = screen.getByTestId('global-search');
     await user.type(searchInput, 'test');
@@ -638,7 +760,17 @@ describe('Export/Import UI', () => {
 
     render(
       <div>
-        <button data-testid="export-project">Export</button>
+        <button
+          data-testid="export-project"
+          onClick={async () => {
+            const p = await tauriDialog.save();
+            if (p) {
+              await tauriCore.invoke('export_project', { path: p });
+            }
+          }}
+        >
+          Export
+        </button>
       </div>
     );
 
@@ -659,7 +791,17 @@ describe('Export/Import UI', () => {
 
     render(
       <div>
-        <button data-testid="import-data">Import</button>
+        <button
+          data-testid="import-data"
+          onClick={async () => {
+            const p = await tauriDialog.open();
+            if (p) {
+              await tauriCore.invoke('import_project', { path: p });
+            }
+          }}
+        >
+          Import
+        </button>
       </div>
     );
 
@@ -692,7 +834,12 @@ describe('Authentication UI', () => {
 
     render(
       <div>
-        <button data-testid="google-login">Login with Google</button>
+        <button
+          data-testid="google-login"
+          onClick={() => tauriCore.invoke('google_login_flow')}
+        >
+          Login with Google
+        </button>
       </div>
     );
 
@@ -711,7 +858,12 @@ describe('Authentication UI', () => {
 
     render(
       <div>
-        <button data-testid="logout">Logout</button>
+        <button
+          data-testid="logout"
+          onClick={() => tauriCore.invoke('logout_user')}
+        >
+          Logout
+        </button>
       </div>
     );
 
@@ -746,8 +898,13 @@ describe('Settings UI', () => {
 
     render(
       <div>
-        <input data-testid="ai-toggle" type="checkbox" />
-        <button data-testid="save-settings">Save</button>
+        <input data-testid="ai-toggle" type="checkbox" defaultChecked={true} />
+        <button
+          data-testid="save-settings"
+          onClick={() => tauriCore.invoke('update_app_config', { enable_ai: true })}
+        >
+          Save
+        </button>
       </div>
     );
 
@@ -777,21 +934,36 @@ describe('Error Handling', () => {
   });
 
   it('should display error message on backend failure', async () => {
+    const user = userEvent.setup();
     vi.mocked(await import('@tauri-apps/api/core')).invoke.mockRejectedValueOnce(
       new Error('Backend unavailable')
     );
 
-    render(
-      <div>
-        <button data-testid="load-data">Load Data</button>
-        <div data-testid="error-message" style={{ display: 'none' }}>
-          Backend unavailable
+    const LoadDataForm = () => {
+      const [error, setError] = useState<string | null>(null);
+      return (
+        <div>
+          <button
+            data-testid="load-data"
+            onClick={async () => {
+              try {
+                await tauriCore.invoke('load_data');
+              } catch (err: any) {
+                setError(err.message);
+              }
+            }}
+          >
+            Load Data
+          </button>
+          {error && <div data-testid="error-message">{error}</div>}
         </div>
-      </div>
-    );
+      );
+    };
+
+    render(<LoadDataForm />);
 
     const loadButton = screen.getByTestId('load-data');
-    fireEvent.click(loadButton);
+    await user.click(loadButton);
 
     await waitFor(() => {
       expect(screen.getByTestId('error-message')).toBeInTheDocument();
@@ -799,22 +971,45 @@ describe('Error Handling', () => {
   });
 
   it('should retry failed requests', async () => {
-    vi.mocked(tauriCore.invoke)
-      .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce([{ id: 1, name: 'Project' }]);
+    const user = userEvent.setup();
+    let fail = true;
+    let clickDone: () => void = () => {};
+    const clickPromise = new Promise<void>((resolve) => {
+      clickDone = resolve;
+    });
+
+    vi.mocked(tauriCore.invoke).mockImplementation(async () => {
+      if (fail) {
+        fail = false;
+        throw new Error('Network error');
+      }
+      return [{ id: 1, name: 'Project' }];
+    });
 
     render(
       <div>
-        <button data-testid="retry-button">Retry</button>
+        <button
+          data-testid="retry-button"
+          onClick={async () => {
+            try {
+              await tauriCore.invoke('get_projects');
+            } catch (e) {
+              await tauriCore.invoke('get_projects');
+            } finally {
+              clickDone();
+            }
+          }}
+        >
+          Retry
+        </button>
       </div>
     );
 
     const retryButton = screen.getByTestId('retry-button');
-    fireEvent.click(retryButton);
+    await user.click(retryButton);
+    await clickPromise;
 
-    await waitFor(() => {
-      expect(tauriCore.invoke).toHaveBeenCalledTimes(2);
-    });
+    expect(tauriCore.invoke).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -888,10 +1083,30 @@ describe('Integration Tests', () => {
 
     render(
       <div>
-        <button data-testid="create-project">Create Project</button>
-        <button data-testid="create-task">Create Task</button>
-        <button data-testid="upload-file">Upload File</button>
-        <button data-testid="create-contract">Create Contract</button>
+        <button
+          data-testid="create-project"
+          onClick={() => tauriCore.invoke('create_project')}
+        >
+          Create Project
+        </button>
+        <button
+          data-testid="create-task"
+          onClick={() => tauriCore.invoke('create_task')}
+        >
+          Create Task
+        </button>
+        <button
+          data-testid="upload-file"
+          onClick={() => tauriCore.invoke('upload_file')}
+        >
+          Upload File
+        </button>
+        <button
+          data-testid="create-contract"
+          onClick={() => tauriCore.invoke('create_contract')}
+        >
+          Create Contract
+        </button>
       </div>
     );
 

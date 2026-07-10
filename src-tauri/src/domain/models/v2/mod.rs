@@ -563,6 +563,37 @@ pub struct EventEnvelope {
 }
 
 impl AppEvent {
+    fn sanitize_event_value(mut value: serde_json::Value) -> serde_json::Value {
+        let Some(obj) = value.as_object_mut() else {
+            return value;
+        };
+        let event_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or_default();
+
+        match event_type {
+            "FeatureCreated" => {
+                obj.entry("id".to_string())
+                    .or_insert_with(|| serde_json::Value::String(Uuid::new_v4().to_string()));
+                obj.entry("group_id".to_string()).or_insert(serde_json::Value::Null);
+                obj.entry("task_id".to_string()).or_insert(serde_json::Value::Null);
+                obj.entry("style_id".to_string()).or_insert(serde_json::Value::Null);
+                obj.entry("note".to_string()).or_insert(serde_json::Value::Null);
+                obj.entry("bbox".to_string()).or_insert(serde_json::Value::Null);
+                if obj.get("geometry").map(|v| v.is_null()).unwrap_or(true) {
+                    obj.insert("geometry".to_string(), serde_json::json!([]));
+                }
+                if obj.get("properties").map(|v| v.is_null()).unwrap_or(true) {
+                    obj.insert("properties".to_string(), serde_json::json!({}));
+                }
+                if obj.get("metadata").map(|v| v.is_null()).unwrap_or(true) {
+                    obj.insert("metadata".to_string(), serde_json::json!({}));
+                }
+            }
+            _ => {}
+        }
+
+        value
+    }
+
     pub fn robust_deserialize(val: &str) -> Result<Self, String> {
         let v: serde_json::Value = serde_json::from_str(val).map_err(|e| e.to_string())?;
         Self::from_value_robust(v)
@@ -579,11 +610,13 @@ impl AppEvent {
             for (key, value) in payload {
                 new_v.insert(key.clone(), value.clone());
             }
-            serde_json::from_value(serde_json::Value::Object(new_v))
+            let sanitized = Self::sanitize_event_value(serde_json::Value::Object(new_v));
+            serde_json::from_value(sanitized)
                 .map_err(|e| format!("Deserialize from payload wrapper failed: {}", e))
         } else {
             // Handle raw event format
-            serde_json::from_value(v)
+            let sanitized = Self::sanitize_event_value(v);
+            serde_json::from_value(sanitized)
                 .map_err(|e| format!("Deserialize raw event failed: {}", e))
         }
     }

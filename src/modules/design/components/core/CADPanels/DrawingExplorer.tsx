@@ -7,7 +7,7 @@ import { cn } from "@TOOL/utils/cn";
 import { TreeItem } from "@DESIGN/components/core/CADPanels/TreeItem";
 import { FeatureItem } from "@DESIGN/components/core/CADPanels/FeatureItem";
 import { useDesignSync, EMPTY_OBJ } from "@IMPLEMENT/stores/useDesignSync";
-import { importFromExcel, importFromKML, getExcelHeaders, type ImportMapping } from "@IMPLEMENT/services/importService";
+import { importFromExcel, importFromKML, getExcelHeaders, applyImportedRecords, type ImportMapping } from "@IMPLEMENT/services/importService";
 import {
   ExplorerHeader,
   ExplorerFilterBar,
@@ -156,12 +156,12 @@ export function DrawingExplorer() {
   };
 
   const handleImportToGroup = async (groupId: string) => {
-    const file = await open({ multiple: false, filters: [{ name: 'Data', extensions: ['xlsx', 'xls', 'csv', 'kml', 'kmz'] }] });
+    const file = await open({ multiple: false, filters: [{ name: 'Data', extensions: ['xlsx', 'xls', 'xlsm', 'xlsb', 'kml', 'kmz'] }] });
     if (!file) return;
     const filePath = typeof file === 'string' ? file : file.path;
     const fileName = filePath.split(/[\\/]/).pop() || filePath;
     const ext = fileName.split('.').pop()?.toLowerCase();
-    if (['xlsx', 'xls', 'csv'].includes(ext!)) {
+    if (['xlsx', 'xls', 'xlsm', 'xlsb'].includes(ext!)) {
       const headers = await getExcelHeaders(filePath);
       setMappingData({ headers, filename: fileName, groupId, filePath });
     } else if (['kml', 'kmz'].includes(ext!)) {
@@ -172,7 +172,8 @@ export function DrawingExplorer() {
 
   const handleMappingConfirm = async (mapping: ImportMapping) => {
     if (!mappingData) return;
-    await importFromExcel(mappingData.filePath);
+    const records = await importFromExcel(mappingData.filePath, mapping);
+    await applyImportedRecords(records, mappingData.groupId);
     setSelectedGroup(mappingData.groupId);
     setMappingData(null);
   };

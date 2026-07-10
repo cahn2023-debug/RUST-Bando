@@ -132,7 +132,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
     return (
         <div className={cn(
             "z-[100] flex flex-col animate-in fade-in duration-200",
-            isStandalone ? "h-screen w-screen relative bg-cad-surface" : (
+            isStandalone ? "h-full w-full min-h-0 min-w-0 relative bg-cad-surface" : (
                 isFullscreen ? "fixed inset-0 bg-cad-surface" : "fixed inset-10 rounded-xl shadow-2xl border border-cad-border overflow-hidden bg-cad-surface"
             )
         )}>
