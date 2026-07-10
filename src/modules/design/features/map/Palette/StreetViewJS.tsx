@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { emit } from '@tauri-apps/api/event';
 import { initGoogleMaps, waitForGoogleMaps } from '@TOOL/utils/googleMapsLoader';
+import { cn } from '@TOOL/utils/cn';
 
 declare var google: any; // Global Google Maps namespace populated by loader script
 
@@ -11,6 +12,7 @@ interface StreetViewJSProps {
     fov: number;
     pitch?: number;
     apiKey: string;
+    rotationLock?: boolean;
 }
 
 export const StreetViewJS: React.FC<StreetViewJSProps> = ({
@@ -19,7 +21,8 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
     heading,
     fov,
     pitch = 0,
-    apiKey
+    apiKey,
+    rotationLock = true
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const panoramaRef = useRef<any>(null);
@@ -34,11 +37,21 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
         const style = document.createElement('style');
         style.innerHTML = `
             .gm-style iframe + div { display: none !important; } 
-            .gm-style-cc { display: none !important; }
             .gmnoprint { display: none !important; }
             .gm-err-container { display: none !important; }
-            /* Hide the "For development purposes only" glass pane */
+            .gm-err-content { display: none !important; }
+            .gm-err-icon { display: none !important; }
+            .gm-err-title { display: none !important; }
+            .gm-err-message { display: none !important; }
+            /* Hide the "For development purposes only" glass pane & Watermarks */
             .gm-style > div:first-child > div:nth-child(2) { pointer-events: none !important; display: none !important; }
+            .gm-style > div:nth-child(2) { display: none !important; }
+            .gm-style-cc { display: none !important; }
+            .gm-control-active { display: none !important; }
+            /* Hide any unexpected console-like overlays from Google JS */
+            div[style*="z-index: 1000001"] { display: none !important; }
+            div[style*="z-index: 1000002"] { display: none !important; }
+            .dismissButton { display: none !important; }
         `;
         document.head.appendChild(style);
 
@@ -67,7 +80,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
             const service = new google.maps.StreetViewService();
             service.getPanorama({
                 location: { lat, lng },
-                radius: 100, // 100m radius
+                radius: 200, // Increased to 200m for better snapping
                 source: google.maps.StreetViewSource.OUTDOOR
             }, (data: any, status: string) => {
                 if (status === google.maps.StreetViewStatus.OK && data.location) {
@@ -109,7 +122,12 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
                 if (disposed || !containerRef.current) return;
 
                 const nearest = await findNearestPano(lat, lng);
-                const finalPos = nearest || { lat, lng };
+                if (!nearest) {
+                    setError('Không tìm thấy dữ liệu Street View (Panorama) tại vị trí này.');
+                    setLoading(false);
+                    return;
+                }
+                const finalPos = nearest;
 
                 const g = (window as any).google;
                 if (!g?.maps) throw new Error('Maps SDK not found');
@@ -179,11 +197,11 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
                     const currentHeading = pPov.heading;
                     const currentPitch = pPov.pitch;
 
-                    // 🔒 Rotation Lock: Limit to ±90° from starting position
+                    // 🔒 Rotation Lock: Limit to ±90° from starting position (only if locked)
                     const angleDiff = getAngleDiff(currentHeading, initialHeadingRef.current);
                     let constrainedHeading = currentHeading;
 
-                    if (Math.abs(angleDiff) > 90) {
+                    if (rotationLock && Math.abs(angleDiff) > 90) {
                         constrainedHeading = normalizeHeading(initialHeadingRef.current + (angleDiff > 0 ? 90 : -90));
                     }
 
@@ -224,11 +242,16 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
                 const initialZoom = Math.max(0, Math.log2(180 / Math.max(1, fov)));
                 panorama.setZoom(initialZoom);
 
-                // Auto-dismiss development-only warning
+                // Auto-dismiss development-only warning & Clean up UI
                 setTimeout(() => {
                     if (disposed) return;
+                    // Try to click dismiss if it exists
                     const dismissBtn = document.querySelector('.dismissButton') as HTMLElement;
                     if (dismissBtn) dismissBtn.click();
+
+                    // Double check if error container appeared and nuke it
+                    const errContainer = document.querySelector('.gm-err-container');
+                    if (errContainer) (errContainer as HTMLElement).style.display = 'none';
                 }, 1000);
 
             } catch (sdkError: unknown) {
@@ -314,7 +337,13 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
 
             <div
                 ref={containerRef}
-                className="street-view-panorama-premium streetview-canvas w-full h-full"
+                className={cn(
+                    "street-view-panorama-premium streetview-canvas w-full h-full transition-opacity duration-500",
+                    (error || loading) ? "opacity-0 scale-95" : "opacity-100 scale-100"
+                )}
+                style={{
+                    display: error ? 'none' : 'block' // Hard hide if error, preventing SDK from showing anything
+                }}
             />
 
             {loading && (

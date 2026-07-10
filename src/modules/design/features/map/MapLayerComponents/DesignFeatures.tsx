@@ -8,6 +8,7 @@ import { useDesignSync, EMPTY_OBJ } from '@IMPLEMENT/stores/useDesignSync';
 import { FeatureState } from '@CONTRACT/types';
 import { useFeatureHierarchy, useFeatureNumbering, useVisibleFeatures } from '@IMPLEMENT/hooks/useDesignFeatures';
 
+
 // Layer Components
 import { PointLayer, SelectedFeaturePopupManager } from '@DESIGN/features/map/MapLayerComponents/PointLayer';
 import { FOVLayer } from '@DESIGN/features/map/MapLayerComponents/FOVLayer';
@@ -25,10 +26,9 @@ const BOUNDS_DEBOUNCE_MS = 150;
  * Manages the high-level rendering of different map layers and their interactions.
  */
 export const DesignFeatures = () => {
-    // 1. Data Subscriptions
-    const features = useDesignSync(state => state.state?.features || (EMPTY_OBJ as Record<string, FeatureState>));
+    // 1. Data Subscriptions (Individual selectors for stability and performance)
+    const rawFeatures = useDesignSync(state => state.state?.features || (EMPTY_OBJ as Record<string, FeatureState>));
     const feature_groups = useDesignSync(state => state.state?.feature_groups || (EMPTY_OBJ as Record<string, any>));
-
     const selectedFeatureId = useDesignSync(state => state.selectedFeatureId);
     const mapHiddenIds = useDesignSync(state => state.mapHiddenIds);
     const selectFeature = useDesignSync(state => state.selectFeature);
@@ -40,6 +40,23 @@ export const DesignFeatures = () => {
     const setSearchResultMarker = useDesignSync(state => state.setSearchResultMarker);
     const showFeatureGroups = useDesignSync(state => state.showFeatureGroups);
     const dispatchEvent = useDesignSync(state => state.dispatchEvent);
+
+
+
+
+    // V65: [ARMORED] Harmonize features data. 
+    // We keep 'features' as a Record for hooks that need ID-based lookup,
+    // but ensured it's actually an Object if it was somehow an Array.
+    const features = React.useMemo(() => {
+        if (Array.isArray(rawFeatures)) {
+            const record: Record<string, FeatureState> = {};
+            rawFeatures.forEach(f => { if (f?.id) record[f.id] = f; });
+            return record;
+        }
+        return rawFeatures;
+    }, [rawFeatures]);
+
+    console.log(`🛠️ [DesignFeatures] Syncing ${Object.keys(features).length} features (Source: ${Array.isArray(rawFeatures) ? 'Array' : 'Record'})`);
 
     const map = useMap();
     const clusterGroupRef = React.useRef<any>(null);

@@ -93,18 +93,20 @@ export class BincodeDecoder {
 
     // --- Domain Specific Decoders ---
 
-    decodeRegion(): any {
+    decodeRegion(id: string): any {
+        this.decodeString(); // Consume 'id' field in the stream
         return {
-            id: this.decodeString(),
+            id,
             parent_id: this.decodeOption(() => this.decodeString()),
             name: this.decodeString(),
             description: this.decodeOption(() => this.decodeString()),
         };
     }
 
-    decodeLayer(): any {
+    decodeLayer(id: string): any {
+        this.decodeString(); // Consume 'id' field in the stream
         return {
-            id: this.decodeString(),
+            id,
             region_id: this.decodeString(),
             name: this.decodeString(),
             is_visible: (() => {
@@ -114,9 +116,10 @@ export class BincodeDecoder {
         };
     }
 
-    decodeFeatureGroup(): any {
+    decodeFeatureGroup(id: string): any {
+        this.decodeString(); // Consume 'id' field in the stream
         return {
-            id: this.decodeString(),
+            id,
             layer_id: this.decodeString(),
             parent_id: this.decodeOption(() => this.decodeString()),
             name: this.decodeString(),
@@ -130,9 +133,10 @@ export class BincodeDecoder {
         };
     }
 
-    decodeFeature(): any {
+    decodeFeature(id: string): any {
+        this.decodeString(); // Consume 'id' field in the stream
         return {
-            id: this.decodeString(),
+            id,
             layer_id: this.decodeString(),
             group_id: this.decodeOption(() => this.decodeString()),
             name: this.decodeString(),
@@ -157,22 +161,25 @@ export class BincodeDecoder {
         const regions: Record<string, any> = {};
         for (let i = 0; i < regionsLen; i++) {
             const id = this.decodeString();
-            regions[id] = this.decodeRegion();
+            regions[id] = this.decodeRegion(id);
         }
+        console.log(`[Bincode] Regions offset: ${this.offset}`);
 
         const layersLen = this.decodeLength();
         const layers: Record<string, any> = {};
         for (let i = 0; i < layersLen; i++) {
             const id = this.decodeString();
-            layers[id] = this.decodeLayer();
+            layers[id] = this.decodeLayer(id);
         }
+        console.log(`[Bincode] Layers offset: ${this.offset}`);
 
         const groupsLen = this.decodeLength();
         const feature_groups: Record<string, any> = {};
         for (let i = 0; i < groupsLen; i++) {
             const id = this.decodeString();
-            feature_groups[id] = this.decodeFeatureGroup();
+            feature_groups[id] = this.decodeFeatureGroup(id);
         }
+        console.log(`[Bincode] Groups offset: ${this.offset}`);
 
         const featuresLen = this.decodeLength();
         console.log(`[Bincode] Decoding ${featuresLen} features (chunked)...`);
@@ -181,7 +188,7 @@ export class BincodeDecoder {
         const CHUNK_SIZE = 100;
         for (let i = 0; i < featuresLen; i++) {
             const id = this.decodeString();
-            features[id] = this.decodeFeature();
+            features[id] = this.decodeFeature(id);
 
             if (i > 0 && i % CHUNK_SIZE === 0) {
                 await new Promise(resolve => setTimeout(resolve, 0));
@@ -206,28 +213,28 @@ export class BincodeDecoder {
         const regions: Record<string, any> = {};
         for (let i = 0; i < regionsLen; i++) {
             const id = this.decodeString();
-            regions[id] = this.decodeRegion();
+            regions[id] = this.decodeRegion(id);
         }
 
         const layersLen = this.decodeLength();
         const layers: Record<string, any> = {};
         for (let i = 0; i < layersLen; i++) {
             const id = this.decodeString();
-            layers[id] = this.decodeLayer();
+            layers[id] = this.decodeLayer(id);
         }
 
         const groupsLen = this.decodeLength();
         const feature_groups: Record<string, any> = {};
         for (let i = 0; i < groupsLen; i++) {
             const id = this.decodeString();
-            feature_groups[id] = this.decodeFeatureGroup();
+            feature_groups[id] = this.decodeFeatureGroup(id);
         }
 
         const featuresLen = this.decodeLength();
         const features: Record<string, any> = {};
         for (let i = 0; i < featuresLen; i++) {
             const id = this.decodeString();
-            features[id] = this.decodeFeature();
+            features[id] = this.decodeFeature(id);
         }
 
         const settings = this.decodeObject();

@@ -1,0 +1,48 @@
+{
+  "name": "RUST",
+  "id": "RUST",
+  "createdAt": "2026-05-01T07:57:23.2057277Z",
+  "settings": {
+    "defaultPriority": "medium",
+    "gitTrackingMode": "git-ignored",
+    "statuses": [
+      "todo",
+      "in-progress",
+      "in-review",
+      "done",
+      "blocked",
+      "on-hold",
+      "urgent"
+    ],
+    "statusColors": {
+      "blocked": "red",
+      "done": "green",
+      "in-progress": "blue",
+      "in-review": "purple",
+      "on-hold": "yellow",
+      "todo": "gray",
+      "urgent": "orange"
+    },
+    "visibleColumns": [
+      "todo",
+      "in-progress",
+      "blocked",
+      "done",
+      "in-review"
+    ],
+    "semanticSearch": {
+      "enabled": true,
+      "model": "all-MiniLM-L6-v2",
+      "huggingFaceId": "Xenova/all-MiniLM-L6-v2",
+      "dimensions": 384,
+      "maxTokens": 256
+    },
+    "serverPort": 6420,
+    "platforms": [
+      "gemini",
+      "agents",
+      "opencode"
+    ],
+    "enableChatUI": true
+  }
+}

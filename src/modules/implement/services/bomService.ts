@@ -3,9 +3,8 @@
  * Aggregates and summarizes project materials by categories
  */
 
-import { MapState, FeatureState } from '@CONTRACT/types';
+import { MapState } from '@CONTRACT/types';
 import { getFeatureDisplayType } from '@TOOL/utils/featureUtils';
-import { flattenFeature } from '@TOOL/utils/dataFlattening';
 
 export interface BOMItem {
   type: string;

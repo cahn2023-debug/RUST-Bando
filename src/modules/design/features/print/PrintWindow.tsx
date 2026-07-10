@@ -12,7 +12,7 @@ const PrintWindow: React.FC = () => {
         const urlProjectId = params.get('projectId');
         
         if (urlProjectId) {
-            initialize(parseInt(urlProjectId));
+            initialize(urlProjectId);
         }
         loadSettings();
         

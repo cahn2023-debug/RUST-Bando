@@ -1,5 +1,7 @@
 use bytemuck::{Pod, Zeroable};
-use shared_models::{DeltaMapData, EntityType, MapData};
+use rstar::{RTree, RTreeObject, AABB};
+use app_domain::{DeltaMapData, Entity, EntityType, MapData};
+use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlCanvasElement;
 use wgpu::{util::DeviceExt, Backends, InstanceDescriptor, InstanceFlags};
@@ -21,6 +23,65 @@ struct Vertex {
     color: [f32; 4],
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable)]
+struct CameraUniform {
+    view_proj: [[f32; 4]; 4],
+}
+
+impl CameraUniform {
+    fn new() -> Self {
+        use cgmath::SquareMatrix;
+        Self {
+            view_proj: cgmath::Matrix4::identity().into(),
+        }
+    }
+}
+
+pub struct SpatialEntity {
+    pub id: String,
+    pub envelope: AABB<[f32; 2]>,
+}
+
+impl RTreeObject for SpatialEntity {
+    type Envelope = AABB<[f32; 2]>;
+    fn envelope(&self) -> Self::Envelope {
+        self.envelope
+    }
+}
+
+fn calculate_envelope(entity: &Entity) -> AABB<[f32; 2]> {
+    match &entity.entity_type {
+        EntityType::Line { start, end } => {
+            let min_x = start.x.min(end.x);
+            let max_x = start.x.max(end.x);
+            let min_y = start.y.min(end.y);
+            let max_y = start.y.max(end.y);
+            AABB::from_corners([min_x, min_y], [max_x, max_y])
+        }
+        EntityType::Rect {
+            top_left,
+            width,
+            height,
+        } => {
+            let br_x = top_left.x + width;
+            let br_y = top_left.y + height;
+            AABB::from_corners([top_left.x, top_left.y], [br_x, br_y])
+        }
+        EntityType::Circle { center, radius } => {
+            let min_x = center.x - radius;
+            let max_x = center.x + radius;
+            let min_y = center.y - radius;
+            let max_y = center.y + radius;
+            AABB::from_corners([min_x, min_y], [max_x, max_y])
+        }
+        EntityType::Text { position, .. } => {
+            // Placeholder for text bounding box
+            AABB::from_corners([position.x, position.y], [position.x + 10.0, position.y + 10.0])
+        }
+    }
+}
+
 #[wasm_bindgen]
 pub struct RendererState {
     surface: wgpu::Surface<'static>,
@@ -29,10 +90,17 @@ pub struct RendererState {
     config: wgpu::SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
-    map_data: Option<MapData>,
-    vertex_buffer: Option<wgpu::Buffer>,
-    index_buffer: Option<wgpu::Buffer>,
+    map_data_map: HashMap<String, Entity>,
+    rtree: RTree<SpatialEntity>,
+    camera_uniform: CameraUniform,
+    camera_buffer: wgpu::Buffer,
+    camera_bind_group: wgpu::BindGroup,
+    vertex_buffer: wgpu::Buffer,
+    vertex_buffer_capacity: usize,
+    index_buffer: wgpu::Buffer,
+    index_buffer_capacity: usize,
     num_indices: u32,
+    viewport_aabb: AABB<[f32; 2]>,
 }
 
 #[wasm_bindgen]
@@ -179,10 +247,41 @@ impl RendererState {
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
+        let camera_uniform = CameraUniform::new();
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&[camera_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+                label: Some("camera_bind_group_layout"),
+            });
+
+        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &camera_bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
+            label: Some("camera_bind_group"),
+        });
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -224,7 +323,23 @@ impl RendererState {
             cache: None,
         });
 
-        console_log!("WGPU Renderer Core Ready");
+        let vertex_buffer_capacity = 10000;
+        let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Vertex Buffer Pool"),
+            size: (vertex_buffer_capacity * std::mem::size_of::<Vertex>()) as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        let index_buffer_capacity = 20000;
+        let index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Index Buffer Pool"),
+            size: (index_buffer_capacity * std::mem::size_of::<u32>()) as u64,
+            usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        console_log!("WGPU Renderer Core Ready (Buffer Pool Initialized)");
 
         Ok(Self {
             surface,
@@ -233,10 +348,17 @@ impl RendererState {
             config,
             size,
             render_pipeline,
-            map_data: None,
-            vertex_buffer: None,
-            index_buffer: None,
+            map_data_map: HashMap::new(),
+            rtree: RTree::new(),
+            camera_uniform,
+            camera_buffer,
+            camera_bind_group,
+            vertex_buffer,
+            vertex_buffer_capacity,
+            index_buffer,
+            index_buffer_capacity,
             num_indices: 0,
+            viewport_aabb: AABB::from_corners([-1000.0, -1000.0], [1000.0, 1000.0]), // Initial broad viewport
         })
     }
 
@@ -255,7 +377,21 @@ impl RendererState {
     pub fn load_map_data(&mut self, buffer: &[u8]) -> Result<(), JsValue> {
         match bincode::deserialize::<MapData>(buffer) {
             Ok(data) => {
-                self.map_data = Some(data);
+                // Build R-Tree index and Map
+                let mut spatial_entities = Vec::new();
+                let mut entities_map = HashMap::new();
+                
+                for entity in data.entities {
+                    spatial_entities.push(SpatialEntity {
+                        id: entity.id.clone(),
+                        envelope: calculate_envelope(&entity),
+                    });
+                    entities_map.insert(entity.id.clone(), entity);
+                }
+                
+                self.rtree = RTree::bulk_load(spatial_entities);
+                self.map_data_map = entities_map;
+                
                 self.update_buffers();
                 Ok(())
             }
@@ -271,22 +407,26 @@ impl RendererState {
     pub fn load_delta_map_data(&mut self, buffer: &[u8]) -> Result<(), JsValue> {
         match bincode::deserialize::<DeltaMapData>(buffer) {
             Ok(delta) => {
-                if let Some(ref mut data) = self.map_data {
-                    data.entities.retain(|e| !delta.delete_ids.contains(&e.id));
-                    for new_entity in delta.upsert_entities {
-                        if let Some(existing) =
-                            data.entities.iter_mut().find(|e| e.id == new_entity.id)
-                        {
-                            *existing = new_entity;
-                        } else {
-                            data.entities.push(new_entity);
-                        }
-                    }
-                } else {
-                    self.map_data = Some(MapData {
-                        entities: delta.upsert_entities,
+                // Remove deleted
+                for id in delta.delete_ids {
+                    self.map_data_map.remove(&id);
+                }
+                
+                // Upsert new/updated
+                for new_entity in delta.upsert_entities {
+                    self.map_data_map.insert(new_entity.id.clone(), new_entity);
+                }
+                
+                // Rebuild R-Tree
+                let mut spatial_entities = Vec::new();
+                for entity in self.map_data_map.values() {
+                    spatial_entities.push(SpatialEntity {
+                        id: entity.id.clone(),
+                        envelope: calculate_envelope(entity),
                     });
                 }
+                self.rtree = RTree::bulk_load(spatial_entities);
+                
                 self.update_buffers();
                 Ok(())
             }
@@ -299,21 +439,25 @@ impl RendererState {
     }
 
     fn update_buffers(&mut self) {
-        let Some(ref data) = self.map_data else {
+        if self.map_data_map.is_empty() {
             return;
-        };
+        }
 
         let mut vertices = Vec::new();
         let mut indices = Vec::new();
         let mut current_idx = 0u32;
 
-        for entity in &data.entities {
-            let color = [
-                entity.color.r,
-                entity.color.g,
-                entity.color.b,
-                entity.color.a,
-            ];
+        // Query R-Tree for visible entities (Frustum Culling)
+        let visible_entities = self.rtree.locate_in_envelope(&self.viewport_aabb);
+
+        for spatial_entity in visible_entities {
+            if let Some(entity) = self.map_data_map.get(&spatial_entity.id) {
+                let color = [
+                    entity.color.r,
+                    entity.color.g,
+                    entity.color.b,
+                    entity.color.a,
+                ];
             match &entity.entity_type {
                 EntityType::Line { start, end } => {
                     vertices.push(Vertex {
@@ -400,36 +544,46 @@ impl RendererState {
                         entity.entity_type
                     );
                 }
+                }
             }
         }
 
         if vertices.is_empty() {
-            self.vertex_buffer = None;
-            self.index_buffer = None;
             self.num_indices = 0;
             return;
         }
 
-        self.vertex_buffer = Some(self.device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Vertex Buffer"),
-                contents: bytemuck::cast_slice(&vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            },
-        ));
+        // Check if we need to resize buffers
+        if vertices.len() > self.vertex_buffer_capacity {
+            self.vertex_buffer_capacity = (vertices.len() * 2).max(self.vertex_buffer_capacity * 2);
+            self.vertex_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("Vertex Buffer Pool Expanded"),
+                size: (self.vertex_buffer_capacity * std::mem::size_of::<Vertex>()) as u64,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            });
+            console_log!("[WASM] Vertex buffer expanded to {} vertices", self.vertex_buffer_capacity);
+        }
 
-        self.index_buffer = Some(self.device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Index Buffer"),
-                contents: bytemuck::cast_slice(&indices),
-                usage: wgpu::BufferUsages::INDEX,
-            },
-        ));
+        if indices.len() > self.index_buffer_capacity {
+            self.index_buffer_capacity = (indices.len() * 2).max(self.index_buffer_capacity * 2);
+            self.index_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("Index Buffer Pool Expanded"),
+                size: (self.index_buffer_capacity * std::mem::size_of::<u32>()) as u64,
+                usage: wgpu::BufferUsages::INDEX | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            });
+            console_log!("[WASM] Index buffer expanded to {} indices", self.index_buffer_capacity);
+        }
+
+        // Upload data using efficient copy_dst
+        self.queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
+        self.queue.write_buffer(&self.index_buffer, 0, bytemuck::cast_slice(&indices));
 
         self.num_indices = indices.len() as u32;
         console_log!(
-            "[WASM] Buffers updated. Entities: {}, Indices: {}",
-            data.entities.len(),
+            "[WASM] Buffers uploaded via Pool. Visible: {}, Indices: {}",
+            self.map_data_map.len(),
             self.num_indices
         );
     }
@@ -471,10 +625,11 @@ impl RendererState {
                 timestamp_writes: None,
             });
 
-            if let (Some(v_buf), Some(i_buf)) = (&self.vertex_buffer, &self.index_buffer) {
+            {
                 render_pass.set_pipeline(&self.render_pipeline);
-                render_pass.set_vertex_buffer(0, v_buf.slice(..));
-                render_pass.set_index_buffer(i_buf.slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+                render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
                 render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
             }
         }
@@ -483,5 +638,25 @@ impl RendererState {
         output.present();
 
         Ok(())
+    }
+
+    #[wasm_bindgen]
+    pub fn update_camera(&mut self, matrix: &[f32]) {
+        if matrix.len() == 16 {
+            let mut data = [[0.0f32; 4]; 4];
+            for i in 0..4 {
+                for j in 0..4 {
+                    data[i][j] = matrix[i * 4 + j];
+                }
+            }
+            self.camera_uniform.view_proj = data;
+            self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera_uniform]));
+        }
+    }
+
+    #[wasm_bindgen]
+    pub fn set_viewport(&mut self, min_x: f32, min_y: f32, max_x: f32, max_y: f32) {
+        self.viewport_aabb = AABB::from_corners([min_x, min_y], [max_x, max_y]);
+        self.update_buffers(); // Trigger culling update
     }
 }

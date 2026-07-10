@@ -4,10 +4,10 @@ import L from 'leaflet';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 
 export const isValidLatLng = (lat: number, lng: number) => {
-    // Tighter Vietnam bounds approx: Lat [8, 24], Lng [102, 110]
-    const isBasicValid = Math.abs(lat) > 0.0001 && Math.abs(lng) > 0.0001 && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-    const isInRegion = (lat > 8 && lat < 24 && lng > 102 && lng < 110);
-    return isBasicValid && isInRegion;
+    // Only check basic mathematical validity and non-zero (near origin)
+    return Math.abs(lat) > 0.0001 && Math.abs(lng) > 0.0001 &&
+        lat >= -90 && lat <= 90 &&
+        lng >= -180 && lng <= 180;
 };
 
 export function ZoomExtendControl() {

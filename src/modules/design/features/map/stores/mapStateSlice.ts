@@ -124,12 +124,13 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
             switch (type) {
                 case 'FeatureCreated':
                 case 'FeatureUpdated':
+                    const currentFeature = newState.features[payload.id];
                     newState.features = {
                         ...newState.features,
-                        [payload.id]: {
-                            ...newState.features[payload.id],
-                            ...payload
-                        }
+                        [payload.id]: currentFeature ? {
+                            ...currentFeature,
+                            ...Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== null && v !== undefined))
+                        } : { ...payload }
                     };
                     break;
                 case 'FeatureDeleted': {
@@ -139,10 +140,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 }
                 case 'RegionCreated':
                 case 'RegionUpdated':
+                    if (!newState.regions) newState.regions = {};
                     newState.regions = {
                         ...newState.regions,
                         [payload.id]: {
-                            ...newState.regions[payload.id],
+                            ...(newState.regions[payload.id] || {}),
                             ...payload
                         }
                     };
@@ -153,10 +155,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                     break;
                 case 'LayerCreated':
                 case 'LayerUpdated':
+                    if (!newState.layers) newState.layers = {};
                     newState.layers = {
                         ...newState.layers,
                         [payload.id]: {
-                            ...newState.layers[payload.id],
+                            ...(newState.layers[payload.id] || {}),
                             ...payload
                         }
                     };
@@ -167,10 +170,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                     break;
                 case 'FeatureGroupCreated':
                 case 'FeatureGroupUpdated':
+                    if (!newState.feature_groups) newState.feature_groups = {};
                     newState.feature_groups = {
                         ...newState.feature_groups,
                         [payload.id]: {
-                            ...newState.feature_groups[payload.id],
+                            ...(newState.feature_groups[payload.id] || {}),
                             ...payload
                         }
                     };
@@ -200,11 +204,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         if ('applied_event' in response) {
             newState.lastEventId = response.event_id;
             applySingle(response.applied_event);
-            response.side_effects.forEach(applySingle);
+            response.side_effects?.forEach(applySingle);
         } else {
             newState.lastEventId = response.last_event_id;
-            response.applied_events.forEach(applySingle);
-            response.side_effects.forEach(applySingle);
+            response.applied_events?.forEach(applySingle);
+            response.side_effects?.forEach(applySingle);
         }
 
         set({ state: newState });
@@ -237,10 +241,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 }
                 case 'RegionCreated':
                 case 'RegionUpdated':
+                    if (!newState.regions) newState.regions = {};
                     newState.regions = {
                         ...newState.regions,
                         [payload.id]: {
-                            ...newState.regions[payload.id],
+                            ...(newState.regions[payload.id] || {}),
                             ...payload
                         }
                     };
@@ -251,10 +256,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                     break;
                 case 'LayerCreated':
                 case 'LayerUpdated':
+                    if (!newState.layers) newState.layers = {};
                     newState.layers = {
                         ...newState.layers,
                         [payload.id]: {
-                            ...newState.layers[payload.id],
+                            ...(newState.layers[payload.id] || {}),
                             ...payload
                         }
                     };
@@ -265,10 +271,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                     break;
                 case 'FeatureGroupCreated':
                 case 'FeatureGroupUpdated':
+                    if (!newState.feature_groups) newState.feature_groups = {};
                     newState.feature_groups = {
                         ...newState.feature_groups,
                         [payload.id]: {
-                            ...newState.feature_groups[payload.id],
+                            ...(newState.feature_groups[payload.id] || {}),
                             ...payload
                         }
                     };
@@ -285,10 +292,10 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         if ('applied_event' in response) {
             newState.lastEventId = response.event_id;
-            response.side_effects.forEach(applySingle);
+            response.side_effects?.forEach(applySingle);
         } else {
             newState.lastEventId = response.last_event_id;
-            response.side_effects.forEach(applySingle);
+            response.side_effects?.forEach(applySingle);
         }
 
         set({ state: newState });
@@ -303,45 +310,73 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         const apply = (ev: DesignEventType) => {
             const { type, payload } = ev as any;
+            if (!payload) return;
+
             switch (type) {
                 case 'FeatureCreated':
                 case 'FeatureUpdated':
+                    if (!newState.features) newState.features = {};
                     const fPayload = { ...payload };
                     if (fPayload.group_id === '') fPayload.group_id = null;
-                    newState.features = { ...newState.features, [payload.id]: { ...newState.features[payload.id], ...fPayload } };
+                    const currentFeature = newState.features[payload.id];
+                    newState.features = {
+                        ...newState.features,
+                        [payload.id]: currentFeature ? {
+                            ...currentFeature,
+                            ...Object.fromEntries(Object.entries(fPayload).filter(([_, v]) => v !== null && v !== undefined))
+                        } : { ...fPayload }
+                    };
                     break;
                 case 'FeatureDeleted':
+                    if (!newState.features) break;
                     const { [payload.id]: _, ...remainingFeatures } = newState.features;
                     newState.features = remainingFeatures;
                     break;
                 case 'RegionCreated':
                 case 'RegionUpdated':
-                    newState.regions = { ...newState.regions, [payload.id]: { ...newState.regions[payload.id], ...payload } };
+                    if (!newState.regions) newState.regions = {};
+                    newState.regions = { 
+                        ...newState.regions, 
+                        [payload.id]: { ...(newState.regions[payload.id] || {}), ...payload } 
+                    };
                     break;
                 case 'RegionDeleted':
+                    if (!newState.regions) break;
                     const { [payload.id]: __, ...remainingRegions } = newState.regions;
                     newState.regions = remainingRegions;
                     break;
                 case 'LayerCreated':
                 case 'LayerUpdated':
-                    newState.layers = { ...newState.layers, [payload.id]: { ...newState.layers[payload.id], ...payload } };
+                    if (!newState.layers) newState.layers = {};
+                    newState.layers = { 
+                        ...newState.layers, 
+                        [payload.id]: { ...(newState.layers[payload.id] || {}), ...payload } 
+                    };
                     break;
                 case 'LayerDeleted':
+                    if (!newState.layers) break;
                     const { [payload.id]: ___, ...remainingLayers } = newState.layers;
                     newState.layers = remainingLayers;
                     break;
                 case 'FeatureGroupCreated':
                 case 'FeatureGroupUpdated':
+                    if (!newState.feature_groups) newState.feature_groups = {};
                     const gPayload = { ...payload };
                     if (gPayload.parent_id === '') gPayload.parent_id = null;
-                    newState.feature_groups = { ...newState.feature_groups, [payload.id]: { ...newState.feature_groups[payload.id], ...gPayload } };
+                    newState.feature_groups = { 
+                        ...newState.feature_groups, 
+                        [payload.id]: { ...(newState.feature_groups[payload.id] || {}), ...gPayload } 
+                    };
                     break;
                 case 'FeatureGroupDeleted':
+                    if (!newState.feature_groups) break;
                     const { [payload.id]: ____, ...remainingGroups } = newState.feature_groups;
                     newState.feature_groups = remainingGroups;
                     break;
                 case 'update_metadata':
                 case 'preview_update':
+                    if (!newState.features) break;
+                    if (!newState.features[payload.featureId]) break;
                     newState.features = {
                         ...newState.features,
                         [payload.featureId]: {
@@ -358,9 +393,9 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
             }
         };
 
-        events.forEach(apply);
+        events?.forEach(apply);
         set({ state: newState });
-        console.log(`[Sync] 🚀 Optimistic update applied for ${events.length} events`);
+        console.log(`[Sync] 🚀 Optimistic update applied for ${events?.length || 0} events`);
     },
 
     updateSettings: async (settings) => {

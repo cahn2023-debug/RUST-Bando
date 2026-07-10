@@ -211,7 +211,7 @@ export const calculateFeatureNumbers = (features: FeatureState[], featuresMap: F
         }
 
         // Fallback: Check parent hierarchy
-        const parentId = meta.parent_feature_id;
+        const parentId = meta.parent_feature_id as string | undefined;
         if (parentId && featuresMap[parentId]) {
             const parentSTT = getOrResolveSTT(parentId);
 
@@ -223,7 +223,7 @@ export const calculateFeatureNumbers = (features: FeatureState[], featuresMap: F
             return result;
         } else {
             // Default: Root level sequencing by group
-            const groupId = f.group_id;
+            const groupId = (f.group_id as string) || "default";
             if (!groupSequenceMap[groupId]) groupSequenceMap[groupId] = 0;
             groupSequenceMap[groupId]++;
 
@@ -347,8 +347,13 @@ export const calculateNearestRoadAngle = (point: [number, number], features: Fea
         if (!coords || !Array.isArray(coords) || coords.length < 2) continue;
 
         for (let i = 0; i < coords.length - 1; i++) {
-            const [x1, y1] = coords[i];
-            const [x2, y2] = coords[i + 1];
+            const p1 = coords[i];
+            const p2 = coords[i + 1];
+            
+            if (!Array.isArray(p1) || !Array.isArray(p2)) continue;
+            
+            const [x1, y1] = p1 as [number, number];
+            const [x2, y2] = p2 as [number, number];
 
             // Convert everything to local Cartesian meters relative to point
             const dx1 = (x1 - pLng) * lngScale;

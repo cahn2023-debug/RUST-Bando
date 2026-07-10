@@ -5,22 +5,23 @@ export function StatusBar() {
   const syncStatus = useDesignSync((s) => s.syncStatus);
 
   return (
-    <div className="h-[24px] bg-cad-surface border-t border-cad-border flex items-center px-4 justify-between shrink-0 select-none">
-      <div className="flex items-center gap-2">
-        <div className="w-2 h-2 rounded-full bg-cad-accent" />
-        <span className="text-[10px] font-mono text-cad-text-secondary">READY / SYSTEM_STABLE</span>
+    <div className="h-[22px] bg-[#1A1A1A] border-t border-[#000000] flex items-center px-3 justify-between shrink-0 select-none text-cad-text-muted">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full bg-cad-accent animate-pulse" />
+          <span className="text-[9px] font-bold uppercase tracking-widest opacity-80">READY</span>
+        </div>
       </div>
 
-      <div className="flex items-center gap-4 text-[10px] font-mono">
-        <span className="text-cad-text-muted">UTF-8</span>
+      <div className="flex items-center gap-6 text-[9px] font-medium">
+        <span className="opacity-40 hover:opacity-100 transition-opacity cursor-default uppercase">UTF-8</span>
 
-        {/* New Enhanced Sync V2 Controller */}
+        {/* Sync Controller keeps its internal design but fits in the bar */}
         <SyncController />
 
-        {/* Legacy design sync indicator (optional, keeping small dot for saved status) */}
-        <div className="flex items-center gap-1 border-l border-cad-border pl-3">
-          <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 0 ? 'bg-cad-accent' : 'bg-cad-warn'}`} />
-          <span className="text-cad-text-secondary">{syncStatus === 0 ? 'SAVED' : 'CHANGES'}</span>
+        <div className="flex items-center gap-2 border-l border-white/10 pl-4">
+          <div className={`w-1 h-1 rounded-full ${syncStatus === 0 ? 'bg-cad-accent' : 'bg-cad-warn'}`} />
+          <span className="uppercase tracking-tighter text-[8px]">{syncStatus === 0 ? 'Saved' : 'Changes'}</span>
         </div>
       </div>
     </div>

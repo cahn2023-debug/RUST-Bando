@@ -7,7 +7,6 @@ import { cn } from "@TOOL/utils/cn";
 import { TreeItem } from "@DESIGN/components/core/CADPanels/TreeItem";
 import { FeatureItem } from "@DESIGN/components/core/CADPanels/FeatureItem";
 import { useDesignSync, EMPTY_OBJ } from "@IMPLEMENT/stores/useDesignSync";
-import type { DesignEventType } from "@DESIGN/features/map/stores/types";
 import { importFromExcel, importFromKML, getExcelHeaders, type ImportMapping } from "@IMPLEMENT/services/importService";
 import {
   ExplorerHeader,
@@ -43,28 +42,30 @@ interface ContextMenuState {
 }
 
 export function DrawingExplorer() {
-  const state = useDesignSync(s => s.state);
-  const regionsMap = state?.regions || (EMPTY_OBJ as Record<string, RegionState>);
-  const layersMap = state?.layers || (EMPTY_OBJ as Record<string, LayerState>);
-  const groupsMap = state?.feature_groups || (EMPTY_OBJ as Record<string, FeatureGroupState>);
-  const featuresMap = state?.features || (EMPTY_OBJ as Record<string, FeatureState>);
+  const regionsMap = useDesignSync(st => st.state?.regions) || (EMPTY_OBJ as Record<string, RegionState>);
+  const layersMap = useDesignSync(st => st.state?.layers) || (EMPTY_OBJ as Record<string, LayerState>);
+  const groupsMap = useDesignSync(st => st.state?.feature_groups) || (EMPTY_OBJ as Record<string, FeatureGroupState>);
+  const featuresMap = useDesignSync(st => st.state?.features) || (EMPTY_OBJ as Record<string, FeatureState>);
 
-  const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
-  const selectedGroupId = useDesignSync(s => s.selectedGroupId);
-  const selectFeature = useDesignSync(s => s.selectFeature);
-  const setSelectedGroup = useDesignSync(s => s.setSelectedGroup);
-  const dispatchEvent = useDesignSync(s => s.dispatchEvent);
-  const dispatchEvents = useDesignSync(s => s.dispatchEvents);
-  const zoomTo = useDesignSync(s => s.zoomTo);
-  const selectionSet = useDesignSync(s => s.selectionSet);
-  const deleteSelectedFeatures = useDesignSync(s => s.deleteSelectedFeatures);
-  const projectId = useDesignSync(s => s.projectId);
-  const isLoading = useDesignSync(s => s.isLoading);
-  const error = useDesignSync(s => s.error);
-  const mapHiddenIds = useDesignSync(s => s.mapHiddenIds);
-  const toggleMapHidden = useDesignSync(s => s.toggleMapHidden);
+  const selectedFeatureId = useDesignSync(st => st.selectedFeatureId);
+  const selectedGroupId = useDesignSync(st => st.selectedGroupId);
+  const selectFeature = useDesignSync(st => st.selectFeature);
+  const setSelectedGroup = useDesignSync(st => st.setSelectedGroup);
+  const dispatchEvent = useDesignSync(st => st.dispatchEvent);
+  const dispatchEvents = useDesignSync(st => st.dispatchEvents);
+  const zoomTo = useDesignSync(st => st.zoomTo);
+  const selectionSet = useDesignSync(st => st.selectionSet);
+  const deleteSelectedFeatures = useDesignSync(st => st.deleteSelectedFeatures);
+  const projectId = useDesignSync(st => st.projectId);
+  const isLoading = useDesignSync(st => st.isLoading);
+  const error = useDesignSync(st => st.error);
+  const mapHiddenIds = useDesignSync(st => st.mapHiddenIds);
+  const toggleMapHidden = useDesignSync(st => st.toggleMapHidden);
+  const clearSelection = useDesignSync(st => st.clearSelection);
+  const isReady = useDesignSync(st => !!st.state);
 
   const virtuosoRef = useRef<VirtuosoHandle>(null);
+  
   const featuresRef = useRef(featuresMap);
   const groupsRef = useRef(groupsMap);
   const regionsRef = useRef(regionsMap);
@@ -97,15 +98,14 @@ export function DrawingExplorer() {
   });
 
   const { isVirtualDragging: _isVirtualDragging, handleVirtualDragStart } = useVirtualDrag({
-    featuresRef, groupsRef, regionsRef: regionsRef as any, dispatchEvents, selectionSet, clearSelection: useDesignSync(s => s.clearSelection)
+    featuresRef, groupsRef, regionsRef: regionsRef as any, dispatchEvents, selectionSet, clearSelection
   });
 
-  const [, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [themeGroupId, setThemeGroupId] = useState<string | null>(null);
   const [mappingData, setMappingData] = useState<MappingData | null>(null);
   const [deleteModal, setDeleteModal] = useState<DeleteModalState>({ isOpen: false, type: null, id: '', name: '' });
 
-  // Auto-expand logic (keep core orchestration here)
   const hasAutoExpanded = useRef(false);
   useEffect(() => {
     if (!hasAutoExpanded.current && filteredRegions.length > 0 && !isLoading && !error) {
@@ -118,7 +118,6 @@ export function DrawingExplorer() {
     }
   }, [filteredRegions, isLoading, error]);
 
-  // Virtualization Scroll
   useEffect(() => {
     if (selectedFeatureId && flattenedItems.length > 0 && virtuosoRef.current) {
       const idx = flattenedItems.findIndex(item => item.type === 'feature' && item.id === selectedFeatureId);
@@ -129,98 +128,61 @@ export function DrawingExplorer() {
   }, [selectedFeatureId, flattenedItems]);
 
   const handleCreateRegion = (e: React.MouseEvent) => {
+    if (!isReady) return;
     e.stopPropagation();
     const name = prompt("Tên dự án mới:");
     if (!name) return;
     const regionId = crypto.randomUUID();
     const layerId = crypto.randomUUID();
+    const groupId = crypto.randomUUID();
     dispatchEvents([
       { type: 'RegionCreated', payload: { id: regionId, parent_id: null, name } },
-      { type: 'LayerCreated', payload: { id: layerId, region_id: regionId, name: 'Lớp mặc định' } }
+      { type: 'LayerCreated', payload: { id: layerId, region_id: regionId, name: 'Lớp mặc định' } },
+      { type: 'FeatureGroupCreated', payload: { id: groupId, layer_id: layerId, parent_id: null, name: 'Nhóm mặc định', group_type: 'FOLDER' } }
     ]);
-    setExpanded(prev => ({ ...prev, [regionId]: true }));
+    setExpanded(prev => ({ ...prev, [regionId]: true, [groupId]: true }));
   };
 
-  const handleCreateGroup = (regionId: string, e: React.MouseEvent, parentGroupId?: string) => {
+  const handleCreateGroup = (regionId: string, e: React.MouseEvent, _parentGroupId?: string) => {
+    if (!isReady) return;
     e.stopPropagation();
-    const layer = Object.values(layersMap).find(l => l.region_id === regionId);
-    if (!layer) return;
-
-    const typeChoice = prompt("Chọn loại nhóm (1-8): Intersection, Polyline, CCTV, PTZ, Speed, LPR, Folder, Default", "1");
-    const group_type = (['INTERSECTION', 'POLYLINE', 'CCTV', 'PTZ', 'SPEED', 'LPR', 'FOLDER', 'default'] as const)[parseInt(typeChoice || '8') - 1];
-    const name = prompt("Tên nhóm mới:", group_type === 'INTERSECTION' ? 'Nút giao mới' : 'Nhóm mới');
+    const name = prompt("Tên nhóm mới:");
     if (!name) return;
-
-    const id = crypto.randomUUID();
-    dispatchEvent({
-      type: 'FeatureGroupCreated',
-      payload: {
-        id,
-        layer_id: layer.id,
-        parent_id: parentGroupId || null,
-        name,
-        group_type
-      }
-    });
-    setExpanded(prev => ({ ...prev, [id]: true }));
+    const layer = Object.values(layersMap).find((l: LayerState) => l.region_id === regionId);
+    if (!layer) return;
+    const groupId = crypto.randomUUID();
+    dispatchEvent({ type: 'FeatureGroupCreated', payload: { id: groupId, layer_id: layer.id, parent_id: null, name, group_type: 'FOLDER' } });
+    setExpanded(prev => ({ ...prev, [regionId]: true, [groupId]: true }));
   };
 
   const handleImportToGroup = async (groupId: string) => {
-    const selected = await open({ multiple: false, filters: [{ name: 'GIS Data', extensions: ['xlsx', 'xls', 'kml', 'kmz'] }] });
-    if (!selected || typeof selected !== 'string') return;
-    const fileName = selected.split(/[\\/]/).pop() || "";
+    const file = await open({ multiple: false, filters: [{ name: 'Data', extensions: ['xlsx', 'xls', 'csv', 'kml', 'kmz'] }] });
+    if (!file) return;
+    const filePath = typeof file === 'string' ? file : file.path;
+    const fileName = filePath.split(/[\\/]/).pop() || filePath;
     const ext = fileName.split('.').pop()?.toLowerCase();
-
-    if (ext === 'xlsx' || ext === 'xls') {
-      const headers = await getExcelHeaders(selected);
-      setMappingData({ headers, filename: fileName, groupId, filePath: selected });
-    } else {
-      const records = await importFromKML(selected);
-      const events: DesignEventType[] = records.map(r => ({
-        type: 'FeatureCreated',
-        payload: {
-          id: r.id,
-          layer_id: groupsMap[groupId]?.layer_id || "",
-          group_id: groupId,
-          name: r.properties.name || "KML Feature",
-          geom_type: r.geom_type,
-          coordinates: r.geometry,
-          properties: r.properties,
-          metadata: JSON.stringify({})
-        }
-      }));
-      await dispatchEvents(events);
+    if (['xlsx', 'xls', 'csv'].includes(ext!)) {
+      const headers = await getExcelHeaders(filePath);
+      setMappingData({ headers, filename: fileName, groupId, filePath });
+    } else if (['kml', 'kmz'].includes(ext!)) {
+      await importFromKML(filePath);
+      setSelectedGroup(groupId);
     }
   };
 
   const handleMappingConfirm = async (mapping: ImportMapping) => {
     if (!mappingData) return;
-    const records = await importFromExcel(mappingData.filePath, mapping);
-    const events: DesignEventType[] = records.map(r => ({
-      type: 'FeatureCreated',
-      payload: {
-        id: r.id,
-        layer_id: groupsMap[mappingData.groupId]?.layer_id || "",
-        group_id: mappingData.groupId,
-        name: r.properties.name || "Imported",
-        geom_type: r.geom_type,
-        coordinates: r.geometry?.coordinates ?? r.geometry,
-        properties: r.properties,
-        metadata: JSON.stringify({})
-      }
-    }));
-    await dispatchEvents(events);
+    await importFromExcel(mappingData.filePath);
+    setSelectedGroup(mappingData.groupId);
     setMappingData(null);
   };
 
-  const handleToggleVisible = (type: string, id: string, _data: FlatTreeItem['data'], e: React.MouseEvent) => {
+  const handleToggleVisible = (type: 'region' | 'group' | 'feature', id: string, _data: any, e: React.MouseEvent) => {
     e.stopPropagation();
     if (type === 'region') {
       const layer = Object.values(layersMap).find((l: LayerState) => l.region_id === id);
       if (layer) toggleMapHidden(layer.id);
-    } else if (type === 'group') {
-      toggleMapHidden(id);
-    } else if (type === 'feature') {
+    } else if (type === 'group' || type === 'feature') {
       toggleMapHidden(id);
     }
   };
@@ -235,11 +197,17 @@ export function DrawingExplorer() {
   };
 
   if (error) return <div className="p-6 text-center text-red-400">{error}</div>;
-  if (isLoading || !state) return <div className="p-6 text-center text-cad-accent animate-pulse">Syncing...</div>;
+  if (isLoading) return <div className="p-6 text-center text-cad-accent animate-pulse">Syncing...</div>;
+  if (!isReady) return <div className="p-6 text-center text-cad-text-muted">No design state loaded</div>;
 
   return (
     <div className="text-cad-text-primary px-3 py-2 text-[10px] font-mono flex flex-col h-full overflow-hidden">
-      <ExplorerHeader treeSearchQuery={treeSearchQuery} setTreeSearchQuery={setTreeSearchQuery} onCreateRegion={handleCreateRegion} />
+      <ExplorerHeader 
+        treeSearchQuery={treeSearchQuery} 
+        setTreeSearchQuery={setTreeSearchQuery} 
+        onCreateRegion={handleCreateRegion} 
+        disabled={isLoading}
+      />
       <ExplorerFilterBar filterType={filterType} setFilterType={setFilterType} sortField={sortField} setSortField={setSortField} reverseOrder={reverseOrder} setReverseOrder={setReverseOrder} />
 
       <div className="flex-1 min-h-0 mt-2">
@@ -261,8 +229,20 @@ export function DrawingExplorer() {
                   visible={!mapHiddenIds.has((Object.values(layersMap).find((l: LayerState) => l.region_id === item.id) as LayerState | undefined)?.id ?? item.id)}
                   customAction={
                     <div className="flex items-center gap-0.5">
-                      <button onClick={(e) => handleCreateGroup(item.id, e)} className="p-0.5 hover:bg-cad-accent rounded"><FolderPlus size={10} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); setDeleteModal({ isOpen: true, type: 'region', id: item.id, name: item.data.name }); }} className="p-0.5 hover:bg-red-500 rounded"><Trash2 size={10} /></button>
+                      <button 
+                        onClick={isLoading ? undefined : (e) => handleCreateGroup(item.id, e)} 
+                        className={cn("p-0.5 hover:bg-cad-accent rounded", isLoading && "opacity-20 cursor-not-allowed")}
+                        disabled={isLoading}
+                      >
+                        <FolderPlus size={10} />
+                      </button>
+                      <button 
+                        onClick={isLoading ? undefined : (e) => { e.stopPropagation(); setDeleteModal({ isOpen: true, type: 'region', id: item.id, name: item.data.name }); }} 
+                        className={cn("p-0.5 hover:bg-red-500 rounded", isLoading && "opacity-20 cursor-not-allowed")}
+                        disabled={isLoading}
+                      >
+                        <Trash2 size={10} />
+                      </button>
                     </div>
                   }
                 />
@@ -287,21 +267,21 @@ export function DrawingExplorer() {
                       <button
                         onClick={(e) => { e.stopPropagation(); setThemeGroupId(item.id); }}
                         className="p-1 hover:bg-emerald-500/20 rounded text-emerald-400 hover:text-emerald-300 transition-colors"
-                        title="Khai báo đồng bộ (Theme)"
+                        title="Theme"
                       >
                         <Palette size={12} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleImportToGroup(item.id); }}
                         className="p-1 hover:bg-emerald-500/20 rounded text-emerald-400 hover:text-emerald-300 transition-colors"
-                        title="Import dữ liệu"
+                        title="Import"
                       >
                         <FileUp size={12} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setDeleteModal({ isOpen: true, type: 'group', id: item.id, name: item.data.name }); }}
                         className="p-1 hover:bg-red-500/20 rounded text-red-500/60 hover:text-red-500 transition-colors"
-                        title="Xóa nhóm"
+                        title="Delete Group"
                       >
                         <Trash2 size={12} />
                       </button>
@@ -336,6 +316,23 @@ export function DrawingExplorer() {
         handleMappingConfirm={handleMappingConfirm}
         deleteModal={deleteModal} setDeleteModal={setDeleteModal} confirmDelete={confirmDelete}
       />
+      
+      {/* Context Menu Overlay */}
+      {contextMenu && (
+        <div 
+          className="fixed z-[9999] bg-[#1a1a1a] border border-white/10 rounded-md shadow-2xl py-1 min-w-[120px]"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={() => setContextMenu(null)}
+        >
+          <button className="w-full text-left px-3 py-1.5 text-[9px] hover:bg-white/5 transition-colors uppercase tracking-wider font-bold">Properties</button>
+          <button 
+            className="w-full text-left px-3 py-1.5 text-[9px] hover:bg-red-500/10 text-red-400 transition-colors uppercase tracking-wider font-bold" 
+            onClick={() => setDeleteModal({ isOpen: true, type: contextMenu.type as any, id: contextMenu.id, name: contextMenu.data.name })}
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -33,8 +33,8 @@ export interface ContractMetadata {
 }
 
 export interface ContractExecutionGroup {
-    id?: number;
-    project_id: number;
+    id?: string;
+    project_id: string;
     name: string;
     description: string;
     status: string;
@@ -45,7 +45,7 @@ export interface ContractExecutionGroup {
 }
 
 interface Props {
-    projectId: number;
+    projectId: string;
     data: ContractMetadata;
     onViewRaw: () => void;
     onSaveCorrections?: (correctedData: ContractMetadata) => void;

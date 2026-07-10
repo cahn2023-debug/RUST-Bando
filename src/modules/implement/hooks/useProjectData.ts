@@ -51,9 +51,10 @@ export function useProjectData(project: Project) {
     }
     try {
       const data = await safeInvoke<Contract[]>("get_contracts", { projectId });
-      setContracts(data);
+      setContracts(data || []);
     } catch (err) {
       logger.error("Error loading contracts:", err);
+      setContracts([]);
     }
   };
 

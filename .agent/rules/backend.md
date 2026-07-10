@@ -9,38 +9,36 @@ glob: "**/*.{py,js,ts,go,rs,sql,php,java,dockerfile,tf,yaml,yml}"
 
 ---
 
-## 🏗️ 1. ARCHITECTURE & API
+## 🏗️ 1. ARCHITECTURE & EVENT SOURCING
 
-1. **Clean Architecture**: Tách biệt rõ ràng: Controller -> Service -> Repository -> Database.
-2. **API Standards**:
-   - RESTful: `GET /resources`, `POST /resources`.
-   - GraphQL: Định nghĩa Schema rõ ràng, tránh N+1.
-   - Response: `{ success: true, data: any, error: null }`.
-3. **Stateless**: Server không lưu state user (dùng Redis/JWT).
-
----
-
-## 🗄️ 2. DATABASE MASTERY (DBA Mode)
-
-1. **Schema Design**:
-   - Tuân thủ 3NF (Chuẩn hóa cấp 3).
-   - `snake_case` cho tên bảng/cột.
-   - Luôn có `created_at`, `updated_at`.
-2. **Performance**:
-   - **Index**: Bắt buộc Index cho khóa ngoại (FK) và cột search.
-   - **Migration**: Không bao giờ sửa cột trực tiếp ở Production. Tạo migration file mới.
+1. **V2 Pattern (Event Sourcing)**: 
+   - `EventStore` là source of truth duy nhất.
+   - `Projections` chỉ là dữ liệu dẫn xuất (Read Model).
+   - Tuyệt đối không xóa/sửa event trong log.
+2. **Command Handling**: Command phải atomic, kiểm tra precondition trước khi phát event.
+3. **API Contracts**: Response thống nhất `{ success: true, data: any, error: string | null }`.
 
 ---
 
-## ☁️ 3. DEVOPS & INFRASTRUCTURE
+## 🗄️ 2. DATABASE: SQLITE & DUCKDB
 
-1. **Config**: 12-Factor App. Config lấy từ Environment Variables.
-2. **Docker**: Đa tầng (Multi-stage build). Tầng cuối chỉ chứa binary/artifact.
-3. **CI/CD**: Pipeline không được pass nếu Unit Test fail.
+1. **SQLite (OLTP)**: Lưu trữ cấu trúc và Event log. Chuẩn hóa 3NF cho Read Model.
+2. **DuckDB (OLAP)**: 
+   - Dùng cho truy vấn phân tích GIS và báo cáo dữ liệu lớn.
+   - Đồng bộ dữ liệu định kỳ hoặc theo lô từ SQLite sang DuckDB.
+3. **Indexing Strategy**: Bắt buộc Index cho FK và các trường truy vấn Map (Feature ID, Layer ID).
 
 ---
 
-## 🛡️ 4. ERROR HANDLING
+## ☁️ 3. DEVOPS & SYSTEMS
 
-1. **Structured Logging**: Log phải parse được (JSON). KHÔNG dùng `print`/`console.log`.
-2. **Graceful Failure**: DB chết thì API trả về 503, không được treo request.
+1. **Config**: 12-Factor App. Dùng biến môi trường cho bí mật (Secrets).
+2. **Cargo (Rust)**: Tối ưu Release profile (LTO, codegen-units) để đạt hiệu năng tối đa.
+3. **CI/CD**: Tự động test logic Event sourcing trước khi deploy.
+
+---
+
+## 🛡️ 4. ERROR & OBSERVABILITY
+
+1. **Structured Logs**: Sử dụng JSON logging cho sản phẩm.
+2. **Graceful Degradation**: Nếu AI Engine hoặc DuckDB lỗi, hệ thống phải fallback về SQLite truyền thống mà không làm crash app.

@@ -44,3 +44,54 @@ src-tauri/*.log
 .agent/
 .gemini/
 .brain/
+.qodo/
+.qwen/
+.grapuco/
+
+# Project Specific Trash
+temp_target_audit/
+BAK/
+src_tauri_files.txt
+tauri_errors*.txt
+vite_error.txt
+tmp_*
+*.pmp
+sqlite.db
+pkg/
+*.wasm
+
+# >>> KNOWNS >>>
+# Managed by Knowns CLI — do not edit manually.
+# Run 'knowns init' to regenerate this block.
+.knowns/*
+!.knowns/config.json
+!.knowns/docs/
+!.knowns/docs/**
+!.knowns/templates/
+!.knowns/templates/**
+# <<< KNOWNS <<<
+
+# Temporary and Scratch files
+.agents/
+scratch/
+graphify-out/
+bando-graph-viewer/
+*.db.duckdb*
+*errors*.txt
+*failures*.txt
+*output.txt
+state_search.txt
+warnings_summary.json
+*.bat
+*.ps1
+analyze_db.py
+check_db.rs
+inspect_pmp.py
+scripts/graph_generator.py
+scripts/list_pmp_tables.py
+scripts/watch_graph.ps1
+opencode.json
+src-tauri/local_data/
+*dead_code_analysis.json
+
+

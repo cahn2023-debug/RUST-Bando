@@ -6,7 +6,7 @@ import { CADInput } from "@IMPLEMENT/features/project-management/ProjectDetailPa
 import { logger } from "@TOOL/utils/logger";
 
 interface Props {
-    projectId: number;
+    projectId: string;
     contentType: ContentType;
 }
 
@@ -15,7 +15,7 @@ export function DynamicContentManager({ projectId, contentType }: Props) {
     const [items, setItems] = useState<ContentItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
-    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [formValues, setFormValues] = useState<Record<string, any>>({});
     const [itemName, setItemName] = useState("");
 
@@ -59,7 +59,7 @@ export function DynamicContentManager({ projectId, contentType }: Props) {
         }
     };
 
-    const handleDelete = async (id: number) => {
+    const handleDelete = async (id: string) => {
         if (!confirm("Xác nhận xóa bản ghi này?")) return;
         try {
             await invoke("delete_content_item", { itemId: id });

@@ -3,6 +3,7 @@ import { AnalysisDialog } from '@IMPLEMENT/features/analysis/AnalysisDialog';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore';
 import { useAuthStore } from '@IMPLEMENT/stores/useAuthStore';
+import { isUuidLike } from '@TOOL/utils/designIpc';
 
 const AnalysisWindow: React.FC = () => {
     const { initialize, state, error: projectError } = useDesignSync();
@@ -13,17 +14,17 @@ const AnalysisWindow: React.FC = () => {
         const params = new URLSearchParams(window.location.search);
         const urlProjectId = params.get('projectId');
         console.log(`[AnalysisWindow] Detected urlProjectId from URL: ${urlProjectId}`);
+        const currentProjectId = useDesignSync.getState().projectId;
 
-        if (urlProjectId) {
-            const pId = parseInt(urlProjectId);
-            if (isNaN(pId)) {
-                console.error(`[AnalysisWindow] Invalid projectId: ${urlProjectId}`);
-            } else {
-                console.log(`[AnalysisWindow] Calling initialize for project ${pId}...`);
-                initialize(pId).catch(err => {
-                    console.error("[AnalysisWindow] Initialization error:", err);
-                });
-            }
+        if (urlProjectId && !isUuidLike(urlProjectId)) {
+            console.warn(`[AnalysisWindow] Skip initialize due to non-UUID projectId: ${urlProjectId}`);
+        } else if (urlProjectId && currentProjectId !== urlProjectId) {
+            console.log(`[AnalysisWindow] Calling initialize for project ${urlProjectId}...`);
+            initialize(urlProjectId).catch(err => {
+                console.error("[AnalysisWindow] Initialization error:", err);
+            });
+        } else if (urlProjectId) {
+            console.log(`[AnalysisWindow] Project already initialized: ${urlProjectId}`);
         } else {
             console.warn("[AnalysisWindow] No projectId found in URL params.");
         }

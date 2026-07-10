@@ -16,9 +16,12 @@ console_error_panic_hook = "0.1"
 console_log = "1.0"
 winit = "0.29.15"
 wasm-bindgen-futures = "0.4"
-shared_models = { path = "../shared_models" }
+app_domain = { path = "../crates/app_domain" }
 bincode = "1.3.3"
 bytemuck = { version = "1.16", features = ["derive"] }
+rstar = "0.12.0"
+geo = "0.29"
+cgmath = "0.18"
 
 [dependencies.web-sys]
 version = "0.3.76"

@@ -17,6 +17,14 @@ export default defineConfig({
     port: 3000,
     strictPort: true,
     host: "127.0.0.1",
+    watch: {
+      ignored: [
+        "**/docs/**",
+        "**/BAK/**",
+        "**/*.log",
+        "**/live_*"
+      ]
+    }
   },
   envPrefix: ["VITE_", "TAURI_"],
   build: {

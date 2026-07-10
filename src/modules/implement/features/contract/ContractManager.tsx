@@ -7,15 +7,15 @@ import { DeleteConfirmationModal } from "@DESIGN/components/ui/DeleteConfirmatio
 interface Props {
   contracts: Contract[];
   onAdd: (form: Partial<Contract>) => Promise<void>;
-  onDelete: (id: number) => Promise<void>;
-  featureCounts?: Record<number, number>;
+  onDelete: (id: string) => Promise<void>;
+  featureCounts?: Record<string, number>;
   onViewAnalysis?: (contract: Contract) => void;
 }
 
 export function ContractManager({ contracts, onAdd, onDelete, featureCounts = {}, onViewAnalysis }: Props) {
   const [addingContract, setAddingContract] = useState(false);
   const [newContractForm, setNewContractForm] = useState<Partial<Contract>>({});
-  const [deleteModalConfig, setDeleteModalConfig] = useState<{ isOpen: boolean; id: number | null; itemName: string }>({
+  const [deleteModalConfig, setDeleteModalConfig] = useState<{ isOpen: boolean; id: string | null; itemName: string }>({
     isOpen: false,
     id: null,
     itemName: ""

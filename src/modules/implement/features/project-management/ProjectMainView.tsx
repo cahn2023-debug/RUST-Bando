@@ -40,7 +40,7 @@ interface ProjectMainViewProps {
     handleProjectMetadataUpdate: (data: LocalMetadata & { bom_table?: BOMItem[] }) => Promise<void>;
     contracts: Contract[];
     handleCreateContract: (form: Partial<Contract>) => Promise<void>;
-    handleDeleteContract: (id: number) => Promise<void>;
+    handleDeleteContract: (id: string) => Promise<void>;
     handleFileSelect: (path: string, name: string, extension?: string) => void;
     contentTypes: ContentType[];
     contextMenu: { x: number; y: number; text: string } | null;
@@ -138,7 +138,7 @@ export const ProjectMainView: React.FC<ProjectMainViewProps> = ({
         }
 
         // Dynamic content types
-        const contentType = contentTypes.find(ct => ct.id.toString() === activeTab);
+        const contentType = contentTypes.find(ct => ct.id === activeTab);
         if (contentType) {
             return <DynamicContentManager projectId={project.id} contentType={contentType} />;
         }
@@ -164,7 +164,7 @@ export const ProjectMainView: React.FC<ProjectMainViewProps> = ({
 
     return (
         <div className="flex-1 flex flex-col overflow-hidden bg-cad-bg relative font-sans">
-            <Toolbar activeTab={activeTab} viewMode={viewMode} setViewMode={setViewMode as (v: 'tasks' | 'kanban' | 'calendar') => void} onAddTask={() => { }} />
+            <Toolbar activeTab={activeTab} viewMode={viewMode as any} setViewMode={setViewMode as any} onAddTask={() => { }} />
 
             {renderContent()}
 

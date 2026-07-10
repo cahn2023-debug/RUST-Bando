@@ -118,7 +118,7 @@ export const PropertyPanel: React.FC = () => {
     capture
   } = useCamera({
     onCapture: (dataUrl) => {
-      const currentImages = getMetaValue('media.imageUrls', 'imageUrls') || [];
+      const currentImages = (getMetaValue('media.imageUrls', 'imageUrls') as any) || [];
       updateNestedMeta('media.imageUrls', [...currentImages, dataUrl]);
     },
     watermarkData: {
@@ -197,7 +197,7 @@ export const PropertyPanel: React.FC = () => {
         console.error('[PropertyPanel] ❌ CRITICAL: Size was lost during normalization!');
         console.error('[PropertyPanel] Input size:', metaToSave.size);
         console.error('[PropertyPanel] Output size:', standardizedMeta.size);
-        
+
         // Force preserve size by adding it back
         standardizedMeta.size = metaToSave.size;
         console.log('[PropertyPanel] ✅ Size restored after normalization:', standardizedMeta.size);
@@ -227,14 +227,14 @@ export const PropertyPanel: React.FC = () => {
       const verifyState = useDesignSync.getState().state;
       const verifyFeature = verifyState?.features[feature.id];
       if (verifyFeature) {
-        const verifyMeta = typeof verifyFeature.metadata === 'string' 
-          ? JSON.parse(verifyFeature.metadata) 
+        const verifyMeta = typeof verifyFeature.metadata === 'string'
+          ? JSON.parse(verifyFeature.metadata)
           : verifyFeature.metadata;
-        
+
         console.log('[PropertyPanel] 🔍 Verification:');
         console.log('[PropertyPanel]   Expected size:', metaToSave.size);
         console.log('[PropertyPanel]   Actual size:', verifyMeta.size);
-        
+
         if (verifyMeta.size !== metaToSave.size) {
           console.error('[PropertyPanel] ❌ Metadata was not saved correctly!');
           console.error('[PropertyPanel] This indicates a database write issue.');
@@ -681,10 +681,10 @@ export const PropertyPanel: React.FC = () => {
               <select
                 className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
                 value={getMetaValue('business.contract_id', 'contract_id') || ''}
-                onChange={e => updateNestedMeta('business.contract_id', e.target.value ? parseInt(e.target.value) : undefined)}
+                onChange={e => updateNestedMeta('business.contract_id', e.target.value ? e.target.value : null)}
               >
                 <option value="">No Contract Linked</option>
-                {contracts.map(c => (
+                {(contracts || []).map(c => (
                   <option key={c.id} value={c.id}>{c.contract_number ? `[${c.contract_number}] ` : ''}{c.name}</option>
                 ))}
               </select>

@@ -3,8 +3,7 @@
  * Handles parsing, caching, and retrieving metadata values.
  */
 
-import { FeatureState, FeatureProperties, FeatureMetadata as TypesFeatureMetadata } from '@CONTRACT/types';
-import { FeatureMetadata as DesignFeatureMetadata } from '@CONTRACT/designTypes';
+import { FeatureState, FeatureProperties } from '@CONTRACT/types';
 
 type ParsedMetadata = Record<string, unknown>;
 

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { safeInvoke as invoke, safeOpenDialog } from "@IMPLEMENT/lib/tauri";
+import { safeInvoke as invoke, safeOpenDialog, IS_REAL_TAURI } from "@IMPLEMENT/lib/tauri";
 import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
 import { Project } from "@CONTRACT/types";
 import { useTabStore } from "@IMPLEMENT/TabInProgram/useTabStore";
+import { backfillProjectPath } from "./projectPathUtils";
 
 const normalizeProject = (project: Project | null | undefined): Project | null => {
     if (!project || !project.path) {
@@ -42,6 +43,8 @@ export function useProjectManager() {
     const requestIdRef = useRef(0);
     const selectedProjectRef = useRef<Project | null>(null);
     const indexingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const openingPathRef = useRef<string | null>(null);
+    const lastOpenAttemptRef = useRef<{ path: string; ts: number } | null>(null);
 
     useEffect(() => {
         selectedProjectRef.current = selectedProject;
@@ -79,7 +82,7 @@ export function useProjectManager() {
             let currentProjects: Project[] = [];
             try {
                 const backendProjects = await invoke<Project[]>("get_recent_projects");
-                currentProjects = backendProjects
+                currentProjects = (Array.isArray(backendProjects) ? backendProjects : [])
                     .map(normalizeProject)
                     .filter((project): project is Project => project !== null);
                 console.info(`Loaded ${currentProjects.length} recent projects from backend`);
@@ -103,7 +106,7 @@ export function useProjectManager() {
                 const config = await invoke<{ recent_pmps: Project[]; last_opened_pmp?: string }>("get_app_config");
                 if (requestId !== requestIdRef.current) return;
 
-                if (config.recent_pmps && config.recent_pmps.length > 0) {
+                if (config && config.recent_pmps && Array.isArray(config.recent_pmps)) {
                     currentProjects = config.recent_pmps
                         .map(normalizeProject)
                         .filter((project): project is Project => project !== null);
@@ -117,6 +120,7 @@ export function useProjectManager() {
             }
 
             console.info("Final Hydrated Project:", hydratedProject?.name || "None");
+            hydratedProject = backfillProjectPath(hydratedProject, currentProjects);
             setProjects(currentProjects);
 
             if (isProjectLoadable(hydratedProject)) {
@@ -165,14 +169,17 @@ export function useProjectManager() {
 
     const handleOpenProject = async (pathToOpen?: string) => {
         const requestId = ++requestIdRef.current;
+        console.group(`[useProjectManager] handleOpenProject Process #${requestId}`);
+        console.info("Path to open:", pathToOpen || "Manual selection");
 
         try {
             if (indexingTimeoutRef.current) {
+                console.info("Clearing existing indexing timeout...");
                 clearTimeout(indexingTimeoutRef.current);
                 indexingTimeoutRef.current = null;
             }
 
-            const isTauri = !!(window as any).__TAURI_IPC__;
+            const isTauri = IS_REAL_TAURI;
             const selectedPath = pathToOpen || await safeOpenDialog({
                 filters: [{ name: "PMP Database", extensions: ["pmp"] }],
                 multiple: false,
@@ -186,6 +193,19 @@ export function useProjectManager() {
                 return false;
             }
 
+            const now = Date.now();
+            const lastAttempt = lastOpenAttemptRef.current;
+            if (openingPathRef.current === selectedPath) {
+                console.warn("[useProjectManager] Skip duplicate open while same path is already loading:", selectedPath);
+                return false;
+            }
+            if (lastAttempt && lastAttempt.path === selectedPath && now - lastAttempt.ts < 2500) {
+                console.warn("[useProjectManager] Skip duplicate open attempt within cooldown:", selectedPath);
+                return false;
+            }
+            openingPathRef.current = selectedPath;
+            lastOpenAttemptRef.current = { path: selectedPath, ts: now };
+
             // OPTIMISTIC RESET: Clear UI state immediately before backend starts heavy load
             const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
             useDesignSync.getState().reset();
@@ -194,7 +214,13 @@ export function useProjectManager() {
 
             console.info(`[useProjectManager] Attempting to load PMP file: ${selectedPath}`);
             const migratedProject = normalizeProject(await invoke<Project>("load_pmp_file", { path: selectedPath }));
-            if (requestId !== requestIdRef.current) return false;
+            console.info("load_pmp_file result:", migratedProject?.name || "Null");
+
+            if (requestId !== requestIdRef.current) {
+                console.warn("Request ID mismatch (Stale open request), aborting.");
+                console.groupEnd();
+                return false;
+            }
 
             let recoveredProject = migratedProject;
             if (!isProjectLoadable(recoveredProject)) {
@@ -204,7 +230,7 @@ export function useProjectManager() {
 
             if (isProjectLoadable(recoveredProject)) {
                 const project = recoveredProject;
-                console.info(`[useProjectManager] Loaded project: ${project.name} (ID: ${project.id})`);
+                console.info(`[useProjectManager] Successfully resolved project: ${project.name} (ID: ${project.id})`);
 
                 selectedProjectRef.current = project;
                 setSelectedProject(project);
@@ -243,12 +269,15 @@ export function useProjectManager() {
             alert("Không thể nạp tệp PMP. Tệp có thể đang trống hoặc đang được mở bởi một tiến trình khác.");
         } catch (e) {
             console.error("Error opening PMP:", e);
-            const isTauri = !!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__;
+            const isTauri = IS_REAL_TAURI;
             if (isTauri) {
                 alert("Lỗi hệ thống khi nạp tệp PMP. Vui lòng kiểm tra lại đường dẫn.");
             } else {
                 console.warn("[useProjectManager] Suppression of alert in browser environment.");
             }
+        } finally {
+            openingPathRef.current = null;
+            console.groupEnd();
         }
 
         return false;

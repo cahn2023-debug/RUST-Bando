@@ -8,6 +8,10 @@ pub enum SyncStatus {
     Error(String),
 }
 
+fn default_json() -> serde_json::Value {
+    serde_json::json!({})
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncState {
     pub device_id: String,
@@ -19,12 +23,14 @@ pub struct SyncState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum AppEvent {
-    // Project
+    // --- Project ---
     ProjectCreated {
         id: Uuid,
         name: String,
         root_path: String,
+        #[serde(default = "default_json")]
         metadata: serde_json::Value,
+        #[serde(default = "default_json")]
         settings: serde_json::Value,
     },
     ProjectUpdated {
@@ -37,73 +43,12 @@ pub enum AppEvent {
         id: Uuid,
     },
 
-    // Tasks
-    TaskCreated {
+    // --- Regions & Layers ---
+    RegionCreated {
+        id: Uuid,
         name: String,
         parent_id: Option<Uuid>,
-        metadata: serde_json::Value,
-    },
-    TaskUpdated {
-        changes: serde_json::Value,
-    },
-    TaskDeleted {
-        id: Uuid,
-        project_id: Uuid,
-    },
-    TaskLinked {
-        id: Uuid,
-        target_id: Uuid,
-    },
-    TaskUnlinked {
-        id: Uuid,
-        target_id: Uuid,
-    },
-
-    // GIS / Layers
-    LayerCreated {
-        name: String,
-        metadata: serde_json::Value,
-    },
-    LayerUpdated {
-        changes: serde_json::Value,
-    },
-    LayerDeleted {
-        id: Uuid,
-    },
-
-    FeatureGroupCreated {
-        name: String,
-        metadata: serde_json::Value,
-    },
-    FeatureGroupUpdated {
-        changes: serde_json::Value,
-    },
-    FeatureGroupDeleted {
-        id: Uuid,
-    },
-
-    FeatureCreated {
-        layer_id: Uuid,
-        group_id: Option<Uuid>,
-        name: String,
-        geom_type: String,
-        geometry: serde_json::Value,
-        properties: serde_json::Value,
-        style_id: Option<Uuid>,
-        is_visible: bool,
-        note: Option<String>,
-        bbox: Option<serde_json::Value>,
-        metadata: serde_json::Value,
-    },
-    FeatureUpdated {
-        changes: serde_json::Value,
-    },
-    FeatureDeleted {
-        id: Uuid,
-    },
-
-    RegionCreated {
-        name: String,
+        #[serde(default = "default_json")]
         metadata: serde_json::Value,
     },
     RegionUpdated {
@@ -113,32 +58,95 @@ pub enum AppEvent {
     RegionDeleted {
         id: Uuid,
     },
-
-    ContentItemUpserted {
-        content_type_id: Uuid,
-        name: String,
-        data_json: serde_json::Value,
-    },
-    ContentItemDeleted {
+    LayerCreated {
         id: Uuid,
-    },
-
-    // Notes
-    NoteCreated {
-        title: String,
-        content: String,
+        region_id: Option<Uuid>,
+        name: String,
+        #[serde(default = "default_json")]
         metadata: serde_json::Value,
     },
-    NoteUpdated {
+    LayerUpdated {
         id: Uuid,
         changes: serde_json::Value,
     },
-    NoteDeleted {
+    LayerDeleted {
         id: Uuid,
     },
 
-    // Folders / Files (DMP Structure)
+    // --- Tasks & Links ---
+    TaskCreated {
+        id: Uuid,
+        name: String,
+        parent_id: Option<Uuid>,
+        metadata: serde_json::Value,
+    },
+    TaskUpdated {
+        id: Uuid,
+        changes: serde_json::Value,
+    },
+    TaskDeleted {
+        id: Uuid,
+    },
+    TaskLinked {
+        from_id: Uuid,
+        to_id: Uuid,
+        link_type: String,
+        metadata: serde_json::Value,
+    },
+    TaskUnlinked {
+        from_id: Uuid,
+        to_id: Uuid,
+    },
+
+    // --- GIS Features ---
+    FeatureGroupCreated {
+        id: Uuid,
+        name: String,
+        layer_id: Uuid,
+        parent_id: Option<Uuid>,
+        group_type: Option<String>,
+        #[serde(default = "default_json")]
+        metadata: serde_json::Value,
+    },
+    FeatureGroupUpdated {
+        id: Uuid,
+        changes: serde_json::Value,
+    },
+    FeatureGroupDeleted {
+        id: Uuid,
+    },
+    FeatureCreated {
+        id: Uuid,
+        layer_id: Uuid,
+        group_id: Option<Uuid>,
+        task_id: Option<Uuid>,
+        name: String,
+        geom_type: String,
+        geometry: serde_json::Value,
+        #[serde(default = "default_json")]
+        properties: serde_json::Value,
+        style_id: Option<Uuid>,
+        is_visible: bool,
+        note: Option<String>,
+        bbox: Option<serde_json::Value>,
+        #[serde(default = "default_json")]
+        metadata: serde_json::Value,
+    },
+    FeatureUpdated {
+        id: Uuid,
+        changes: serde_json::Value,
+    },
+    FeatureDeleted {
+        id: Uuid,
+    },
+    FeatureStyleUpdated {
+        id: Uuid,
+        style_id: Option<Uuid>,
+    },
+
+    // --- Document & File Management ---
     FolderCreated {
+        id: Uuid,
         parent_id: Option<Uuid>,
         name: String,
         metadata: serde_json::Value,
@@ -150,8 +158,8 @@ pub enum AppEvent {
     FolderDeleted {
         id: Uuid,
     },
-
     FileCreated {
+        id: Uuid,
         folder_id: Option<Uuid>,
         rel_path: String,
         filename: String,
@@ -167,8 +175,38 @@ pub enum AppEvent {
         id: Uuid,
     },
 
-    // Business / Materials
+    // --- Business Entities ---
+    PersonnelCreated {
+        id: Uuid,
+        name: String,
+        metadata: serde_json::Value,
+    },
+    PersonnelUpdated {
+        id: Uuid,
+        changes: serde_json::Value,
+    },
+    PersonnelDeleted {
+        id: Uuid,
+    },
+    RoleCreated {
+        id: Uuid,
+        name: String,
+        metadata: serde_json::Value,
+    },
+    RoleDeleted {
+        id: Uuid,
+    },
+    PersonnelRoleLinked {
+        personnel_id: Uuid,
+        role_id: Uuid,
+        metadata: serde_json::Value,
+    },
+    PersonnelRoleUnlinked {
+        personnel_id: Uuid,
+        role_id: Uuid,
+    },
     MaterialCreated {
+        id: Uuid,
         name: String,
         code: String,
         metadata: serde_json::Value,
@@ -180,8 +218,8 @@ pub enum AppEvent {
     MaterialDeleted {
         id: Uuid,
     },
-
     WorkItemCreated {
+        id: Uuid,
         name: String,
         feature_id: Uuid,
         material_id: Uuid,
@@ -196,22 +234,8 @@ pub enum AppEvent {
     WorkItemDeleted {
         id: Uuid,
     },
-
-    // Personnel
-    PersonnelCreated {
-        name: String,
-        metadata: serde_json::Value,
-    },
-    PersonnelUpdated {
-        id: Uuid,
-        changes: serde_json::Value,
-    },
-    PersonnelDeleted {
-        id: Uuid,
-    },
-
-    // Contracts
     ContractCreated {
+        id: Uuid,
         name: String,
         contract_number: String,
         vendor: Option<String>,
@@ -225,8 +249,52 @@ pub enum AppEvent {
         id: Uuid,
     },
 
-    // Attributes / Properties
+    // --- CMS & Dynamic Content ---
+    ContentTypeCreated {
+        id: Uuid,
+        name: String,
+        metadata: serde_json::Value,
+    },
+    ContentFieldCreated {
+        content_type_id: Uuid,
+        name: String,
+        field_type: String,
+        metadata: serde_json::Value,
+    },
+    ContentItemUpserted {
+        id: Option<Uuid>,
+        content_type_id: Uuid,
+        name: String,
+        data_json: serde_json::Value,
+    },
+    ContentItemDeleted {
+        id: Uuid,
+    },
+
+    // --- Notes ---
+    NoteCreated {
+        id: Uuid,
+        title: String,
+        content: String,
+        metadata: serde_json::Value,
+    },
+    NoteUpdated {
+        id: Uuid,
+        changes: serde_json::Value,
+    },
+    NoteDeleted {
+        id: Uuid,
+    },
+
+    // --- Design & Properties ---
+    DesignStyleCreated {
+        id: Uuid,
+        name: String,
+        config: serde_json::Value,
+        metadata: serde_json::Value,
+    },
     PropertyDefinitionCreated {
+        id: Uuid,
         name: String,
         data_type: String,
         metadata: serde_json::Value,
@@ -239,38 +307,18 @@ pub enum AppEvent {
         id: Uuid,
     },
 
-    // System
+    // --- Metadata & Settings ---
     SettingsUpdated {
         changes: serde_json::Value,
     },
 
-    // Generic Entities
-    EntityCreated {
-        id: Uuid,
-        project_id: Uuid,
-        entity_type: String,
-        data: serde_json::Value,
-    },
-    EntityUpdated {
-        id: Uuid,
-        project_id: Uuid,
-        entity_type: String,
-        data: serde_json::Value,
-    },
-    EntityDeleted {
-        id: Uuid,
-        project_id: Uuid,
-        entity_type: String,
-    },
-
-    // Others (Legacy/PMP)
+    // --- System & Migration ---
     SyncStarted {
         device_id: String,
     },
     SyncCompleted {
         device_id: String,
     },
-
     IngestionStarted {
         ingestion_id: Uuid,
         source_path: String,
@@ -289,6 +337,25 @@ pub enum AppEvent {
         status: String,
         message: String,
         metadata: serde_json::Value,
+    },
+
+    // --- Generic / Extensible ---
+    EntityCreated {
+        id: Uuid,
+        project_id: Uuid,
+        entity_type: String,
+        data: serde_json::Value,
+    },
+    EntityUpdated {
+        id: Uuid,
+        project_id: Uuid,
+        entity_type: String,
+        data: serde_json::Value,
+    },
+    EntityDeleted {
+        id: Uuid,
+        project_id: Uuid,
+        entity_type: String,
     },
 }
 
@@ -315,9 +382,23 @@ impl AppEvent {
             AppEvent::FileCreated { .. } => "created",
             AppEvent::FileUpdated { .. } => "updated",
             AppEvent::FileDeleted { .. } => "deleted",
+            AppEvent::RegionCreated { .. } => "created",
+            AppEvent::RegionUpdated { .. } => "updated",
+            AppEvent::RegionDeleted { .. } => "deleted",
+            AppEvent::LayerCreated { .. } => "created",
+            AppEvent::LayerUpdated { .. } => "updated",
+            AppEvent::LayerDeleted { .. } => "deleted",
+            AppEvent::FeatureGroupCreated { .. } => "created",
+            AppEvent::FeatureGroupUpdated { .. } => "updated",
+            AppEvent::FeatureGroupDeleted { .. } => "deleted",
+            AppEvent::FeatureCreated { .. } => "created",
+            AppEvent::FeatureUpdated { .. } => "updated",
+            AppEvent::FeatureDeleted { .. } => "deleted",
             AppEvent::PropertyDefinitionCreated { .. } => "created",
             AppEvent::PropertyDefinitionUpdated { .. } => "updated",
             AppEvent::PropertyDefinitionDeleted { .. } => "deleted",
+            AppEvent::ContentItemUpserted { .. } => "upserted",
+            AppEvent::ContentItemDeleted { .. } => "deleted",
             AppEvent::SyncStarted { .. } => "started",
             AppEvent::SyncCompleted { .. } => "completed",
             AppEvent::SettingsUpdated { .. } => "updated",
@@ -327,7 +408,76 @@ impl AppEvent {
             AppEvent::IngestionStarted { .. } => "started",
             AppEvent::IngestionFeatureAdded { .. } => "feature_added",
             AppEvent::IngestionCompleted { .. } => "completed",
+            AppEvent::RoleCreated { .. } => "created",
+            AppEvent::RoleDeleted { .. } => "deleted",
+            AppEvent::PersonnelCreated { .. } => "created",
+            AppEvent::PersonnelUpdated { .. } => "updated",
+            AppEvent::PersonnelDeleted { .. } => "deleted",
+            AppEvent::PersonnelRoleLinked { .. } => "linked",
+            AppEvent::PersonnelRoleUnlinked { .. } => "unlinked",
+            AppEvent::ContentTypeCreated { .. } => "created",
+            AppEvent::ContentFieldCreated { .. } => "created",
+            AppEvent::DesignStyleCreated { .. } => "created",
             _ => "unknown",
+        }
+    }
+
+    pub fn event_type(&self) -> &str {
+        match self {
+            AppEvent::ProjectCreated { .. } => "ProjectCreated",
+            AppEvent::ProjectUpdated { .. } => "ProjectUpdated",
+            AppEvent::ProjectMetadataUpdated { .. } => "ProjectMetadataUpdated",
+            AppEvent::ProjectDeleted { .. } => "ProjectDeleted",
+            AppEvent::RegionCreated { .. } => "RegionCreated",
+            AppEvent::RegionUpdated { .. } => "RegionUpdated",
+            AppEvent::RegionDeleted { .. } => "RegionDeleted",
+            AppEvent::LayerCreated { .. } => "LayerCreated",
+            AppEvent::LayerUpdated { .. } => "LayerUpdated",
+            AppEvent::LayerDeleted { .. } => "LayerDeleted",
+            AppEvent::TaskCreated { .. } => "TaskCreated",
+            AppEvent::TaskUpdated { .. } => "TaskUpdated",
+            AppEvent::TaskDeleted { .. } => "TaskDeleted",
+            AppEvent::TaskLinked { .. } => "TaskLinked",
+            AppEvent::TaskUnlinked { .. } => "TaskUnlinked",
+            AppEvent::FeatureCreated { .. } => "FeatureCreated",
+            AppEvent::FeatureUpdated { .. } => "FeatureUpdated",
+            AppEvent::FeatureDeleted { .. } => "FeatureDeleted",
+            AppEvent::FeatureGroupCreated { .. } => "FeatureGroupCreated",
+            AppEvent::FeatureGroupUpdated { .. } => "FeatureGroupUpdated",
+            AppEvent::FeatureGroupDeleted { .. } => "FeatureGroupDeleted",
+            AppEvent::FolderCreated { .. } => "FolderCreated",
+            AppEvent::FolderUpdated { .. } => "FolderUpdated",
+            AppEvent::FolderDeleted { .. } => "FolderDeleted",
+            AppEvent::FileCreated { .. } => "FileCreated",
+            AppEvent::FileUpdated { .. } => "FileUpdated",
+            AppEvent::FileDeleted { .. } => "FileDeleted",
+            AppEvent::NoteCreated { .. } => "NoteCreated",
+            AppEvent::NoteUpdated { .. } => "NoteUpdated",
+            AppEvent::NoteDeleted { .. } => "NoteDeleted",
+            AppEvent::PersonnelCreated { .. } => "PersonnelCreated",
+            AppEvent::PersonnelUpdated { .. } => "PersonnelUpdated",
+            AppEvent::PersonnelDeleted { .. } => "PersonnelDeleted",
+            AppEvent::RoleCreated { .. } => "RoleCreated",
+            AppEvent::RoleDeleted { .. } => "RoleDeleted",
+            AppEvent::MaterialCreated { .. } => "MaterialCreated",
+            AppEvent::MaterialUpdated { .. } => "MaterialUpdated",
+            AppEvent::MaterialDeleted { .. } => "MaterialDeleted",
+            AppEvent::WorkItemCreated { .. } => "WorkItemCreated",
+            AppEvent::WorkItemUpdated { .. } => "WorkItemUpdated",
+            AppEvent::WorkItemDeleted { .. } => "WorkItemDeleted",
+            AppEvent::ContractCreated { .. } => "ContractCreated",
+            AppEvent::ContractUpdated { .. } => "ContractUpdated",
+            AppEvent::ContractDeleted { .. } => "ContractDeleted",
+            AppEvent::SettingsUpdated { .. } => "SettingsUpdated",
+            AppEvent::SyncStarted { .. } => "SyncStarted",
+            AppEvent::SyncCompleted { .. } => "SyncCompleted",
+            AppEvent::EntityCreated { .. } => "EntityCreated",
+            AppEvent::EntityUpdated { .. } => "EntityUpdated",
+            AppEvent::EntityDeleted { .. } => "EntityDeleted",
+            AppEvent::IngestionStarted { .. } => "IngestionStarted",
+            AppEvent::IngestionFeatureAdded { .. } => "IngestionFeatureAdded",
+            AppEvent::IngestionCompleted { .. } => "IngestionCompleted",
+            _ => self.action(),
         }
     }
 
@@ -353,21 +503,48 @@ impl AppEvent {
             AppEvent::FileCreated { .. }
             | AppEvent::FileUpdated { .. }
             | AppEvent::FileDeleted { .. } => "file",
+            AppEvent::RegionCreated { .. }
+            | AppEvent::RegionUpdated { .. }
+            | AppEvent::RegionDeleted { .. } => "region",
+            AppEvent::LayerCreated { .. }
+            | AppEvent::LayerUpdated { .. }
+            | AppEvent::LayerDeleted { .. } => "layer",
+            AppEvent::FeatureGroupCreated { .. }
+            | AppEvent::FeatureGroupUpdated { .. }
+            | AppEvent::FeatureGroupDeleted { .. } => "feature_group",
+            AppEvent::FeatureCreated { .. }
+            | AppEvent::FeatureUpdated { .. }
+            | AppEvent::FeatureDeleted { .. } => "feature",
+            AppEvent::SettingsUpdated { .. } => "settings",
+            AppEvent::ContentItemUpserted { .. } | AppEvent::ContentItemDeleted { .. } => {
+                "content_item"
+            }
             AppEvent::PropertyDefinitionCreated { .. }
             | AppEvent::PropertyDefinitionUpdated { .. }
             | AppEvent::PropertyDefinitionDeleted { .. } => "property_definition",
-            AppEvent::EntityCreated { entity_type, .. } => entity_type,
-            AppEvent::EntityUpdated { entity_type, .. } => entity_type,
-            AppEvent::EntityDeleted { entity_type, .. } => entity_type,
             AppEvent::IngestionStarted { .. }
             | AppEvent::IngestionFeatureAdded { .. }
             | AppEvent::IngestionCompleted { .. } => "ingestion",
+            AppEvent::RoleCreated { .. } | AppEvent::RoleDeleted { .. } => "role",
+            AppEvent::PersonnelCreated { .. }
+            | AppEvent::PersonnelUpdated { .. }
+            | AppEvent::PersonnelDeleted { .. } => "personnel",
+            AppEvent::PersonnelRoleLinked { .. } | AppEvent::PersonnelRoleUnlinked { .. } => {
+                "personnel_role"
+            }
+            AppEvent::ContentTypeCreated { .. } => "content_type",
+            AppEvent::ContentFieldCreated { .. } => "content_field",
+            AppEvent::DesignStyleCreated { .. } => "design_style",
+            AppEvent::EntityCreated { entity_type, .. } => entity_type,
+            AppEvent::EntityUpdated { entity_type, .. } => entity_type,
+            AppEvent::EntityDeleted { entity_type, .. } => entity_type,
             _ => "other",
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EventEnvelope {
     pub id: Uuid,
     pub entity_id: Uuid,
@@ -382,15 +559,55 @@ pub struct EventEnvelope {
     pub correlation_id: Option<Uuid>,
     pub causal_id: Option<Uuid>,
     pub schema_version: i32,
+    pub hash: Option<String>,
 }
 
 impl AppEvent {
     pub fn robust_deserialize(val: &str) -> Result<Self, String> {
-        serde_json::from_str(val).map_err(|e| e.to_string())
+        let v: serde_json::Value = serde_json::from_str(val).map_err(|e| e.to_string())?;
+        Self::from_value_robust(v)
+    }
+
+    pub fn from_value_robust(v: serde_json::Value) -> Result<Self, String> {
+        // Handle standard wrapper: {"type": "...", "payload": {...}}
+        if let Some(payload) = v.get("payload").and_then(|p| p.as_object()) {
+            let event_type = v.get("type").cloned();
+            let mut new_v = serde_json::Map::new();
+            if let Some(t) = event_type {
+                new_v.insert("type".to_string(), t);
+            }
+            for (key, value) in payload {
+                new_v.insert(key.clone(), value.clone());
+            }
+            serde_json::from_value(serde_json::Value::Object(new_v))
+                .map_err(|e| format!("Deserialize from payload wrapper failed: {}", e))
+        } else {
+            // Handle raw event format
+            serde_json::from_value(v)
+                .map_err(|e| format!("Deserialize raw event failed: {}", e))
+        }
     }
 }
 
 impl EventEnvelope {
+    pub fn calculate_hash(&self) -> String {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+
+        hasher.update(self.id.as_bytes());
+        hasher.update(self.project_id.as_bytes());
+        hasher.update(self.entity_id.as_bytes());
+        hasher.update(self.entity_type.as_bytes());
+        hasher.update(self.version.to_le_bytes());
+        hasher.update(self.global_seq.to_le_bytes());
+
+        if let Ok(payload) = serde_json::to_string(&self.event) {
+            hasher.update(payload.as_bytes());
+        }
+
+        format!("{:x}", hasher.finalize())
+    }
+
     pub fn new(
         project_id: Uuid,
         entity_type: &str,
@@ -413,6 +630,7 @@ impl EventEnvelope {
             correlation_id: None,
             causal_id: None,
             schema_version: 1,
+            hash: None,
         }
     }
     pub fn with_version(mut self, v: i64) -> Self {
@@ -435,4 +653,31 @@ pub struct Manifest {
 pub struct ProjectSettings {
     pub auto_sync: bool,
     pub backup_enabled: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_robust_deserialize_user_failure() {
+        let json = r#"{"type":"FeatureCreated","layer_id":"7647247a-6242-53b4-b25b-38e9a26f6345","name":"22","geom_type":"Point","geometry":null,"properties":null,"is_visible":true}"#;
+        match AppEvent::robust_deserialize(json) {
+            Ok(ev) => {
+                if let AppEvent::FeatureCreated {
+                    geometry,
+                    properties,
+                    metadata,
+                    ..
+                } = ev
+                {
+                    assert!(!geometry.is_null(), "geometry should not be null");
+                    assert!(!properties.is_null(), "properties should not be null");
+                    assert!(!metadata.is_null(), "metadata should not be null");
+                } else {
+                    panic!("Expected FeatureCreated");
+                }
+            }
+            Err(e) => panic!("Deserialization failed: {}", e),
+        }
+    }
 }

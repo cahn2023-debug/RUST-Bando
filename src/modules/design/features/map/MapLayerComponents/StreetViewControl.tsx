@@ -403,6 +403,7 @@ export function StreetViewControl() {
 
     const onClick = (e: L.LeafletMouseEvent) => {
       openStreetViewWindow(e.latlng.lat, e.latlng.lng);
+      setIsActive(false); // Auto-deactivate after opening to prevent accidental triggers
     };
 
     map.on('click', onClick);
@@ -453,6 +454,7 @@ export function StreetViewControl() {
               const marker = e.target;
               const position = marker.getLatLng();
               openStreetViewWindow(position.lat, position.lng);
+              setIsActive(false);
             },
           }}
           zIndexOffset={2000}

@@ -17,7 +17,7 @@ export const EMPTY_OBJ = {};
 
 export type MapStateSlice = {
     state: MapState | null;
-    projectId: number | null;
+    projectId: string | null;
     projectPath: string | null;
     projectKey: string | null;
     isLoading: boolean;
@@ -123,9 +123,9 @@ export type UIControlSlice = {
 };
 
 export type InitializationSlice = {
-    initialize: (projectId: number, projectPath?: string) => Promise<void>;
+    initialize: (projectId: string, projectPath?: string) => Promise<void>;
     reset: () => void;
-    setMockState: (state: MapState, projectId: number, projectKey?: string) => void;
+    setMockState: (state: MapState, projectId: string, projectKey?: string) => void;
     unsubscribeFirestore: (() => void) | null;
 
     // Pegman status

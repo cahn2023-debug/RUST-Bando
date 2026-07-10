@@ -11,7 +11,8 @@ import {
   AuthError
 } from 'firebase/auth';
 import { auth } from '@IMPLEMENT/lib/firebase';
-import { safeInvoke } from '@IMPLEMENT/lib/tauri';
+import { safeInvoke, IS_REAL_TAURI } from '@IMPLEMENT/lib/tauri';
+
 // v48: Safely determine initial standalone state from URL to avoid module load crashes
 // We will refine this in initAuth() using native Tauri APIs if available.
 const INITIAL_SEARCH = typeof window !== 'undefined' ? window.location.search : '';
@@ -146,10 +147,13 @@ export const useAuthStore = create<AuthState>((set) => ({
 // Initialization logic
 let initPromise: Promise<void> | null = null;
 let nullStateTimer: any = null;
-const STABILITY_CHECK_DURATION = 5000; // 5 seconds grace period for Main Window
+const STABILITY_CHECK_DURATION = 10000; // v4.0.3: Increased to 10s for slow Windows environments
 
 export const initAuth = () => {
   if (initPromise) return initPromise;
+
+  const currentState = useAuthStore.getState();
+  if (currentState.initialized) return Promise.resolve();
 
   initPromise = new Promise(async (resolve) => {
     // v72: IMMEDIATE URL DETECTION (Primary for Standalone)
@@ -205,15 +209,19 @@ export const initAuth = () => {
         // v72 STABILITY BUFFER: Prevent early kick-out on Main Window
         if (!isStandalone && !user && !useAuthStore.getState().initialized) {
           if (!nullStateTimer) {
-            console.warn(`[Auth] Main Window (${elapsed}ms): Initial 'null' user. Starting 5s stability buffer...`);
+            // v4.0.3: Shorten buffer for browser environments to prevent UI lag/loops
+            const duration = IS_REAL_TAURI ? STABILITY_CHECK_DURATION : 100;
+            console.warn(`[Auth] Main Window (${elapsed}ms): Initial 'null' user. Starting ${duration}ms stability buffer...`);
+
             nullStateTimer = setTimeout(() => {
               console.warn("[Auth] Main Window: Stability buffer expired. Confirming No-User state.");
               useAuthStore.getState().setUser(null);
               nullStateTimer = null;
-            }, STABILITY_CHECK_DURATION);
+            }, duration);
           }
           return; // Wait for buffer
         }
+
 
         // v47/v72 STANDALONE PROTECTION (Keep 60s for sub-windows)
         if (isStandalone && !user && elapsed < 60000) {

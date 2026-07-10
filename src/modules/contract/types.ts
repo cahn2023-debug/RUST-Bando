@@ -1,5 +1,28 @@
-import type { FeatureCoordinates, FeatureProperties } from './designTypes';
-export type { FeatureCoordinates, FeatureProperties };
+import type {
+  FeatureCoordinates,
+  FeatureProperties,
+  FeatureMetadata,
+  IconType,
+  VertexMetadata,
+  SelectionSummary,
+  SelectionItem,
+  DesignEventType,
+  DesignActionResponse,
+  DesignBulkActionResponse
+} from './designTypes';
+
+export type {
+  FeatureCoordinates,
+  FeatureProperties,
+  FeatureMetadata,
+  IconType,
+  VertexMetadata,
+  SelectionSummary,
+  SelectionItem,
+  DesignEventType,
+  DesignActionResponse,
+  DesignBulkActionResponse
+};
 
 export interface Project {
   id: string;
@@ -72,87 +95,6 @@ export interface SearchResult {
   file_path: string;
   title: string;
   snippet: string;
-}
-
-export type IconType = 'default' | 'cctv' | 'ptz' | 'speed' | 'lpr' | 'intersection';
-
-export type FeatureType = 'POINT' | 'POLYLINE' | 'IMAGE' | 'INTERSECTION';
-
-export const FeatureTypes = {
-  POINT: 'POINT' as FeatureType,
-  POLYLINE: 'POLYLINE' as FeatureType,
-  IMAGE: 'IMAGE' as FeatureType,
-  INTERSECTION: 'INTERSECTION' as FeatureType,
-};
-
-export interface VertexMetadata {
-  description?: string;
-  imageUrl?: string;
-  imageUrls?: string[];
-  [key: string]: string | string[] | number | boolean | undefined;
-}
-
-export interface FeatureMetadata {
-  description?: string;
-  type?: string;
-  icon?: IconType;
-  color?: string;
-  size?: number;
-  label?: string;
-  display_order?: string;
-  media?: {
-    imageUrl?: string;
-    imageUrls?: string[];
-  };
-  gis?: {
-    vn2000_x?: number;
-    vn2000_y?: number;
-    lengthKm?: number;
-    rotation?: number;
-    fov_angle?: number;
-    fov_radius?: number;
-    fov_visible?: boolean;
-  };
-  is_visible?: boolean;
-  business?: {
-    contractor?: string;
-    phoneNumber?: string;
-    contract_id?: string;
-  };
-  vertexMetadata?: Record<number, VertexMetadata>;
-  ai?: {
-    model?: string;
-    hash?: string;
-    normalized_text?: string;
-    embedding?: number[];
-    updated_at?: string;
-  };
-  infrastructure?: {
-    type?: string;
-    // PowerLine
-    voltage?: string;
-    capacity?: string;
-    owner?: string;
-    status?: string;
-    // SignalLine
-    cable_type?: string;
-    core_count?: number;
-    bandwidth?: string;
-    operator?: string;
-    // Trench
-    depth?: number;
-    surface_type?: string;
-  };
-  specs?: {
-    install_height?: number;
-    focal_length?: number;
-    sensor_size?: string;
-    resolution_x?: number;
-    resolution_y?: number;
-    target_distance?: number;
-    target_height?: number;
-  };
-  [key: string]: string | number | boolean | string[] | number[] | IconType | VertexMetadata | Record<string, unknown> | undefined;
 }
 
 export interface Material {

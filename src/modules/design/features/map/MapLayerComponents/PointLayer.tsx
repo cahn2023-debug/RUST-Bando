@@ -236,6 +236,9 @@ export const PointLayer = React.memo(({
         });
 
         group.on('click', (e: any) => {
+            if (e.originalEvent) {
+                L.DomEvent.stopPropagation(e.originalEvent);
+            }
             const featureId = e.layer?.options?.featureId || e.layer?.featureId;
             const groupId = e.layer?.options?.featureGroupId || e.layer?.featureGroupId;
             if (featureId) {
@@ -247,6 +250,9 @@ export const PointLayer = React.memo(({
         });
 
         moveGroup.on('click', (e: any) => {
+            if (e.originalEvent) {
+                L.DomEvent.stopPropagation(e.originalEvent);
+            }
             const featureId = e.layer?.options?.featureId || e.layer?.featureId;
             const groupId = e.layer?.options?.featureGroupId || e.layer?.featureGroupId;
             if (featureId) {

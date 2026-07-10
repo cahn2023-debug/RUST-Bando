@@ -1,4 +1,5 @@
-use crate::implement::db::DatabaseState;
+use crate::domain::implement::modules::core::active_pmp::ActivePmpState;
+use crate::implement::modules::ai::actor::{AiMessage, AiResponse};
 use crate::implement::modules::ai::AIManager;
 use crate::implement::modules::ingestion::import::contract_model::BOMItem;
 use rusqlite::params;
@@ -24,12 +25,12 @@ pub struct ContractCorrection {
 pub async fn save_ai_correction(
     path: String,
     data: ContractCorrection,
-    db: State<'_, DatabaseState>,
+    active_pmp: State<'_, ActivePmpState>,
     ai: State<'_, AIManager>,
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
-    let conn_guard = db.conn.lock().unwrap();
-    let conn = conn_guard.as_ref().ok_or("Database not connected")?;
+    let v2_db = crate::implement::commands::helpers::get_v2_db(&active_pmp)?;
+    let conn = v2_db.conn.lock();
 
     // Normalize path to use forward slashes for consistency
     let path = path.replace("\\", "/");
@@ -53,18 +54,25 @@ pub async fn save_ai_correction(
         )
     });
 
-    // 3. Get Embedding from Engine
-    let embedding_blob = if let Ok(engine) = ai.get_embedding_engine() {
-        match engine.get_embeddings(&context) {
-            Ok(vec) => {
-                let mut bytes: Vec<u8> = Vec::with_capacity(vec.len() * 4);
-                for f in vec {
-                    let f: f32 = f;
-                    bytes.extend_from_slice(&f.to_le_bytes());
+    // 3. Get Embedding from Engine via Actor (Sequential Inference)
+    let embedding_blob = if let Ok(v2_db) = active_pmp.v2_db() {
+        if let Some(ref ai_handle) = v2_db.topology.ai {
+            match ai_handle.send(AiMessage::GetEmbedding { text: context.clone() }).await {
+                Some(AiResponse::Embedding(vec)) => {
+                    let mut bytes: Vec<u8> = Vec::with_capacity(vec.len() * 4);
+                    for f in vec {
+                        bytes.extend_from_slice(&f.to_le_bytes());
+                    }
+                    Some(bytes)
                 }
-                Some(bytes)
+                Some(AiResponse::Error(e)) => {
+                    log::error!("[AI Learning] Embedding failed: {}", e);
+                    None
+                }
+                _ => None,
             }
-            Err(_) => None,
+        } else {
+            None
         }
     } else {
         None
@@ -120,7 +128,7 @@ pub async fn save_ai_correction(
 pub async fn save_ai_correction(
     _path: String,
     _data: ContractCorrection,
-    _db: State<'_, DatabaseState>,
+    _active_pmp: State<'_, ActivePmpState>,
     _app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     Err("AI functionality is not compiled in this build.".to_string())

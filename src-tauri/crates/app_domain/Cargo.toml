@@ -11,3 +11,4 @@ anyhow = "1.0"
 thiserror = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 async-trait = "0.1"
+shared_kernel = { path = "../shared_kernel" }

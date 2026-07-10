@@ -1,60 +1,60 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Project Manager",
-  "version": "0.1.0",
-  "identifier": "com.thanhbui.offline-project-manager",
-  "build": {
-    "beforeDevCommand": "npm run dev",
-    "devUrl": "http://127.0.0.1:3000",
-    "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
-  },
-  "app": {
-    "withGlobalTauri": true,
-    "windows": [
-      {
-        "label": "main",
-        "title": "Project Manager",
-        "width": 1280,
-        "height": 800,
-        "visible": true,
-        "decorations": false
-      }
-    ],
-    "security": {
-      "csp": "default-src 'self' tiles: tauri:; script-src 'self' 'wasm-unsafe-eval' https://apis.google.com https://www.gstatic.com https://maps.googleapis.com https://maps.google.com https://*.googleapis.com; connect-src 'self' https: tiles: tauri: *.firebaseio.com *.googleapis.com wss://*.firebaseio.com *.firebaseapp.com; frame-src 'self' https://*.firebaseapp.com https://www.google.com asset.localhost https://asset.localhost; img-src 'self' data: https: tiles: tauri: *.googleusercontent.com *.google.com *.gstatic.com *.googleapis.com asset.localhost;",
-      "assetProtocol": {
-        "enable": true,
-        "scope": [
-          "$RESOURCE/**",
-          "$APPDATA/**",
-          "$DOCUMENT/**"
-        ]
-      }
-    }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
-    "resources": [
-      "resources/models/*"
-    ],
-    "fileAssociations": [
-      {
-        "ext": [
-          "pmp"
+    "$schema": "https://schema.tauri.app/config/2",
+    "productName": "Project Manager",
+    "version": "0.1.0",
+    "identifier": "com.thanhbui.offline-project-manager",
+    "build": {
+        "beforeDevCommand": "npm run dev",
+        "devUrl": "http://127.0.0.1:3000",
+        "beforeBuildCommand": "npm run build",
+        "frontendDist": "../dist"
+    },
+    "app": {
+        "withGlobalTauri": true,
+        "windows": [
+            {
+                "label": "main",
+                "title": "Project Manager",
+                "width": 1280,
+                "height": 800,
+                "visible": true,
+                "decorations": true
+            }
         ],
-        "name": "Project Manager Project",
-        "description": "Project Manager file",
-        "role": "Editor"
-      }
-    ]
-  }
+        "security": {
+            "csp": "default-src 'self' tiles: tauri:; script-src 'self' 'wasm-unsafe-eval' https://apis.google.com https://www.gstatic.com https://maps.googleapis.com https://maps.google.com https://*.googleapis.com; connect-src 'self' https: tiles: tauri: *.firebaseio.com *.googleapis.com wss://*.firebaseio.com *.firebaseapp.com; frame-src 'self' https://*.firebaseapp.com https://www.google.com asset.localhost https://asset.localhost; img-src 'self' data: https: tiles: tauri: *.googleusercontent.com *.google.com *.gstatic.com *.googleapis.com asset.localhost;",
+            "assetProtocol": {
+                "enable": true,
+                "scope": [
+                    "$RESOURCE/**",
+                    "$APPDATA/**",
+                    "$DOCUMENT/**"
+                ]
+            }
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ],
+        "resources": [
+            "resources/models/*"
+        ],
+        "fileAssociations": [
+            {
+                "ext": [
+                    "pmp"
+                ],
+                "name": "Project Manager Project",
+                "description": "Project Manager file",
+                "role": "Editor"
+            }
+        ]
+    }
 }

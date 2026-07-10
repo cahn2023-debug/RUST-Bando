@@ -46,7 +46,7 @@ export const initGoogleMaps = (apiKey?: string): boolean => {
 
     const script = document.createElement('script');
     // StreetView is part of maps core. Removing unknown library param to fix console warning.
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${finalKey}&language=vi&v=weekly&callback=${GOOGLE_MAPS_CALLBACK}`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${finalKey}&language=vi&v=weekly&loading=async&callback=${GOOGLE_MAPS_CALLBACK}`;
     script.async = true;
     script.defer = true;
 

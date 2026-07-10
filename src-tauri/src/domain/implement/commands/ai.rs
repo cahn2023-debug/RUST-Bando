@@ -1,3 +1,5 @@
+use crate::domain::implement::modules::core::active_pmp::ActivePmpState;
+use crate::implement::modules::ai::actor::{AiMessage, AiResponse};
 use crate::implement::modules::ai::AIManager;
 use chrono::Utc;
 use serde::Serialize;
@@ -8,7 +10,7 @@ use tauri::{AppHandle, State};
 #[tauri::command]
 pub async fn check_ai_status(
     _app: AppHandle,
-    ai_state: State<'_, AIManager>,
+    active_pmp: State<'_, ActivePmpState>,
     config_state: State<'_, crate::implement::modules::core::config::ConfigState>,
 ) -> Result<HashMap<String, bool>, String> {
     let enable_ai = {
@@ -22,14 +24,25 @@ pub async fn check_ai_status(
         return Ok(status);
     }
 
-    // Check if models are loaded
-    let is_phi3_ready = ai_state.is_phi3_loaded();
-    let is_embedding_ready = ai_state.is_embedding_loaded();
+    // Get status via Actor
+    if let Ok(v2_db) = active_pmp.v2_db() {
+        if let Some(ref ai_handle) = v2_db.topology.ai {
+            match ai_handle.send(AiMessage::GetStatus).await {
+                Some(AiResponse::Status(s)) => {
+                    let phi3 = s.get("phi3_loaded").cloned().unwrap_or(false);
+                    let embed = s.get("embedding_loaded").cloned().unwrap_or(false);
+                    status.insert("ready".to_string(), phi3 && embed);
+                    for (k, v) in s {
+                        status.insert(k, v);
+                    }
+                    return Ok(status);
+                }
+                _ => {}
+            }
+        }
+    }
 
-    status.insert("ready".to_string(), is_phi3_ready && is_embedding_ready);
-    status.insert("phi3_loaded".to_string(), is_phi3_ready);
-    status.insert("embedding_loaded".to_string(), is_embedding_ready);
-
+    status.insert("ready".to_string(), false);
     Ok(status)
 }
 
@@ -57,7 +70,7 @@ fn normalize_text(input: &str) -> String {
 #[tauri::command]
 pub async fn normalize_metadata(
     _app: AppHandle,
-    ai_state: State<'_, AIManager>,
+    active_pmp: State<'_, ActivePmpState>,
     config_state: State<'_, crate::implement::modules::core::config::ConfigState>,
     text: String,
 ) -> Result<MetadataNormalizeResponse, String> {
@@ -72,18 +85,22 @@ pub async fn normalize_metadata(
 
     let normalized_text = normalize_text(&text);
 
-    let embedder = ai_state.get_embedding_engine().map_err(|e| e.to_string())?;
+    // Get Embedding via Actor
+    let v2_db = active_pmp.v2_db()?;
+    let ai_handle = v2_db.topology.ai.as_ref().ok_or("AI Actor not initialized")?;
 
-    let embedding = embedder
-        .get_embeddings(&normalized_text)
-        .map_err(|e| e.to_string())?;
-
-    Ok(MetadataNormalizeResponse {
-        normalized_text,
-        embedding,
-        model: "all-MiniLM-L6-v2".to_string(),
-        updated_at: Utc::now().to_rfc3339(),
-    })
+    match ai_handle.send(AiMessage::GetEmbedding { text: normalized_text.clone() }).await {
+        Some(AiResponse::Embedding(embedding)) => {
+            Ok(MetadataNormalizeResponse {
+                normalized_text,
+                embedding,
+                model: "all-MiniLM-L6-v2".to_string(),
+                updated_at: Utc::now().to_rfc3339(),
+            })
+        }
+        Some(AiResponse::Error(e)) => Err(e),
+        _ => Err("AI Actor timed out or returned invalid response".to_string()),
+    }
 }
 
 #[cfg(feature = "ai")]

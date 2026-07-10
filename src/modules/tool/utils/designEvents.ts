@@ -24,14 +24,21 @@ export const normalizeIncomingEvent = (incomingEvent: DesignEventType): DesignEv
     return event;
 };
 
-export const enrichEventBeforeDispatch = (incomingEvent: DesignEventType): DesignEventType => {
+export const enrichEventBeforeDispatch = (incomingEvent: DesignEventType): any => {
     const event = normalizeIncomingEvent(incomingEvent);
 
-    if (event.type !== 'FeatureUpdated' && event.type !== 'FeatureCreated') {
-        return event;
-    }
+    // Default mapping rules based on event type prefix
+    let entityType = 'feature';
+    if (event.type.startsWith('Region')) entityType = 'region';
+    else if (event.type.startsWith('Layer')) entityType = 'layer';
+    else if (event.type.startsWith('FeatureGroup')) entityType = 'group';
 
     const payload = { ...(event.payload as any) };
+
+    // Extract entityId
+    let entityId = payload.id || (payload as any).featureId || (payload as any).layerId || (payload as any).regionId || '';
+
+    // Specialized logic for metadata updates
     const metadata =
         typeof payload.metadata === 'string'
             ? JSON.parse(payload.metadata || '{}')
@@ -55,8 +62,12 @@ export const enrichEventBeforeDispatch = (incomingEvent: DesignEventType): Desig
         }
     }
 
+    // Return the format Rust expects: DesignEventPayload / EventEnvelope
     return {
-        ...event,
+        id: typeof crypto !== 'undefined' ? crypto.randomUUID() : (Math.random().toString(36).substring(2) + Date.now().toString(36)),
+        entityId: String(entityId),
+        entityType,
+        eventType: event.type,
         payload
-    } as DesignEventType;
+    };
 };

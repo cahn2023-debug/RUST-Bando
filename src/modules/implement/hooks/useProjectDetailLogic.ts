@@ -1,10 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback, useRef } from "react";
 import { safeInvoke, safeListen } from "@IMPLEMENT/lib/tauri";
 import { Project, FileNode, ContentType } from "@CONTRACT/types";
 import { ContractMetadata, BOMItem } from "@IMPLEMENT/features/contract/ContractAnalysisView";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import { useProjectData } from "@IMPLEMENT/hooks/useProjectData";
 import { logger } from "@TOOL/utils/logger";
+import { 
+    queryProjection, 
+    getContentTypes,
+} from "@TOOL/utils/designIpc";
 
 interface LocalMetadata {
     contract_number?: string;
@@ -25,12 +29,12 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
     const [selectedFile, setSelectedFile] = useState<{ name: string, type: 'doc' | 'excel' | 'code' | 'image' | 'pdf', path?: string } | null>(null);
     const [fileContent, setFileContent] = useState("");
     const [localMetadata, setLocalMetadata] = useState({
-        contract_number: project.contract_number,
-        investor: project.investor,
-        contractor: project.contractor,
-        signed_date: project.signed_date,
-        duration: project.duration,
-        end_date: (project as any).end_date || ""
+        contract_number: project?.contract_number || "",
+        investor: project?.investor || "",
+        contractor: project?.contractor || "",
+        signed_date: project?.signed_date || "",
+        duration: project?.duration || "",
+        end_date: (project as any)?.end_date || ""
     });
 
 
@@ -39,6 +43,7 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
     const [showRawFile, setShowRawFile] = useState(false);
     const [globalBOMData, setGlobalBOMData] = useState<BOMItem[]>([]);
     const [contentTypes, setContentTypes] = useState<ContentType[]>([]);
+    const bootstrapKeyRef = useRef<string | null>(null);
 
     const {
         contracts,
@@ -60,24 +65,31 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
         }
     }, [hasValidProject, projectId, projectPath]);
 
-    const loadBOM = useCallback(async (forceRefresh = false) => {
+    const loadBOM = useCallback(async () => {
         if (!hasValidProject) {
             setGlobalBOMData([]);
             return;
         }
         try {
-            const res = await safeInvoke<ContractMetadata>("get_project_bom_table", { projectId, forceRefresh });
-            setGlobalBOMData(res.bom_table);
-            setLocalMetadata({
-                contract_number: res.contract_number,
-                investor: res.investor,
-                contractor: res.contractor,
-                signed_date: res.signed_date,
-                duration: res.duration,
-                end_date: res.end_date
-            });
+            // âœ… DÃ¹ng utility queryProjection (V2 Bridge)
+            const res = await queryProjection('bom_metadata', projectId);
+            
+            // âœ… Optional chaining + fallback empty array
+            setGlobalBOMData(res?.bom_table ?? []);
+            
+            if (res?.metadata) {
+                setLocalMetadata({
+                    contract_number: res.metadata.contract_number ?? "",
+                    investor: res.metadata.investor ?? "",
+                    contractor: res.metadata.contractor ?? "",
+                    signed_date: res.metadata.signed_date ?? "",
+                    duration: res.metadata.duration ?? "",
+                    end_date: res.metadata.end_date ?? ""
+                });
+            }
         } catch (err) {
-            logger.error("Loading BOM failed:", err);
+            logger.warn("[V2] Projection query failed, using fallback:", err);
+            setGlobalBOMData([]);
         }
     }, [hasValidProject, projectId]);
 
@@ -103,7 +115,7 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
 
             unlistenSync = await safeListen<{ project_id: string | number }>("sync-finished", (event: any) => {
                 if (hasValidProject && String(event.payload) === String(projectId)) {
-                    loadBOM(false);
+                    loadBOM();
                 }
             });
 
@@ -121,19 +133,42 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
             logger.warn("[ProjectDetail] Skipping bootstrap because projectId is invalid:", project);
             return;
         }
-        loadFileTree();
-        const numericId = parseInt(String(projectId), 10) || 0;
-        useDesignSync.getState().initialize(numericId, projectPath || undefined).catch(err => logger.error("DesignSync init failed:", err));
-        safeInvoke<ContentType[]>("get_content_types").then(setContentTypes).catch((err: any) => logger.error("Fetch content types failed:", err));
-        loadBOM(false);
-    }, [hasValidProject, project, projectId, projectPath, loadFileTree, loadBOM]);
+
+        const bootstrapKey = `${projectId}@${projectPath}`;
+        if (bootstrapKeyRef.current === bootstrapKey) {
+            return;
+        }
+        bootstrapKeyRef.current = bootstrapKey;
+        
+        const bootstrap = async () => {
+            loadFileTree();
+            try {
+                // initialize() already hydrates design state; avoid duplicate hydration race.
+                const results = await Promise.allSettled([
+                    getContentTypes(),
+                    useDesignSync.getState().initialize(String(projectId), projectPath || undefined)
+                ]);
+                
+                const types = results[0].status === 'fulfilled' ? results[0].value : [];
+                
+                setContentTypes(types);
+                // logic xá»­ lÃ½ design state náº¿u cáº§n...
+                
+                loadBOM(false);
+            } catch (err) {
+                logger.error("V2 Bootstrap failed:", err);
+            }
+        };
+
+        bootstrap();
+    }, [hasValidProject, projectId, projectPath, loadFileTree, loadBOM]);
 
 
     const handleFileSelect = useCallback(async (path: string, name: string, extension?: string, activeTab?: string) => {
-        if (name === "Bảng dữ liệu hợp đồng" || name === "Tổng hợp chi tiết (Local)") {
+        if (name === "Báº£ng dá»¯ liá»‡u há»£p Ä‘á»“ng" || name === "Tá»•ng há»£p chi tiáº¿t (Local)") {
             setAnalysisData(null);
             setSelectedFile({ name, type: 'excel', path });
-            setViewMode(name === "Bảng dữ liệu hợp đồng" ? 'global-bom' : 'global-summary');
+            setViewMode(name === "Báº£ng dá»¯ liá»‡u há»£p Ä‘á»“ng" ? 'global-bom' : 'global-summary');
             setAnalyzing(true);
             await loadBOM(false);
             setAnalyzing(false);
@@ -185,7 +220,7 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
                 end_date: newData.end_date
             });
         } catch (err) {
-            logger.error("Lỗi đồng bộ dữ liệu:", err);
+            logger.error("Lá»—i Ä‘á»“ng bá»™ dá»¯ liá»‡u:", err);
         } finally {
             setAnalyzing(false);
         }
@@ -212,9 +247,9 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
             }
             loadContracts();
             if (onProjectUpdate) onProjectUpdate();
-            logger.sync("Đã đồng bộ hóa dữ liệu thành công!");
+            logger.sync("ÄÃ£ Ä‘á»“ng bá»™ hÃ³a dá»¯ liá»‡u thÃ nh cÃ´ng!");
         } catch (err) {
-            logger.error("Lỗi đồng bộ dữ liệu:", err);
+            logger.error("Lá»—i Ä‘á»“ng bá»™ dá»¯ liá»‡u:", err);
         }
     }, [projectId, selectedFile?.path, loadContracts, onProjectUpdate]);
 
@@ -235,12 +270,12 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
             });
 
             setLocalMetadata({
-                contract_number: correctedData.contract_number ?? project.contract_number,
-                investor: correctedData.investor ?? project.investor,
-                contractor: correctedData.contractor ?? project.contractor,
-                signed_date: correctedData.signed_date ?? project.signed_date,
-                duration: correctedData.duration ?? project.duration,
-                end_date: correctedData.end_date ?? (project as any).end_date
+                contract_number: (correctedData.contract_number ?? project?.contract_number) || "",
+                investor: (correctedData.investor ?? project?.investor) || "",
+                contractor: (correctedData.contractor ?? project?.contractor) || "",
+                signed_date: (correctedData.signed_date ?? project?.signed_date) || "",
+                duration: (correctedData.duration ?? project?.duration) || "",
+                end_date: (correctedData.end_date ?? (project as any)?.end_date) || ""
             });
 
             setGlobalBOMData(correctedData.bom_table ?? []);
@@ -260,7 +295,7 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
             });
 
             if (onProjectUpdate) onProjectUpdate();
-            logger.sync("Đã đồng bộ hóa dữ liệu dự án thành công!");
+            logger.sync("ÄÃ£ Ä‘á»“ng bá»™ hÃ³a dá»¯ liá»‡u dá»± Ã¡n thÃ nh cÃ´ng!");
         } catch (err) {
             logger.error("Failed to update project metadata:", err);
             throw err;
@@ -294,3 +329,6 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
         handleProjectMetadataUpdate
     };
 }
+
+
+

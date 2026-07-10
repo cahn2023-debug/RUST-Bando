@@ -1,18 +1,5 @@
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct Point {
-    pub x: f32,
-    pub y: f32,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-pub struct Color {
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-    pub a: f32,
-}
+pub use shared_kernel::{Point, Color, CameraSpecs, DoriDistances};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum EntityType {
@@ -55,26 +42,7 @@ pub struct DeltaMapData {
     pub delete_ids: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CameraSpecs {
-    pub resolution_width: f32,  // pixels
-    pub resolution_height: f32, // pixels
-    pub focal_length: f32,      // mm
-    pub sensor_width: f32,      // mm
-    pub install_height: f32,    // meters
-    pub target_height: f32,     // meters (e.g. 1.7 for human)
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DoriDistances {
-    pub identify: f64,
-    pub recognize: f64,
-    pub observe: f64,
-    pub detect: f64,
-    pub hfov: f64, // Added to store calculated HFOV
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct DoriZone {
     pub level: String,
     pub points: Vec<Point>,

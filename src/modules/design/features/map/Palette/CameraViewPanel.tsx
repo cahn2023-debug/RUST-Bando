@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import {
     Settings, Save,
@@ -17,17 +17,14 @@ import {
     mapRotationToHeading,
     calculateDORIDistance
 } from '@TOOL/utils/cameraMath';
-import { Earth3DView } from './Earth3DView';
 import { RecognitionSimulator } from '@DESIGN/features/map/Palette/RecognitionSimulator';
 import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
 import { Pin, PinOff, X } from 'lucide-react';
-import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore'; // Added
-import { cn } from '@TOOL/utils/cn'; // Added
-import { StreetViewJS } from '@DESIGN/features/map/Palette/StreetViewJS';
-import { listen } from '@tauri-apps/api/event';
+import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore';
+import { cn } from '@TOOL/utils/cn';
 import { DORILegend } from '@DESIGN/features/map/MapLayerComponents/DORILegend';
-
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+import { StreetViewRenderer } from './StreetViewRenderer';
+import { eventBus } from './eventBus';
 
 const SENSOR_SIZES = {
     '1/3"': { width: 4.8, height: 3.6 },
@@ -62,8 +59,48 @@ export const CameraViewPanel: React.FC = () => {
         simulation: true,
         recognition: false
     });
-    const [simMode, setSimMode] = useState<'streetview' | '3d' | 'ground'>('streetview');
+    const [rotationLock, setRotationLock] = useState(true);
     const [hoveredDori, setHoveredDori] = useState<string | null>(null);
+
+    const viewerRef = useRef<HTMLDivElement>(null);
+    const rendererRef = useRef<StreetViewRenderer | null>(null);
+
+    const getMetaValue = (path: string, defaultValue: any, source: any = localMeta) => {
+        const parts = path.split('.');
+        let current = source;
+        for (const part of parts) {
+            if (current == null) return defaultValue;
+            current = current[part];
+        }
+        return current ?? defaultValue;
+    };
+
+    // Initialize WebGL Renderer
+    useEffect(() => {
+        if (viewerRef.current && !rendererRef.current) {
+            rendererRef.current = new StreetViewRenderer(viewerRef.current);
+            // Kế thừa hình ảnh từ meta nếu có, hoặc dùng placeholder mặc định
+            const panoramaUrl = getMetaValue('simulation.panoramaUrl', 'https://upload.wikimedia.org/wikipedia/commons/e/e1/Colosseum_360.jpg');
+            rendererRef.current.setImage(panoramaUrl);
+        }
+
+        return () => {
+            if (rendererRef.current) {
+                rendererRef.current.destroy();
+                rendererRef.current = null;
+            }
+        };
+    }, []);
+
+    // Sync POV from Event Bus
+    useEffect(() => {
+        const unsubscribe = eventBus.subscribe((pov) => {
+            if (rendererRef.current) {
+                rendererRef.current.setPov(pov.heading, pov.pitch, pov.zoom);
+            }
+        });
+        return unsubscribe;
+    }, []);
 
     useEffect(() => {
         if (!feature) {
@@ -98,40 +135,6 @@ export const CameraViewPanel: React.FC = () => {
         }
     }, [previewMetadata, selectedFeatureId]);
 
-    const getMetaValue = (path: string, defaultValue: any, source: any = localMeta) => {
-        const parts = path.split('.');
-        let current = source;
-        for (const part of parts) {
-            if (current == null) return defaultValue;
-            current = current[part];
-        }
-        return current ?? defaultValue;
-    };
-
-    // Listen for events from StreetView (if used in a separate window or globally)
-    useEffect(() => {
-        const unlisten = listen('pov-changed', (event: any) => {
-            const { heading } = event.payload;
-            // Convert heading back to rotation
-            const newRotation = (heading - 90 + 360) % 360;
-
-            // Only update if the change is significant (> 1 degree) to avoid jitter
-            setLocalMeta((prev: any) => {
-                const currentRot = getMetaValue('gis.rotation', 0, prev);
-                if (Math.abs(currentRot - newRotation) > 1) {
-                    const updated = { ...prev };
-                    if (!updated.gis) updated.gis = {};
-                    updated.gis.rotation = Math.round(newRotation);
-                    return updated;
-                }
-                return prev;
-            });
-        });
-
-        return () => {
-            unlisten.then(f => f());
-        };
-    }, [selectedFeatureId]);
 
     // Effective metadata: use preview override if it matches current feature
     const effectiveMeta = (previewMetadata?.id === selectedFeatureId && previewMetadata.metadata)
@@ -361,61 +364,28 @@ export const CameraViewPanel: React.FC = () => {
                         <div className="space-y-3 px-1">
                             <div className="flex justify-between items-center">
                                 <span className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Chế độ</span>
-                                <div className="flex items-center bg-[#252525] rounded p-0.5 border border-[#333]">
+                                <div className="flex items-center gap-1.5 p-0.5 bg-[#252525] rounded border border-[#333]">
                                     <button
-                                        onClick={() => setSimMode('streetview')}
-                                        className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase transition-all ${simMode === 'streetview' ? 'bg-cad-accent text-black shadow-sm' : 'text-cad-text-secondary hover:text-cad-text'}`}
+                                        onClick={() => setRotationLock(!rotationLock)}
+                                        className={cn(
+                                            "p-1 rounded transition-all",
+                                            rotationLock ? "text-blue-400 bg-blue-500/10" : "text-gray-500 hover:text-white"
+                                        )}
+                                        title={rotationLock ? "Unlock 360° View" : "Lock Rotation (180°)"}
                                     >
-                                        Street
-                                    </button>
-                                    <button
-                                        onClick={() => setSimMode('ground')}
-                                        className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase transition-all ${simMode === 'ground' ? 'bg-orange-500 text-white shadow-sm' : 'text-cad-text-secondary hover:text-cad-text'}`}
-                                    >
-                                        Ground
+                                        {rotationLock ? <Pin size={10} /> : <PinOff size={10} />}
                                     </button>
                                 </div>
                             </div>
 
                             <div className="relative aspect-video rounded-lg bg-black overflow-hidden border border-[#333] group shadow-xl">
-                                {!GOOGLE_MAPS_API_KEY ? (
-                                    <div className="flex flex-col items-center justify-center h-full text-cad-text-secondary gap-2 p-4">
-                                        <Wand2 className="w-6 h-6 opacity-20" />
-                                        <p className="text-[10px] text-center px-4 leading-relaxed">Chưa cấu hình API Key để xem mô phỏng trực tiếp.</p>
-                                    </div>
-                                ) : coords ? (
-                                    simMode === 'streetview' ? (
-                                        <div className="relative w-full h-full overflow-hidden bg-black rounded-lg">
-                                            <StreetViewJS
-                                                lat={(coords as [number, number])[1]}
-                                                lng={(coords as [number, number])[0]}
-                                                heading={mapRotationToHeading(rotation)}
-                                                fov={hfov}
-                                                apiKey={GOOGLE_MAPS_API_KEY}
-                                            />
-                                            {/* Rotation Sync Overlay */}
-                                            <div className="absolute top-2 right-2 flex items-center gap-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full border border-white/10 pointer-events-none">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                                                <span className="text-[8px] font-bold text-blue-400 uppercase tracking-wider">Live Sync</span>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="w-full h-full">
-                                            <Earth3DView
-                                                lat={(coords as [number, number])[1]}
-                                                lng={(coords as [number, number])[0]}
-                                                heading={mapRotationToHeading(rotation)}
-                                                apiKey={GOOGLE_MAPS_API_KEY}
-                                                zoom={simMode === 'ground' ? 21 : 19}
-                                                tilt={simMode === 'ground' ? 45 : 0}
-                                            />
-                                        </div>
-                                    )
-                                ) : (
-                                    <div className="flex items-center justify-center h-full text-[10px] text-cad-text-secondary italic bg-[#161616]">
-                                        Thiếu dữ liệu tọa độ camera
-                                    </div>
-                                )}
+                                <div
+                                    ref={viewerRef}
+                                    className="w-full h-full pointer-events-none select-none touch-none"
+                                    tabIndex={-1}
+                                    style={{ outline: 'none' }}
+                                />
+                                <div className="absolute inset-0 pointer-events-none border border-white/5" />
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 pointer-events-none">
                                     <div className="text-[9px] text-white/90 font-medium flex justify-between items-center">
                                         <span className="italic flex items-center gap-1.5">

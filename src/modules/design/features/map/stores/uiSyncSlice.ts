@@ -7,6 +7,28 @@ import { invoke_design_event_batch } from '@TOOL/utils/designIpc';
 
 let eventBuffer: any[] = [];
 let flushTimeout: NodeJS.Timeout | null = null;
+let lastUiRecoveryInitializeAt = 0;
+const UI_RECOVERY_INITIALIZE_COOLDOWN_MS = 5000;
+let consecutiveUiSyncFailures = 0;
+let firstUiFailureAt = 0;
+const UI_SYNC_FAILURE_WINDOW_MS = 30000;
+const UI_MAX_SYNC_FAILURES_BEFORE_BREAKER = 3;
+
+const onUiSyncSuccess = () => {
+    consecutiveUiSyncFailures = 0;
+    firstUiFailureAt = 0;
+};
+
+const onUiSyncFailure = (): boolean => {
+    const now = Date.now();
+    if (!firstUiFailureAt || now - firstUiFailureAt > UI_SYNC_FAILURE_WINDOW_MS) {
+        firstUiFailureAt = now;
+        consecutiveUiSyncFailures = 1;
+    } else {
+        consecutiveUiSyncFailures += 1;
+    }
+    return consecutiveUiSyncFailures < UI_MAX_SYNC_FAILURES_BEFORE_BREAKER;
+};
 
 export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlice> = (set, get) => ({
     isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
@@ -61,6 +83,7 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
             const response = await invoke_design_event_batch(String(projectId), events as any[]);
 
             console.log(`%c[PMP_SYNC] Success. .pmp updated. Last event: ${response.last_event_id}`, 'color: #4CAF50; font-weight: bold;');
+            onUiSyncSuccess();
 
             set({ lastSync: Date.now(), error: null, isSaving: false });
             console.groupEnd();
@@ -71,8 +94,13 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
 
             const errorMsg = typeof error === 'string' ? error : (error.message || JSON.stringify(error));
             console.error('[PMP_SYNC] Error details:', errorMsg);
-
-            set({ error: `Backend Sync Error: ${errorMsg}`, isSaving: false });
+            const shouldRetryRecover = onUiSyncFailure();
+            set({
+                error: shouldRetryRecover
+                    ? `Backend Sync Error: ${errorMsg}`
+                    : 'Sync đang lỗi liên tục. Đã tạm ngắt tự đồng bộ để tránh lặp. Vui lòng mở lại dự án.',
+                isSaving: false
+            });
             console.groupEnd();
             throw error;
         }
@@ -137,7 +165,11 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
         const responseStr = await invoke<string>('undo_design_event', { projectId: String(projectId) });
         const response = JSON.parse(responseStr);
         if (response.success) {
-            get().initialize(String(projectId), get().projectKey ?? undefined);
+            const now = Date.now();
+            if (now - lastUiRecoveryInitializeAt > UI_RECOVERY_INITIALIZE_COOLDOWN_MS) {
+                lastUiRecoveryInitializeAt = now;
+                get().initialize(String(projectId), get().projectPath ?? undefined);
+            }
         }
     },
 
@@ -145,13 +177,21 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
         const responseStr = await invoke<string>('redo_design_event', { projectId: String(projectId) });
         const response = JSON.parse(responseStr);
         if (response.success) {
-            get().initialize(String(projectId), get().projectKey ?? undefined);
+            const now = Date.now();
+            if (now - lastUiRecoveryInitializeAt > UI_RECOVERY_INITIALIZE_COOLDOWN_MS) {
+                lastUiRecoveryInitializeAt = now;
+                get().initialize(String(projectId), get().projectPath ?? undefined);
+            }
         }
     },
 
     _deduplicate: async (projectId) => {
         await invoke('deduplicate_project_data', { projectId: String(projectId) });
-        get().initialize(String(projectId), get().projectKey ?? undefined);
+        const now = Date.now();
+        if (now - lastUiRecoveryInitializeAt > UI_RECOVERY_INITIALIZE_COOLDOWN_MS) {
+            lastUiRecoveryInitializeAt = now;
+            get().initialize(String(projectId), get().projectPath ?? undefined);
+        }
     },
 
     syncWithFirestore: async (projectId, data) => {
