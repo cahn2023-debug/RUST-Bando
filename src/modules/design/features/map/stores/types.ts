@@ -142,6 +142,30 @@ export type InitializationSlice = {
     setPegmanState: (state: Partial<InitializationSlice['pegmanState']>) => void;
 };
 
+export type UISyncSlice = {
+    isOnline: boolean;
+    pendingSync: boolean;
+    isMigrating: boolean;
+    isSaving: boolean;
+    lastSync: number | null;
+    syncStatus: number;
+    error: string | null;
+    unsubscribeFirestore: (() => void) | null;
+
+    setIsSaving: (isSaving: boolean) => void;
+    setPendingSync: (pending: boolean) => void;
+    setError: (error: string | null) => void;
+    setupSyncListeners: () => Promise<void>;
+    syncWithBackend: (projectId: string, events: DesignEventType[]) => Promise<DesignBulkActionResponse | DesignActionResponse>;
+    _internalBufferedSyncEvent: (event: DesignEventType) => Promise<unknown>;
+    _internalBufferedSyncEvents: (events: DesignEventType[]) => Promise<unknown>;
+    flushPendingPersists: () => Promise<void>;
+    _undo: (projectId: string) => Promise<void>;
+    _redo: (projectId: string) => Promise<void>;
+    _deduplicate: (projectId: string) => Promise<void>;
+    syncWithFirestore: (projectId: string, data: unknown) => Promise<void>;
+};
+
 export type DesignActionSlice = {
     dispatchEvent: (event: DesignEventType) => Promise<void>;
     dispatchEvents: (events: DesignEventType[]) => Promise<void>;
@@ -162,4 +186,5 @@ export type DesignSyncStore =
     DrawingSlice &
     UIControlSlice &
     InitializationSlice &
-    DesignActionSlice;
+    DesignActionSlice &
+    UISyncSlice;

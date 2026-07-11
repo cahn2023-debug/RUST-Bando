@@ -1,5 +1,8 @@
 import type {
   FeatureCoordinates,
+  PointCoordinates,
+  LineStringCoordinates,
+  PolygonCoordinates,
   FeatureProperties,
   FeatureMetadata,
   IconType,
@@ -8,11 +11,14 @@ import type {
   SelectionItem,
   DesignEventType,
   DesignActionResponse,
-  DesignBulkActionResponse
+  DesignBulkActionResponse,
 } from './designTypes';
 
 export type {
   FeatureCoordinates,
+  PointCoordinates,
+  LineStringCoordinates,
+  PolygonCoordinates,
   FeatureProperties,
   FeatureMetadata,
   IconType,
@@ -21,13 +27,15 @@ export type {
   SelectionItem,
   DesignEventType,
   DesignActionResponse,
-  DesignBulkActionResponse
+  DesignBulkActionResponse,
 };
 
 export interface Project {
   id: string;
   name: string;
+  pmp_path: string;
   path: string;
+  base_dir_hint?: string | null;
   description: string | null;
   contract_number: string | null;
   investor: string | null;
@@ -38,8 +46,42 @@ export interface Project {
   status: 'active' | 'archived' | 'completed';
   created_at: string;
   updated_at: string;
-  metadata_json?: string | null;
+  metadata?: VersionedMetadata | null;
+  metadata_json?: Record<string, unknown> | string | null;
 }
+
+export interface VersionedMetadata<
+  TCore extends Record<string, unknown> = Record<string, unknown>,
+> {
+  schema_version: number;
+  core: TCore;
+  custom: Record<string, unknown>;
+}
+
+export interface BOMItem {
+  uid: string;
+  stt: string;
+  name: string;
+  description: string;
+  unit: string;
+  quantity: number;
+  price: number;
+  total: number;
+  manufacturer: string;
+  origin: string;
+}
+
+export interface ContractMetadata {
+  contract_number: string;
+  investor: string;
+  contractor: string;
+  signed_date: string;
+  duration: string;
+  end_date: string;
+  bom_table: BOMItem[];
+}
+
+export interface LocalMetadata extends Partial<ContractMetadata> {}
 
 export interface Task {
   id: string;
@@ -128,6 +170,7 @@ export interface RegionState {
   parent_id: string | null;
   name: string;
   description: string | null;
+  is_visible?: boolean;
 }
 
 export interface LayerState {
@@ -142,9 +185,11 @@ export interface FeatureGroupState {
   layer_id: string;
   parent_id?: string | null;
   name: string;
-  type: string;
-  is_visible: boolean;
-  metadata: string;
+  type?: string;
+  group_type?: string;
+  is_visible?: boolean;
+  is_virtual?: boolean;
+  metadata?: string | Record<string, unknown>;
 }
 
 export interface FeatureState {
@@ -153,9 +198,12 @@ export interface FeatureState {
   group_id: string | null;
   name: string;
   geom_type: string;
-  metadata: string;
+  geometry_type?: string;
+  metadata: string | FeatureMetadata | Record<string, unknown>;
   properties: FeatureProperties;
   coordinates: FeatureCoordinates;
+  is_visible?: boolean;
+  note?: string;
   bbox?: { min_x: number; max_x: number; min_y: number; max_y: number } | null;
   area?: number | null;
   length?: number | null;

@@ -18,6 +18,39 @@ interface ProjectSettings {
     camera_presets: Record<string, CameraTypePreset>;
 }
 
+const isCameraTypePreset = (value: unknown): value is CameraTypePreset =>
+    !!value &&
+    typeof value === 'object' &&
+    typeof (value as CameraTypePreset).sensor_size === 'string' &&
+    typeof (value as CameraTypePreset).focal_length === 'number' &&
+    typeof (value as CameraTypePreset).resolution_x === 'number' &&
+    typeof (value as CameraTypePreset).resolution_y === 'number';
+
+const asProjectSettings = (value: unknown): ProjectSettings | null => {
+    if (!value || typeof value !== 'object') return null;
+    const settings = value as Record<string, unknown>;
+    const presets = settings.camera_presets;
+    if (
+        typeof settings.default_install_height !== 'number' ||
+        !presets ||
+        typeof presets !== 'object'
+    ) {
+        return null;
+    }
+
+    const normalizedPresets = Object.entries(presets).reduce<Record<string, CameraTypePreset>>((acc, [key, preset]) => {
+        if (isCameraTypePreset(preset)) {
+            acc[key] = preset;
+        }
+        return acc;
+    }, {});
+
+    return {
+        default_install_height: settings.default_install_height,
+        camera_presets: normalizedPresets,
+    };
+};
+
 const DEFAULT_SETTINGS: ProjectSettings = {
     default_install_height: 5,
     camera_presets: {
@@ -48,8 +81,9 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
     const isDirty = JSON.stringify(localSettings) !== JSON.stringify(state?.settings || DEFAULT_SETTINGS);
 
     useEffect(() => {
-        if (state?.settings && Object.keys(state.settings).length > 0) {
-            setLocalSettings(state.settings as ProjectSettings);
+        const nextSettings = asProjectSettings(state?.settings);
+        if (nextSettings && Object.keys(nextSettings.camera_presets).length > 0) {
+            setLocalSettings(nextSettings);
         }
     }, [state?.settings]);
 

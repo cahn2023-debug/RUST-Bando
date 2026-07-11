@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { changeLanguage, getCurrentLanguage } from '@TOOL/../i18n';
+import { changeLanguage, getCurrentLanguage } from '@/modules/i18n';
 import { Globe } from 'lucide-react';
 
 export const LanguageSwitcher = () => {

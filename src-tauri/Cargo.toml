@@ -1,8 +1,6 @@
 [workspace]
 members = [
   ".",
-  "design_renderer",
-  "streetview_wasm",
   "crates/app_domain",
   "crates/module_gis",
   "crates/module_p2p",
@@ -27,11 +25,6 @@ path = "src/main.rs"
 [[bin]]
 name = "download_models"
 path = "src/bin/download_models.rs"
-required-features = ["ai"]
-
-[[bin]]
-name = "ai_benchmark"
-path = "src/bin/ai_benchmark.rs"
 required-features = ["ai"]
 
 [lib]
@@ -145,9 +138,6 @@ strip = true
 incremental = false
 debug = false
 
-# Individual package overrides
-[profile.release.package.design_renderer]
-opt-level = "s"
 [profile.dev]
 opt-level = 0
 incremental = true

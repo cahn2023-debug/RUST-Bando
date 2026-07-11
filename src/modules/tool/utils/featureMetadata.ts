@@ -6,6 +6,7 @@
 import { FeatureState, FeatureProperties } from '@CONTRACT/types';
 
 type ParsedMetadata = Record<string, unknown>;
+type MetadataCarrier = { metadata?: unknown; properties?: FeatureProperties };
 
 // Cache to avoid repeated JSON parsing
 const metadataCache = new Map<string, ParsedMetadata>();
@@ -36,7 +37,7 @@ export const safeString = (value: unknown): string => {
 /**
  * Safely parses feature metadata
  */
-export const getParsedMetadata = (feature: FeatureState | { metadata: unknown } | null | undefined): ParsedMetadata => {
+export const getParsedMetadata = (feature: FeatureState | MetadataCarrier | null | undefined): ParsedMetadata => {
     if (!feature) return {};
     const metaStr = feature.metadata;
     if (!metaStr) return {};
@@ -97,7 +98,7 @@ export const getParsedMetadata = (feature: FeatureState | { metadata: unknown } 
  * Gets a value from metadata supporting nested paths (e.g. gis.abc) and legacy fallbacks
  */
 export const getFeatureMetadataValue = (
-    feature: FeatureState | { metadata: unknown } | null | undefined,
+    feature: FeatureState | MetadataCarrier | null | undefined,
     path: string,
     legacyKey?: string,
     providedMetadata?: ParsedMetadata
@@ -127,7 +128,7 @@ export const getFeatureMetadataValue = (
 /**
  * Retrieves notes from metadata using various common field names
  */
-export const getFeatureNote = (feature: FeatureState | { metadata: unknown } | null | undefined): string => {
+export const getFeatureNote = (feature: FeatureState | MetadataCarrier | null | undefined): string => {
     const meta = getParsedMetadata(feature);
     const rawNote = meta.description || meta.notes || meta.ghi_chu || meta.note || "";
     return safeString(rawNote);
@@ -139,7 +140,7 @@ export const getFeatureNote = (feature: FeatureState | { metadata: unknown } | n
 type ProjectSettings = Record<string, unknown>;
 
 export const getEffectiveMountingHeight = (
-    feature: FeatureState | { metadata: unknown } | null | undefined,
+    feature: FeatureState | MetadataCarrier | null | undefined,
     settings?: ProjectSettings,
     providedMetadata?: ParsedMetadata
 ): number => {
@@ -172,7 +173,7 @@ type CameraPresets = Record<string, {
 }>;
 
 export const getEffectiveCameraSpecs = (
-    feature: FeatureState | { metadata: unknown; properties?: FeatureProperties } | null | undefined,
+    feature: FeatureState | MetadataCarrier | null | undefined,
     settings?: ProjectSettings & { camera_presets?: CameraPresets },
     providedMetadata?: ParsedMetadata
 ): { focalLength: number, sensorSize: string, resolutionX: number, resolutionY: number } => {
@@ -187,7 +188,8 @@ export const getEffectiveCameraSpecs = (
     }
 
     const meta = providedMetadata || getParsedMetadata(feature);
-    const type = (meta.type as string) || (feature.properties as FeatureProperties | undefined)?.iconKey || 'default';
+    const iconKey = typeof feature?.properties?.iconKey === 'string' ? feature.properties.iconKey : 'default';
+    const type = (meta.type as string) || iconKey || 'default';
     const preset = settings?.camera_presets?.[type] || settings?.camera_presets?.['default'];
 
     return {

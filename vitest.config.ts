@@ -6,7 +6,6 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      'design_renderer': path.resolve(__dirname, './src/modules/implement/lib'),
       '@HOME': path.resolve(__dirname, './src/modules/home'),
       '@DESIGN': path.resolve(__dirname, './src/modules/design'),
       '@CONTRACT': path.resolve(__dirname, './src/modules/contract'),
@@ -33,16 +32,16 @@ export default defineConfig({
         },
       },
       include: [
-        'src/TOOL/utils/**/*.ts',
-        'src/IMPLEMENT/services/**/*.ts',
-        'src/IMPLEMENT/stores/**/*.ts',
-        'src/DESIGN/**/*.ts',
+        'src/modules/tool/utils/**/*.ts',
+        'src/modules/implement/services/**/*.ts',
+        'src/modules/implement/stores/**/*.ts',
+        'src/modules/design/**/*.{ts,tsx}',
       ],
       exclude: [
         'src/**/*.d.ts',
         'src/**/*.test.ts',
         'src/**/*.test.tsx',
-        'src/HOME/main.tsx',
+        'src/modules/home/main.tsx',
       ],
     },
     setupFiles: ['./src/test-setup.ts'],

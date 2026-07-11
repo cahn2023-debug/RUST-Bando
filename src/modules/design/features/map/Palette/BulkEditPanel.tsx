@@ -10,18 +10,34 @@ import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
 import { Pin, PinOff, X } from 'lucide-react';
 
+type CameraPreset = {
+    sensor_size?: string;
+    focal_length?: number;
+    resolution_x?: number;
+    resolution_y?: number;
+};
+
+const getDefaultPreset = (state: ReturnType<typeof useDesignSync.getState>['state']): CameraPreset =>
+    (state?.settings &&
+        typeof state.settings.camera_presets === 'object' &&
+        state.settings.camera_presets &&
+        'default' in state.settings.camera_presets
+        ? (state.settings.camera_presets as Record<string, CameraPreset>).default
+        : {}) ?? {};
+
 export const BulkEditPanel: React.FC = () => {
     const { onPin, onClose, isPinned, dragHandleProps } = usePaletteContext();
     const { selectionSet, state, queueEvents } = useDesignSync();
     const [isApplying, setIsApplying] = useState(false);
+    const defaultPreset = getDefaultPreset(state);
 
     // Editable fields with their check state
     const [fields, setFields] = useState({
         install_height: { active: false, value: state?.settings?.default_install_height ?? 3.5 },
-        sensor_size: { active: false, value: state?.settings?.camera_presets?.['default']?.sensor_size ?? '1/3"' },
-        focal_length: { active: false, value: state?.settings?.camera_presets?.['default']?.focal_length ?? 4.0 },
-        resolution_x: { active: false, value: state?.settings?.camera_presets?.['default']?.resolution_x ?? 1920 },
-        resolution_y: { active: false, value: state?.settings?.camera_presets?.['default']?.resolution_y ?? 1080 },
+        sensor_size: { active: false, value: defaultPreset.sensor_size ?? '1/3"' },
+        focal_length: { active: false, value: defaultPreset.focal_length ?? 4.0 },
+        resolution_x: { active: false, value: defaultPreset.resolution_x ?? 1920 },
+        resolution_y: { active: false, value: defaultPreset.resolution_y ?? 1080 },
         rotation: { active: false, value: 0 },
     });
 
@@ -31,10 +47,10 @@ export const BulkEditPanel: React.FC = () => {
             setFields(prev => ({
                 ...prev,
                 install_height: prev.install_height.active ? prev.install_height : { ...prev.install_height, value: state.settings.default_install_height ?? prev.install_height.value },
-                sensor_size: prev.sensor_size.active ? prev.sensor_size : { ...prev.sensor_size, value: state.settings.camera_presets?.['default']?.sensor_size ?? prev.sensor_size.value },
-                focal_length: prev.focal_length.active ? prev.focal_length : { ...prev.focal_length, value: state.settings.camera_presets?.['default']?.focal_length ?? prev.focal_length.value },
-                resolution_x: prev.resolution_x.active ? prev.resolution_x : { ...prev.resolution_x, value: state.settings.camera_presets?.['default']?.resolution_x ?? prev.resolution_x.value },
-                resolution_y: prev.resolution_y.active ? prev.resolution_y : { ...prev.resolution_y, value: state.settings.camera_presets?.['default']?.resolution_y ?? prev.resolution_y.value },
+                sensor_size: prev.sensor_size.active ? prev.sensor_size : { ...prev.sensor_size, value: getDefaultPreset(state).sensor_size ?? prev.sensor_size.value },
+                focal_length: prev.focal_length.active ? prev.focal_length : { ...prev.focal_length, value: getDefaultPreset(state).focal_length ?? prev.focal_length.value },
+                resolution_x: prev.resolution_x.active ? prev.resolution_x : { ...prev.resolution_x, value: getDefaultPreset(state).resolution_x ?? prev.resolution_x.value },
+                resolution_y: prev.resolution_y.active ? prev.resolution_y : { ...prev.resolution_y, value: getDefaultPreset(state).resolution_y ?? prev.resolution_y.value },
             }));
         }
     }, [state?.settings]);

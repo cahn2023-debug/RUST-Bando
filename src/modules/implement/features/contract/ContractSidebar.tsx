@@ -7,7 +7,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Contract } from "@CONTRACT/types";
 
 interface ContractSidebarProps {
-    projectId: number;
+    projectId: string | number;
     contractType: 'INVESTOR' | 'SUBCONTRACTOR' | 'FINANCE';
     onFileSelect?: (name: string, path?: string) => void;
 }

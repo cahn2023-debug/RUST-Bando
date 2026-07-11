@@ -5,7 +5,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { invoke_design_event_batch } from '@TOOL/utils/designIpc';
 
-let eventBuffer: any[] = [];
+let eventBuffer: DesignEventType[] = [];
 let flushTimeout: NodeJS.Timeout | null = null;
 let lastUiRecoveryInitializeAt = 0;
 const UI_RECOVERY_INITIALIZE_COOLDOWN_MS = 5000;
@@ -40,9 +40,9 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
     error: null,
     unsubscribeFirestore: null,
 
-    setIsSaving: (isSaving) => set({ isSaving }),
-    setPendingSync: (pending) => set({ pendingSync: pending }),
-    setError: (error) => set({ error }),
+    setIsSaving: (isSaving: boolean) => set({ isSaving }),
+    setPendingSync: (pending: boolean) => set({ pendingSync: pending }),
+    setError: (error: string | null) => set({ error }),
 
     setupSyncListeners: async () => {
         const unlistenSync = await listen<number>('sync-status', (event) => {
@@ -50,7 +50,7 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
             set({ syncStatus: event.payload });
         });
 
-        const unlistenBridge = await listen<any>('design-event-processed', (event) => {
+        const unlistenBridge = await listen<unknown>('design-event-processed', (event) => {
             console.log(`[Bridge] Event processed by backend:`, event.payload);
             set({ lastSync: Date.now() });
         });
@@ -70,7 +70,7 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
         });
     },
 
-    syncWithBackend: async (projectId, events) => {
+    syncWithBackend: async (projectId: string, events: DesignEventType[]) => {
         if (!events || events.length === 0) return { success: true } as any;
 
         const batchId = crypto.randomUUID().substring(0, 8);
@@ -80,7 +80,7 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
         try {
             set({ isSaving: true });
 
-            const response = await invoke_design_event_batch(String(projectId), events as any[]);
+            const response = await invoke_design_event_batch(String(projectId), events as DesignEventType[]);
 
             console.log(`%c[PMP_SYNC] Success. .pmp updated. Last event: ${response.last_event_id}`, 'color: #4CAF50; font-weight: bold;');
             onUiSyncSuccess();
@@ -161,7 +161,7 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
         }
     },
 
-    _undo: async (projectId) => {
+    _undo: async (projectId: string) => {
         const responseStr = await invoke<string>('undo_design_event', { projectId: String(projectId) });
         const response = JSON.parse(responseStr);
         if (response.success) {
@@ -173,7 +173,7 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
         }
     },
 
-    _redo: async (projectId) => {
+    _redo: async (projectId: string) => {
         const responseStr = await invoke<string>('redo_design_event', { projectId: String(projectId) });
         const response = JSON.parse(responseStr);
         if (response.success) {
@@ -185,7 +185,7 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
         }
     },
 
-    _deduplicate: async (projectId) => {
+    _deduplicate: async (projectId: string) => {
         await invoke('deduplicate_project_data', { projectId: String(projectId) });
         const now = Date.now();
         if (now - lastUiRecoveryInitializeAt > UI_RECOVERY_INITIALIZE_COOLDOWN_MS) {
@@ -194,7 +194,7 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
         }
     },
 
-    syncWithFirestore: async (projectId, data) => {
+    syncWithFirestore: async (projectId: string, data: unknown) => {
         console.warn('Firestore sync not yet implemented in V2 architecture.', { projectId, data });
     }
 });

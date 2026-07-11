@@ -1,7 +1,18 @@
 import { StateCreator } from 'zustand';
 import { DrawingSlice, DesignSyncStore } from './types';
 import { emit } from '@tauri-apps/api/event';
-import { getParsedCoordinates, getParsedMetadata } from '../../../../tool/utils/featureUtils';
+import { getParsedCoordinates, getParsedMetadata, getPointCoordinates } from '../../../../tool/utils/featureUtils';
+import type { LineStringCoordinates, PolygonCoordinates } from '@CONTRACT/types';
+
+const isPolygonCoordinates = (coords: unknown): coords is PolygonCoordinates =>
+    Array.isArray(coords) &&
+    Array.isArray(coords[0]) &&
+    Array.isArray((coords[0] as unknown[])[0]);
+
+const isLineCoordinates = (coords: unknown): coords is LineStringCoordinates =>
+    Array.isArray(coords) &&
+    Array.isArray(coords[0]) &&
+    !Array.isArray((coords[0] as unknown[])[0]);
 
 export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSlice> = (set, get) => ({
     drawingMode: 'none',
@@ -38,7 +49,11 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
         if (!coords || !Array.isArray(coords)) return;
 
         const isPolygon = (feature.geom_type || '').toLowerCase() === 'polygon';
-        let newCoords = [...coords];
+        let newCoords: LineStringCoordinates | PolygonCoordinates = isPolygonCoordinates(coords)
+            ? [...coords]
+            : isLineCoordinates(coords)
+                ? [...coords]
+                : [];
 
         // V2 Fix: If snapped to a target, use the TARGET's actual coordinates
         // instead of the raw click position. This ensures geometric integrity.
@@ -47,27 +62,21 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
 
         if (snapId && state.features[snapId]) {
             const targetFeature = state.features[snapId];
-            const targetCoords = getParsedCoordinates(targetFeature);
-            if (targetCoords && Array.isArray(targetCoords)) {
+            const targetCoords = getPointCoordinates(targetFeature);
+            if (targetCoords) {
                 // For Point targets, use [lng, lat] directly
-                if ((targetFeature.geom_type || '').toLowerCase() === 'point') {
-                    actualLng = targetCoords[0];
-                    actualLat = targetCoords[1];
-                } else if (Array.isArray(targetCoords[0])) {
-                    // For line/polygon targets, use first vertex as snap point
-                    actualLng = targetCoords[0][0];
-                    actualLat = targetCoords[0][1];
-                }
+                actualLng = targetCoords[0];
+                actualLat = targetCoords[1];
             }
         }
 
         if (isPolygon) {
-            const ring = Array.isArray(newCoords[0]) ? [...newCoords[0]] : [...newCoords];
+            const ring = isPolygonCoordinates(newCoords) ? [...newCoords[0]] : [];
             ring[index] = [actualLng, actualLat];
             if (index === 0) ring[ring.length - 1] = [actualLng, actualLat];
             newCoords = [ring];
         } else {
-            newCoords[index] = [actualLng, actualLat];
+            (newCoords as LineStringCoordinates)[index] = [actualLng, actualLat];
         }
 
         const currentMeta = { ...getParsedMetadata(feature) };
@@ -87,13 +96,14 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
 
             if (!currentMeta.snap_links) currentMeta.snap_links = {};
             const key = `v${index}`;
+            const snapLinks = currentMeta.snap_links as Record<string, string | null>;
             if (snapId) {
-                if (currentMeta.snap_links[key] !== snapId) {
-                    currentMeta.snap_links[key] = snapId;
+                if (snapLinks[key] !== snapId) {
+                    snapLinks[key] = snapId;
                     metaChanged = true;
                 }
-            } else if (currentMeta.snap_links[key]) {
-                delete currentMeta.snap_links[key];
+            } else if (snapLinks[key]) {
+                delete snapLinks[key];
                 metaChanged = true;
             }
         } else if ((feature.geom_type || '').toUpperCase() === 'POINT') {
@@ -133,14 +143,18 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
         if (!coords) return;
 
         const isPolygon = (feature.geom_type || '').toLowerCase() === 'polygon';
-        let newCoords = [...coords];
+        let newCoords: LineStringCoordinates | PolygonCoordinates = isPolygonCoordinates(coords)
+            ? [...coords]
+            : isLineCoordinates(coords)
+                ? [...coords]
+                : [];
 
         if (isPolygon) {
-            const ring = Array.isArray(newCoords[0]) ? [...newCoords[0]] : [...newCoords];
+            const ring = isPolygonCoordinates(newCoords) ? [...newCoords[0]] : [];
             ring.splice(index, 0, [lng, lat]);
             newCoords = [ring];
         } else {
-            newCoords.splice(index, 0, [lng, lat]);
+            (newCoords as LineStringCoordinates).splice(index, 0, [lng, lat]);
         }
 
         await dispatchEvent({
@@ -162,17 +176,21 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
         if (!coords) return;
 
         const isPolygon = (feature.geom_type || '').toLowerCase() === 'polygon';
-        let newCoords = [...coords];
+        let newCoords: LineStringCoordinates | PolygonCoordinates = isPolygonCoordinates(coords)
+            ? [...coords]
+            : isLineCoordinates(coords)
+                ? [...coords]
+                : [];
 
         if (isPolygon) {
-            const ring = Array.isArray(newCoords[0]) ? [...newCoords[0]] : [...newCoords];
+            const ring = isPolygonCoordinates(newCoords) ? [...newCoords[0]] : [];
             if (ring.length <= 4) return;
             ring.splice(index, 1);
             if (index === 0) ring[ring.length - 1] = ring[0];
             newCoords = [ring];
         } else {
-            if (newCoords.length <= 2) return;
-            newCoords.splice(index, 1);
+            if ((newCoords as LineStringCoordinates).length <= 2) return;
+            (newCoords as LineStringCoordinates).splice(index, 1);
         }
 
         await dispatchEvent({

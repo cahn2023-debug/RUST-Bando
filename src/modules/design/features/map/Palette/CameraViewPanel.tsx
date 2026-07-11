@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import {
     Settings, Save,
-    Video, Ruler, Activity, ChevronDown, ChevronRight, Map as MapIcon, Wand2, Layers
+    Video, Ruler, Activity, ChevronDown, ChevronRight, Map as MapIcon, Layers
 } from "lucide-react";
 import {
     getFeatureDisplayInfo,
-    getParsedCoordinates,
+    getPointCoordinates,
     getEffectiveMountingHeight,
-    getEffectiveCameraSpecs
+    getEffectiveCameraSpecs,
+    isCameraIcon
 } from '@TOOL/utils/featureUtils';
 import {
     calculateHFOV,
@@ -23,8 +24,10 @@ import { Pin, PinOff, X } from 'lucide-react';
 import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore';
 import { cn } from '@TOOL/utils/cn';
 import { DORILegend } from '@DESIGN/features/map/MapLayerComponents/DORILegend';
-import { StreetViewRenderer } from './StreetViewRenderer';
-import { eventBus } from './eventBus';
+import { StaticStreetViewPreview } from './StaticStreetViewPreview';
+import { CameraHudFallback } from './CameraHudFallback';
+import { getGoogleMapsApiKey } from '@TOOL/utils/googleMapsRuntime';
+import { useMetadataAutosave } from '@DESIGN/hooks/useMetadataAutosave';
 
 const SENSOR_SIZES = {
     '1/3"': { width: 4.8, height: 3.6 },
@@ -53,17 +56,12 @@ export const CameraViewPanel: React.FC = () => {
     const displayInfo = feature && group ? getFeatureDisplayInfo(feature, group.type, group.name) : null;
 
     const [localMeta, setLocalMeta] = useState<any>({});
-    const [isSaving, setIsSaving] = useState(false);
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
         specs: true,
         simulation: true,
         recognition: false
     });
-    const [rotationLock, setRotationLock] = useState(true);
     const [hoveredDori, setHoveredDori] = useState<string | null>(null);
-
-    const viewerRef = useRef<HTMLDivElement>(null);
-    const rendererRef = useRef<StreetViewRenderer | null>(null);
 
     const getMetaValue = (path: string, defaultValue: any, source: any = localMeta) => {
         const parts = path.split('.');
@@ -75,37 +73,9 @@ export const CameraViewPanel: React.FC = () => {
         return current ?? defaultValue;
     };
 
-    // Initialize WebGL Renderer
-    useEffect(() => {
-        if (viewerRef.current && !rendererRef.current) {
-            rendererRef.current = new StreetViewRenderer(viewerRef.current);
-            // Kế thừa hình ảnh từ meta nếu có, hoặc dùng placeholder mặc định
-            const panoramaUrl = getMetaValue('simulation.panoramaUrl', 'https://upload.wikimedia.org/wikipedia/commons/e/e1/Colosseum_360.jpg');
-            rendererRef.current.setImage(panoramaUrl);
-        }
-
-        return () => {
-            if (rendererRef.current) {
-                rendererRef.current.destroy();
-                rendererRef.current = null;
-            }
-        };
-    }, []);
-
-    // Sync POV from Event Bus
-    useEffect(() => {
-        const unsubscribe = eventBus.subscribe((pov) => {
-            if (rendererRef.current) {
-                rendererRef.current.setPov(pov.heading, pov.pitch, pov.zoom);
-            }
-        });
-        return unsubscribe;
-    }, []);
-
     useEffect(() => {
         if (!feature) {
             setLocalMeta({});
-            setIsSaving(false);
             return;
         }
 
@@ -117,8 +87,6 @@ export const CameraViewPanel: React.FC = () => {
         } catch {
             setLocalMeta({});
         }
-
-        setIsSaving(false);
     }, [feature?.id, feature?.metadata]);
 
     // Update localMeta when previewMetadata changes (sync from other palettes)
@@ -160,38 +128,42 @@ export const CameraViewPanel: React.FC = () => {
         setPreview(selectedFeatureId!, newMeta);
     };
 
-    const handleSave = async () => {
-        if (!queueEvent || !selectedFeatureId || isSaving) return;
-        setIsSaving(true);
-        try {
-            await queueEvent({
-                type: 'update_metadata',
-                payload: {
-                    featureId: selectedFeatureId,
-                    metadata: localMeta
-                }
-            });
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
     const toggleSection = (section: string) => {
         setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
     };
 
+    let persistedMeta: any = {};
     let persistedMetaJson = '{}';
     if (feature) {
         try {
             const parsed = typeof feature.metadata === 'string'
                 ? JSON.parse(feature.metadata || '{}')
                 : (feature.metadata || {});
+            persistedMeta = parsed;
             persistedMetaJson = JSON.stringify(parsed);
         } catch {
+            persistedMeta = {};
             persistedMetaJson = '{}';
         }
     }
+    const { isSaving, flushNow } = useMetadataAutosave({
+        featureId: selectedFeatureId,
+        localMeta,
+        persistedMeta,
+        queueEvent,
+        setPreview,
+        debounceMs: 300,
+        enabled: isCameraIcon(typeof localMeta?.icon === 'string' ? localMeta.icon : ''),
+        onError: (error) => {
+            console.error('[CameraViewPanel] Auto-save failed:', error);
+        }
+    });
     const isDirty = !!feature && JSON.stringify(localMeta || {}) !== persistedMetaJson;
+
+    const handleSave = async () => {
+        if (!selectedFeatureId || isSaving) return;
+        await flushNow({ force: true });
+    };
 
     // Verification for multi-selection handled in main return block to avoid hook violations.
     if (!feature || !displayInfo) {
@@ -213,7 +185,7 @@ export const CameraViewPanel: React.FC = () => {
         );
     }
 
-    const coords = getParsedCoordinates(feature);
+    const coords = getPointCoordinates(feature);
 
     if (selectionSet.size > 1) {
         return (
@@ -362,39 +334,26 @@ export const CameraViewPanel: React.FC = () => {
 
                     {expandedSections.simulation && (
                         <div className="space-y-3 px-1">
-                            <div className="flex justify-between items-center">
-                                <span className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Chế độ</span>
-                                <div className="flex items-center gap-1.5 p-0.5 bg-[#252525] rounded border border-[#333]">
-                                    <button
-                                        onClick={() => setRotationLock(!rotationLock)}
-                                        className={cn(
-                                            "p-1 rounded transition-all",
-                                            rotationLock ? "text-blue-400 bg-blue-500/10" : "text-gray-500 hover:text-white"
-                                        )}
-                                        title={rotationLock ? "Unlock 360° View" : "Lock Rotation (180°)"}
-                                    >
-                                        {rotationLock ? <Pin size={10} /> : <PinOff size={10} />}
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="relative aspect-video rounded-lg bg-black overflow-hidden border border-[#333] group shadow-xl">
-                                <div
-                                    ref={viewerRef}
-                                    className="w-full h-full pointer-events-none select-none touch-none"
-                                    tabIndex={-1}
-                                    style={{ outline: 'none' }}
-                                />
-                                <div className="absolute inset-0 pointer-events-none border border-white/5" />
-                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 pointer-events-none">
-                                    <div className="text-[9px] text-white/90 font-medium flex justify-between items-center">
-                                        <span className="italic flex items-center gap-1.5">
-                                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: dori.color }} />
-                                            {ppm < 25 ? 'Không đạt' : ppm < 125 ? 'Tổng quan' : 'Chi tiết'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
+                            <StaticStreetViewPreview
+                                lat={coords?.[1] ?? NaN}
+                                lng={coords?.[0] ?? NaN}
+                                heading={mapRotationToHeading(rotation)}
+                                fov={hfov}
+                                pitch={0}
+                                apiKey={getGoogleMapsApiKey()}
+                                fallback={
+                                    <CameraHudFallback
+                                        hfov={hfov}
+                                        targetDistance={targetDistance}
+                                        installHeight={installHeight}
+                                        targetHeight={targetHeight}
+                                        rotation={rotation}
+                                        ppm={ppm}
+                                        statusLabel={ppm < 25 ? 'Không đạt' : ppm < 125 ? 'Tổng quan' : 'Chi tiết'}
+                                        statusColor={dori.color}
+                                    />
+                                }
+                            />
                         </div>
                     )}
                 </section>

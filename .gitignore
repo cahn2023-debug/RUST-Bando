@@ -50,7 +50,6 @@ src-tauri/*.log
 
 # Project Specific Trash
 temp_target_audit/
-BAK/
 src_tauri_files.txt
 tauri_errors*.txt
 vite_error.txt
@@ -76,6 +75,7 @@ pkg/
 scratch/
 graphify-out/
 bando-graph-viewer/
+coverage/
 *.db.duckdb*
 *errors*.txt
 *failures*.txt
@@ -93,5 +93,4 @@ scripts/watch_graph.ps1
 opencode.json
 src-tauri/local_data/
 *dead_code_analysis.json
-
 

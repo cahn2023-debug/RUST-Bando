@@ -20,6 +20,10 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
   const [isApplying, setIsApplying] = useState(false);
   const loadedRef = useRef(false);
 
+  const asString = (value: unknown) => (typeof value === 'string' ? value : '');
+  const asNumber = (value: unknown, fallback: number) =>
+    typeof value === 'number' ? value : typeof value === 'string' ? Number(value) || fallback : fallback;
+
   // Initial load: Only load once per groupId
   useEffect(() => {
     loadedRef.current = false;
@@ -33,9 +37,9 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
       const selectedFeature = state.features[selectedFeatureId];
       if (selectedFeature && selectedFeature.group_id === groupId) {
         const meta = getParsedMetadata(selectedFeature);
-        if (meta.icon) setIconType(meta.icon);
-        if (meta.color) setColor(meta.color);
-        if (meta.size) setSize(meta.size);
+        if (meta.icon) setIconType(asString(meta.icon) || iconType);
+        if (meta.color) setColor(asString(meta.color) || color);
+        if (meta.size !== undefined && meta.size !== null) setSize(asNumber(meta.size, size));
         loadedRef.current = true;
         return;
       }
@@ -50,9 +54,9 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
           : (group.metadata as any)?.theme_config;
 
         if (themeConfig) {
-          if (themeConfig.icon) setIconType(themeConfig.icon);
-          if (themeConfig.color) setColor(themeConfig.color);
-          if (themeConfig.size) setSize(themeConfig.size);
+          if (themeConfig.icon) setIconType(asString(themeConfig.icon) || iconType);
+          if (themeConfig.color) setColor(asString(themeConfig.color) || color);
+          if (themeConfig.size !== undefined && themeConfig.size !== null) setSize(asNumber(themeConfig.size, size));
           loadedRef.current = true;
         }
       } catch (e) {

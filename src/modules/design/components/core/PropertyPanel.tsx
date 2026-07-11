@@ -10,23 +10,79 @@ import {
 } from "lucide-react";
 import { IconSelector } from '@DESIGN/components/ui/IconSelector';
 import { designLogic } from '@TOOL/utils/designLogic';
-import { getFeatureDisplayInfo, safeString, getCleanName } from '@TOOL/utils/featureUtils';
+import { getFeatureDisplayInfo, safeString, getCleanName, isCameraIcon } from '@TOOL/utils/featureUtils';
 import { useCamera } from '@IMPLEMENT/hooks/useCamera';
 import { importFromExcel, importFromKML, getExcelHeaders, applyImportedRecords } from '@IMPLEMENT/services/importService';
 import { safeOpenDialog } from '@IMPLEMENT/lib/tauri';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
 import { cn } from '@TOOL/utils/cn';
 import { useProjectData } from '@IMPLEMENT/hooks/useProjectData';
+import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
 
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { FeatureMetadata } from '@CONTRACT/types';
+import { useMetadataAutosave } from '@DESIGN/hooks/useMetadataAutosave';
 
 interface SegmentItem {
   id?: string | number;
+  segment_type?: string;
   type?: string;
   length?: number;
   [key: string]: unknown;
 }
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+
+const asStringValue = (value: unknown, fallback = ''): string =>
+  typeof value === 'string' ? value : typeof value === 'number' ? String(value) : fallback;
+
+const asNumberValue = (value: unknown, fallback = 0): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+};
+
+const asStringArray = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+
+const preparePropertyMetadata = (metaInput: unknown): FeatureMetadata => {
+  const metaToSave = { ...((metaInput || {}) as FeatureMetadata) };
+
+  if (metaToSave.size !== undefined && metaToSave.size !== null) {
+    metaToSave.size = Number(metaToSave.size);
+    if (isNaN(metaToSave.size)) {
+      metaToSave.size = 4;
+    }
+  }
+
+  const standardizedMeta = normalizeMetadataObject(metaToSave);
+  if (!standardizedMeta.size && metaToSave.size) {
+    standardizedMeta.size = metaToSave.size;
+  }
+
+  return standardizedMeta;
+};
+
+const getTypeForIcon = (icon: IconType): string => {
+  switch (icon) {
+    case 'cctv':
+      return 'cctv';
+    case 'ptz':
+      return 'ptz';
+    case 'speed':
+      return 'speed';
+    case 'lpr':
+      return 'lpr';
+    case 'intersection':
+      return 'intersection';
+    default:
+      return 'point';
+  }
+};
 
 export const PropertyPanel: React.FC = () => {
   const {
@@ -46,7 +102,22 @@ export const PropertyPanel: React.FC = () => {
   } = useDesignSync();
 
   // Load contracts for the project
-  const { contracts } = useProjectData({ id: projectId ?? 0, path: '' });
+  const { contracts } = useProjectData({
+    id: String(projectId ?? ''),
+    name: '',
+    pmp_path: '',
+    path: '',
+    description: null,
+    contract_number: null,
+    investor: null,
+    contractor: null,
+    signed_date: null,
+    duration: null,
+    end_date: null,
+    status: 'active',
+    created_at: '',
+    updated_at: '',
+  });
   const [isImporting, setIsImporting] = useState(false);
 
   // Multi-selection check will be handled in the final return block to avoid hook violations.
@@ -61,6 +132,25 @@ export const PropertyPanel: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const togglePalette = useLayoutStore(s => s.togglePalette);
+  const paletteConfigs = useLayoutStore(s => s.paletteConfigs);
+
+  let persistedMeta: FeatureMetadata = {};
+  let persistedMetaJson = '{}';
+  if (feature) {
+    try {
+      const parsed = typeof feature.metadata === 'string' ? JSON.parse(feature.metadata || '{}') : (feature.metadata || {});
+      persistedMeta = preparePropertyMetadata(parsed);
+      persistedMetaJson = JSON.stringify(persistedMeta);
+    } catch {
+      persistedMeta = {};
+      persistedMetaJson = '{}';
+    }
+  }
+
+  const persistedName = feature ? getCleanName(feature, String(persistedMeta.display_order || persistedMeta.stt || persistedMeta.STT || '')) : '';
+  const isMetadataDirty = !!feature && JSON.stringify(preparePropertyMetadata(localMeta)) !== persistedMetaJson;
+  const isNameDirty = !!feature && localName !== persistedName;
 
   // Cleanup preview on unmount or when changing feature
   useEffect(() => {
@@ -70,24 +160,28 @@ export const PropertyPanel: React.FC = () => {
   }, [selectedFeatureId]);
 
   // Helper to get nested metadata values with legacy fallback
-  const getMetaValue = (path: string, legacyKey?: string): string | number | boolean | undefined => {
+  const getMetaValue = (path: string, legacyKey?: string): unknown => {
     const parts = path.split('.');
-    let current: Record<string, unknown> | undefined = localMeta as Record<string, unknown>;
+    let current: unknown = localMeta;
     for (const part of parts) {
-      if (current === undefined || current === null) break;
-      current = current[part] as Record<string, unknown> | undefined;
+      const currentRecord = asRecord(current);
+      if (!currentRecord) {
+        current = undefined;
+        break;
+      }
+      current = currentRecord[part];
     }
-    if (current !== undefined && current !== null && current !== '') return current as string | number | boolean | undefined;
+    if (current !== undefined && current !== null && current !== '') return current;
     if (legacyKey) {
       const metaRecord = localMeta as Record<string, unknown>;
       const legacyVal = metaRecord[legacyKey];
-      if (legacyVal !== undefined) return legacyVal as string | number | boolean | undefined;
+      if (legacyVal !== undefined) return legacyVal;
     }
-    return '';
+    return undefined;
   };
 
   // Helper to update nested metadata
-  const updateNestedMeta = (path: string, value: string | number | boolean | null) => {
+  const updateNestedMeta = (path: string, value: unknown) => {
     const next = { ...localMeta } as Record<string, unknown>;
     const parts = path.split('.');
     let current: Record<string, unknown> = next;
@@ -107,6 +201,35 @@ export const PropertyPanel: React.FC = () => {
     }
   };
 
+  const openCameraPalettes = () => {
+    const deviceConfig = paletteConfigs['device-config'];
+    const cameraView = paletteConfigs['camera-view'];
+
+    if (deviceConfig && !deviceConfig.isVisible) {
+      togglePalette('device-config');
+    }
+    if (cameraView && !cameraView.isVisible) {
+      togglePalette('camera-view');
+    }
+  };
+
+  const handleIconChange = (icon: IconType) => {
+    const nextMeta = {
+      ...(localMeta || {}),
+      icon,
+      type: getTypeForIcon(icon),
+    } as FeatureMetadata;
+
+    setLocalMeta(nextMeta);
+    if (selectedFeatureId) {
+      setPreview(selectedFeatureId, nextMeta);
+    }
+
+    if (isCameraIcon(icon)) {
+      openCameraPalettes();
+    }
+  };
+
   // Camera integration
   const {
     isCameraOpen,
@@ -118,7 +241,7 @@ export const PropertyPanel: React.FC = () => {
     capture
   } = useCamera({
     onCapture: (dataUrl) => {
-      const currentImages = (getMetaValue('media.imageUrls', 'imageUrls') as any) || [];
+      const currentImages = asStringArray(getMetaValue('media.imageUrls', 'imageUrls'));
       updateNestedMeta('media.imageUrls', [...currentImages, dataUrl]);
     },
     watermarkData: {
@@ -140,7 +263,7 @@ export const PropertyPanel: React.FC = () => {
         const normalized = normalizeMetadataObject(meta);
 
         // Cập nhật tên (làm sạch STT nếu có)
-        const sttValue = normalized.display_order || normalized.stt || normalized.STT || '';
+        const sttValue = asStringValue(normalized.display_order ?? normalized.stt ?? normalized.STT);
         setLocalName(getCleanName(feature, sttValue));
 
         // Cập nhật metadata
@@ -164,8 +287,25 @@ export const PropertyPanel: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectFeature]);
 
+  const { isSaving: isAutoSaving } = useMetadataAutosave({
+    featureId: selectedFeatureId,
+    localMeta,
+    persistedMeta,
+    queueEvent,
+    setPreview,
+    debounceMs: 300,
+    prepareMetadata: preparePropertyMetadata,
+    onPersisted: () => {
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 1500);
+    },
+    onError: (error) => {
+      console.error('[PropertyPanel] Auto-save failed:', error);
+    }
+  });
+
   const handleSave = async () => {
-    if (!feature) return;
+    if (!feature || (!isNameDirty && !isMetadataDirty)) return;
     setIsSaving(true);
     setIsSaved(false);
 
@@ -175,33 +315,10 @@ export const PropertyPanel: React.FC = () => {
     console.log('[PropertyPanel] 🎨 Color value:', localMeta.color);
 
     try {
-      // CRITICAL: Ensure size is a valid number before normalization
-      const metaToSave = { ...localMeta };
-      if (metaToSave.size !== undefined && metaToSave.size !== '') {
-        metaToSave.size = Number(metaToSave.size);
-        if (isNaN(metaToSave.size)) {
-          console.warn('[PropertyPanel] ⚠️ Invalid size value, using default (4)');
-          metaToSave.size = 4;
-        }
-        console.log('[PropertyPanel] ✅ Size validated:', metaToSave.size);
-      }
-
-      // Normalize before saving
-      const standardizedMeta = normalizeMetadataObject(metaToSave);
+      const standardizedMeta = preparePropertyMetadata(localMeta);
 
       console.log('[PropertyPanel] ✅ Standardized metadata:', JSON.stringify(standardizedMeta, null, 2));
       console.log('[PropertyPanel] 📦 Final payload size:', standardizedMeta.size);
-
-      // CRITICAL VALIDATION: Ensure size was preserved during normalization
-      if (!standardizedMeta.size && metaToSave.size) {
-        console.error('[PropertyPanel] ❌ CRITICAL: Size was lost during normalization!');
-        console.error('[PropertyPanel] Input size:', metaToSave.size);
-        console.error('[PropertyPanel] Output size:', standardizedMeta.size);
-
-        // Force preserve size by adding it back
-        standardizedMeta.size = metaToSave.size;
-        console.log('[PropertyPanel] ✅ Size restored after normalization:', standardizedMeta.size);
-      }
 
       // Save to database via event queue
       await queueEvent({
@@ -232,10 +349,10 @@ export const PropertyPanel: React.FC = () => {
           : verifyFeature.metadata;
 
         console.log('[PropertyPanel] 🔍 Verification:');
-        console.log('[PropertyPanel]   Expected size:', metaToSave.size);
+        console.log('[PropertyPanel]   Expected size:', standardizedMeta.size);
         console.log('[PropertyPanel]   Actual size:', verifyMeta.size);
 
-        if (verifyMeta.size !== metaToSave.size) {
+        if (verifyMeta.size !== standardizedMeta.size) {
           console.error('[PropertyPanel] ❌ Metadata was not saved correctly!');
           console.error('[PropertyPanel] This indicates a database write issue.');
         } else {
@@ -286,11 +403,11 @@ export const PropertyPanel: React.FC = () => {
           description_column: headers.find((header) => /mô tả|mo ta|description|ghi chú/i.test(header)),
           order_column: headers.find((header) => /stt|order|mã hiệu|ma hieu|id/i.test(header)),
         });
-        const importedCount = await applyImportedRecords(records, targetGroupId);
+        const importedCount = await applyImportedRecords(records, targetGroupId ?? undefined);
         alert(`✅ Đã import ${importedCount} đối tượng từ ${fileName}.`);
       } else if (['kml', 'kmz'].includes(ext)) {
         const records = await importFromKML(filePath);
-        const importedCount = await applyImportedRecords(records, targetGroupId);
+        const importedCount = await applyImportedRecords(records, targetGroupId ?? undefined);
         alert(`✅ Đã import ${importedCount} đối tượng từ ${fileName}.`);
       } else if (['gpx'].includes(ext)) {
         alert('Định dạng GPX sẽ được hỗ trợ trong phiên bản tiếp theo.');
@@ -368,11 +485,14 @@ export const PropertyPanel: React.FC = () => {
   }
 
   const isPolyline = feature.geom_type === 'LineString' || feature.geom_type === 'polyline';
-  const distance = isPolyline ? (getMetaValue('gis.lengthKm', 'lengthKm') || 0) : 0;
+  const distance = isPolyline ? asNumberValue(getMetaValue('gis.lengthKm', 'lengthKm')) : 0;
   const linkBudget = isPolyline ? designLogic.calculateFiberLinkBudget(distance) : 0;
 
   // Detect polyline type for specific metadata
-  const polyType = getMetaValue('infrastructure.type') || (safeString(feature.name).toLowerCase().includes('điện') ? 'PowerLine' : safeString(feature.name).toLowerCase().includes('cáp') ? 'SignalLine' : '');
+  const polyType = asStringValue(
+    getMetaValue('infrastructure.type'),
+    safeString(feature.name).toLowerCase().includes('điện') ? 'PowerLine' : safeString(feature.name).toLowerCase().includes('cáp') ? 'SignalLine' : ''
+  );
 
   return (
     <aside
@@ -515,7 +635,7 @@ export const PropertyPanel: React.FC = () => {
               <textarea
                 className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:border-cad-accent outline-none transition-all resize-none"
                 rows={2}
-                value={getMetaValue('description', 'description')}
+                value={asStringValue(getMetaValue('description', 'description'))}
                 onChange={e => updateNestedMeta('description', e.target.value)}
                 placeholder="Technical notes..."
               />
@@ -534,19 +654,19 @@ export const PropertyPanel: React.FC = () => {
                 const coords = typeof feature.coordinates === 'string' ? JSON.parse(feature.coordinates) : feature.coordinates;
                 if (Array.isArray(coords)) {
                   const first = Array.isArray(coords[0]) ? coords[0] : coords;
-                  const vnx = getMetaValue('gis.vn2000_x', 'vn2000_x');
-                  const vny = getMetaValue('gis.vn2000_y', 'vn2000_y');
+                  const vnx = asNumberValue(getMetaValue('gis.vn2000_x', 'vn2000_x'));
+                  const vny = asNumberValue(getMetaValue('gis.vn2000_y', 'vn2000_y'));
                   return (
                     <>
                       <ReadOnlyField label="Lng" value={first[0]?.toFixed(6) || '0'} />
                       <ReadOnlyField label="Lat" value={first[1]?.toFixed(6) || '0'} />
-                      {vnx && (
+                      {vnx && vny ? (
                         <>
                           <div className="col-span-2 h-[1px] bg-[#333] my-1"></div>
                           <ReadOnlyField label="X (VN2000)" value={Number(vnx).toFixed(3)} />
                           <ReadOnlyField label="Y (VN2000)" value={Number(vny).toFixed(3)} />
                         </>
-                      )}
+                      ) : null}
                     </>
                   );
                 }
@@ -570,7 +690,7 @@ export const PropertyPanel: React.FC = () => {
                 <input
                   type="color"
                   className="w-full h-8 bg-transparent border-0 rounded cursor-pointer mt-1"
-                  value={getMetaValue('color', 'color') || '#3b82f6'}
+                  value={asStringValue(getMetaValue('color', 'color'), '#3b82f6')}
                   onChange={e => updateNestedMeta('color', e.target.value)}
                 />
               </div>
@@ -579,7 +699,7 @@ export const PropertyPanel: React.FC = () => {
                 <input
                   type="number"
                   className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white mt-1 focus:border-cad-accent outline-none"
-                  value={getMetaValue('size', 'size') || (isPolyline ? 4 : 32)}
+                  value={asNumberValue(getMetaValue('size', 'size'), isPolyline ? 4 : 32)}
                   onChange={e => updateNestedMeta('size', Number(e.target.value))}
                 />
               </div>
@@ -587,7 +707,7 @@ export const PropertyPanel: React.FC = () => {
             {!isPolyline && (
               <IconSelector
                 value={((getMetaValue('icon', 'icon') as IconType) || (isIntersectionFeature ? 'intersection' : 'default'))}
-                onChange={icon => updateNestedMeta('icon', icon)}
+                onChange={handleIconChange}
                 className="pt-2"
               />
             )}
@@ -605,7 +725,7 @@ export const PropertyPanel: React.FC = () => {
               <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Type</label>
               <select
                 className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white outline-none active:border-indigo-500"
-                value={getMetaValue('infrastructure.type') || polyType}
+                value={asStringValue(getMetaValue('infrastructure.type'), polyType)}
                 onChange={e => updateNestedMeta('infrastructure.type', e.target.value)}
               >
                 <option value="">Select Type...</option>
@@ -625,13 +745,13 @@ export const PropertyPanel: React.FC = () => {
             {(getMetaValue('infrastructure.type') || polyType) === 'SignalLine' && (
               <div className="grid grid-cols-2 gap-2">
                 <DesignField label="Cable" icon={<Radio className="w-3 h-3" />} value={getMetaValue('infrastructure.cable_type')} onChange={v => updateNestedMeta('infrastructure.cable_type', v)} />
-                <DesignField label="Cores" icon={<Layers className="w-3 h-3" />} value={getMetaValue('infrastructure.core_count')} onChange={v => updateNestedMeta('infrastructure.core_count', v)} />
+                <DesignField label="Cores" icon={<Layers className="w-3 h-3" />} value={getMetaValue('infrastructure.core_count')} onChange={v => updateNestedMeta('infrastructure.core_count', asNumberValue(v))} />
               </div>
             )}
 
             {(getMetaValue('infrastructure.type') || polyType) === 'TrenchLine' && (
               <div className="grid grid-cols-2 gap-2">
-                <DesignField label="Depth" icon={<Construction className="w-3 h-3" />} value={getMetaValue('infrastructure.depth')} onChange={v => updateNestedMeta('infrastructure.depth', v)} />
+                <DesignField label="Depth" icon={<Construction className="w-3 h-3" />} value={getMetaValue('infrastructure.depth')} onChange={v => updateNestedMeta('infrastructure.depth', asNumberValue(v))} />
                 <DesignField label="Surface" icon={<Grid3X3 className="w-3 h-3" />} value={getMetaValue('infrastructure.surface_type')} onChange={v => updateNestedMeta('infrastructure.surface_type', v)} />
               </div>
             )}
@@ -657,7 +777,7 @@ export const PropertyPanel: React.FC = () => {
                     </div>
                     <div>
                       <p className="text-[10px] font-bold text-white uppercase tracking-tight">{seg.segment_type || 'Unknown'}</p>
-                      <p className="text-[8px] text-[#444] font-mono">ID: {seg.id?.slice(0, 8)}</p>
+                      <p className="text-[8px] text-[#444] font-mono">ID: {typeof seg.id === 'string' ? seg.id.slice(0, 8) : seg.id ?? ''}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -690,7 +810,7 @@ export const PropertyPanel: React.FC = () => {
               </label>
               <select
                 className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
-                value={getMetaValue('business.contract_id', 'contract_id') || ''}
+                value={asStringValue(getMetaValue('business.contract_id', 'contract_id'))}
                 onChange={e => updateNestedMeta('business.contract_id', e.target.value ? e.target.value : null)}
               >
                 <option value="">No Contract Linked</option>
@@ -711,7 +831,7 @@ export const PropertyPanel: React.FC = () => {
             <div className="bg-amber-500/5 border border-amber-500/10 rounded p-4 space-y-3">
               <div className="flex justify-between items-center text-[10px]">
                 <span className="text-[#666]">Length</span>
-                <span className="font-bold text-amber-500">{(getMetaValue('gis.lengthKm', 'lengthKm') || 0).toFixed(3)} KM</span>
+                <span className="font-bold text-amber-500">{asNumberValue(getMetaValue('gis.lengthKm', 'lengthKm')).toFixed(3)} KM</span>
               </div>
               <div className="flex justify-between items-center border-t border-amber-500/5 pt-2 text-[10px]">
                 <span className="text-[#666]">Est. Loss</span>
@@ -766,14 +886,14 @@ export const PropertyPanel: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {(getMetaValue('media.imageUrls', 'imageUrls') || []).length > 0 ? (
-              (getMetaValue('media.imageUrls', 'imageUrls') as string[]).map((url, idx) => (
+            {asStringArray(getMetaValue('media.imageUrls', 'imageUrls')).length > 0 ? (
+              asStringArray(getMetaValue('media.imageUrls', 'imageUrls')).map((url, idx) => (
                 <div key={idx} className="aspect-video rounded overflow-hidden border border-[#333] relative group">
                   <img src={url} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                     <button
                       onClick={() => {
-                        const newImgs = [...(getMetaValue('media.imageUrls', 'imageUrls') || [])];
+                        const newImgs = [...asStringArray(getMetaValue('media.imageUrls', 'imageUrls'))];
                         newImgs.splice(idx, 1);
                         updateNestedMeta('media.imageUrls', newImgs);
                       }}
@@ -802,7 +922,7 @@ export const PropertyPanel: React.FC = () => {
       <div className="p-3 border-t border-[#333] bg-[#222]">
         <button
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || isAutoSaving || (!isNameDirty && !isMetadataDirty)}
           className={cn(
             "w-full py-2.5 rounded text-[10px] font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95",
             isSaved
@@ -810,14 +930,14 @@ export const PropertyPanel: React.FC = () => {
               : "bg-cad-accent hover:bg-cad-accent/90 disabled:bg-[#333] text-[#111]"
           )}
         >
-          {isSaving ? (
+          {isSaving || isAutoSaving ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : isSaved ? (
             <Zap className="w-3.5 h-3.5 animate-bounce" />
           ) : (
             <Save className="w-3.5 h-3.5" />
           )}
-          {isSaving ? 'PERSISTING...' : isSaved ? 'SAVED SUCCESSFUL' : 'SAVE SPECS'}
+          {isSaving || isAutoSaving ? 'PERSISTING...' : isSaved ? 'SAVED SUCCESSFUL' : 'SAVE SPECS'}
         </button>
       </div>
       <DeleteConfirmationModal
@@ -841,14 +961,14 @@ const ReadOnlyField = ({ label, value }: { label: string, value: string }) => (
   </div>
 );
 
-const DesignField = ({ label, icon, value, onChange }: { label: string, icon: React.ReactNode, value: string, onChange: (v: string) => void }) => (
+const DesignField = ({ label, icon, value, onChange }: { label: string, icon: React.ReactNode, value: unknown, onChange: (v: string) => void }) => (
   <div className="space-y-1">
     <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1 flex items-center gap-1.5">
       {icon} {label}
     </label>
     <input
       className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:border-cad-accent outline-none transition-all"
-      value={value}
+      value={asStringValue(value)}
       onChange={e => onChange(e.target.value)}
       placeholder={`Enter ${safeString(label).toLowerCase()}...`}
     />

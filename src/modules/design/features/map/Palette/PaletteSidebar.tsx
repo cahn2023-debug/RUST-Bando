@@ -1,7 +1,15 @@
 import React from 'react';
 import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
 import { cn } from '@TOOL/utils/cn';
-import * as LucideIcons from 'lucide-react';
+import { Calculator, Camera, Layers, Settings, Video } from 'lucide-react';
+
+const paletteIcons = {
+    Calculator,
+    Camera,
+    Layers,
+    Settings,
+    Video,
+} as const;
 
 export const PaletteSidebar: React.FC = () => {
     const { layoutColumns, paletteConfigs, activePaletteId, expandPalette, togglePalette } = useLayoutStore();
@@ -14,7 +22,7 @@ export const PaletteSidebar: React.FC = () => {
                     const config = paletteConfigs[id];
                     if (!config) return null;
 
-                    const IconComponent = (LucideIcons as any)[config.icon] || LucideIcons.Layers;
+                    const IconComponent = paletteIcons[config.icon as keyof typeof paletteIcons] || Layers;
                     const isActive = activePaletteId === id;
 
                     return (

@@ -8,7 +8,7 @@ export interface TreeItemProps {
   expanded: boolean;
   onClick: () => void;
   children?: React.ReactNode;
-  onRename: (newName: string) => void;
+  onRename?: (newName: string) => void;
   visible?: boolean;
   onToggleVisible?: (e: React.MouseEvent) => void;
   customAction?: React.ReactNode;
@@ -31,6 +31,7 @@ export interface TreeItemProps {
   indeterminate?: boolean;
   onToggleCheck?: () => void;
   onMouseDown?: (e: React.MouseEvent) => void;
+  hasChildren?: boolean;
 }
 
 
@@ -60,7 +61,8 @@ export const TreeItem = React.memo(({
   checked,
   indeterminate,
   onToggleCheck,
-  onMouseDown
+  onMouseDown,
+  hasChildren
 }: TreeItemProps) => {
   const checkboxRef = React.useRef<HTMLInputElement>(null);
 
@@ -98,7 +100,7 @@ export const TreeItem = React.memo(({
               "text-white text-[8px] transition-transform w-3 font-bold shrink-0 text-center -ml-0.5",
               expanded ? "rotate-0 opacity-40" : "-rotate-90 opacity-20"
             )}>
-              {children ? '▼' : ''}
+              {(children || hasChildren) ? '▼' : ''}
             </span>
 
             {onToggleCheck && (
@@ -115,16 +117,27 @@ export const TreeItem = React.memo(({
             <div className="shrink-0 flex items-center justify-center w-5 scale-90 opacity-80 group-hover:opacity-100 transition-opacity">
               {icon}
             </div>
-            <EditableText
-              value={name}
-              onSave={onRename}
-              className={cn(
-                "truncate tracking-tight transition-colors",
+            {onRename ? (
+              <EditableText
+                value={name}
+                onSave={onRename}
+                className={cn(
+                  "truncate tracking-tight transition-colors",
+                  level === 0 ? "text-[10px] uppercase font-bold text-emerald-500/90" :
+                    level === 1 ? "text-[9.5px] uppercase font-bold text-white/80 group-hover:text-white" :
+                      "text-[9px] font-medium text-white/60 group-hover:text-white/90"
+                )}
+              />
+            ) : (
+              <span className={cn(
+                "truncate tracking-tight transition-colors select-none",
                 level === 0 ? "text-[10px] uppercase font-bold text-emerald-500/90" :
                   level === 1 ? "text-[9.5px] uppercase font-bold text-white/80 group-hover:text-white" :
                     "text-[9px] font-medium text-white/60 group-hover:text-white/90"
-              )}
-            />
+              )}>
+                {name}
+              </span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">

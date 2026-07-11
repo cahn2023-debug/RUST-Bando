@@ -1,4 +1,3 @@
-use tauri::{AppHandle, Manager, State};
 use crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand;
 use crate::domain::implement::modules::v2::storage::connection::PmpDatabase;
 use crate::domain::implement::state::hydrator::{self, AppState, StoredRecentProject};
@@ -7,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
+use tauri::{AppHandle, Manager, State};
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
@@ -61,10 +61,16 @@ fn ensure_excel_extension(path: &Path) -> Result<(), String> {
     let Some(ext) = path.extension().and_then(|value| value.to_str()) else {
         return Err("Unsupported import file type".to_string());
     };
-    if ["xlsx", "xls", "xlsm", "xlsb"].iter().any(|allowed| ext.eq_ignore_ascii_case(allowed)) {
+    if ["xlsx", "xls", "xlsm", "xlsb"]
+        .iter()
+        .any(|allowed| ext.eq_ignore_ascii_case(allowed))
+    {
         return Ok(());
     }
-    Err("Only Excel files (.xlsx, .xls, .xlsm, .xlsb) are supported in this import flow".to_string())
+    Err(
+        "Only Excel files (.xlsx, .xls, .xlsm, .xlsb) are supported in this import flow"
+            .to_string(),
+    )
 }
 
 fn normalize_column_key(value: &str) -> String {
@@ -82,7 +88,8 @@ fn read_excel_table(path: &Path) -> Result<(String, Vec<String>, Vec<Vec<String>
         return Err(format!("Import file does not exist: {}", path.display()));
     }
 
-    let mut workbook = open_workbook_auto(path).map_err(|e| format!("Failed to open workbook: {}", e))?;
+    let mut workbook =
+        open_workbook_auto(path).map_err(|e| format!("Failed to open workbook: {}", e))?;
     let sheet_names = workbook.sheet_names().to_vec();
     let Some(sheet_name) = sheet_names.first().cloned() else {
         return Err("Workbook does not contain any sheets".to_string());
@@ -135,7 +142,11 @@ fn infer_field_type(rows: &[Vec<String>], column_index: usize) -> String {
     "string".to_string()
 }
 
-fn build_dataset_meta(path: &Path, headers: &[String], rows: &[Vec<String>]) -> DatasetMetaResponse {
+fn build_dataset_meta(
+    path: &Path,
+    headers: &[String],
+    rows: &[Vec<String>],
+) -> DatasetMetaResponse {
     let fields = headers
         .iter()
         .enumerate()
@@ -154,19 +165,26 @@ fn build_dataset_meta(path: &Path, headers: &[String], rows: &[Vec<String>]) -> 
             headers
                 .iter()
                 .enumerate()
-                .map(|(index, header)| (header.clone(), row.get(index).cloned().unwrap_or_default()))
+                .map(|(index, header)| {
+                    (header.clone(), row.get(index).cloned().unwrap_or_default())
+                })
                 .collect::<BTreeMap<_, _>>()
         })
         .collect::<Vec<_>>();
 
     DatasetMetaResponse {
-        dataset_id: Uuid::new_v5(&Uuid::NAMESPACE_URL, path.to_string_lossy().as_bytes()).to_string(),
+        dataset_id: Uuid::new_v5(&Uuid::NAMESPACE_URL, path.to_string_lossy().as_bytes())
+            .to_string(),
         fields,
         sample_data: Some(sample_data),
     }
 }
 
-fn get_required_column_index(headers: &[String], column_name: &str, label: &str) -> Result<usize, String> {
+fn get_required_column_index(
+    headers: &[String],
+    column_name: &str,
+    label: &str,
+) -> Result<usize, String> {
     let lookup = headers
         .iter()
         .enumerate()
@@ -175,7 +193,12 @@ fn get_required_column_index(headers: &[String], column_name: &str, label: &str)
     lookup
         .get(&normalize_column_key(column_name))
         .copied()
-        .ok_or_else(|| format!("Required mapping column '{}' ({}) was not found in the worksheet", column_name, label))
+        .ok_or_else(|| {
+            format!(
+                "Required mapping column '{}' ({}) was not found in the worksheet",
+                column_name, label
+            )
+        })
 }
 
 fn get_optional_column_index(headers: &[String], column_name: &Option<String>) -> Option<usize> {
@@ -194,10 +217,12 @@ fn parse_coordinate(value: &str, label: &str, row_number: usize) -> Result<f64, 
     if trimmed.is_empty() {
         return Err(format!("Row {} is missing {}", row_number, label));
     }
-    trimmed
-        .replace(',', ".")
-        .parse::<f64>()
-        .map_err(|_| format!("Row {} has an invalid {} value: {}", row_number, label, value))
+    trimmed.replace(',', ".").parse::<f64>().map_err(|_| {
+        format!(
+            "Row {} has an invalid {} value: {}",
+            row_number, label, value
+        )
+    })
 }
 
 fn parse_feature_records(
@@ -216,14 +241,22 @@ fn parse_feature_records(
 
     for (row_index, row) in rows.iter().enumerate() {
         let excel_row_number = row_index + 2;
-        let lat = match parse_coordinate(row.get(lat_index).map(String::as_str).unwrap_or_default(), "latitude", excel_row_number) {
+        let lat = match parse_coordinate(
+            row.get(lat_index).map(String::as_str).unwrap_or_default(),
+            "latitude",
+            excel_row_number,
+        ) {
             Ok(value) => value,
             Err(error) => {
                 skipped_errors.push(error);
                 continue;
             }
         };
-        let lng = match parse_coordinate(row.get(lng_index).map(String::as_str).unwrap_or_default(), "longitude", excel_row_number) {
+        let lng = match parse_coordinate(
+            row.get(lng_index).map(String::as_str).unwrap_or_default(),
+            "longitude",
+            excel_row_number,
+        ) {
             Ok(value) => value,
             Err(error) => {
                 skipped_errors.push(error);
@@ -231,7 +264,10 @@ fn parse_feature_records(
             }
         };
 
-        let name_from_row = row.get(name_index).map(|value| value.trim()).unwrap_or_default();
+        let name_from_row = row
+            .get(name_index)
+            .map(|value| value.trim())
+            .unwrap_or_default();
         let order_value = order_index
             .and_then(|index| row.get(index))
             .map(|value| value.trim().to_string())
@@ -305,11 +341,15 @@ fn parse_feature_records(
 
 async fn exec_query(state: &ActorState, sql: &str, params: Vec<String>) -> Result<Value, String> {
     let (tx, rx) = oneshot::channel();
-    state.gateway_tx.send(StorageCommand::Query {
-        sql: sql.to_string(),
-        params,
-        reply: tx,
-    }).await.map_err(|e| e.to_string())?;
+    state
+        .gateway_tx
+        .send(StorageCommand::Query {
+            sql: sql.to_string(),
+            params,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
     rx.await.map_err(|e| e.to_string())?
 }
 
@@ -330,7 +370,12 @@ fn trim_to_option(input: Option<String>) -> Option<String> {
 }
 
 fn ensure_pmp_extension(path: &Path) -> Result<(), String> {
-    if path.extension().and_then(|ext| ext.to_str()).map(|ext| ext.eq_ignore_ascii_case("pmp")) == Some(true) {
+    if path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("pmp"))
+        == Some(true)
+    {
         return Ok(());
     }
     Err("Project file path must end with .pmp".to_string())
@@ -357,7 +402,9 @@ fn parse_optional_uuid_value(value: Option<&Value>) -> Result<Option<Uuid>, Stri
 fn parse_json_payload_field(value: Option<&Value>) -> Value {
     match value {
         Some(Value::String(raw)) => serde_json::from_str(raw).unwrap_or_else(|_| json!({})),
-        Some(Value::Object(_)) | Some(Value::Array(_)) => value.cloned().unwrap_or_else(|| json!({})),
+        Some(Value::Object(_)) | Some(Value::Array(_)) => {
+            value.cloned().unwrap_or_else(|| json!({}))
+        }
         Some(Value::Null) | None => json!({}),
         Some(other) => other.clone(),
     }
@@ -536,8 +583,14 @@ fn frontend_event_to_envelope(
                 .get("is_visible")
                 .and_then(Value::as_bool)
                 .unwrap_or(true),
-            note: payload.get("note").and_then(Value::as_str).map(|value| value.to_string()),
-            bbox: payload.get("bbox").cloned().filter(|value| !value.is_null()),
+            note: payload
+                .get("note")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string()),
+            bbox: payload
+                .get("bbox")
+                .cloned()
+                .filter(|value| !value.is_null()),
             metadata: parse_json_payload_field(payload.get("metadata")),
         },
         "FeatureUpdated" | "update_metadata" => {
@@ -551,7 +604,10 @@ fn frontend_event_to_envelope(
                     continue;
                 }
                 if key == "metadata" {
-                    changes.insert("metadata".to_string(), Value::String(parse_json_payload_field(Some(value)).to_string()));
+                    changes.insert(
+                        "metadata".to_string(),
+                        Value::String(parse_json_payload_field(Some(value)).to_string()),
+                    );
                     continue;
                 }
                 changes.insert(key.clone(), value.clone());
@@ -643,7 +699,12 @@ fn persist_app_state(app_data_dir: &PathBuf, state: &AppState) -> Result<(), Str
 
 fn recent_project_from_value(value: &Value) -> Option<StoredRecentProject> {
     let path = value.get("path")?.as_str()?.trim().to_string();
-    let name = value.get("name").or_else(|| value.get("title"))?.as_str()?.trim().to_string();
+    let name = value
+        .get("name")
+        .or_else(|| value.get("title"))?
+        .as_str()?
+        .trim()
+        .to_string();
     if path.is_empty() || name.is_empty() {
         return None;
     }
@@ -656,7 +717,12 @@ fn recent_project_from_value(value: &Value) -> Option<StoredRecentProject> {
             .unwrap_or_else(|| Uuid::new_v4().to_string()),
         name,
         path,
-        description: trim_to_option(value.get("description").and_then(|v| v.as_str()).map(|s| s.to_string())),
+        description: trim_to_option(
+            value
+                .get("description")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+        ),
         status: value
             .get("status")
             .and_then(|v| v.as_str())
@@ -704,7 +770,10 @@ fn sanitize_recent_projects(mut projects: Vec<StoredRecentProject>) -> Vec<Store
         if !Path::new(&project.path).exists() {
             continue;
         }
-        if deduped.iter().any(|item: &StoredRecentProject| item.path.eq_ignore_ascii_case(&project.path)) {
+        if deduped
+            .iter()
+            .any(|item: &StoredRecentProject| item.path.eq_ignore_ascii_case(&project.path))
+        {
             continue;
         }
         deduped.push(project);
@@ -715,7 +784,11 @@ fn sanitize_recent_projects(mut projects: Vec<StoredRecentProject>) -> Vec<Store
     deduped
 }
 
-fn write_recent_projects(app_data_dir: &PathBuf, state: &mut AppState, projects: Vec<StoredRecentProject>) -> Result<Vec<StoredRecentProject>, String> {
+fn write_recent_projects(
+    app_data_dir: &PathBuf,
+    state: &mut AppState,
+    projects: Vec<StoredRecentProject>,
+) -> Result<Vec<StoredRecentProject>, String> {
     state.recent_pmps = sanitize_recent_projects(projects);
     persist_app_state(app_data_dir, state)?;
     Ok(state.recent_pmps.clone())
@@ -772,10 +845,23 @@ fn project_from_query_result(result: &Value, path: &str) -> Option<Value> {
         .and_then(|value| value.as_str())
         .unwrap_or("Untitled Project")
         .to_string();
-    let description = trim_to_option(row.get("description").and_then(|value| value.as_str()).map(|s| s.to_string()));
-    let status = row.get("status").and_then(|value| value.as_str()).map(|s| s.to_string());
-    let created_at = row.get("created_at").and_then(|value| value.as_str()).map(|s| s.to_string());
-    let updated_at = row.get("updated_at").and_then(|value| value.as_str()).map(|s| s.to_string());
+    let description = trim_to_option(
+        row.get("description")
+            .and_then(|value| value.as_str())
+            .map(|s| s.to_string()),
+    );
+    let status = row
+        .get("status")
+        .and_then(|value| value.as_str())
+        .map(|s| s.to_string());
+    let created_at = row
+        .get("created_at")
+        .and_then(|value| value.as_str())
+        .map(|s| s.to_string());
+    let updated_at = row
+        .get("updated_at")
+        .and_then(|value| value.as_str())
+        .map(|s| s.to_string());
     let metadata_json = row.get("metadata_json").cloned();
 
     Some(build_project_value(
@@ -852,14 +938,18 @@ pub async fn create_pmp_v2(
         .query_row("SELECT COUNT(*) FROM projects", [], |row| row.get(0))
         .map_err(|e| e.to_string())?;
     if project_count > 0 {
-        return Err("The selected .pmp file already contains a project. Please choose a new file path.".to_string());
+        return Err(
+            "The selected .pmp file already contains a project. Please choose a new file path."
+                .to_string(),
+        );
     }
 
     db.conn
         .execute(
-            "INSERT INTO projects (id, title, description, base_dir_hint, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO projects (id, name, title, description, base_dir_hint, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             rusqlite::params![
                 project_id.clone(),
+                project_name.clone(),
                 project_name.clone(),
                 description.clone(),
                 path_buf.parent().map(|parent| parent.to_string_lossy().to_string()),
@@ -912,32 +1002,47 @@ pub async fn create_pmp_v2(
 pub async fn add_file_v2(
     state: State<'_, ActorState>,
     id: String,
-    projectId: String,
-    absPath: String,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    abs_path: Option<String>,
+    absPath: Option<String>,
     meta: serde_json::Value,
 ) -> Result<(), String> {
-    let path_buf = absPath.parse().map_err(|_| "Invalid path")?;
-    state.gateway_tx.send(StorageCommand::AddFile { 
-        id, 
-        project_id: projectId, 
-        abs_path: path_buf, 
-        meta 
-    })
-    .await.map_err(|e| format!("IPC Queue error: {}", e))
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let abs_path = abs_path
+        .or(absPath)
+        .ok_or_else(|| "Missing abs_path".to_string())?;
+    let path_buf = abs_path.parse().map_err(|_| "Invalid path")?;
+    state
+        .gateway_tx
+        .send(StorageCommand::AddFile {
+            id,
+            project_id,
+            abs_path: path_buf,
+            meta,
+        })
+        .await
+        .map_err(|e| format!("IPC Queue error: {}", e))
 }
 
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn update_metadata_v2(
     state: State<'_, ActorState>,
-    fileId: String,
+    file_id: Option<String>,
+    fileId: Option<String>,
     patch: serde_json::Value,
 ) -> Result<(), String> {
-    state.gateway_tx.send(StorageCommand::PatchMetadata { 
-        file_id: fileId, 
-        patch 
-    })
-    .await.map_err(|e| format!("IPC Queue error: {}", e))
+    let file_id = file_id
+        .or(fileId)
+        .ok_or_else(|| "Missing file_id".to_string())?;
+    state
+        .gateway_tx
+        .send(StorageCommand::PatchMetadata { file_id, patch })
+        .await
+        .map_err(|e| format!("IPC Queue error: {}", e))
 }
 
 // --- Compatibility & Required Stubs ---
@@ -984,18 +1089,24 @@ pub async fn start_import_task(
 ) -> Result<Vec<ImportFeatureRecord>, String> {
     let path_buf = PathBuf::from(&path);
     let (_sheet_name, headers, rows) = read_excel_table(&path_buf)?;
-    let effective_mapping = mapping.ok_or_else(|| "Import mapping is required for Excel import".to_string())?;
+    let effective_mapping =
+        mapping.ok_or_else(|| "Import mapping is required for Excel import".to_string())?;
     parse_feature_records(&headers, &rows, &effective_mapping)
 }
 
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn get_project_tree(
-    state: State<'_, ActorState>, 
-    projectId: String, 
-    _path: Option<String>
+    state: State<'_, ActorState>,
+    projectId: String,
+    _path: Option<String>,
 ) -> Result<Vec<Value>, String> {
-    let res = exec_query(&state, "SELECT * FROM files WHERE project_id = ?", vec![projectId]).await?;
+    let res = exec_query(
+        &state,
+        "SELECT * FROM files WHERE project_id = ?",
+        vec![projectId],
+    )
+    .await?;
     Ok(res.as_array().cloned().unwrap_or_default())
 }
 
@@ -1013,12 +1124,16 @@ pub async fn sync_v2_is_online() -> Result<bool, String> {
 pub async fn load_pmp_file(
     app: AppHandle,
     state: State<'_, ActorState>,
-    path: String
+    path: String,
 ) -> Result<serde_json::Value, String> {
     log::info!("[V2] load_pmp_file requesting switch to: {}", path);
     let path_buf = PathBuf::from(&path);
     ensure_pmp_extension(&path_buf)?;
-    let title = path_buf.file_stem().and_then(|s| s.to_str()).unwrap_or("Unknown Project").to_string();
+    let title = path_buf
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("Unknown Project")
+        .to_string();
 
     switch_database(&state, path_buf).await?;
 
@@ -1028,7 +1143,11 @@ pub async fn load_pmp_file(
         vec![],
     ).await?;
 
-    if first_project.as_array().map(|arr| arr.is_empty()).unwrap_or(true) {
+    if first_project
+        .as_array()
+        .map(|arr| arr.is_empty())
+        .unwrap_or(true)
+    {
         let fallback_id = Uuid::new_v4().to_string();
         state
             .gateway_tx
@@ -1167,7 +1286,7 @@ pub async fn save_last_opened_project(
 #[tauri::command]
 pub async fn index_project_files(
     _state: State<'_, ActorState>,
-    project_id: String
+    project_id: String,
 ) -> Result<serde_json::Value, String> {
     log::info!("[V2] index_project_files for project: {}", project_id);
     Ok(json!({
@@ -1178,10 +1297,7 @@ pub async fn index_project_files(
 }
 
 #[tauri::command]
-pub async fn search_v2(
-    state: State<'_, ActorState>,
-    query: String
-) -> Result<Vec<Value>, String> {
+pub async fn search_v2(state: State<'_, ActorState>, query: String) -> Result<Vec<Value>, String> {
     log::info!("[V2] Global search: {}", query);
     let sql = "
         SELECT f.id, f.filename, f.rel_path, f.metadata_json 
@@ -1196,10 +1312,11 @@ pub async fn search_v2(
 
 #[tauri::command]
 pub async fn get_stats_v2(state: State<'_, ActorState>) -> Result<Value, String> {
-    let project_count = exec_query(&state, "SELECT count(*) as count FROM projects", vec![]).await?;
+    let project_count =
+        exec_query(&state, "SELECT count(*) as count FROM projects", vec![]).await?;
     let file_count = exec_query(&state, "SELECT count(*) as count FROM files", vec![]).await?;
     let tag_count = exec_query(&state, "SELECT count(*) as count FROM tags", vec![]).await?;
-    
+
     Ok(json!({
         "projects": project_count[0]["count"],
         "files": file_count[0]["count"],
@@ -1248,20 +1365,27 @@ pub async fn invoke_design_event_batch(
     events: Vec<serde_json::Value>,
     requestId: Option<i32>,
 ) -> Result<Value, String> {
-    log::info!("[V2] Processing design event batch: count={}, requestId={:?}", events.len(), requestId);
+    log::info!(
+        "[V2] Processing design event batch: count={}, requestId={:?}",
+        events.len(),
+        requestId
+    );
     let mut envelopes = Vec::new();
     let mut applied_events = Vec::new();
     let mut skipped_events = 0usize;
-    
+
     for v in events {
-        let mut obj = v.as_object().cloned().ok_or_else(|| "Event must be an object".to_string())?;
+        let mut obj = v
+            .as_object()
+            .cloned()
+            .ok_or_else(|| "Event must be an object".to_string())?;
         let event_type = extract_event_type(&obj);
-        
+
         // Inject projectId if missing
         if !obj.contains_key("projectId") {
             obj.insert("projectId".to_string(), json!(projectId));
         }
-        
+
         // Ensure id is present (UUID)
         if obj.get("id").map(|id| id.is_null()).unwrap_or(true) {
             obj.insert("id".to_string(), json!(uuid::Uuid::new_v4().to_string()));
@@ -1273,7 +1397,10 @@ pub async fn invoke_design_event_batch(
         }
         if let Some(pid_str) = obj.get("projectId").and_then(|v| v.as_str()) {
             if uuid::Uuid::parse_str(pid_str).is_err() {
-                obj.insert("projectId".to_string(), json!(uuid::Uuid::new_v4().to_string()));
+                obj.insert(
+                    "projectId".to_string(),
+                    json!(uuid::Uuid::new_v4().to_string()),
+                );
             }
         }
 
@@ -1306,7 +1433,10 @@ pub async fn invoke_design_event_batch(
         }
         if let Some(eid_str) = obj.get("entityId").and_then(|v| v.as_str()) {
             if uuid::Uuid::parse_str(eid_str).is_err() {
-                obj.insert("entityId".to_string(), json!(uuid::Uuid::new_v4().to_string()));
+                obj.insert(
+                    "entityId".to_string(),
+                    json!(uuid::Uuid::new_v4().to_string()),
+                );
             }
         }
 
@@ -1325,7 +1455,7 @@ pub async fn invoke_design_event_batch(
             }
         }
     }
-    
+
     let last_event_id = envelopes
         .last()
         .map(|e| e.id.to_string())
@@ -1336,8 +1466,14 @@ pub async fn invoke_design_event_batch(
     }
 
     let (tx, rx) = oneshot::channel();
-    state.gateway_tx.send(StorageCommand::DispatchEvents { events: envelopes, reply: tx })
-        .await.map_err(|e| format!("IPC Queue error: {}", e))?;
+    state
+        .gateway_tx
+        .send(StorageCommand::DispatchEvents {
+            events: envelopes,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| format!("IPC Queue error: {}", e))?;
     let persisted_count = rx.await.map_err(|e| e.to_string())??;
 
     Ok(json!({
@@ -1353,7 +1489,7 @@ pub async fn invoke_design_event_batch(
 #[tauri::command]
 pub async fn normalize_metadata(
     _state: State<'_, ActorState>,
-    text: String
+    text: String,
 ) -> Result<serde_json::Value, String> {
     log::info!("[V2] AI Normalization requested for: {}", text);
     // Mock response for now, to be replaced by ONNX/Burn actor
@@ -1368,17 +1504,24 @@ pub async fn normalize_metadata(
 #[tauri::command]
 pub async fn rebuild_fts_v2(state: State<'_, ActorState>) -> Result<(), String> {
     let (tx, rx) = oneshot::channel();
-    state.gateway_tx.send(StorageCommand::Query {
-        sql: "REBUILD_FTS".to_string(), // We'll handle this special "SQL" in StorageWorker or add a dedicated command
-        params: vec![],
-        reply: tx,
-    }).await.map_err(|e| e.to_string())?;
-    
+    state
+        .gateway_tx
+        .send(StorageCommand::Query {
+            sql: "REBUILD_FTS".to_string(), // We'll handle this special "SQL" in StorageWorker or add a dedicated command
+            params: vec![],
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+
     rx.await.map_err(|e| e.to_string())?.map(|_| ())
 }
 
 #[tauri::command]
-pub async fn close_active_project(app: AppHandle, state: State<'_, ActorState>) -> Result<(), String> {
+pub async fn close_active_project(
+    app: AppHandle,
+    state: State<'_, ActorState>,
+) -> Result<(), String> {
     let _ = exec_query(
         &state,
         "DELETE FROM sys_config WHERE key IN ('active_project_id', 'active_project_path')",
@@ -1417,14 +1560,22 @@ pub async fn find_nearest_snap_point(
     y: f64,
     threshold: Option<f64>,
 ) -> Result<Value, String> {
-    log::info!("[V2] find_nearest_snap_point: x={}, y={}, threshold={:?}", x, y, threshold);
+    log::info!(
+        "[V2] find_nearest_snap_point: x={}, y={}, threshold={:?}",
+        x,
+        y,
+        threshold
+    );
     Ok(json!(null))
 }
 
 async fn _save_project(state: &ActorState) -> Result<(), String> {
     let (tx, rx) = tokio::sync::oneshot::channel();
-    state.gateway_tx.send(StorageCommand::SaveProject { reply: tx })
-        .await.map_err(|e| e.to_string())?;
+    state
+        .gateway_tx
+        .send(StorageCommand::SaveProject { reply: tx })
+        .await
+        .map_err(|e| e.to_string())?;
     rx.await.map_err(|e| e.to_string())?
 }
 
@@ -1452,12 +1603,16 @@ pub async fn save_project_bom_table(
             "bom_table": bomData
         }
     });
-    
-    state.gateway_tx.send(StorageCommand::PatchProjectMetadata { 
-        project_id: projectId,
-        patch 
-    }).await.map_err(|e| e.to_string())?;
-    
+
+    state
+        .gateway_tx
+        .send(StorageCommand::PatchProjectMetadata {
+            project_id: projectId,
+            patch,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+
     _save_project(&state).await
 }
 
@@ -1465,17 +1620,29 @@ pub async fn save_project_bom_table(
 #[allow(non_snake_case)]
 pub async fn update_project_state_v2(
     state: State<'_, ActorState>,
-    projectId: String,
-    projectState: Value,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    project_state: Option<Value>,
+    projectState: Option<Value>,
 ) -> Result<(), String> {
-    log::info!("[V2] update_project_state_v2 for project: {}", projectId);
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let project_state = project_state
+        .or(projectState)
+        .ok_or_else(|| "Missing project_state".to_string())?;
+    log::info!("[V2] update_project_state_v2 for project: {}", project_id);
 
     let (tx, rx) = oneshot::channel();
-    state.gateway_tx.send(StorageCommand::UpdateProjectState {
-        project_id: projectId,
-        state: projectState,
-        reply: tx,
-    }).await.map_err(|e| e.to_string())?;
+    state
+        .gateway_tx
+        .send(StorageCommand::UpdateProjectState {
+            project_id,
+            state: project_state,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
 
     rx.await.map_err(|e| e.to_string())?
 }
@@ -1483,12 +1650,12 @@ pub async fn update_project_state_v2(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand;
     use crate::domain::implement::modules::v2::pipeline::worker_storage::StorageWorker;
     use crate::domain::implement::modules::v2::storage::connection::PmpDatabase;
-    use crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand;
-    use tokio::sync::oneshot;
     use tempfile::tempdir;
     use tokio::sync::mpsc;
+    use tokio::sync::oneshot;
 
     #[tokio::test]
     async fn active_project_keys_roundtrip_for_reopen_flow() {
@@ -1499,8 +1666,13 @@ mod tests {
         let db = PmpDatabase::open_or_create(pmp_path.clone()).expect("open db");
         db.conn
             .execute(
-                "INSERT INTO projects (id, title, base_dir_hint) VALUES (?1, ?2, ?3)",
-                rusqlite::params!["p1", "Project One", dir.path().to_string_lossy().to_string()],
+                "INSERT INTO projects (id, name, title, base_dir_hint) VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![
+                    "p1",
+                    "Project One",
+                    "Project One",
+                    dir.path().to_string_lossy().to_string()
+                ],
             )
             .expect("seed project");
 
@@ -1636,14 +1808,21 @@ mod tests {
         let db = PmpDatabase::open_or_create(pmp_path.clone()).expect("open db");
         db.conn
             .execute(
-                "INSERT INTO projects (id, title, base_dir_hint) VALUES (?1, ?2, ?3)",
-                rusqlite::params![project_id.clone(), "Reopen Project", dir.path().to_string_lossy().to_string()],
+                "INSERT INTO projects (id, name, title, base_dir_hint) VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![
+                    project_id.clone(),
+                    "Reopen Project",
+                    "Reopen Project",
+                    dir.path().to_string_lossy().to_string()
+                ],
             )
             .expect("seed project");
 
         let (tx, rx) = mpsc::channel(32);
         let _handle = StorageWorker::spawn(rx, db);
-        let actor_state = ActorState { gateway_tx: tx.clone() };
+        let actor_state = ActorState {
+            gateway_tx: tx.clone(),
+        };
 
         persist_active_project_keys(
             &actor_state,
@@ -1679,11 +1858,19 @@ mod tests {
 
         let active_id: String = reopened
             .conn
-            .query_row("SELECT value FROM sys_config WHERE key = 'active_project_id'", [], |r| r.get(0))
+            .query_row(
+                "SELECT value FROM sys_config WHERE key = 'active_project_id'",
+                [],
+                |r| r.get(0),
+            )
             .expect("active_project_id");
         let active_path: String = reopened
             .conn
-            .query_row("SELECT value FROM sys_config WHERE key = 'active_project_path'", [], |r| r.get(0))
+            .query_row(
+                "SELECT value FROM sys_config WHERE key = 'active_project_path'",
+                [],
+                |r| r.get(0),
+            )
             .expect("active_project_path");
         let metadata_json: String = reopened
             .conn
@@ -1717,9 +1904,18 @@ mod tests {
         let recent = recent_project_from_value(&value).expect("recent project");
         let serialized = recent_project_to_value(&recent);
 
-        assert_eq!(serialized.get("path").and_then(|v| v.as_str()), Some("C:/workspace/roundtrip.pmp"));
-        assert_eq!(serialized.get("name").and_then(|v| v.as_str()), Some("Roundtrip Project"));
-        assert_eq!(serialized.get("description").and_then(|v| v.as_str()), Some("Roundtrip description"));
+        assert_eq!(
+            serialized.get("path").and_then(|v| v.as_str()),
+            Some("C:/workspace/roundtrip.pmp")
+        );
+        assert_eq!(
+            serialized.get("name").and_then(|v| v.as_str()),
+            Some("Roundtrip Project")
+        );
+        assert_eq!(
+            serialized.get("description").and_then(|v| v.as_str()),
+            Some("Roundtrip description")
+        );
     }
 
     #[test]
@@ -1805,22 +2001,41 @@ mod tests {
         assert_eq!(records.len(), 2);
         assert_eq!(records[0].geom_type, "Point");
         assert_eq!(records[0].geometry, [105.8342, 21.0278]);
-        assert_eq!(records[0].properties.get("name").map(String::as_str), Some("Camera A"));
-        assert_eq!(records[0].properties.get("description").map(String::as_str), Some("Nút giao chính"));
-        assert_eq!(records[1].properties.get("name").map(String::as_str), Some("2"));
-        assert_eq!(records[1].properties.get("display_order").map(String::as_str), Some("2"));
+        assert_eq!(
+            records[0].properties.get("name").map(String::as_str),
+            Some("Camera A")
+        );
+        assert_eq!(
+            records[0].properties.get("description").map(String::as_str),
+            Some("Nút giao chính")
+        );
+        assert_eq!(
+            records[1].properties.get("name").map(String::as_str),
+            Some("2")
+        );
+        assert_eq!(
+            records[1]
+                .properties
+                .get("display_order")
+                .map(String::as_str),
+            Some("2")
+        );
     }
 
     #[test]
     fn parse_feature_records_skips_invalid_rows_when_valid_rows_exist() {
-        let headers = vec![
-            "Tên".to_string(),
-            "Lat".to_string(),
-            "Lng".to_string(),
-        ];
+        let headers = vec!["Tên".to_string(), "Lat".to_string(), "Lng".to_string()];
         let rows = vec![
-            vec!["Điểm lỗi".to_string(), "abc".to_string(), "105.1".to_string()],
-            vec!["Điểm đúng".to_string(), "21.5".to_string(), "105.9".to_string()],
+            vec![
+                "Điểm lỗi".to_string(),
+                "abc".to_string(),
+                "105.1".to_string(),
+            ],
+            vec![
+                "Điểm đúng".to_string(),
+                "21.5".to_string(),
+                "105.9".to_string(),
+            ],
         ];
 
         let records = parse_feature_records(
@@ -1837,11 +2052,10 @@ mod tests {
         .expect("records");
 
         assert_eq!(records.len(), 1);
-        assert_eq!(records[0].properties.get("name").map(String::as_str), Some("Điểm đúng"));
+        assert_eq!(
+            records[0].properties.get("name").map(String::as_str),
+            Some("Điểm đúng")
+        );
         assert_eq!(records[0].geometry, [105.9, 21.5]);
     }
 }
-
-
-
-

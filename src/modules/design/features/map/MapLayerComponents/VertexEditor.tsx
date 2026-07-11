@@ -78,6 +78,10 @@ export const VertexEditor = () => {
     }, [editingFeatureId, state]);
 
     const coords: [number, number][] = useMemo(() => {
+        if (!feature) {
+            coordsRef.current = [];
+            return [];
+        }
         const parsed = getParsedCoordinates(feature);
         if (!parsed || !Array.isArray(parsed)) return [];
         const isPolygon = feature?.geom_type?.toLowerCase() === 'polygon';

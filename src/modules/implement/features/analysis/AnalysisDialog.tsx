@@ -4,22 +4,16 @@
  */
 
 import { useMemo, useState, useCallback } from 'react';
-import {
-  Trash2,
-  Eraser,
-  Filter,
-  Package,
-  ListFilter
-} from 'lucide-react';
+import { Trash2, Eraser, Filter, Package, ListFilter } from 'lucide-react';
 import { AnalysisTable } from '@DESIGN/components/ui/AnalysisTable';
 import { BOMSummaryPanel } from '@DESIGN/components/ui/BOMSummaryPanel';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
 import { ColumnDef } from '@tanstack/react-table';
 import { useDesignSync, DesignEventType } from '@IMPLEMENT/stores/useDesignSync';
 import { flattenFeature } from '@TOOL/utils/dataFlattening';
-import { removeVietnameseTones, matchesSearchQuery } from '@TOOL/utils/vietnameseSearch';
 import { EditableCell, DropdownCell, GEOM_TYPES_OPTIONS } from '@IMPLEMENT/features/analysis/AnalysisCells';
 import { cn } from '@TOOL/utils/cn';
+import { getLineCoordinates, getPointCoordinates, getPolygonCoordinates } from '@TOOL/utils/featureUtils';
 
 interface AnalysisDialogProps {
   onClose: () => void;
@@ -139,15 +133,25 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
       await dispatchEvent({ type: 'FeatureUpdated', payload: { id, metadata: JSON.stringify(meta) } });
     } else if (key === 'latitude' || key === 'longitude') {
       try {
-        const coords = typeof f.coordinates === 'string' ? JSON.parse(f.coordinates) : [...f.coordinates];
         const val = parseFloat(value);
         if (!isNaN(val)) {
-          if (f.geom_type.toUpperCase() === 'POINT') {
+          const point = getPointCoordinates(f);
+          const line = getLineCoordinates(f);
+          const polygon = getPolygonCoordinates(f)?.[0];
+
+          if (point) {
+            const coords = [...point] as [number, number];
             if (key === 'latitude') coords[1] = val; else coords[0] = val;
-          } else if (Array.isArray(coords[0])) {
+            await dispatchEvent({ type: 'FeatureUpdated', payload: { id, coordinates: coords } });
+          } else if (polygon?.[0]) {
+            const coords = polygon.map((coord) => [...coord] as [number, number]);
             if (key === 'latitude') coords[0][1] = val; else coords[0][0] = val;
+            await dispatchEvent({ type: 'FeatureUpdated', payload: { id, coordinates: [coords] } });
+          } else if (line?.[0]) {
+            const coords = line.map((coord) => [...coord] as [number, number]);
+            if (key === 'latitude') coords[0][1] = val; else coords[0][0] = val;
+            await dispatchEvent({ type: 'FeatureUpdated', payload: { id, coordinates: coords } });
           }
-          await dispatchEvent({ type: 'FeatureUpdated', payload: { id, coordinates: JSON.stringify(coords) } });
         }
       } catch (e) { console.error("Coord update error:", e); }
     } else {

@@ -5,9 +5,10 @@ import { useSnap } from '@IMPLEMENT/hooks/useSnap';
 interface LocationMarkerProps {
     onLocationChange: (lat: number, lng: number, snapId?: string | null) => void;
     onFinishDrawing?: () => void;
+    onFinishDrawingSession?: () => void;
 }
 
-export function LocationMarker({ onLocationChange, onFinishDrawing }: LocationMarkerProps) {
+export function LocationMarker({ onLocationChange, onFinishDrawing, onFinishDrawingSession }: LocationMarkerProps) {
     const drawingMode = useDesignSync(s => s.drawingMode);
     const { performSnap, snapNow, clearSnap, snappedPointRef } = useSnap();
 
@@ -33,6 +34,11 @@ export function LocationMarker({ onLocationChange, onFinishDrawing }: LocationMa
             if (drawingMode === 'polyline') {
                 onFinishDrawing?.();
             }
+        },
+        contextmenu(e) {
+            if (drawingMode === 'none') return;
+            e.originalEvent?.preventDefault();
+            onFinishDrawingSession?.();
         },
         mousemove(e) {
             performSnap(e.latlng.lat, e.latlng.lng);

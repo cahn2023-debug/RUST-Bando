@@ -6,7 +6,7 @@
 import React, { useMemo, useState } from 'react';
 import { Package, BarChart3, Users, Layers, Map } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { generateBOMSummary, BOMSummary, bomToExcelData } from '@IMPLEMENT/services/bomService';
+import { generateBOMSummary, bomToExcelData } from '@IMPLEMENT/services/bomService';
 import { cn } from '@TOOL/utils/cn';
 import * as XLSX from 'xlsx';
 import { save } from '@tauri-apps/plugin-dialog';

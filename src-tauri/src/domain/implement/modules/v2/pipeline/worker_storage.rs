@@ -68,7 +68,11 @@ impl StorageWorker {
                 };
                 let _ = reply.send(result);
             }
-            StorageCommand::Query { sql, params: p, reply } => {
+            StorageCommand::Query {
+                sql,
+                params: p,
+                reply,
+            } => {
                 let res = self.query(&sql, p);
                 let _ = reply.send(res);
             }
@@ -83,9 +87,11 @@ impl StorageWorker {
                 state,
                 reply,
             } => {
-                let res = catch_unwind(AssertUnwindSafe(|| self.replace_project_state(&project_id, &state)))
-                    .map_err(panic_to_string)
-                    .and_then(|result| result);
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.replace_project_state(&project_id, &state)
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
                 let _ = reply.send(res);
             }
             StorageCommand::SaveProject { reply } => {
@@ -126,8 +132,8 @@ impl StorageWorker {
                         return Err(format!("Backup not found: {}", backup_path.display()));
                     }
                     std::fs::copy(&backup_path, &restore_path).map_err(|e| e.to_string())?;
-                    let new_db =
-                        PmpDatabase::open_or_create(restore_path.clone()).map_err(|e| e.to_string())?;
+                    let new_db = PmpDatabase::open_or_create(restore_path.clone())
+                        .map_err(|e| e.to_string())?;
                     self.db = new_db;
                     self.db
                         .conn
@@ -175,9 +181,11 @@ impl StorageWorker {
                     let last_backup_at: Option<String> = self
                         .db
                         .conn
-                        .query_row("SELECT value FROM sys_config WHERE key='last_backup_at'", [], |r| {
-                            r.get(0)
-                        })
+                        .query_row(
+                            "SELECT value FROM sys_config WHERE key='last_backup_at'",
+                            [],
+                            |r| r.get(0),
+                        )
                         .ok();
                     let last_integrity_check_at: Option<String> = self
                         .db
@@ -191,9 +199,11 @@ impl StorageWorker {
                     let last_restore_test_at: Option<String> = self
                         .db
                         .conn
-                        .query_row("SELECT value FROM sys_config WHERE key='last_restore_test_at'", [], |r| {
-                            r.get(0)
-                        })
+                        .query_row(
+                            "SELECT value FROM sys_config WHERE key='last_restore_test_at'",
+                            [],
+                            |r| r.get(0),
+                        )
                         .ok();
                     Ok(json!({
                         "projectId": project_id,
@@ -236,7 +246,8 @@ impl StorageWorker {
                     | StorageCommand::VerifyIntegrity { .. }
                     | StorageCommand::GetProjectHealth { .. }
             ) {
-                self.execute(commands.into_iter().next().expect("single command")).await;
+                self.execute(commands.into_iter().next().expect("single command"))
+                    .await;
                 return;
             }
         }
@@ -318,10 +329,14 @@ impl StorageWorker {
         let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
         for cmd in commands {
             match cmd {
-                StorageCommand::CreateProject { id, title, base_hint } => {
+                StorageCommand::CreateProject {
+                    id,
+                    title,
+                    base_hint,
+                } => {
                     tx.execute(
-                        "INSERT INTO projects (id, title, base_dir_hint) VALUES (?1, ?2, ?3)",
-                        params![id, title, base_hint],
+                        "INSERT INTO projects (id, name, title, base_dir_hint) VALUES (?1, ?2, ?3, ?4)",
+                        params![id, title, title, base_hint],
                     )
                     .map_err(|e| e.to_string())?;
                 }
@@ -331,7 +346,8 @@ impl StorageWorker {
                     abs_path,
                     meta,
                 } => {
-                    let rel = compute_rel_path(&abs_path, &self.db.base_dir).map_err(|e| e.to_string())?;
+                    let rel = compute_rel_path(&abs_path, &self.db.base_dir)
+                        .map_err(|e| e.to_string())?;
                     let filename = abs_path
                         .file_name()
                         .and_then(|n| n.to_str())
@@ -440,7 +456,10 @@ fn persist_event(tx: &Transaction<'_>, envelope: &EventEnvelope) -> Result<(), S
     Ok(())
 }
 
-fn apply_event_to_read_models(tx: &Transaction<'_>, envelope: &EventEnvelope) -> Result<(), String> {
+fn apply_event_to_read_models(
+    tx: &Transaction<'_>,
+    envelope: &EventEnvelope,
+) -> Result<(), String> {
     let project_id = envelope.project_id.to_string();
     match &envelope.event {
         AppEvent::ProjectCreated {
@@ -451,8 +470,14 @@ fn apply_event_to_read_models(tx: &Transaction<'_>, envelope: &EventEnvelope) ->
             ..
         } => {
             tx.execute(
-                "INSERT OR REPLACE INTO projects (id, title, base_dir_hint, metadata_json) VALUES (?1, ?2, ?3, ?4)",
-                params![id.to_string(), name.to_string(), root_path.to_string(), metadata.to_string()],
+                "INSERT OR REPLACE INTO projects (id, name, title, base_dir_hint, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    id.to_string(),
+                    name.to_string(),
+                    name.to_string(),
+                    root_path.to_string(),
+                    metadata.to_string()
+                ],
             )
             .map_err(|e| e.to_string())?;
         }
@@ -563,8 +588,11 @@ fn apply_event_to_read_models(tx: &Transaction<'_>, envelope: &EventEnvelope) ->
             write_feature_group_snapshot(tx, &project_id, &current)?;
         }
         AppEvent::FeatureGroupDeleted { id } => {
-            tx.execute("DELETE FROM feature_groups WHERE id = ?1", params![id.to_string()])
-                .map_err(|e| e.to_string())?;
+            tx.execute(
+                "DELETE FROM feature_groups WHERE id = ?1",
+                params![id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
         }
         AppEvent::FeatureCreated {
             id,
@@ -617,8 +645,11 @@ fn apply_event_to_read_models(tx: &Transaction<'_>, envelope: &EventEnvelope) ->
             write_feature_snapshot(tx, &project_id, &current)?;
         }
         AppEvent::FeatureDeleted { id } => {
-            tx.execute("DELETE FROM features WHERE id = ?1", params![id.to_string()])
-                .map_err(|e| e.to_string())?;
+            tx.execute(
+                "DELETE FROM features WHERE id = ?1",
+                params![id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
         }
         AppEvent::SettingsUpdated { changes } => {
             let current_settings: Option<String> = tx
@@ -650,19 +681,32 @@ fn apply_event_to_read_models(tx: &Transaction<'_>, envelope: &EventEnvelope) ->
     Ok(())
 }
 
-fn replace_state_tables(tx: &Transaction<'_>, project_id: &str, state: &Value) -> Result<(), String> {
+fn replace_state_tables(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    state: &Value,
+) -> Result<(), String> {
     let state = normalize_state_value(state);
-    tx.execute("DELETE FROM features WHERE project_id = ?1", params![project_id])
-        .map_err(|e| e.to_string())?;
+    tx.execute(
+        "DELETE FROM features WHERE project_id = ?1",
+        params![project_id],
+    )
+    .map_err(|e| e.to_string())?;
     tx.execute(
         "DELETE FROM feature_groups WHERE project_id = ?1",
         params![project_id],
     )
     .map_err(|e| e.to_string())?;
-    tx.execute("DELETE FROM layers WHERE project_id = ?1", params![project_id])
-        .map_err(|e| e.to_string())?;
-    tx.execute("DELETE FROM regions WHERE project_id = ?1", params![project_id])
-        .map_err(|e| e.to_string())?;
+    tx.execute(
+        "DELETE FROM layers WHERE project_id = ?1",
+        params![project_id],
+    )
+    .map_err(|e| e.to_string())?;
+    tx.execute(
+        "DELETE FROM regions WHERE project_id = ?1",
+        params![project_id],
+    )
+    .map_err(|e| e.to_string())?;
     tx.execute(
         "DELETE FROM project_settings WHERE project_id = ?1",
         params![project_id],
@@ -703,7 +747,13 @@ fn normalize_state_value(state: &Value) -> Value {
     let mut normalized = empty_design_state();
     if let Some(state_obj) = state.as_object() {
         if let Some(target) = normalized.as_object_mut() {
-            for key in ["regions", "layers", "feature_groups", "features", "settings"] {
+            for key in [
+                "regions",
+                "layers",
+                "feature_groups",
+                "features",
+                "settings",
+            ] {
                 if let Some(value) = state_obj.get(key) {
                     target.insert(key.to_string(), value.clone());
                 }
@@ -716,7 +766,17 @@ fn normalize_state_value(state: &Value) -> Value {
 fn rebuild_project_snapshot(tx: &Transaction<'_>, project_id: &str) -> Result<(), String> {
     let snapshot = build_snapshot_from_tables(tx, project_id)?;
     tx.execute(
-        "UPDATE projects SET metadata_json = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+        "INSERT INTO project_snapshots (project_id, state_json, hydrated_at, updated_at)
+         VALUES (?1, ?2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'), strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+         ON CONFLICT(project_id) DO UPDATE SET
+            state_json = excluded.state_json,
+            hydrated_at = excluded.hydrated_at,
+            updated_at = excluded.updated_at",
+        params![project_id, snapshot.to_string()],
+    )
+    .map_err(|e| e.to_string())?;
+    tx.execute(
+        "UPDATE projects SET metadata_json = ?1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?2",
         params![snapshot.to_string(), project_id],
     )
     .map_err(|e| e.to_string())?;
@@ -945,7 +1005,11 @@ fn fetch_feature_snapshot(tx: &Transaction<'_>, id: &str) -> Result<Option<Value
     .map_err(|e| e.to_string())
 }
 
-fn write_region_snapshot(tx: &Transaction<'_>, project_id: &str, record: &Value) -> Result<(), String> {
+fn write_region_snapshot(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    record: &Value,
+) -> Result<(), String> {
     let id = record
         .get("id")
         .and_then(Value::as_str)
@@ -971,7 +1035,11 @@ fn write_region_snapshot(tx: &Transaction<'_>, project_id: &str, record: &Value)
     Ok(())
 }
 
-fn write_layer_snapshot(tx: &Transaction<'_>, project_id: &str, record: &Value) -> Result<(), String> {
+fn write_layer_snapshot(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    record: &Value,
+) -> Result<(), String> {
     let id = record
         .get("id")
         .and_then(Value::as_str)
@@ -1034,7 +1102,11 @@ fn write_feature_group_snapshot(
     Ok(())
 }
 
-fn write_feature_snapshot(tx: &Transaction<'_>, project_id: &str, record: &Value) -> Result<(), String> {
+fn write_feature_snapshot(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    record: &Value,
+) -> Result<(), String> {
     let id = record
         .get("id")
         .and_then(Value::as_str)
@@ -1137,9 +1209,18 @@ mod tests {
             .expect("select metadata_json");
         let parsed: Value = serde_json::from_str(&loaded).expect("json parse");
 
-        assert!(parsed.get("features").is_some(), "missing features after reopen");
-        assert!(parsed.get("layers").is_some(), "missing layers after reopen");
-        assert!(parsed.get("regions").is_some(), "missing regions after reopen");
+        assert!(
+            parsed.get("features").is_some(),
+            "missing features after reopen"
+        );
+        assert!(
+            parsed.get("layers").is_some(),
+            "missing layers after reopen"
+        );
+        assert!(
+            parsed.get("regions").is_some(),
+            "missing regions after reopen"
+        );
         assert_eq!(
             parsed
                 .get("features")
@@ -1162,8 +1243,13 @@ mod tests {
         let db = PmpDatabase::open_or_create(pmp_path).expect("open db");
         db.conn
             .execute(
-                "INSERT INTO projects (id, title, base_dir_hint) VALUES (?1, ?2, ?3)",
-                params![project_id.to_string(), "Event Project", dir.path().to_string_lossy().to_string()],
+                "INSERT INTO projects (id, name, title, base_dir_hint) VALUES (?1, ?2, ?3, ?4)",
+                params![
+                    project_id.to_string(),
+                    "Event Project",
+                    "Event Project",
+                    dir.path().to_string_lossy().to_string()
+                ],
             )
             .expect("seed project");
 
@@ -1222,13 +1308,17 @@ mod tests {
         ];
 
         let (reply_tx, reply_rx) = oneshot::channel();
-        tx.send(StorageCommand::DispatchEvents { events, reply: reply_tx })
-            .await
-            .expect("dispatch send");
+        tx.send(StorageCommand::DispatchEvents {
+            events,
+            reply: reply_tx,
+        })
+        .await
+        .expect("dispatch send");
         let persisted = reply_rx.await.expect("dispatch ack").expect("dispatch ok");
         assert_eq!(persisted, 3);
 
-        let reopened = PmpDatabase::open_or_create(dir.path().join("event_roundtrip.pmp")).expect("reopen db");
+        let reopened =
+            PmpDatabase::open_or_create(dir.path().join("event_roundtrip.pmp")).expect("reopen db");
         let feature_count: i64 = reopened
             .conn
             .query_row(

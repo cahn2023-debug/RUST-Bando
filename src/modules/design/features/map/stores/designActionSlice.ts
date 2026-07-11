@@ -275,7 +275,7 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
         features.forEach(f => {
             const calculatedSTT = featureNumbers[f.id];
             if (!calculatedSTT) return;
-            const rawMetaStr = f.metadata || "";
+            const rawMetaStr = typeof f.metadata === 'string' ? f.metadata : '';
             const meta = getParsedMetadata(f);
             const currentOrder = String(meta.display_order || '');
 

@@ -5,6 +5,19 @@ import { IconSelector } from '@DESIGN/components/ui/IconSelector';
 import type { IconType, VertexMetadata } from '@CONTRACT/types';
 import { FeatureState } from '@CONTRACT/types';
 import { normalizeMetadataObject, normalizeMetadataWithAI } from '@TOOL/utils/metadataNormalization';
+
+const parseCoordinateList = (coordinates: unknown): [number, number][] => {
+  if (Array.isArray(coordinates)) {
+    return Array.isArray(coordinates[0]) ? coordinates as [number, number][] : [coordinates as [number, number]];
+  }
+
+  if (typeof coordinates === 'string') {
+    const parsed = JSON.parse(coordinates);
+    return Array.isArray(parsed[0]) ? parsed as [number, number][] : [parsed as [number, number]];
+  }
+
+  return [];
+};
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
 
 interface FeatureEditorProps {
@@ -113,7 +126,7 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
       let targetCoords: [number, number] | null = null;
       let coords: [number, number][] = [];
       try {
-        coords = JSON.parse(feature.coordinates);
+        coords = parseCoordinateList(feature.coordinates);
       } catch (e) {
         console.error('[FeatureEditor] Failed to parse coordinates:', e);
         coords = [];
@@ -218,10 +231,7 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
 
   let coords: [number, number][] = [];
   try {
-    coords = JSON.parse(feature.coordinates);
-    if (!Array.isArray(coords[0])) {
-      coords = [coords as any]; // Single point array wrap to make logic simple
-    }
+    coords = parseCoordinateList(feature.coordinates);
   } catch (e) {
     console.error('[FeatureEditor] Failed to parse feature coordinates:', e);
     coords = [];

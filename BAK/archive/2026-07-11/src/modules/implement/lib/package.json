@@ -1,0 +1,17 @@
+{
+  "name": "design_renderer",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "design_renderer_bg.wasm",
+    "design_renderer.js",
+    "design_renderer_bg.js",
+    "design_renderer.d.ts"
+  ],
+  "main": "design_renderer.js",
+  "types": "design_renderer.d.ts",
+  "sideEffects": [
+    "./design_renderer.js",
+    "./snippets/*"
+  ]
+}

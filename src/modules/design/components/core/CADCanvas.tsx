@@ -17,7 +17,7 @@ export function CADCanvas() {
   }, [triggerZoomExtend]);
 
   useCanvasInteraction();
-  const { handleLocationChange, finalizePolyline } = useDrawingInteraction();
+  const { handleLocationChange, finalizePolyline, finishDrawingSession } = useDrawingInteraction();
 
   const handleLocateMe = () => {
     if (!navigator.geolocation) return;
@@ -36,6 +36,7 @@ export function CADCanvas() {
           zoom={13}
           onLocationChange={handleLocationChange}
           onFinishDrawing={finalizePolyline}
+          onFinishDrawingSession={finishDrawingSession}
         />
       </div>
 

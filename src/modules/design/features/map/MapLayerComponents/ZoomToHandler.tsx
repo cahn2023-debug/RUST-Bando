@@ -3,6 +3,7 @@ import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { isValidLatLng } from '@DESIGN/features/map/MapLayerComponents/ZoomExtendControl';
+import { getLineCoordinates, getPointCoordinates, getPolygonCoordinates } from '@TOOL/utils/featureUtils';
 
 export function ZoomToHandler() {
     const map = useMap();
@@ -20,26 +21,25 @@ export function ZoomToHandler() {
             const f = state.features[id];
             if (f) {
                 try {
-                    const coords = typeof f.coordinates === 'string' ? JSON.parse(f.coordinates) : f.coordinates;
-                    const geomType = f.geom_type || 'Point';
+                    const point = getPointCoordinates(f);
+                    const line = getLineCoordinates(f);
+                    const polygon = getPolygonCoordinates(f)?.[0];
 
-                    if (geomType === 'Point' && coords && coords.length >= 2) {
-                        if (isValidLatLng(coords[1], coords[0])) {
-                            console.log(`[Zoom] Zooming to feature ${id} at zoom level 20`);
-                            map.setView([coords[1], coords[0]], 20, { animate: true });
-                        }
-                    } else if (geomType === 'LineString' && coords && coords.length > 0) {
+                    if (point && isValidLatLng(point[1], point[0])) {
+                        console.log(`[Zoom] Zooming to feature ${id} at zoom level 20`);
+                        map.setView([point[1], point[0]], 20, { animate: true });
+                    } else if (line && line.length > 0) {
                         const bounds: L.LatLngExpression[] = [];
-                        coords.forEach((c: any) => {
+                        line.forEach((c) => {
                             if (isValidLatLng(c[1], c[0])) bounds.push([c[1], c[0]]);
                         });
                         if (bounds.length > 0) {
                             console.log(`[Zoom] Fitting bounds for feature ${id} at max zoom 20`);
                             map.fitBounds(L.latLngBounds(bounds), { padding: [50, 50], maxZoom: 20, animate: true });
                         }
-                    } else if (geomType === 'Polygon' && coords && coords[0] && coords[0].length > 0) {
+                    } else if (polygon && polygon.length > 0) {
                         const bounds: L.LatLngExpression[] = [];
-                        coords[0].forEach((c: any) => {
+                        polygon.forEach((c) => {
                             if (isValidLatLng(c[1], c[0])) bounds.push([c[1], c[0]]);
                         });
                         if (bounds.length > 0) {
@@ -57,15 +57,12 @@ export function ZoomToHandler() {
                 const group = f.group_id ? state.feature_groups[f.group_id] : null;
                 if (group && group.layer_id === id) {
                     try {
-                        const coords = typeof f.coordinates === 'string' ? JSON.parse(f.coordinates) : f.coordinates;
-                        const geomType = f.geom_type || 'Point';
-                        if (geomType === 'Point' && coords && isValidLatLng(coords[1], coords[0])) {
-                            allLatLngs.push([coords[1], coords[0]]);
-                        } else if (geomType === 'LineString' && coords) {
-                            coords.forEach((c: any) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
-                        } else if (geomType === 'Polygon' && coords && coords[0]) {
-                            coords[0].forEach((c: any) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
-                        }
+                        const point = getPointCoordinates(f);
+                        const line = getLineCoordinates(f);
+                        const polygon = getPolygonCoordinates(f)?.[0];
+                        if (point && isValidLatLng(point[1], point[0])) allLatLngs.push([point[1], point[0]]);
+                        line?.forEach((c) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
+                        polygon?.forEach((c) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
                     } catch (e) {
                         console.warn('[ZoomToHandler] Failed to parse coordinates for feature:', f.id, e);
                     }
@@ -83,14 +80,12 @@ export function ZoomToHandler() {
                     const layer = state.layers[group.layer_id];
                     if (layer && layer.region_id === id) {
                         try {
-                            const coords = typeof f.coordinates === 'string' ? JSON.parse(f.coordinates) : f.coordinates;
-                            if (f.geom_type === 'Point' || !f.geom_type) {
-                                if (coords && isValidLatLng(coords[1], coords[0])) allLatLngs.push([coords[1], coords[0]]);
-                            } else if (f.geom_type === 'Polygon' && coords && coords[0]) {
-                                coords[0].forEach((c: any) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
-                            } else if (coords) {
-                                coords.forEach((c: any) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
-                            }
+                            const point = getPointCoordinates(f);
+                            const line = getLineCoordinates(f);
+                            const polygon = getPolygonCoordinates(f)?.[0];
+                            if (point && isValidLatLng(point[1], point[0])) allLatLngs.push([point[1], point[0]]);
+                            polygon?.forEach((c) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
+                            line?.forEach((c) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
                         } catch (e) {
                             console.warn('[ZoomToHandler] Failed to parse coordinates for region:', id, e);
                         }
@@ -107,16 +102,14 @@ export function ZoomToHandler() {
             const allLatLngs: L.LatLngExpression[] = [];
             featuresInGroup.forEach(f => {
                 try {
-                    const coords = typeof f.coordinates === 'string' ? JSON.parse(f.coordinates) : f.coordinates;
-                    if (f.geom_type === 'Point' || !f.geom_type) {
-                        if (coords && isValidLatLng(coords[1], coords[0])) allLatLngs.push([coords[1], coords[0]]);
-                    } else if (f.geom_type === 'Polygon' && coords && coords[0]) {
-                        coords[0].forEach((c: any) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
-                    } else if (coords) {
-                        coords.forEach((c: any) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
-                    }
+                    const point = getPointCoordinates(f);
+                    const line = getLineCoordinates(f);
+                    const polygon = getPolygonCoordinates(f)?.[0];
+                    if (point && isValidLatLng(point[1], point[0])) allLatLngs.push([point[1], point[0]]);
+                    polygon?.forEach((c) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
+                    line?.forEach((c) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
                 } catch (e) {
-                    console.warn('[ZoomToHandler] Failed to parse coordinates for layer:', layerId, e);
+                    console.warn('[ZoomToHandler] Failed to parse coordinates for group:', id, e);
                 }
             });
 

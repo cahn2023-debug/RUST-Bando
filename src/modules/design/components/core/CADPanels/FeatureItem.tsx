@@ -160,7 +160,7 @@ export const FeatureItem = React.memo(({
                     - {feature.note}
                   </span>
                 )}
-                {showQr && (getParsedMetadata(feature).qr || getParsedMetadata(feature).ma_qr) && (
+                {showQr && Boolean(getParsedMetadata(feature).qr || getParsedMetadata(feature).ma_qr) && (
                   <span className="text-[7px] bg-emerald-500/20 px-1 rounded text-emerald-400 font-mono uppercase">
                     QR
                   </span>

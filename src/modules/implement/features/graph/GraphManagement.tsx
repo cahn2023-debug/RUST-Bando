@@ -1,21 +1,13 @@
 import { useEffect, useRef } from "react";
-import mermaid from "mermaid";
 import { Network, ZoomIn, RefreshCw, Share2 } from "lucide-react";
 
-mermaid.initialize({
-    startOnLoad: true,
-    theme: "dark",
-    securityLevel: "loose",
-    fontFamily: "Inter, var(--font-sans)",
-});
-
 interface GraphManagementProps {
-    projectId: number;
+    projectId: string | number;
 }
 
 export function GraphManagement({ projectId: _projectId }: GraphManagementProps) {
     // const { t } = useTranslation();
-    const graphContentRef = useRef<HTMLDivElement>(null);
+    const graphContentRef = useRef<HTMLPreElement>(null);
 
     const mermaidDefinition = `
 graph TD
@@ -35,10 +27,7 @@ graph TD
   `;
 
     useEffect(() => {
-        if (graphContentRef.current) {
-            graphContentRef.current.removeAttribute('data-processed');
-            mermaid.contentLoaded();
-        }
+        graphContentRef.current?.scrollTo({ top: 0, left: 0 });
     }, [mermaidDefinition]);
 
     return (
@@ -68,9 +57,12 @@ graph TD
             </div>
 
             <div className="flex-1 overflow-auto p-8 flex items-center justify-center bg-[#0d1117]">
-                <div ref={graphContentRef} className="mermaid w-full max-w-4xl text-center">
+                <pre
+                    ref={graphContentRef}
+                    className="w-full max-w-4xl text-left text-xs text-cad-text-primary bg-black/20 border border-white/10 rounded-xl p-6 overflow-auto"
+                >
                     {mermaidDefinition}
-                </div>
+                </pre>
             </div>
 
             <div className="h-8 border-t border-cad-border bg-cad-surface/50 px-4 flex items-center justify-between shrink-0">

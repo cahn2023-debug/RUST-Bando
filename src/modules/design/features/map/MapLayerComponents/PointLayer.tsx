@@ -7,8 +7,9 @@ import { getIconSvgString, getIntersectionSvgString } from '@DESIGN/components/i
 import {
     getFeatureDisplayInfo,
     isCameraIcon,
-    getParsedCoordinates,
+    getPointCoordinates,
     getFeatureMetadataValue,
+    safeString,
 } from '@TOOL/utils/featureUtils';
 import { getParsedMetadata, FeaturePopupContent } from '@DESIGN/features/map/MapLayerComponents/SharedMapComponents';
 import { handleFeatureSelection } from "@DESIGN/features/map";
@@ -82,13 +83,9 @@ export const SelectedFeaturePopupManager = ({
             if (selectedPopupLocation) {
                 newPos = [selectedPopupLocation[0], selectedPopupLocation[1]];
             } else {
-                const coords = getParsedCoordinates(feature);
-                if (coords && Array.isArray(coords)) {
-                    if (isPoint) {
-                        newPos = [coords[1] as any as number, coords[0] as any as number];
-                    } else if (Array.isArray(coords[0])) {
-                        newPos = [coords[0][1] as any as number, coords[0][0] as any as number];
-                    }
+                const coords = getPointCoordinates(feature);
+                if (coords) {
+                    newPos = [coords[1], coords[0]];
                 }
             }
         }
@@ -153,8 +150,9 @@ const createNativeIcon = (
 ) => {
     const { color, iconKey, isIntersection, isCamera } = getFeatureDisplayInfo(feature, group.type, group.name, metadata);
 
-    const size = metadata.size ? parseInt(metadata.size) : 32;
-    const rotation = parseFloat(getFeatureMetadataValue(feature, 'gis.rotation', 'rotation', metadata) || 0);
+    const size = metadata.size ? parseInt(String(metadata.size), 10) : 32;
+    const rotation = parseFloat(String(getFeatureMetadataValue(feature, 'gis.rotation', 'rotation', metadata) ?? 0));
+    const markerColor = safeString(metadata.color) || '#10b981';
 
     const baseVisualFilter = `filter: brightness(1.05) saturate(1.1) drop-shadow(0 2px 4px rgba(0,0,0,0.4));`;
     const highlightStyle = isSelected
@@ -168,7 +166,7 @@ const createNativeIcon = (
         const rawIconType = isCameraIcon(iconKey) ? iconKey : 'cctv';
         iconHtml = `<div style="width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center; ${baseVisualFilter} ${highlightStyle}">${getIconSvgString(rawIconType, color, size, indexInGroup, rotation)}</div>`;
     } else {
-        iconHtml = `<div style="width: ${size}px; height: ${size}px; background-color: ${color}; border: 2px solid white; border-radius: 50%; box-shadow: 0 4px 8px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: ${Math.max(9, size / 2.8)}px; overflow: hidden; text-shadow: 0 1px 2px rgba(0,0,0,0.6); ${baseVisualFilter} ${highlightStyle}">${indexInGroup}</div>`;
+        iconHtml = `<div style="width: ${size}px; height: ${size}px; background-color: ${markerColor}; border: 2px solid white; border-radius: 50%; box-shadow: 0 4px 8px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: ${Math.max(9, size / 2.8)}px; overflow: hidden; text-shadow: 0 1px 2px rgba(0,0,0,0.6); ${baseVisualFilter} ${highlightStyle}">${indexInGroup}</div>`;
     }
 
 
@@ -291,8 +289,8 @@ export const PointLayer = React.memo(({
         for (const f of features) {
             currentIds.add(f.id);
             const grp = feature_groups[f.group_id] || EMPTY_OBJ;
-            const coords = getParsedCoordinates(f);
-            if (!coords || !Array.isArray(coords) || coords.length < 2) continue;
+            const coords = getPointCoordinates(f);
+            if (!coords) continue;
 
             const metadata = getParsedMetadata(f, previewMetadata, groupThemePreview);
             const isSelected = f.id === selectedFeatureId;
@@ -307,7 +305,7 @@ export const PointLayer = React.memo(({
 
             if (!marker) {
                 const icon = createNativeIcon(f, grp, metadata, indexInGroup, isSelected, isClickThrough);
-                marker = L.marker([coords[1] as number, coords[0] as number], {
+                marker = L.marker([coords[1], coords[0]], {
                     icon,
                     interactive: !isClickThrough,
                     draggable: isSelectedForMove,
@@ -342,7 +340,7 @@ export const PointLayer = React.memo(({
                 const currentPane = (marker.options as any).pane;
 
                 if (!isMovingRef.current.has(f.id)) {
-                    marker.setLatLng([coords[1] as number, coords[0] as number]);
+                    marker.setLatLng([coords[1], coords[0]]);
                 }
 
                 const icon = createNativeIcon(f, grp, metadata, indexInGroup, isSelected, isClickThrough);
@@ -389,7 +387,17 @@ export const PointLayer = React.memo(({
                 markersMap.delete(id);
             }
         }
-    }, [features, showFeatureGroups, drawingMode, selectedFeatureId, featureNumberMap]);
+    }, [
+        features,
+        showFeatureGroups,
+        drawingMode,
+        selectedFeatureId,
+        featureNumberMap,
+        previewMetadata,
+        feature_groups,
+        groupThemePreview,
+        dispatchEventAction
+    ]);
 
     return null;
 });

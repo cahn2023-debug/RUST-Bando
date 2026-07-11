@@ -7,10 +7,12 @@ import {
 import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
 import {
     getFeatureDisplayInfo,
-    getParsedCoordinates,
-    calculateNearestRoadAngle
+        getPointCoordinates,
+        calculateNearestRoadAngle,
+        isCameraIcon
 } from '@TOOL/utils/featureUtils';
 import { calculateHFOV, SENSOR_SIZES } from '@TOOL/utils/cameraMath';
+import { useMetadataAutosave } from '@DESIGN/hooks/useMetadataAutosave';
 
 export const DeviceConfigPanel: React.FC = () => {
     const { onPin, onClose, isPinned, dragHandleProps } = usePaletteContext();
@@ -31,8 +33,8 @@ export const DeviceConfigPanel: React.FC = () => {
     const displayInfo = feature && group ? getFeatureDisplayInfo(feature, group.type, group.name) : null;
 
     const [localMeta, setLocalMeta] = useState<any>({});
-    const [isSaving, setIsSaving] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
+    const [isRotationDragging, setIsRotationDragging] = useState(false);
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
         gis: true,
         sim: true
@@ -41,7 +43,6 @@ export const DeviceConfigPanel: React.FC = () => {
     useEffect(() => {
         if (!feature) {
             setLocalMeta({});
-            setIsSaving(false);
             return;
         }
 
@@ -55,7 +56,6 @@ export const DeviceConfigPanel: React.FC = () => {
             setLocalMeta({});
         }
 
-        setIsSaving(false);
     }, [feature?.id, feature?.metadata]);
 
     // Sync with previewMetadata (from other palettes)
@@ -92,6 +92,102 @@ export const DeviceConfigPanel: React.FC = () => {
 
     // Multi-selection check moved below hooks to avoid violation.
 
+
+
+    const getMetaValue = (path: string, defaultValue: any) => {
+        const parts = path.split('.');
+        let current = localMeta;
+        for (const part of parts) {
+            if (current == null) return defaultValue;
+            current = current[part];
+        }
+        return current ?? defaultValue;
+    };
+
+    const updateNestedMeta = (path: string, value: any) => {
+        const newMeta = { ...localMeta };
+        const parts = path.split('.');
+        let current = newMeta;
+        for (let i = 0; i < parts.length - 1; i++) {
+            const part = parts[i];
+            const nextLevel = current[part];
+            current[part] = nextLevel && typeof nextLevel === 'object'
+                ? { ...nextLevel }
+                : {};
+            current = current[part];
+        }
+        current[parts[parts.length - 1]] = value;
+        setLocalMeta(newMeta);
+        if (selectedFeatureId) {
+            setPreview(selectedFeatureId, newMeta);
+        }
+        return newMeta;
+    };
+
+    const handleAutoOrient = async () => {
+        const coords = getPointCoordinates(feature);
+        if (!coords) return;
+
+        const [lng, lat] = coords as [number, number];
+        const angle = calculateNearestRoadAngle([lng, lat], Object.values(state?.features || {}));
+        if (angle !== null) {
+            const nextMeta = updateNestedMeta('gis.rotation', Math.round(angle));
+            await flushNow({ meta: nextMeta });
+        }
+    };
+
+    const handleRotationCommit = () => {
+        setIsRotationDragging(false);
+        setTimeout(() => {
+            void flushNow();
+        }, 0);
+    };
+
+    const toggleSection = (section: string) => {
+        setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
+    };
+
+    let persistedMeta: any = {};
+    let persistedMetaJson = '{}';
+    if (feature) {
+        try {
+            const parsed = typeof feature.metadata === 'string'
+                ? JSON.parse(feature.metadata || '{}')
+                : (feature.metadata || {});
+            persistedMeta = parsed;
+            persistedMetaJson = JSON.stringify(parsed);
+        } catch (e) {
+            console.warn('[DeviceConfigPanel] Failed to parse persisted metadata:', e);
+            persistedMeta = {};
+            persistedMetaJson = '{}';
+        }
+    }
+    const { isSaving, flushNow } = useMetadataAutosave({
+        featureId: selectedFeatureId,
+        localMeta,
+        persistedMeta,
+        queueEvent,
+        setPreview,
+        debounceMs: 300,
+        enabled: isCameraIcon(typeof localMeta?.icon === 'string' ? localMeta.icon : ''),
+        suspend: isRotationDragging,
+        onPersisted: () => {
+            setShowSuccess(true);
+            setTimeout(() => setShowSuccess(false), 1500);
+        },
+        onError: (error) => {
+            console.error('[DeviceConfigPanel] Auto-save failed:', error);
+        }
+    });
+    const isDirty = !!feature && JSON.stringify(localMeta || {}) !== persistedMetaJson;
+    const rotation = getMetaValue('gis.rotation', 0);
+    const showFov = getMetaValue('gis.show_fov', true);
+
+    const handleSave = async () => {
+        if (!selectedFeatureId || !isDirty || isSaving) return;
+        await flushNow({ force: true });
+    };
+
     if (!feature || !displayInfo) {
         return (
             <div className="flex flex-col items-center justify-center h-full text-cad-text-secondary bg-cad-bg-secondary p-4 text-center">
@@ -110,79 +206,6 @@ export const DeviceConfigPanel: React.FC = () => {
             </div>
         );
     }
-
-    const getMetaValue = (path: string, defaultValue: any) => {
-        const parts = path.split('.');
-        let current = localMeta;
-        for (const part of parts) {
-            if (current == null) return defaultValue;
-            current = current[part];
-        }
-        return current ?? defaultValue;
-    };
-
-    const updateNestedMeta = (path: string, value: any) => {
-        const newMeta = { ...localMeta };
-        const parts = path.split('.');
-        let current = newMeta;
-        for (let i = 0; i < parts.length - 1; i++) {
-            if (!current[parts[i]]) current[parts[i]] = {};
-            current = current[parts[i]];
-        }
-        current[parts[parts.length - 1]] = value;
-        setLocalMeta(newMeta);
-        // Step 112: Instant preview removed here, handled by debounced useEffect
-    };
-
-    const handleSave = async () => {
-        if (!queueEvent || !selectedFeatureId || !isDirty || isSaving) return;
-        setIsSaving(true);
-        try {
-            await queueEvent({
-                type: 'update_metadata',
-                payload: {
-                    featureId: selectedFeatureId,
-                    metadata: localMeta
-                }
-            });
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 1500);
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const handleAutoOrient = async () => {
-        const coords = getParsedCoordinates(feature);
-        if (!coords || !Array.isArray(coords)) return;
-
-        const [lng, lat] = coords as [number, number];
-        const angle = calculateNearestRoadAngle([lng, lat], Object.values(state?.features || {}));
-        if (angle !== null) {
-            updateNestedMeta('gis.rotation', Math.round(angle));
-        }
-    };
-
-    const toggleSection = (section: string) => {
-        setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
-    };
-
-    let persistedMetaJson = '{}';
-    if (feature) {
-        try {
-            const parsed = typeof feature.metadata === 'string'
-                ? JSON.parse(feature.metadata || '{}')
-                : (feature.metadata || {});
-            persistedMetaJson = JSON.stringify(parsed);
-        } catch (e) {
-            console.warn('[DeviceConfigPanel] Failed to parse persisted metadata:', e);
-            persistedMetaJson = '{}';
-        }
-    }
-    const isDirty = !!feature && JSON.stringify(localMeta || {}) !== persistedMetaJson;
-    const rotation = getMetaValue('gis.rotation', 0);
-    const showFov = getMetaValue('gis.show_fov', true);
-
     if (selectionSet.size > 1) {
         return (
             <div className="flex flex-col items-center justify-center h-full text-cad-text-secondary bg-cad-bg-secondary p-4 text-center opacity-50">
@@ -289,6 +312,11 @@ export const DeviceConfigPanel: React.FC = () => {
                                         type="range" min="0" max="359" step="1"
                                         value={rotation}
                                         onChange={(e) => updateNestedMeta('gis.rotation', parseInt(e.target.value))}
+                                        onPointerDown={() => setIsRotationDragging(true)}
+                                        onPointerUp={handleRotationCommit}
+                                        onPointerCancel={handleRotationCommit}
+                                        onMouseUp={handleRotationCommit}
+                                        onTouchEnd={handleRotationCommit}
                                         className="flex-1 h-1 bg-[#333] rounded-lg appearance-none cursor-pointer accent-cad-orange"
                                     />
                                     <button

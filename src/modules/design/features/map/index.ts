@@ -50,6 +50,3 @@ export {
     flyToLocation,
     googleMapsEasing
 } from './SmoothZoomController';
-
-// Debug utilities (development only)
-export { testPointSelection, testMarkerConfiguration, testDrawingExplorerExpand, testFullSelectionFlow } from './PointSelectionDebug';

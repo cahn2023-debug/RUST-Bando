@@ -4,9 +4,11 @@ use serde_json::Value;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PmpV2Project {
     pub id: String,
-    pub title: String,
+    pub name: String,
     pub description: Option<String>,
+    pub pmp_path: Option<String>,
     pub base_dir_hint: Option<String>,
+    pub metadata: Option<VersionedMetadata>,
     pub metadata_json: Value,
     pub created_at: String,
     pub updated_at: String,
@@ -37,9 +39,8 @@ pub struct PmpV2Tag {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PmpV2Metadata {
-    pub meta_version: i32,
-    pub system: Value,
-    pub analysis: Value,
+pub struct VersionedMetadata {
+    pub schema_version: i32,
+    pub core: Value,
     pub custom: Value,
 }

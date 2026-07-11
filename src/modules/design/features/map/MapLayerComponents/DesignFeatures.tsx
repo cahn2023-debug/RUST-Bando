@@ -169,7 +169,7 @@ export const DesignFeatures = () => {
 
             if (depth > 0 && currentZoom < parentExpansionZoom) return false;
 
-            const { isIntersection, iconKey } = getFeatureDisplayInfo({ ...f, metadata }, group?.type, group?.name);
+            const { isIntersection, iconKey } = getFeatureDisplayInfo(f, group?.type, group?.name, metadata);
             const isJunctionIcon = isIntersection && iconKey === 'intersection';
             const isSelected = f.id === selectedFeatureId;
             const hasContent = metadata.has_data || isParent;

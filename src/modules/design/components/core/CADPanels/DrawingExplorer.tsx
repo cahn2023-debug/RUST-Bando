@@ -92,7 +92,7 @@ export function DrawingExplorer() {
   const [reverseOrder, setReverseOrder] = useState(false);
   const [sortField, setSortField] = useState<'name' | 'stt'>('name');
 
-  const { flattenedItems, filteredRegions, featureNumbers } = useFlattenedTree({
+  const { flattenedItems, filteredRegions, featureNumbers, featureChildrenMap } = useFlattenedTree({
     regionsMap, layersMap, groupsMap, featuresMap, expanded,
     treeSearchQuery, filterType, reverseOrder, sortField
   });
@@ -158,7 +158,8 @@ export function DrawingExplorer() {
   const handleImportToGroup = async (groupId: string) => {
     const file = await open({ multiple: false, filters: [{ name: 'Data', extensions: ['xlsx', 'xls', 'xlsm', 'xlsb', 'kml', 'kmz'] }] });
     if (!file) return;
-    const filePath = typeof file === 'string' ? file : file.path;
+    const filePath = typeof file === 'string' ? file : ((file as { path?: string }).path ?? '');
+    if (!filePath) return;
     const fileName = filePath.split(/[\\/]/).pop() || filePath;
     const ext = fileName.split('.').pop()?.toLowerCase();
     if (['xlsx', 'xls', 'xlsm', 'xlsb'].includes(ext!)) {
@@ -294,14 +295,18 @@ export function DrawingExplorer() {
                 <FeatureItem
                   feature={item.data as FeatureState} level={item.level} levelOffset={item.levelOffset}
                   selected={selectedFeatureId === item.id}
-                  onSelect={() => { selectFeature(item.id); setSelectedGroup((item.data as FeatureState).group_id!); }}
+                  onSelect={() => {
+                    selectFeature(item.id);
+                    const gId = (item.data as FeatureState).group_id;
+                    if (gId) setSelectedGroup(gId);
+                  }}
                   onZoomTo={() => zoomTo(item.id, 'feature')}
                   onMouseDown={(e) => handleVirtualDragStart(e, 'feature', item.id)}
                   onDelete={() => setDeleteModal({ isOpen: true, type: 'feature', id: item.id, name: item.data.name })}
                   index={featureNumbers[item.id] ?? (index + 1)}
-                  expanded={!!expanded[item.id]}
-                  hasChildren={false}
-                  onToggleExpand={() => { }}
+                  expanded={!!expanded[`feature-${item.id}`]}
+                  hasChildren={!!featureChildrenMap[item.id]?.length}
+                  onToggleExpand={() => setExpanded(p => ({ ...p, [`feature-${item.id}`]: !p[`feature-${item.id}`] }))}
                   onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'feature', id: item.id, data: item.data }); }}
                 />
               )}

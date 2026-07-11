@@ -38,9 +38,10 @@ interface MapLayerProps {
     zoom: number;
     onLocationChange?: (lat: number, lng: number, x: number, snapId?: string | null) => void;
     onFinishDrawing?: () => void;
+    onFinishDrawingSession?: () => void;
 }
 
-export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing }: MapLayerProps) {
+export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing, onFinishDrawingSession }: MapLayerProps) {
     const {
         isGrayscale,
         setIsGrayscale,
@@ -123,6 +124,7 @@ export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing }: Ma
             <LocationMarker
                 onLocationChange={(lat, lng, snapId) => onLocationChange?.(lat, lng, 0, snapId as any)}
                 onFinishDrawing={onFinishDrawing}
+                onFinishDrawingSession={onFinishDrawingSession}
             />
 
             <ZoomToHandler />

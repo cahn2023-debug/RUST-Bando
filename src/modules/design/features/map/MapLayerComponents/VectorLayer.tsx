@@ -4,7 +4,9 @@ import L from 'leaflet';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import {
     getFeatureDisplayInfo,
-    getParsedCoordinates
+    getParsedCoordinates,
+    getRepresentativePoint,
+    safeString
 } from '@TOOL/utils/featureUtils';
 import { getParsedMetadata } from '@DESIGN/features/map/MapLayerComponents/SharedMapComponents';
 import { handleFeatureSelection, stopFeatureEventPropagation } from '@DESIGN/features/map';
@@ -87,7 +89,7 @@ export const VectorLayer = React.memo(({
 
                     if (children.length > 0) {
                         coords = children
-                            .map((child: any) => getParsedCoordinates(child))
+                            .map((child: any) => getRepresentativePoint(child))
                             .filter((c: any) => Array.isArray(c) && c.length >= 2) as any;
                         console.log(`[VectorLayer] Aggregated ${coords?.length || 0} points for parent ${f.name || f.id}`);
                     }
@@ -104,11 +106,9 @@ export const VectorLayer = React.memo(({
                     if (coords && Array.isArray(coords)) {
                         if (Array.isArray(coords[0])) {
                             // Standard Multi-point [[lng, lat], ...]
-                            latLngs = coords.map((c: any) => {
-                                if (Array.isArray(c)) return [c[1], c[0]];
-                                if (typeof c === 'object' && c !== null) return [c.lat || c.y, c.lng || c.x];
-                                return null;
-                            }).filter((c: any) => c !== null) as [number, number][];
+                            latLngs = coords
+                                .map((c: any) => Array.isArray(c) && c.length >= 2 ? [Number(c[1]), Number(c[0])] as [number, number] : null)
+                                .filter((c: [number, number] | null): c is [number, number] => c !== null);
                         } else if (coords.length >= 2) {
                             // V4 Fix: Handle Flat Array [x1, y1, x2, y2, ...]
                             if (coords.length > 2 && coords.every(c => typeof c === 'number')) {
@@ -120,7 +120,7 @@ export const VectorLayer = React.memo(({
                                 console.warn(`[VectorLayer] Detected FLAT coordinate array for ${f.name}. Normalized into ${latLngs.length} points.`);
                             } else {
                                 // Single segment polyline from direct coords [lng, lat]
-                                latLngs = [[coords[1], coords[0]]];
+                                latLngs = [[Number(coords[1]), Number(coords[0])]];
                             }
                         }
                     }
@@ -131,6 +131,7 @@ export const VectorLayer = React.memo(({
                     }
 
                     const baseWeight = Number(metadata.weight || metadata.size || metadata.stroke || 0);
+                    const lineColor = safeString(metadata.color) || '#10b981';
                     const weight = isSelected
                         ? (baseWeight ? baseWeight + 4 : 8)
                         : (baseWeight ? baseWeight : 5); // Increased default from 2 to 5
@@ -157,9 +158,9 @@ export const VectorLayer = React.memo(({
                                 center={latLngs[0]}
                                 radius={Math.max(4, weight)}
                                 pathOptions={{
-                                    fillColor: isSelected ? '#00f2ff' : (metadata.color || '#10b981'),
+                                    fillColor: isSelected ? '#00f2ff' : lineColor,
                                     fillOpacity: 0.8,
-                                    color: (f.id === selectedFeatureId) ? '#ffffff' : (metadata.color || '#10b981'),
+                                    color: (f.id === selectedFeatureId) ? '#ffffff' : lineColor,
                                     weight: (f.id === selectedFeatureId) ? 3 : 1,
                                     className: isClickThrough ? 'pointer-events-none' : 'cursor-pointer'
                                 }}
@@ -235,7 +236,9 @@ export const VectorLayer = React.memo(({
                     );
                 }
                 else if (geomType === 'polygon') {
-                    const latLngs = (Array.isArray(coords[0]) ? coords : [coords]).map((r: any) => r.map((c: any) => [c[1], c[0]]));
+                    const latLngs = (Array.isArray(coords[0]) ? coords : [coords]).map((r: any) =>
+                        (r as any[]).map((c: any) => [Number(c[1]), Number(c[0])] as [number, number])
+                    );
                     return (
                         <Polygon
                             key={f.id}

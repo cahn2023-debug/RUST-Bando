@@ -1,6 +1,37 @@
 import { useCallback, useEffect } from "react";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 
+type OneClickDrawingMode = 'point' | 'image' | 'intersection';
+
+const ONE_CLICK_DRAWING_MODES = new Set<string>(['point', 'image', 'intersection']);
+
+const getOneClickDefaults = (mode: OneClickDrawingMode) => {
+    switch (mode) {
+        case 'image':
+            return {
+                name: "Ảnh Hiện Trường Mới",
+                icon: 'cctv',
+                type: 'cctv',
+                color: '#3B82F6'
+            };
+        case 'intersection':
+            return {
+                name: "Nút Giao Mới",
+                icon: 'intersection',
+                type: 'intersection',
+                color: '#6366F1'
+            };
+        case 'point':
+        default:
+            return {
+                name: "Điểm Khảo Sát Mới",
+                icon: 'default',
+                type: 'point',
+                color: '#3B82F6'
+            };
+    }
+};
+
 export function useDrawingInteraction() {
     const {
         state,
@@ -53,27 +84,32 @@ export function useDrawingInteraction() {
                 }),
                 properties: JSON.stringify({})
             }
-        });
+        } as any);
 
         setDrawingMode('none');
     }, [currentDrawingPoints, selectedGroupId, state, activeParentFeatureId, currentDrawingSnapIds, dispatchEvent, setDrawingMode]);
 
+    const finishDrawingSession = useCallback(() => {
+        setDrawingMode('none');
+    }, [setDrawingMode]);
+
     const handleLocationChange = useCallback(async (lat: number, lng: number, _unused: number, snapId?: string | null) => {
         if (drawingMode === 'none') return;
 
-        if (drawingMode === 'point' || drawingMode === 'image') {
+        if (ONE_CLICK_DRAWING_MODES.has(drawingMode)) {
             if (!selectedGroupId) {
                 alert("Vui lòng chọn một nhóm trước khi thêm đối tượng.");
                 setDrawingMode('none');
                 return;
             }
 
-            const id = crypto.randomUUID();
-            const name = drawingMode === 'point' ? "Điểm Khảo Sát Mới" : "Ảnh Hiện Trường Mới";
+            const mode = drawingMode as OneClickDrawingMode;
+            const defaults = getOneClickDefaults(mode);
 
             const metadata: any = {
-                icon: drawingMode === 'image' ? 'camera' : 'default',
-                color: '#3B82F6',
+                icon: defaults.icon,
+                type: defaults.type,
+                color: defaults.color,
                 // V2 Fix: Use snap_to_id (read by topology.rs) instead of snapped_object_id (dead data)
                 snap_to_id: snapId || undefined,
             };
@@ -88,18 +124,16 @@ export function useDrawingInteraction() {
             await dispatchEvent({
                 type: 'FeatureCreated',
                 payload: {
-                    id,
+                    id: crypto.randomUUID(),
                     layer_id: group.layer_id,
                     group_id: selectedGroupId,
-                    name,
+                    name: defaults.name,
                     geom_type: 'Point',
                     coordinates: JSON.stringify([lng, lat]),
                     metadata: JSON.stringify(metadata),
                     properties: JSON.stringify({})
                 }
-            });
-
-            setDrawingMode('none');
+            } as any);
         } else if (drawingMode === 'polyline') {
             addDrawingPoint(lat, lng, snapId);
         }
@@ -117,6 +151,7 @@ export function useDrawingInteraction() {
 
     return {
         handleLocationChange,
-        finalizePolyline
+        finalizePolyline,
+        finishDrawingSession
     };
 }

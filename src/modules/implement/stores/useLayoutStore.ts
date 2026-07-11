@@ -51,7 +51,7 @@ export const useLayoutStore = create<LayoutState>()(
                 'bulk-edit': { id: 'bulk-edit', title: 'Chỉnh sửa hàng loạt', icon: 'Layers', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
             },
             draggingPaletteId: null,
-            showPerformanceOverlay: true,
+            showPerformanceOverlay: false,
             setShowPerformanceOverlay: (show: boolean) => set({ showPerformanceOverlay: show }),
 
             togglePalette: (id: string) =>

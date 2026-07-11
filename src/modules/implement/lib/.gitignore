@@ -1,0 +1,6 @@
+*
+!.gitignore
+!firebase.ts
+!firestoreSync.ts
+!i18n.ts
+!tauri.ts

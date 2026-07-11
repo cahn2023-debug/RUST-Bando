@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { isMatchSearch, getParsedCoordinates, calculateFeatureNumbers } from '@TOOL/utils/featureUtils';
+import { isMatchSearch, getRepresentativePoint, calculateFeatureNumbers } from '@TOOL/utils/featureUtils';
+import type { FeatureState } from '@CONTRACT/types';
 
 export interface SearchResult {
   id: string;
@@ -34,23 +35,11 @@ export const useMapSearch = () => {
     const featureNumbers = calculateFeatureNumbers(featuresList, features);
 
     // 1. Local Search
-    featuresList.forEach((f: any) => {
+    featuresList.forEach((f: FeatureState) => {
       if (isMatchSearch(f, q, featureNumbers)) {
-        const coords = getParsedCoordinates(f);
-        if (coords && Array.isArray(coords)) {
-          // Convert [lng, lat] to [lat, lng] if it's a point
-          const latLng: [number, number] = f.geom_type === 'Polygon' || f.geom_type === 'LineString'
-            ? [0, 0] // We handle bounds for non-points later if needed, or just take first point
-            : [coords[1], coords[0]];
-
-          // If polygon/line, get representative point or just skip for now as primarily we search for points
-          if (f.geom_type === 'Polygon' && Array.isArray(coords[0])) {
-            latLng[0] = coords[0][0][1];
-            latLng[1] = coords[0][0][0];
-          } else if (f.geom_type === 'LineString' && Array.isArray(coords[0])) {
-            latLng[0] = coords[0][1];
-            latLng[1] = coords[0][0];
-          }
+        const coords = getRepresentativePoint(f);
+        if (coords) {
+          const latLng: [number, number] = [coords[1], coords[0]];
 
           localResults.push({
             id: f.id,

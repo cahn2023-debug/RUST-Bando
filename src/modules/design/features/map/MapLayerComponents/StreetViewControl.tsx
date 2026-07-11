@@ -39,6 +39,8 @@ type StreetViewPovPayload = {
   fov?: number;
 };
 
+type WebviewWindowHandle = InstanceType<(typeof import('@tauri-apps/api/webviewWindow'))['WebviewWindow']>;
+
 function normalizeHeading(value: number) {
   return ((value % 360) + 360) % 360;
 }
@@ -68,19 +70,6 @@ function hasMeaningfulMovement(
     Math.abs(previous[0] - nextLat) > POSITION_EPSILON ||
     Math.abs(previous[1] - nextLng) > POSITION_EPSILON
   );
-}
-
-function describeStreetViewError(status: string) {
-  switch (status) {
-    case 'ZERO_RESULTS':
-      return 'Khong tim thay Street View gan vi tri nay.';
-    case 'REQUEST_DENIED':
-      return 'Street View dang bi tu choi truy cap. Kiem tra API key va billing.';
-    case 'OVER_QUERY_LIMIT':
-      return 'Street View tam thoi vuot gioi han truy van.';
-    default:
-      return 'Khong mo duoc Street View cho vi tri nay.';
-  }
 }
 
 function formatCoords(location: [number, number] | null) {
@@ -461,17 +450,17 @@ export function StreetViewControl() {
 
         if (feature && shouldSeedFromFeature) {
           const meta = getParsedMetadata(feature);
-          const rotation = parseFloat(meta?.gis?.rotation ?? meta.rotation ?? 0);
+          const gis = typeof meta.gis === 'object' && meta.gis ? meta.gis as Record<string, unknown> : {};
+          const specsMeta = typeof meta.specs === 'object' && meta.specs ? meta.specs as Record<string, unknown> : {};
+          const rotation = parseFloat(String(gis.rotation ?? meta.rotation ?? 0));
           nextHeading = mapRotationToHeading(rotation);
-          panoId = meta?.gis?.pano_id ?? meta.pano_id ?? panoId;
+          panoId = String(gis.pano_id ?? meta.pano_id ?? panoId);
 
           const specs = getEffectiveCameraSpecs(feature, state?.settings, meta);
           const sensor =
             SENSOR_SIZES[specs.sensorSize as keyof typeof SENSOR_SIZES] || SENSOR_SIZES['1/3"'];
           nextFov = parseFloat(
-            meta?.specs?.hfov ??
-              meta.hfov ??
-              calculateHFOV(sensor.width, specs.focalLength).toString()
+            String(specsMeta.hfov ?? meta.hfov ?? calculateHFOV(sensor.width, specs.focalLength))
           );
         }
 
@@ -622,7 +611,7 @@ export function StreetViewControl() {
       return;
     }
 
-    let webviewRef: Awaited<ReturnType<typeof import('@tauri-apps/api/webviewWindow')>>['WebviewWindow'] | null = null;
+    let webviewRef: WebviewWindowHandle | null = null;
     let isWindowAlive = true;
 
     const syncTask = async () => {

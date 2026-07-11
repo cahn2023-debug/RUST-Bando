@@ -1,5 +1,5 @@
 import { getParsedMetadata, safeString, getFeatureNote } from "./featureMetadata";
-import { FeatureCoordinates, FeatureState } from "../../contract/types";
+import { FeatureCoordinates, FeatureState, PointCoordinates, LineStringCoordinates, PolygonCoordinates } from "../../contract/types";
 
 // Cache for parsed coordinates to avoid repeated JSON.parse in render cycles
 const _coordsCache = new WeakMap<object, FeatureCoordinates>();
@@ -44,8 +44,10 @@ export const getParsedCoordinates = (feature: FeatureState | { coordinates: unkn
 
             if (_coordsStringCache.has(trimmed)) {
                 const cached = _coordsStringCache.get(trimmed);
-                _coordsCache.set(feature as object, cached);
-                return cached;
+                if (cached !== undefined) {
+                    _coordsCache.set(feature as object, cached);
+                    return cached;
+                }
             }
 
             try {
@@ -88,6 +90,58 @@ export const getParsedCoordinates = (feature: FeatureState | { coordinates: unkn
     };
 
     return parseAndCache(coords);
+};
+
+const isNumber = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isFinite(value);
+
+const isPointTuple = (value: unknown): value is PointCoordinates =>
+    Array.isArray(value) && value.length >= 2 && isNumber(value[0]) && isNumber(value[1]);
+
+const toPointTuple = (value: unknown): PointCoordinates | null => {
+    if (isPointTuple(value)) return [value[0], value[1]];
+    if (value && typeof value === 'object') {
+        const point = value as Record<string, unknown>;
+        if (isNumber(point.lng) && isNumber(point.lat)) return [point.lng, point.lat];
+        if (isNumber(point.x) && isNumber(point.y)) return [point.x, point.y];
+    }
+    return null;
+};
+
+export const getPointCoordinates = (feature: FeatureState | { coordinates: unknown } | null | undefined): PointCoordinates | null => {
+    if (!feature) return null;
+    const coords = getParsedCoordinates(feature);
+    return toPointTuple(coords);
+};
+
+export const getLineCoordinates = (feature: FeatureState | { coordinates: unknown } | null | undefined): LineStringCoordinates | null => {
+    if (!feature) return null;
+    const coords = getParsedCoordinates(feature);
+    if (!Array.isArray(coords)) return null;
+    if (coords.every((item) => isPointTuple(item))) {
+        return coords as LineStringCoordinates;
+    }
+    return null;
+};
+
+export const getPolygonCoordinates = (feature: FeatureState | { coordinates: unknown } | null | undefined): PolygonCoordinates | null => {
+    if (!feature) return null;
+    const coords = getParsedCoordinates(feature);
+    if (!Array.isArray(coords)) return null;
+    if (coords.every((ring) => Array.isArray(ring) && ring.every((point) => isPointTuple(point)))) {
+        return coords as PolygonCoordinates;
+    }
+    return null;
+};
+
+export const getRepresentativePoint = (feature: FeatureState | { coordinates: unknown } | null | undefined): PointCoordinates | null => {
+    if (!feature) return null;
+    return (
+        getPointCoordinates(feature) ||
+        getLineCoordinates(feature)?.[0] ||
+        getPolygonCoordinates(feature)?.[0]?.[0] ||
+        null
+    );
 };
 
 /**
@@ -243,7 +297,7 @@ export const calculateFeatureNumbers = (features: FeatureState[], featuresMap: F
  * Checks if a feature matches the search query
  */
 export const isMatchSearch = (
-    feature: FeatureState | { name: unknown; id: string; metadata: unknown },
+    feature: { name: unknown; id: string; metadata?: unknown },
     query: string,
     featureNumbers?: Record<string, string>
 ): boolean => {

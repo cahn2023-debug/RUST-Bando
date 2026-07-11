@@ -34,7 +34,6 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "design_renderer": path.resolve(__dirname, "src/modules/implement/lib"),
       "@HOME": path.resolve(__dirname, "src/modules/home"),
       "@DESIGN": path.resolve(__dirname, "src/modules/design"),
       "@CONTRACT": path.resolve(__dirname, "src/modules/contract"),

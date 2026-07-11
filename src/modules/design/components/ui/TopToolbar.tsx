@@ -1,4 +1,4 @@
-import { Save, RotateCcw, RotateCw, Search, Globe, Sun, Moon, User } from "lucide-react";
+import { Save, RotateCcw, RotateCw, Search, Globe, Sun, User } from "lucide-react";
 import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 
@@ -77,7 +77,7 @@ export function TopToolbar({ onSave, onUndo, onRedo }: TopToolbarProps) {
               {user?.email?.split('@')[0] || "Anonymous"}
             </span>
             <span className="text-[8px] text-cad-accent font-medium tracking-tighter uppercase">
-              {user?.role || "Staff Engineer"}
+              {'role' in (user ?? {}) ? ((user as { role?: string }).role || "Staff Engineer") : "Staff Engineer"}
             </span>
           </div>
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cad-accent to-blue-600 flex items-center justify-center border border-white/10 group-hover:border-cad-accent/50 transition-colors shadow-lg">

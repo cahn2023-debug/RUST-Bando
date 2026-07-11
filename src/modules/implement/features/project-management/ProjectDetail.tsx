@@ -17,6 +17,17 @@ interface ProjectDetailProps {
   onProjectUpdate?: () => void;
 }
 
+export type ProjectDetailViewMode =
+  | 'tasks'
+  | 'contracts'
+  | 'kanban'
+  | 'search'
+  | 'calendar'
+  | 'analysis'
+  | 'global-bom'
+  | 'global-summary'
+  | 'manager';
+
 export function ProjectDetail({
   project,
   activeTab,
