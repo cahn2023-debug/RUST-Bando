@@ -49,6 +49,29 @@ const asNumberValue = (value: unknown, fallback = 0): number => {
 const asStringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 
+const readFileAsDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error('Clipboard image could not be read as a data URL.'));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read clipboard image.'));
+    reader.readAsDataURL(file);
+  });
+
+const readClipboardImageDataUrls = async (clipboardData: DataTransfer): Promise<string[]> => {
+  const imageFiles = Array.from(clipboardData.items)
+    .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => !!file);
+
+  return Promise.all(imageFiles.map(readFileAsDataUrl));
+};
+
 const preparePropertyMetadata = (metaInput: unknown): FeatureMetadata => {
   const metaToSave = { ...((metaInput || {}) as FeatureMetadata) };
 
@@ -202,6 +225,26 @@ export const PropertyPanel: React.FC = () => {
     }
   };
 
+  const appendImageUrls = (dataUrls: string[]) => {
+    if (dataUrls.length === 0) return;
+    const currentImages = asStringArray(getMetaValue('media.imageUrls', 'imageUrls'));
+    updateNestedMeta('media.imageUrls', [...currentImages, ...dataUrls]);
+  };
+
+  const handleMediaPaste = async (event: React.ClipboardEvent<HTMLDivElement>) => {
+    const hasImage = Array.from(event.clipboardData.items)
+      .some((item) => item.kind === 'file' && item.type.startsWith('image/'));
+
+    if (!hasImage) return;
+
+    event.preventDefault();
+    try {
+      appendImageUrls(await readClipboardImageDataUrls(event.clipboardData));
+    } catch (error) {
+      console.error('[PropertyPanel] Failed to paste clipboard image:', error);
+    }
+  };
+
   const openCameraPalettes = () => {
     const deviceConfig = paletteConfigs['device-config'];
     const cameraView = paletteConfigs['camera-view'];
@@ -248,8 +291,7 @@ export const PropertyPanel: React.FC = () => {
     capture
   } = useCamera({
     onCapture: (dataUrl) => {
-      const currentImages = asStringArray(getMetaValue('media.imageUrls', 'imageUrls'));
-      updateNestedMeta('media.imageUrls', [...currentImages, dataUrl]);
+      appendImageUrls([dataUrl]);
     },
     watermarkData: {
       location: (() => {
@@ -940,7 +982,12 @@ export const PropertyPanel: React.FC = () => {
         })()}
 
         {/* MEDIA */}
-        <section className="space-y-4 pt-4 border-t border-[#333]">
+        <section
+          className="space-y-4 pt-4 border-t border-[#333] outline-none focus-visible:ring-1 focus-visible:ring-indigo-400/60"
+          tabIndex={0}
+          onPaste={handleMediaPaste}
+          onClick={(event) => event.currentTarget.focus()}
+        >
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-[#555] uppercase">
               <ImageIcon className="w-3 h-3" /> Site Photos
