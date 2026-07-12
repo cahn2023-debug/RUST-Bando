@@ -114,7 +114,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
 
     windowWithGoogle.gm_authFailure = () => {
       if (disposed) return;
-      setError('Google Maps Auth Failed. Vui long kiem tra billing.');
+      setError('Google Maps Auth Failed. Vui lòng kiểm tra billing.');
     };
 
     if (!trimmedApiKey) {
@@ -135,7 +135,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
 
         const nearest = await findNearestPano(lat, lng);
         if (!nearest) {
-          setError('Khong tim thay du lieu Street View tai vi tri nay.');
+          setError('Không tìm thấy dữ liệu Street View tại vị trí này.');
           setLoading(false);
           return;
         }
@@ -340,7 +340,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#111318] z-50">
           <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
           <div className="mt-3 text-[10px] uppercase tracking-[0.24em] text-slate-500">
-            Dang tai panorama
+            Đang tải panorama
           </div>
         </div>
       )}

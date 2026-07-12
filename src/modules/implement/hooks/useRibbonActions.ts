@@ -10,10 +10,10 @@ export function useRibbonActions(project?: Project | null) {
             const { Window } = await import('@tauri-apps/api/window');
             const label = view === 'analysis' ? `analysis-${project.id}` : view;
             const title = view === 'print'
-                ? 'Thiet lap in an & Xuat ban ho so'
+                ? 'Thiết lập in ấn & Xuất bản hồ sơ'
                 : view === 'contract_analysis'
-                    ? 'Phan tich hop dong & BOM - AI Assistant'
-                    : 'Bang phan tich du lieu - Analysis';
+                    ? 'Phân tích hợp đồng & BOM - AI Assistant'
+                    : 'Bảng phân tích dữ liệu - Analysis';
 
             const width = view === 'print' ? 1100 : 1200;
             const height = view === 'print' ? 900 : 800;

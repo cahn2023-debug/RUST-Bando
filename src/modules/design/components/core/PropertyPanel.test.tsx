@@ -134,6 +134,25 @@ describe('PropertyPanel clipboard images', () => {
     mockUseDesignSync.mockClear();
     mockUseDesignSync.getState.mockClear();
     mockUseDesignSync.setState.mockClear();
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      clearRect: vi.fn(),
+      drawImage: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      translate: vi.fn(),
+      rotate: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      stroke: vi.fn(),
+      strokeRect: vi.fn(),
+      ellipse: vi.fn(),
+      fillText: vi.fn(),
+      getImageData: vi.fn(() => ({})),
+      putImageData: vi.fn(),
+      setLineDash: vi.fn(),
+    } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,edited');
   });
 
   it('pastes one clipboard image into media.imageUrls as a draft', async () => {
@@ -269,12 +288,117 @@ describe('PropertyPanel clipboard images', () => {
       expect(mocks.setPreview).toHaveBeenCalledWith(
         selectedFeature.id,
         expect.objectContaining({
-          media: {
+          media: expect.objectContaining({
+            imageUrl: 'data:image/png;base64,old',
             imageUrls: ['data:image/png;base64,old'],
-          },
+          }),
         }),
         'Camera A',
       );
     });
+  });
+
+  it('opens the image editor for an attached image', async () => {
+    render(<PropertyPanel />);
+
+    const editButtons = await screen.findAllByRole('button', { name: 'Edit' });
+    fireEvent.click(editButtons[0]);
+
+    expect(await screen.findByText('Edit Photo')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Stamp tool' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Stroke pattern')).toBeInTheDocument();
+    expect(screen.getByLabelText('Asset stamp')).toBeInTheDocument();
+    expect(screen.getByLabelText('Text size')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'OK text' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save photo' })).toBeInTheDocument();
+  });
+
+  it('replaces the edited image at the same index and keeps other photos', async () => {
+    mockUseDesignSync.mockReturnValue({
+      state: designState,
+      selectedFeatureId: selectedFeature.id,
+      selectFeature: mocks.selectFeature,
+      dispatchEvent: mocks.dispatchEvent,
+      queueEvent: mocks.queueEvent,
+      setDrawingMode: mocks.setDrawingMode,
+      setSelectedGroup: mocks.setSelectedGroup,
+      setActiveParentFeature: mocks.setActiveParentFeature,
+      setPreview: mocks.setPreview,
+      previewMetadata: {
+        id: selectedFeature.id,
+        name: 'Camera A',
+        metadata: {
+          media: {
+            imageUrls: [
+              'data:image/png;base64,first',
+              'data:image/png;base64,second',
+            ],
+          },
+        },
+      },
+      editingFeatureId: null,
+      setEditingFeatureId: mocks.setEditingFeatureId,
+      projectId: 'project-1',
+      selectionSet: new Set<string>(),
+    });
+
+    render(<PropertyPanel />);
+    const editButtons = await screen.findAllByRole('button', { name: 'Edit' });
+    fireEvent.click(editButtons[1]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Save photo' }));
+
+    await waitFor(() => {
+      expect(mocks.setPreview).toHaveBeenCalledWith(
+        selectedFeature.id,
+        expect.objectContaining({
+          media: expect.objectContaining({
+            imageUrl: 'data:image/png;base64,first',
+            imageUrls: [
+              'data:image/png;base64,first',
+              'data:image/png;base64,edited',
+            ],
+          }),
+        }),
+        'Camera A',
+      );
+    });
+    await waitFor(() => {
+      expect(mocks.queueEvent).toHaveBeenCalledWith({
+        type: 'FeatureUpdated',
+        payload: expect.objectContaining({
+          id: selectedFeature.id,
+          name: 'Camera A',
+          metadata: expect.stringContaining('data:image/png;base64,edited'),
+        }),
+      });
+    });
+  });
+
+  it('cancels image editing without updating metadata', async () => {
+    render(<PropertyPanel />);
+
+    const editButtons = await screen.findAllByRole('button', { name: 'Edit' });
+    fireEvent.click(editButtons[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByText('Edit Photo')).not.toBeInTheDocument();
+    expect(mocks.setPreview).not.toHaveBeenCalled();
+  });
+
+  it('does not deselect the map feature when Escape exits the image editor', async () => {
+    render(<PropertyPanel />);
+
+    const editButtons = await screen.findAllByRole('button', { name: 'Edit' });
+    fireEvent.click(editButtons[0]);
+    expect(await screen.findByText('Edit Photo')).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Edit Photo')).not.toBeInTheDocument();
+    });
+    expect(mocks.selectFeature).not.toHaveBeenCalled();
+    expect(mocks.setActiveParentFeature).not.toHaveBeenCalled();
   });
 });

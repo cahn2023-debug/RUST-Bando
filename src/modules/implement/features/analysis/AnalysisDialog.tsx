@@ -46,23 +46,25 @@ type ViewMode = 'grid' | 'bom';
 const CORE_COLUMN_TITLES: Record<string, string> = {
   id: 'ID',
   index_stt: 'STT',
-  display_order: 'MA HIEU',
-  name: 'TEN DOI TUONG',
-  type: 'LOAI',
-  group: 'NHOM',
-  region: 'VUNG',
-  layer: 'LOP',
+  display_order: 'MÃ HIỆU',
+  name: 'TÊN ĐỐI TƯỢNG',
+  type: 'LOẠI',
+  group: 'NHÓM',
+  region: 'VÙNG',
+  layer: 'LỚP CHÍNH',
+  sub_layer: 'LỚP PHỤ',
+  owner: 'ĐƠN VỊ QUẢN LÝ',
   geom_type: 'GEO TYPE',
-  technical_geom: 'KY THUAT',
-  latitude: 'VI DO',
-  longitude: 'KINH DO',
-  status: 'TRANG THAI',
-  note: 'GHI CHU',
-  description: 'MO TA',
-  is_visible: 'HIEN THI',
-  length: 'CHIEU DAI',
-  area: 'DIEN TICH',
-  coordinates_summary: 'TOA DO',
+  technical_geom: 'KỸ THUẬT',
+  latitude: 'VĨ ĐỘ',
+  longitude: 'KINH ĐỘ',
+  status: 'TRẠNG THÁI',
+  note: 'GHI CHÚ',
+  description: 'MÔ TẢ',
+  is_visible: 'HIỂN THỊ',
+  length: 'CHIỀU DÀI',
+  area: 'DIỆN TÍCH',
+  coordinates_summary: 'TỌA ĐỘ',
 };
 
 const NON_EDITABLE_FIELDS = new Set([
@@ -77,8 +79,8 @@ const NON_EDITABLE_FIELDS = new Set([
   'area',
 ]);
 
-const BATCH_NOTE_OPTIONS = ['Da kiem tra', 'Can sua', 'OK'];
-const BOOLEAN_OPTIONS = ['Co', 'Khong'];
+const BATCH_NOTE_OPTIONS = ['Đã kiểm tra', 'Cần sửa', 'OK'];
+const BOOLEAN_OPTIONS = ['Có', 'Không'];
 
 const toColumnLabel = (key: string) => {
   if (CORE_COLUMN_TITLES[key]) return CORE_COLUMN_TITLES[key];
@@ -330,21 +332,21 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
 
   const handleAddColumn = useCallback(async () => {
     if (!state || data.length === 0) {
-      alert('Khong co doi tuong de them cot.');
+      alert('Không có đối tượng để thêm cột.');
       return;
     }
 
-    const label = window.prompt('Nhap ten cot moi');
+    const label = window.prompt('Nhập tên cột mới');
     if (!label) return;
 
     const columnKey = normalizeAnalysisColumnKey(label);
     if (!columnKey || !isAllowedAnalysisDynamicColumnKey(columnKey)) {
-      alert('Ten cot khong hop le hoac trung voi cot he thong.');
+      alert('Tên cột không hợp lệ hoặc trùng với cột hệ thống.');
       return;
     }
 
     if (analysisColumnKeys.includes(columnKey)) {
-      alert('Cot nay da ton tai.');
+      alert('Cột này đã tồn tại.');
       return;
     }
 
@@ -393,11 +395,11 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
           isOpen: true,
           type: 'import',
           id: JSON.stringify(events),
-          itemName: `${events.length} thay doi`,
-          message: `Tim thay ${events.length} thay doi. Ban co muon cap nhat?`,
+          itemName: `${events.length} thay đổi`,
+          message: `Tìm thấy ${events.length} thay đổi. Bạn có muốn cập nhật?`,
         });
       } else {
-        alert('Khong tim thay thay doi.');
+        alert('Không tìm thấy thay đổi.');
       }
     } catch (error: any) {
       alert(`Import error: ${error.message}`);
@@ -533,7 +535,7 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
       {
         id: 'Action',
         size: 80,
-        header: 'XOA',
+        header: 'XÓA',
         cell: ({ row }) => (
           <button onClick={() => deleteFeature(row.original.id)} className="p-1 hover:text-rose-500 transition-colors">
             <Trash2 size={14} />
@@ -650,7 +652,7 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
               data={data}
               columns={columns}
               projectId={projectId ?? undefined}
-              title={`BANG TONG HOP GIS (${data.length} DOI TUONG)`}
+              title={`BẢNG TỔNG HỢP GIS (${data.length} ĐỐI TƯỢNG)`}
               isStandalone={true}
               showWindowControls={false}
               onClose={onClose}
@@ -659,10 +661,10 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
               batchFields={[
                 { label: 'Layer', value: 'layer' },
                 { label: 'Group', value: 'group' },
-                { label: 'Status', value: 'status', options: ['N/A', 'Da kiem tra', 'Can sua', 'OK'] },
+                { label: 'Status', value: 'status', options: ['N/A', 'Đã kiểm tra', 'Cần sửa', 'OK'] },
                 { label: 'Note', value: 'note', options: BATCH_NOTE_OPTIONS },
                 { label: 'Geom Type', value: 'geom_type', options: GEOM_TYPES_OPTIONS },
-                { label: 'Hien thi', value: 'is_visible', options: BOOLEAN_OPTIONS },
+                { label: 'Hiển thị', value: 'is_visible', options: BOOLEAN_OPTIONS },
               ]}
               onBatchUpdate={onBatchUpdate}
               onExport={handleExport}
@@ -700,7 +702,7 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
           }
           setDeleteModalConfig((prev) => ({ ...prev, isOpen: false }));
         }}
-        title="Xac nhan"
+        title="Xác nhận"
         itemName={deleteModalConfig.itemName}
         message={deleteModalConfig.message}
       />

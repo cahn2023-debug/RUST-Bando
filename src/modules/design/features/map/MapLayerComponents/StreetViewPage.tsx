@@ -85,7 +85,7 @@ const StreetViewPage: React.FC = () => {
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
           <span className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-            Dang tai du lieu vi tri
+            Đang tải dữ liệu vị trí
           </span>
         </div>
       </div>

@@ -631,7 +631,7 @@ export function StreetViewControl() {
         return true;
       } catch (error) {
         console.error('[StreetViewControl] Failed to manage Street View window:', error);
-        showFeedback('Street View gap loi khi khoi tao.');
+        showFeedback('Street View gặp lỗi khi khởi tạo.');
         syncPegmanState({ windowOpen: false });
         return false;
       }

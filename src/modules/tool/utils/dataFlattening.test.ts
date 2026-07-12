@@ -26,8 +26,8 @@ describe('dataFlattening', () => {
       geom_type: 'POINT',
       metadata: {
         display_order: '12',
-        status: 'Da kiem tra',
-        note: 'Canh bao',
+        status: 'Đã kiểm tra',
+        note: 'Cảnh báo',
         description: 'Mo ta',
         technical_specs: {
           power: '220V',
@@ -52,8 +52,8 @@ describe('dataFlattening', () => {
     expect(row.group).toBe('Camera');
     expect(row.layer).toBe('Lop chinh');
     expect(row.region).toBe('Khu A');
-    expect(row.status).toBe('Da kiem tra');
-    expect(row.note).toBe('Canh bao');
+    expect(row.status).toBe('Đã kiểm tra');
+    expect(row.note).toBe('Cảnh báo');
     expect(row.owner).toBe('Doi van hanh');
     expect(row.power).toBe('220V');
     expect(row.GIS_road_name).toBe('Tran Hung Dao');

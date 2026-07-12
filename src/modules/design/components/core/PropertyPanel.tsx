@@ -1,12 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import type { FeatureMetadata, FeatureProperties, IconType } from '@CONTRACT/types';
 import {
   Save, Camera, MapPin, Route,
   Info, Palette, Settings, Image as ImageIcon,
   Calculator, Phone, User as UserIcon, Loader2, X, Clock, Grid3X3, Sparkles, FileUp, Briefcase,
-  Layers, Zap, Radio, Construction, Pencil
+  Layers, Zap, Radio, Construction, Pencil, Crop, RotateCw, Circle, Square, Type as TypeIcon, Minus, MoveUpRight, Undo2
 } from "lucide-react";
 import { IconSelector } from '@DESIGN/components/ui/IconSelector';
 import { designLogic } from '@TOOL/utils/designLogic';
@@ -70,6 +71,586 @@ const readClipboardImageDataUrls = async (clipboardData: DataTransfer): Promise<
     .filter((file): file is File => !!file);
 
   return Promise.all(imageFiles.map(readFileAsDataUrl));
+};
+
+type ImageEditTool = 'crop' | 'line' | 'arrow' | 'circle' | 'square' | 'text' | 'stamp';
+type StrokePattern = 'solid' | 'dashed' | 'dashdot' | 'dotted' | 'zigzag';
+type AssetStamp = 'pole-4m' | 'pole-6m' | 'pole-8m' | 'cabinet-300x520' | 'camera-sim';
+
+interface ImageEditorModalProps {
+  imageUrl: string;
+  imageIndex: number;
+  onCancel: () => void;
+  onSave: (imageIndex: number, dataUrl: string) => void | Promise<void>;
+}
+
+interface DragPoint {
+  x: number;
+  y: number;
+}
+
+interface CropRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const getCanvasPoint = (event: React.PointerEvent<HTMLCanvasElement>, canvas: HTMLCanvasElement): DragPoint => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / Math.max(rect.width, 1);
+  const scaleY = canvas.height / Math.max(rect.height, 1);
+  return {
+    x: (event.clientX - rect.left) * scaleX,
+    y: (event.clientY - rect.top) * scaleY,
+  };
+};
+
+const normalizeCropRect = (start: DragPoint, end: DragPoint): CropRect => ({
+  x: Math.min(start.x, end.x),
+  y: Math.min(start.y, end.y),
+  width: Math.abs(end.x - start.x),
+  height: Math.abs(end.y - start.y),
+});
+
+const applyStrokePattern = (ctx: CanvasRenderingContext2D, pattern: StrokePattern, strokeWidth: number) => {
+  if (pattern === 'dashed') ctx.setLineDash([strokeWidth * 4, strokeWidth * 3]);
+  else if (pattern === 'dashdot') ctx.setLineDash([strokeWidth * 5, strokeWidth * 2, strokeWidth, strokeWidth * 2]);
+  else if (pattern === 'dotted') ctx.setLineDash([strokeWidth, strokeWidth * 2.5]);
+  else ctx.setLineDash([]);
+};
+
+const drawZigzagLine = (ctx: CanvasRenderingContext2D, start: DragPoint, end: DragPoint, strokeWidth: number) => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 1) return;
+
+  const step = Math.max(12, strokeWidth * 5);
+  const amplitude = Math.max(6, strokeWidth * 2.5);
+  const normalX = -dy / length;
+  const normalY = dx / length;
+  const count = Math.max(1, Math.floor(length / step));
+
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  for (let i = 1; i < count; i++) {
+    const ratio = i / count;
+    const offset = i % 2 === 0 ? -amplitude : amplitude;
+    ctx.lineTo(start.x + dx * ratio + normalX * offset, start.y + dy * ratio + normalY * offset);
+  }
+  ctx.lineTo(end.x, end.y);
+  ctx.stroke();
+};
+
+const drawPatternedLine = (ctx: CanvasRenderingContext2D, start: DragPoint, end: DragPoint, strokeWidth: number, pattern: StrokePattern) => {
+  if (pattern === 'zigzag') {
+    drawZigzagLine(ctx, start, end, strokeWidth);
+    return;
+  }
+  applyStrokePattern(ctx, pattern, strokeWidth);
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  ctx.lineTo(end.x, end.y);
+  ctx.stroke();
+};
+
+const drawArrowHead = (ctx: CanvasRenderingContext2D, start: DragPoint, end: DragPoint, strokeWidth: number) => {
+  const angle = Math.atan2(end.y - start.y, end.x - start.x);
+  const headLength = Math.max(14, strokeWidth * 4);
+
+  ctx.beginPath();
+  ctx.moveTo(end.x, end.y);
+  ctx.lineTo(end.x - headLength * Math.cos(angle - Math.PI / 6), end.y - headLength * Math.sin(angle - Math.PI / 6));
+  ctx.moveTo(end.x, end.y);
+  ctx.lineTo(end.x - headLength * Math.cos(angle + Math.PI / 6), end.y - headLength * Math.sin(angle + Math.PI / 6));
+  ctx.stroke();
+};
+
+const drawAssetStamp = (ctx: CanvasRenderingContext2D, point: DragPoint, stamp: AssetStamp, color: string, strokeWidth: number) => {
+  const scale = Math.max(1, strokeWidth / 4);
+  const x = point.x;
+  const y = point.y;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = Math.max(2, strokeWidth);
+  ctx.setLineDash([]);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (stamp.startsWith('pole')) {
+    const armLength = stamp === 'pole-4m' ? 70 : stamp === 'pole-6m' ? 95 : 120;
+    const poleHeight = 120 * scale;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y - poleHeight);
+    ctx.lineTo(x + armLength * scale, y - poleHeight - 18 * scale);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x + armLength * scale + 8 * scale, y - poleHeight - 18 * scale, 8 * scale, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.font = `bold ${14 * scale}px sans-serif`;
+    ctx.fillText(stamp === 'pole-4m' ? 'Cot 6m - TV 4m' : stamp === 'pole-6m' ? 'Cot 6m - TV 6m' : 'Cot 6m - TV 8m', x + 10 * scale, y + 18 * scale);
+  } else if (stamp === 'cabinet-300x520') {
+    ctx.strokeRect(x - 26 * scale, y - 42 * scale, 52 * scale, 84 * scale);
+    ctx.beginPath();
+    ctx.moveTo(x - 18 * scale, y - 20 * scale);
+    ctx.lineTo(x + 18 * scale, y - 20 * scale);
+    ctx.moveTo(x - 18 * scale, y);
+    ctx.lineTo(x + 18 * scale, y);
+    ctx.stroke();
+    ctx.font = `bold ${13 * scale}px sans-serif`;
+    ctx.fillText('Tu 300x520', x + 34 * scale, y + 4 * scale);
+  } else {
+    ctx.strokeRect(x - 34 * scale, y - 18 * scale, 54 * scale, 34 * scale);
+    ctx.beginPath();
+    ctx.moveTo(x + 20 * scale, y - 8 * scale);
+    ctx.lineTo(x + 48 * scale, y - 18 * scale);
+    ctx.lineTo(x + 48 * scale, y + 18 * scale);
+    ctx.lineTo(x + 20 * scale, y + 8 * scale);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x - 8 * scale, y, 7 * scale, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.font = `bold ${13 * scale}px sans-serif`;
+    ctx.fillText('Camera mo phong', x - 34 * scale, y + 36 * scale);
+  }
+
+  ctx.restore();
+};
+
+const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ imageUrl, imageIndex, onCancel, onSave }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const snapshotRef = useRef<ImageData | null>(null);
+  const dragStartRef = useRef<DragPoint | null>(null);
+  const cropRectRef = useRef<CropRect | null>(null);
+  const [tool, setTool] = useState<ImageEditTool>('crop');
+  const [strokeColor, setStrokeColor] = useState('#f97316');
+  const [strokeWidth, setStrokeWidth] = useState(4);
+  const [strokePattern, setStrokePattern] = useState<StrokePattern>('solid');
+  const [textValue, setTextValue] = useState('Ghi chú');
+  const [textSize, setTextSize] = useState(28);
+  const [pendingTextPoint, setPendingTextPoint] = useState<DragPoint | null>(null);
+  const [assetStamp, setAssetStamp] = useState<AssetStamp>('pole-4m');
+  const [cropRect, setCropRect] = useState<CropRect | null>(null);
+  const [cropPreviewUrl, setCropPreviewUrl] = useState('');
+  const [undoStack, setUndoStack] = useState<string[]>([]);
+  const [canvasSize, setCanvasSize] = useState<{ width: number; height: number } | null>(null);
+  const [canvasDisplaySize, setCanvasDisplaySize] = useState<{ width: number; height: number } | null>(null);
+
+  const updateCanvasDisplaySize = (size = canvasSize) => {
+    const container = canvasContainerRef.current;
+    if (!container || !size || size.width <= 0 || size.height <= 0) return;
+
+    const availableWidth = container.clientWidth;
+    const availableHeight = container.clientHeight;
+    const scale = Math.min(availableWidth / size.width, availableHeight / size.height);
+    setCanvasDisplaySize({
+      width: Math.max(1, Math.floor(size.width * scale)),
+      height: Math.max(1, Math.floor(size.height * scale)),
+    });
+  };
+
+  const setCanvasBitmapSize = (width: number, height: number) => {
+    const nextSize = { width, height };
+    setCanvasSize(nextSize);
+    requestAnimationFrame(() => updateCanvasDisplaySize(nextSize));
+  };
+
+  const restoreCanvasFromDataUrl = (dataUrl: string) => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+
+    const img = new Image();
+    img.onload = () => {
+      canvas.width = img.naturalWidth || 1280;
+      canvas.height = img.naturalHeight || 720;
+      setCanvasBitmapSize(canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      setCropRect(null);
+      cropRectRef.current = null;
+      setCropPreviewUrl('');
+    };
+    img.src = dataUrl;
+  };
+
+  const pushUndoSnapshot = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const snapshot = canvas.toDataURL('image/png');
+    setUndoStack(prev => [...prev, snapshot].slice(-20));
+  };
+
+  const undoLastEdit = () => {
+    setUndoStack(prev => {
+      const snapshot = prev[prev.length - 1];
+      if (!snapshot) return prev;
+      restoreCanvasFromDataUrl(snapshot);
+      return prev.slice(0, -1);
+    });
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+
+    const img = new Image();
+    img.onload = () => {
+      canvas.width = img.naturalWidth || 1280;
+      canvas.height = img.naturalHeight || 720;
+      setCanvasBitmapSize(canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      setCropRect(null);
+      cropRectRef.current = null;
+      setCropPreviewUrl('');
+      setUndoStack([]);
+    };
+    img.src = imageUrl;
+  }, [imageUrl]);
+
+  useEffect(() => {
+    updateCanvasDisplaySize();
+    const container = canvasContainerRef.current;
+    if (!container) return;
+
+    if (typeof ResizeObserver === 'undefined') {
+      const handleResize = () => updateCanvasDisplaySize();
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+
+    const observer = new ResizeObserver(() => updateCanvasDisplaySize());
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [canvasSize]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        undoLastEdit();
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+      if (cropRect) {
+        setCropRect(null);
+        cropRectRef.current = null;
+        setCropPreviewUrl('');
+        return;
+      }
+        if (tool !== 'crop') {
+          setTool('crop');
+          setPendingTextPoint(null);
+          return;
+        }
+        onCancel();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [cropRect, tool, onCancel]);
+
+  const drawCropGuide = (rect: CropRect) => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    ctx.save();
+    ctx.strokeStyle = '#facc15';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([8, 6]);
+    ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+    ctx.restore();
+  };
+
+  const updateCropPreview = (rect: CropRect) => {
+    const canvas = canvasRef.current;
+    if (!canvas || rect.width < 2 || rect.height < 2) {
+      setCropPreviewUrl('');
+      return;
+    }
+
+    const source = document.createElement('canvas');
+    source.width = Math.max(1, Math.floor(rect.width));
+    source.height = Math.max(1, Math.floor(rect.height));
+    source.getContext('2d')?.drawImage(
+      canvas,
+      rect.x,
+      rect.y,
+      rect.width,
+      rect.height,
+      0,
+      0,
+      source.width,
+      source.height
+    );
+    setCropPreviewUrl(source.toDataURL('image/png'));
+  };
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+
+    const point = getCanvasPoint(event, canvas);
+    dragStartRef.current = point;
+    snapshotRef.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    if (tool === 'text') {
+      setPendingTextPoint(point);
+      dragStartRef.current = null;
+      snapshotRef.current = null;
+    } else if (tool === 'stamp') {
+      pushUndoSnapshot();
+      drawAssetStamp(ctx, point, assetStamp, strokeColor, strokeWidth);
+      dragStartRef.current = null;
+      snapshotRef.current = null;
+    } else if (tool !== 'crop') {
+      pushUndoSnapshot();
+    }
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    const start = dragStartRef.current;
+    const snapshot = snapshotRef.current;
+    if (!canvas || !ctx || !start || !snapshot || tool === 'text' || tool === 'stamp') return;
+
+    const point = getCanvasPoint(event, canvas);
+    ctx.putImageData(snapshot, 0, 0);
+    ctx.save();
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = strokeWidth;
+    ctx.lineCap = 'round';
+    applyStrokePattern(ctx, strokePattern, strokeWidth);
+
+    if (tool === 'crop') {
+      const rect = normalizeCropRect(start, point);
+      cropRectRef.current = rect;
+      setCropRect(rect);
+      drawCropGuide(rect);
+      updateCropPreview(rect);
+    } else if (tool === 'line') {
+      drawPatternedLine(ctx, start, point, strokeWidth, strokePattern);
+    } else if (tool === 'arrow') {
+      drawPatternedLine(ctx, start, point, strokeWidth, strokePattern);
+      ctx.setLineDash([]);
+      drawArrowHead(ctx, start, point, strokeWidth);
+    } else if (tool === 'circle') {
+      const rect = normalizeCropRect(start, point);
+      ctx.beginPath();
+      ctx.ellipse(rect.x + rect.width / 2, rect.y + rect.height / 2, rect.width / 2, rect.height / 2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (tool === 'square') {
+      const rect = normalizeCropRect(start, point);
+      ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+    }
+
+    ctx.restore();
+  };
+
+  const handlePointerUp = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    const snapshot = snapshotRef.current;
+    if (tool === 'crop' && canvas && ctx && snapshot) {
+      ctx.putImageData(snapshot, 0, 0);
+      if (cropRectRef.current) drawCropGuide(cropRectRef.current);
+    }
+    dragStartRef.current = null;
+    snapshotRef.current = null;
+  };
+
+  const rotateCanvas = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+
+    pushUndoSnapshot();
+    const source = document.createElement('canvas');
+    source.width = canvas.width;
+    source.height = canvas.height;
+    source.getContext('2d')?.drawImage(canvas, 0, 0);
+
+    canvas.width = source.height;
+    canvas.height = source.width;
+    setCanvasBitmapSize(canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(source, -source.width / 2, -source.height / 2);
+    ctx.restore();
+    setCropRect(null);
+  };
+
+  const applyCrop = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx || !cropRect || cropRect.width < 2 || cropRect.height < 2) return;
+
+    pushUndoSnapshot();
+    const source = document.createElement('canvas');
+    source.width = cropRect.width;
+    source.height = cropRect.height;
+    source.getContext('2d')?.drawImage(
+      canvas,
+      cropRect.x,
+      cropRect.y,
+      cropRect.width,
+      cropRect.height,
+      0,
+      0,
+      cropRect.width,
+      cropRect.height
+    );
+
+    canvas.width = source.width;
+    canvas.height = source.height;
+    setCanvasBitmapSize(canvas.width, canvas.height);
+    ctx.drawImage(source, 0, 0);
+    setCropRect(null);
+    cropRectRef.current = null;
+    setCropPreviewUrl('');
+  };
+
+  const saveImage = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    onSave(imageIndex, canvas.toDataURL('image/png'));
+  };
+
+  const applyPendingText = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx || !pendingTextPoint) return;
+
+    pushUndoSnapshot();
+    ctx.save();
+    ctx.fillStyle = strokeColor;
+    ctx.font = `bold ${textSize}px sans-serif`;
+    ctx.fillText(textValue || 'Text', pendingTextPoint.x, pendingTextPoint.y);
+    ctx.restore();
+    setPendingTextPoint(null);
+  };
+
+  const toolButtonClass = (candidate: ImageEditTool) =>
+    cn(
+      "p-2 rounded border text-[10px] font-black uppercase transition-colors",
+      tool === candidate ? "bg-indigo-500 border-indigo-400 text-white" : "bg-[#111] border-[#333] text-[#aaa] hover:text-white"
+    );
+
+  return createPortal(
+    <div className="fixed inset-0 z-[7000] bg-black/90 backdrop-blur-sm flex flex-col">
+      <div className="h-full w-full bg-[#1f1f1f] border border-[#333] shadow-2xl flex flex-col overflow-hidden">
+        <div className="p-4 border-b border-[#333] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white">
+            <Pencil className="w-4 h-4 text-indigo-400" /> Edit Photo
+          </div>
+          <button onClick={onCancel} className="p-1.5 text-[#aaa] hover:text-white hover:bg-[#333] rounded">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-4 border-b border-[#333] flex flex-wrap items-center gap-3 shrink-0">
+          <button aria-label="Crop tool" onClick={() => setTool('crop')} className={toolButtonClass('crop')}><Crop className="w-4 h-4" /></button>
+          <button aria-label="Line tool" onClick={() => setTool('line')} className={toolButtonClass('line')}><Minus className="w-4 h-4" /></button>
+          <button aria-label="Arrow tool" onClick={() => setTool('arrow')} className={toolButtonClass('arrow')}><MoveUpRight className="w-4 h-4" /></button>
+          <button aria-label="Circle tool" onClick={() => setTool('circle')} className={toolButtonClass('circle')}><Circle className="w-4 h-4" /></button>
+          <button aria-label="Square tool" onClick={() => setTool('square')} className={toolButtonClass('square')}><Square className="w-4 h-4" /></button>
+          <button aria-label="Text tool" onClick={() => setTool('text')} className={toolButtonClass('text')}><TypeIcon className="w-4 h-4" /></button>
+          <button aria-label="Stamp tool" onClick={() => setTool('stamp')} className={toolButtonClass('stamp')}><Radio className="w-4 h-4" /></button>
+          <button onClick={rotateCanvas} className="p-2 rounded bg-[#111] border border-[#333] text-[#aaa] hover:text-white"><RotateCw className="w-4 h-4" /></button>
+          <button
+            aria-label="Back"
+            onClick={undoLastEdit}
+            disabled={undoStack.length === 0}
+            className="p-2 rounded bg-[#111] border border-[#333] text-[#aaa] hover:text-white disabled:opacity-40 disabled:hover:text-[#aaa]"
+          >
+            <Undo2 className="w-4 h-4" />
+          </button>
+          <button onClick={applyCrop} disabled={!cropRect} className="px-3 py-2 rounded bg-[#111] border border-[#333] text-[10px] font-black uppercase text-[#aaa] hover:text-white disabled:opacity-40">Apply crop</button>
+          <select aria-label="Stroke pattern" value={strokePattern} onChange={e => setStrokePattern(e.target.value as StrokePattern)} className="bg-[#111] border border-[#333] rounded px-2 py-2 text-xs text-white outline-none">
+            <option value="solid">Net lien</option>
+            <option value="dashed">Net dut</option>
+            <option value="dashdot">Cham gach</option>
+            <option value="dotted">Net cham</option>
+            <option value="zigzag">Zigzag</option>
+          </select>
+          <input aria-label="Stroke color" type="color" value={strokeColor} onChange={e => setStrokeColor(e.target.value)} className="h-9 w-10 bg-[#111] border border-[#333] rounded" />
+          <input aria-label="Stroke width" type="range" min={1} max={18} value={strokeWidth} onChange={e => setStrokeWidth(Number(e.target.value))} className="w-24" />
+          <select aria-label="Asset stamp" value={assetStamp} onChange={e => setAssetStamp(e.target.value as AssetStamp)} className="bg-[#111] border border-[#333] rounded px-2 py-2 text-xs text-white outline-none">
+            <option value="pole-4m">Cot 6m tay vuon 4m</option>
+            <option value="pole-6m">Cot 6m tay vuon 6m</option>
+            <option value="pole-8m">Cot 6m tay vuon 8m</option>
+            <option value="cabinet-300x520">Tu 300x520</option>
+            <option value="camera-sim">Camera mo phong</option>
+          </select>
+          <input aria-label="Text size" type="number" min={10} max={120} value={textSize} onChange={e => setTextSize(Number(e.target.value))} className="w-20 bg-[#111] border border-[#333] rounded px-2 py-2 text-xs text-white outline-none" />
+          <input
+            aria-label="Text value"
+            value={textValue}
+            onChange={e => setTextValue(e.target.value)}
+            className="min-w-0 flex-1 bg-[#111] border border-[#333] rounded px-3 py-2 text-xs text-white outline-none"
+          />
+          <button onClick={applyPendingText} disabled={!pendingTextPoint} className="px-3 py-2 rounded bg-indigo-500 text-white text-[10px] font-black uppercase hover:bg-indigo-400 disabled:opacity-40">OK text</button>
+        </div>
+
+        <div ref={canvasContainerRef} className="relative flex-1 min-h-0 bg-[#111] p-4 overflow-hidden flex items-center justify-center">
+          <canvas
+            ref={canvasRef}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerUp}
+            className="bg-black rounded border border-[#333] touch-none"
+            style={{
+              width: canvasDisplaySize ? `${canvasDisplaySize.width}px` : 'auto',
+              height: canvasDisplaySize ? `${canvasDisplaySize.height}px` : 'auto',
+            }}
+          />
+          {pendingTextPoint && canvasDisplaySize && canvasSize && (
+            <input
+              aria-label="Text preview"
+              value={textValue}
+              onChange={e => setTextValue(e.target.value)}
+              className="absolute min-w-24 max-w-[420px] bg-white/95 text-black border-2 border-indigo-500 rounded px-2 py-1 font-bold shadow-lg outline-none"
+              style={{
+                left: `calc(50% - ${canvasDisplaySize.width / 2}px + ${(pendingTextPoint.x / canvasSize.width) * canvasDisplaySize.width}px)`,
+                top: `calc(50% - ${canvasDisplaySize.height / 2}px + ${(pendingTextPoint.y / canvasSize.height) * canvasDisplaySize.height}px)`,
+                fontSize: `${Math.max(10, textSize * (canvasDisplaySize.width / canvasSize.width))}px`,
+                lineHeight: 1.15,
+                width: `${Math.max(96, Math.min(420, (textValue.length || 1) * Math.max(10, textSize * (canvasDisplaySize.width / canvasSize.width)) * 0.72 + 24))}px`,
+                color: strokeColor,
+              }}
+              autoFocus
+            />
+          )}
+          {cropRect && cropPreviewUrl && (
+            <div className="absolute right-6 top-6 w-64 rounded-lg border border-indigo-400 bg-[#1f1f1f]/95 p-2 shadow-2xl">
+              <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-indigo-300">Crop preview</div>
+              <img src={cropPreviewUrl} className="max-h-48 w-full rounded border border-[#333] object-contain bg-black" />
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t border-[#333] flex justify-end gap-3 shrink-0">
+          <button onClick={onCancel} className="px-4 py-2 rounded bg-[#111] border border-[#333] text-[10px] font-black uppercase text-[#aaa] hover:text-white">Cancel</button>
+          <button onClick={saveImage} className="px-4 py-2 rounded bg-indigo-500 text-white text-[10px] font-black uppercase hover:bg-indigo-400">Save photo</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 };
 
 const preparePropertyMetadata = (metaInput: unknown): FeatureMetadata => {
@@ -150,6 +731,7 @@ export const PropertyPanel: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [editingImage, setEditingImage] = useState<{ index: number; url: string } | null>(null);
   const togglePalette = useLayoutStore(s => s.togglePalette);
   const paletteConfigs = useLayoutStore(s => s.paletteConfigs);
 
@@ -229,6 +811,61 @@ export const PropertyPanel: React.FC = () => {
     if (dataUrls.length === 0) return;
     const currentImages = asStringArray(getMetaValue('media.imageUrls', 'imageUrls'));
     updateNestedMeta('media.imageUrls', [...currentImages, ...dataUrls]);
+  };
+
+  const updateMediaImages = (imageUrls: string[]) => {
+    const next = {
+      ...localMeta,
+      media: {
+        ...(asRecord(localMeta.media) || {}),
+        imageUrl: imageUrls[0] || undefined,
+        imageUrls,
+      },
+    } as FeatureMetadata;
+
+    setLocalMeta(next);
+    if (selectedFeatureId) {
+      setPreview(selectedFeatureId, next, localName);
+    }
+  };
+
+  const removeImageUrl = (index: number) => {
+    const newImgs = [...asStringArray(getMetaValue('media.imageUrls', 'imageUrls'))];
+    newImgs.splice(index, 1);
+    updateMediaImages(newImgs);
+  };
+
+  const replaceImageUrl = async (index: number, dataUrl: string) => {
+    const newImgs = [...asStringArray(getMetaValue('media.imageUrls', 'imageUrls'))];
+    if (!feature || !newImgs[index]) return;
+    newImgs[index] = dataUrl;
+
+    const nextMeta = {
+      ...localMeta,
+      media: {
+        ...(asRecord(localMeta.media) || {}),
+        imageUrl: newImgs[0] || undefined,
+        imageUrls: newImgs,
+      },
+    } as FeatureMetadata;
+    const standardizedMeta = preparePropertyMetadata(nextMeta);
+    const nextProperties = buildFeaturePropertiesForPersistence(
+      feature.properties as FeatureProperties | undefined,
+      standardizedMeta
+    );
+
+    updateMediaImages(newImgs);
+    await queueEvent({
+      type: 'FeatureUpdated',
+      payload: {
+        id: feature.id,
+        name: localName,
+        metadata: JSON.stringify(standardizedMeta),
+        properties: nextProperties,
+      },
+    });
+    setPreview(null, null);
+    setEditingImage(null);
   };
 
   const handleMediaPaste = async (event: React.ClipboardEvent<HTMLDivElement>) => {
@@ -348,13 +985,14 @@ export const PropertyPanel: React.FC = () => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (editingImage) return;
         selectFeature(null);
         setActiveParentFeature(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectFeature]);
+  }, [editingImage, selectFeature, setActiveParentFeature]);
 
   const handleSave = async () => {
     if (!feature || (!isNameDirty && !isMetadataDirty)) return;
@@ -1005,13 +1643,15 @@ export const PropertyPanel: React.FC = () => {
               asStringArray(getMetaValue('media.imageUrls', 'imageUrls')).map((url, idx) => (
                 <div key={idx} className="aspect-video rounded overflow-hidden border border-[#333] relative group">
                   <img src={url} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
                     <button
-                      onClick={() => {
-                        const newImgs = [...asStringArray(getMetaValue('media.imageUrls', 'imageUrls'))];
-                        newImgs.splice(idx, 1);
-                        updateNestedMeta('media.imageUrls', newImgs);
-                      }}
+                      onClick={() => setEditingImage({ index: idx, url })}
+                      className="p-1 px-2 bg-indigo-500 text-white rounded text-[10px] font-bold"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => removeImageUrl(idx)}
                       className="p-1 px-2 bg-red-500 text-white rounded text-[10px] font-bold"
                     >
                       Remove
@@ -1063,6 +1703,14 @@ export const PropertyPanel: React.FC = () => {
         message={`Bạn có chắc chắn muốn xóa đối tượng "${localName || feature.id}"? Hành động này không thể hoàn tác.`}
         itemName={localName || feature.id}
       />
+      {editingImage && (
+        <ImageEditorModal
+          imageUrl={editingImage.url}
+          imageIndex={editingImage.index}
+          onCancel={() => setEditingImage(null)}
+          onSave={replaceImageUrl}
+        />
+      )}
     </aside >
   );
 };
