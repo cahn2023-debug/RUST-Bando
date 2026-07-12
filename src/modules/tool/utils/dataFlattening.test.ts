@@ -14,7 +14,22 @@ describe('dataFlattening', () => {
       feature_groups: {
         group1: { id: 'group1', layer_id: 'layer1', name: 'Camera', type: 'camera', is_visible: true },
       },
-      features: {},
+      features: {
+        'intersection-1': {
+          id: 'intersection-1',
+          layer_id: 'layer1',
+          group_id: 'group1',
+          name: 'Nut giao A',
+          geom_type: 'POINT',
+          metadata: {
+            display_order: '12',
+            type: 'INTERSECTION',
+            icon: 'intersection',
+          },
+          properties: {},
+          coordinates: [106.6, 10.7],
+        },
+      },
       settings: {},
     };
 
@@ -29,6 +44,7 @@ describe('dataFlattening', () => {
         status: 'Đã kiểm tra',
         note: 'Cảnh báo',
         description: 'Mo ta',
+        parent_feature_id: 'intersection-1',
         technical_specs: {
           power: '220V',
         },
@@ -63,5 +79,12 @@ describe('dataFlattening', () => {
     expect(row.length).toBe(12.5);
     expect(row.area).toBe(0);
     expect(row.coordinates_summary).toContain('106.7');
+    expect(row.source_feature_id).toBe('feature-1');
+    expect(row.source_group_id).toBe('group1');
+    expect(row.source_group_type).toBe('camera');
+    expect(row.source_parent_feature_id).toBe('intersection-1');
+    expect(row.parent_intersection_name).toBe('Nut giao A');
+    expect(row.parent_intersection_display_order).toBe('12');
+    expect(row.source_coordinates).toBe('[106.7,10.8]');
   });
 });

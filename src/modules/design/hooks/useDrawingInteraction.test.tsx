@@ -66,7 +66,80 @@ describe('useDrawingInteraction', () => {
         expect(getMetadataFromCall(dispatchEvent, 0)).toMatchObject({
             icon: 'default',
             type: 'point',
+            display_order: '1',
             snap_to_id: 'snap-1',
+        });
+    });
+
+    it('fills the next display order when creating a root object', async () => {
+        useDesignSync.setState({
+            state: {
+                ...makeState(),
+                features: {
+                    'feature-1': {
+                        id: 'feature-1',
+                        layer_id: 'layer-1',
+                        group_id: 'group-1',
+                        name: 'Existing point',
+                        geom_type: 'Point',
+                        coordinates: [20, 10],
+                        metadata: JSON.stringify({ display_order: '1' }),
+                        properties: {},
+                    },
+                },
+            } as any,
+            drawingMode: 'point',
+        });
+        const { result } = renderHook(() => useDrawingInteraction());
+
+        await act(async () => {
+            await result.current.handleLocationChange(10, 20, 0, null);
+        });
+
+        expect(getMetadataFromCall(dispatchEvent)).toMatchObject({
+            display_order: '2',
+        });
+    });
+
+    it('fills intersection child display order from the parent map number', async () => {
+        useDesignSync.setState({
+            state: {
+                ...makeState(),
+                features: {
+                    'intersection-1': {
+                        id: 'intersection-1',
+                        layer_id: 'layer-1',
+                        group_id: 'group-1',
+                        name: 'Intersection',
+                        geom_type: 'Point',
+                        coordinates: [20, 10],
+                        metadata: JSON.stringify({ display_order: '15', type: 'intersection' }),
+                        properties: {},
+                    },
+                    'camera-1': {
+                        id: 'camera-1',
+                        layer_id: 'layer-1',
+                        group_id: 'group-1',
+                        name: 'Camera',
+                        geom_type: 'Point',
+                        coordinates: [20, 10],
+                        metadata: JSON.stringify({ parent_feature_id: 'intersection-1', display_order: '15_1' }),
+                        properties: {},
+                    },
+                },
+            } as any,
+            drawingMode: 'image',
+            activeParentFeatureId: 'intersection-1',
+        });
+        const { result } = renderHook(() => useDrawingInteraction());
+
+        await act(async () => {
+            await result.current.handleLocationChange(10, 20, 0, null);
+        });
+
+        expect(getMetadataFromCall(dispatchEvent)).toMatchObject({
+            parent_feature_id: 'intersection-1',
+            display_order: '15_2',
         });
     });
 

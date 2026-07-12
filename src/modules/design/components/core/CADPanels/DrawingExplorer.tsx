@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Database, FolderPlus, Trash2, FileUp, Palette } from "lucide-react";
-import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+import { Virtuoso, type ListRange, type VirtuosoHandle } from "react-virtuoso";
 import { open } from "@tauri-apps/plugin-dialog";
 
 import { cn } from "@TOOL/utils/cn";
@@ -42,6 +42,71 @@ interface ContextMenuState {
   data: FlatTreeItem['data'];
 }
 
+type SortField = 'name' | 'stt';
+
+interface ExplorerViewState {
+  expanded: Record<string, boolean>;
+  treeSearchQuery: string;
+  filterType: string | null;
+  reverseOrder: boolean;
+  sortField: SortField;
+  topItemId: string | null;
+  topItemIndex: number;
+  selectedGroupId: string | null;
+}
+
+const defaultExplorerViewState: ExplorerViewState = {
+  expanded: {},
+  treeSearchQuery: "",
+  filterType: null,
+  reverseOrder: false,
+  sortField: 'name',
+  topItemId: null,
+  topItemIndex: 0,
+  selectedGroupId: null,
+};
+
+const getExplorerViewStateKey = (projectId: string | null | undefined) =>
+  projectId ? `drawing-explorer-view-${projectId}` : null;
+
+const hasSavedExplorerViewState = (projectId: string | null | undefined): boolean => {
+  const viewStateKey = getExplorerViewStateKey(projectId);
+  if (!viewStateKey || !projectId) return false;
+
+  try {
+    return localStorage.getItem(viewStateKey) !== null ||
+      localStorage.getItem(`drawing-explorer-expanded-${projectId}`) !== null;
+  } catch {
+    return false;
+  }
+};
+
+const readExplorerViewState = (projectId: string | null | undefined): ExplorerViewState => {
+  const viewStateKey = getExplorerViewStateKey(projectId);
+  if (!viewStateKey) return defaultExplorerViewState;
+
+  try {
+    const saved = localStorage.getItem(viewStateKey);
+    if (saved) {
+      const parsed = JSON.parse(saved) as Partial<ExplorerViewState>;
+      return {
+        ...defaultExplorerViewState,
+        ...parsed,
+        expanded: parsed.expanded && typeof parsed.expanded === 'object' ? parsed.expanded : {},
+        sortField: parsed.sortField === 'stt' ? 'stt' : 'name',
+        topItemIndex: typeof parsed.topItemIndex === 'number' ? parsed.topItemIndex : 0,
+      };
+    }
+
+    const legacyExpanded = localStorage.getItem(`drawing-explorer-expanded-${projectId}`);
+    return legacyExpanded
+      ? { ...defaultExplorerViewState, expanded: JSON.parse(legacyExpanded) }
+      : defaultExplorerViewState;
+  } catch {
+    return defaultExplorerViewState;
+  }
+};
+
 export function DrawingExplorer() {
   const regionsMap = useDesignSync(st => st.state?.regions) || (EMPTY_OBJ as Record<string, RegionState>);
   const layersMap = useDesignSync(st => st.state?.layers) || (EMPTY_OBJ as Record<string, LayerState>);
@@ -75,23 +140,56 @@ export function DrawingExplorer() {
   useEffect(() => { groupsRef.current = groupsMap; }, [groupsMap]);
   useEffect(() => { regionsRef.current = regionsMap; }, [regionsMap]);
 
-  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem(`drawing-explorer-expanded-${projectId}`);
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  useEffect(() => {
-    if (projectId) localStorage.setItem(`drawing-explorer-expanded-${projectId}`, JSON.stringify(expanded));
-  }, [expanded, projectId]);
-
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [treeSearchQuery, setTreeSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string | null>(null);
   const [reverseOrder, setReverseOrder] = useState(false);
-  const [sortField, setSortField] = useState<'name' | 'stt'>('name');
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [topItem, setTopItem] = useState<{ id: string | null; index: number }>({ id: null, index: 0 });
+  const restoredProjectRef = useRef<string | null>(null);
+  const isRestoringViewStateRef = useRef(false);
+  const pendingScrollRestoreRef = useRef<{ id: string | null; index: number } | null>(null);
+  const hasAutoExpanded = useRef(false);
+
+  useEffect(() => {
+    if (!projectId || restoredProjectRef.current === projectId) return;
+
+    hasAutoExpanded.current = hasSavedExplorerViewState(projectId);
+    const savedViewState = readExplorerViewState(projectId);
+    isRestoringViewStateRef.current = true;
+    setExpanded(savedViewState.expanded);
+    setTreeSearchQuery(savedViewState.treeSearchQuery);
+    setFilterType(savedViewState.filterType);
+    setReverseOrder(savedViewState.reverseOrder);
+    setSortField(savedViewState.sortField);
+    setTopItem({ id: savedViewState.topItemId, index: savedViewState.topItemIndex });
+    pendingScrollRestoreRef.current = { id: savedViewState.topItemId, index: savedViewState.topItemIndex };
+    if (savedViewState.selectedGroupId) setSelectedGroup(savedViewState.selectedGroupId);
+    restoredProjectRef.current = projectId;
+  }, [projectId, setSelectedGroup]);
+
+  useEffect(() => {
+    const viewStateKey = getExplorerViewStateKey(projectId);
+    if (!viewStateKey || restoredProjectRef.current !== projectId) return;
+    if (isRestoringViewStateRef.current) {
+      isRestoringViewStateRef.current = false;
+      return;
+    }
+
+    const viewState: ExplorerViewState = {
+      expanded,
+      treeSearchQuery,
+      filterType,
+      reverseOrder,
+      sortField,
+      topItemId: topItem.id,
+      topItemIndex: topItem.index,
+      selectedGroupId,
+    };
+
+    localStorage.setItem(viewStateKey, JSON.stringify(viewState));
+    localStorage.setItem(`drawing-explorer-expanded-${projectId}`, JSON.stringify(expanded));
+  }, [expanded, filterType, projectId, reverseOrder, selectedGroupId, sortField, topItem, treeSearchQuery]);
 
   const { flattenedItems, filteredRegions, featureNumbers, featureChildrenMap } = useFlattenedTree({
     regionsMap, layersMap, groupsMap, featuresMap, expanded,
@@ -108,7 +206,6 @@ export function DrawingExplorer() {
   const [mappingData, setMappingData] = useState<MappingData | null>(null);
   const [deleteModal, setDeleteModal] = useState<DeleteModalState>({ isOpen: false, type: null, id: '', name: '' });
 
-  const hasAutoExpanded = useRef(false);
   useEffect(() => {
     if (!hasAutoExpanded.current && filteredRegions.length > 0 && !isLoading && !error) {
       setExpanded(prev => {
@@ -128,6 +225,29 @@ export function DrawingExplorer() {
       }
     }
   }, [selectedFeatureId, flattenedItems]);
+
+  useEffect(() => {
+    const pendingRestore = pendingScrollRestoreRef.current;
+    if (!pendingRestore || flattenedItems.length === 0 || selectedFeatureId) return;
+
+    const restoredIndex = pendingRestore.id
+      ? flattenedItems.findIndex(item => item.id === pendingRestore.id)
+      : pendingRestore.index;
+    const index = restoredIndex >= 0
+      ? Math.min(restoredIndex, flattenedItems.length - 1)
+      : Math.min(pendingRestore.index, flattenedItems.length - 1);
+
+    pendingScrollRestoreRef.current = null;
+    setTimeout(() => virtuosoRef.current?.scrollToIndex({ index, align: 'start' }), 150);
+  }, [flattenedItems, selectedFeatureId]);
+
+  const handleRangeChanged = (range: ListRange) => {
+    const item = flattenedItems[range.startIndex];
+    const nextTopItem = { id: item?.id ?? null, index: range.startIndex };
+    setTopItem(prev => (
+      prev.id === nextTopItem.id && prev.index === nextTopItem.index ? prev : nextTopItem
+    ));
+  };
 
   const handleCreateRegion = (e: React.MouseEvent) => {
     if (!isReady) return;
@@ -248,6 +368,7 @@ export function DrawingExplorer() {
         <Virtuoso
           ref={virtuosoRef}
           data={flattenedItems}
+          rangeChanged={handleRangeChanged}
           itemContent={(index: number, item: FlatTreeItem) => (
             <div key={item.id} onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: item.type, id: item.id, data: item.data }); }}>
               {item.type === 'region' && (

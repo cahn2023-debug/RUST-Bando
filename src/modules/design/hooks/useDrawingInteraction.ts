@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
+import { getNextFeatureDisplayOrder, syncDisplayOrderAliases } from "@TOOL/utils/featureMapping";
 
 type OneClickDrawingMode = 'point' | 'image' | 'intersection';
 
@@ -57,9 +58,13 @@ export function useDrawingInteraction() {
         }
 
         const id = crypto.randomUUID();
-        const metadata: any = {
-            color: '#EF4444'
-        };
+        const metadata: any = syncDisplayOrderAliases({
+            color: '#EF4444',
+        }, getNextFeatureDisplayOrder(
+            state?.features || {},
+            selectedGroupId,
+            activeParentFeatureId
+        ));
 
         if (activeParentFeatureId) {
             metadata.parent_feature_id = activeParentFeatureId;
@@ -106,13 +111,17 @@ export function useDrawingInteraction() {
             const mode = drawingMode as OneClickDrawingMode;
             const defaults = getOneClickDefaults(mode);
 
-            const metadata: any = {
+            const metadata: any = syncDisplayOrderAliases({
                 icon: defaults.icon,
                 type: defaults.type,
                 color: defaults.color,
                 // V2 Fix: Use snap_to_id (read by topology.rs) instead of snapped_object_id (dead data)
                 snap_to_id: snapId || undefined,
-            };
+            }, getNextFeatureDisplayOrder(
+                state?.features || {},
+                selectedGroupId,
+                activeParentFeatureId
+            ));
 
             if (activeParentFeatureId) {
                 metadata.parent_feature_id = activeParentFeatureId;

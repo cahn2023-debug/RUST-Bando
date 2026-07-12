@@ -266,7 +266,7 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
 
         // FeatureUtils calculateFeatureNumbers and getParsedMetadata are needed
         // I already moved them to @TOOL/utils/featureUtils
-        const { calculateFeatureNumbers, getParsedMetadata } = await import('../../../../tool/utils/featureUtils');
+        const { calculateFeatureNumbers, getParsedMetadata, syncDisplayOrderAliases } = await import('../../../../tool/utils/featureUtils');
 
         const features = Object.values(state.features);
         const featureNumbers = calculateFeatureNumbers(features, state.features);
@@ -277,9 +277,19 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
             if (!calculatedSTT) return;
             const rawMetaStr = typeof f.metadata === 'string' ? f.metadata : '';
             const meta = getParsedMetadata(f);
+            const nextMeta = syncDisplayOrderAliases(
+                meta as Record<string, unknown>,
+                String(calculatedSTT),
+                f.properties as Record<string, unknown>
+            );
             const currentOrder = String(meta.display_order || '');
+            const currentAliasState = JSON.stringify(syncDisplayOrderAliases(
+                meta as Record<string, unknown>,
+                currentOrder,
+                f.properties as Record<string, unknown>
+            ));
 
-            if (currentOrder !== String(calculatedSTT)) {
+            if (currentOrder !== String(calculatedSTT) || currentAliasState !== JSON.stringify(nextMeta)) {
                 if (Object.keys(meta).length === 0 && rawMetaStr.length > 4 && rawMetaStr !== 'null' && rawMetaStr !== 'undefined') {
                     return;
                 }
@@ -287,7 +297,7 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
                     type: 'FeatureUpdated',
                     payload: {
                         id: f.id,
-                        metadata: JSON.stringify({ ...meta, display_order: String(calculatedSTT) })
+                        metadata: JSON.stringify(nextMeta)
                     }
                 });
             }

@@ -53,4 +53,31 @@ describe("importService", () => {
       },
     ]);
   });
+
+  it("keeps the imported STT column merged with display_order", () => {
+    const events = buildFeatureCreatedEvents(
+      [
+        {
+          id: "feature-1",
+          geom_type: "Point",
+          geometry: [105.8342, 21.0278],
+          center_lat: 21.0278,
+          center_lon: 105.8342,
+          tile_id: "excel-row-2",
+          properties: {
+            name: "Camera A",
+            STT: "21_4",
+            display_order: "21_4",
+          },
+        },
+      ],
+      "group-1",
+      "layer-1"
+    );
+
+    const metadata = JSON.parse((events[0] as any).payload.metadata);
+
+    expect(metadata.display_order).toBe("21_4");
+    expect(metadata.STT).toBe("21_4");
+  });
 });

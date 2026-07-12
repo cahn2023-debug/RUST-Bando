@@ -235,6 +235,74 @@ export const removeVietnameseTones = (str: string): string => {
  * Calculates display sequence numbers for features
  */
 type FeaturesMapType = Record<string, FeatureState | { metadata: unknown; group_id?: string | null }>;
+type OrderMetadata = Record<string, unknown>;
+
+const normalizeOrderKey = (key: string): string =>
+    key
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '');
+
+const ORDER_FIELD_KEYS = new Set([
+    'stt',
+    'mahieu',
+    'mahieustt',
+    'sohieu',
+    'ma',
+    'matuyenduong',
+    'mahieudoituong',
+    'index',
+    'order',
+    'code',
+]);
+
+export const isOrderAliasKey = (key: string): boolean => {
+    if (key === 'display_order') return false;
+    return ORDER_FIELD_KEYS.has(normalizeOrderKey(key));
+};
+
+const asObject = (value: unknown): OrderMetadata | null =>
+    value && typeof value === 'object' && !Array.isArray(value) ? value as OrderMetadata : null;
+
+export const getDeclaredOrderFieldKey = (
+    metadata?: OrderMetadata | null,
+    properties?: OrderMetadata | null
+): string | undefined => {
+    const meta = asObject(metadata);
+    const props = asObject(properties);
+    const sourceProperties = asObject(meta?.source_properties);
+    const candidates = [meta, sourceProperties, props];
+
+    for (const candidate of candidates) {
+        if (!candidate) continue;
+        const key = Object.keys(candidate).find(isOrderAliasKey);
+        if (key) return key;
+    }
+
+    return undefined;
+};
+
+export const syncDisplayOrderAliases = (
+    metadata: OrderMetadata,
+    displayOrder?: unknown,
+    properties?: OrderMetadata | null
+): OrderMetadata => {
+    const next = { ...(metadata || {}) };
+    const orderValue = formatToIntegerString(
+        displayOrder ?? next.display_order ?? next.stt ?? next.STT ?? next.order ?? ''
+    );
+
+    if (!orderValue) return next;
+
+    next.display_order = orderValue;
+    const declaredKey = getDeclaredOrderFieldKey(next, properties);
+    if (declaredKey && declaredKey !== 'display_order') {
+        next[declaredKey] = orderValue;
+    }
+
+    return next;
+};
 
 export const calculateFeatureNumbers = (features: FeatureState[], featuresMap: FeaturesMapType): Record<string, string> => {
     const sortedFeatures = [...features].sort((a: FeatureState, b: FeatureState) => {
@@ -291,6 +359,48 @@ export const calculateFeatureNumbers = (features: FeatureState[], featuresMap: F
     sortedFeatures.forEach(f => getOrResolveSTT(f.id));
 
     return featureNumberMap;
+};
+
+export const getNextFeatureDisplayOrder = (
+    featuresMap: FeaturesMapType,
+    groupId: string | null | undefined,
+    parentFeatureId?: string | null
+): string => {
+    const features = Object.entries(featuresMap)
+        .map(([id, feature]) => ({ id, ...feature } as FeatureState))
+        .sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''), undefined, { numeric: true, sensitivity: 'base' }));
+    const currentNumbers = calculateFeatureNumbers(features, featuresMap);
+
+    if (parentFeatureId && featuresMap[parentFeatureId]) {
+        const parentNumber = currentNumbers[parentFeatureId] || "1";
+        const prefix = `${parentNumber}_`;
+        const maxChildNumber = features.reduce((max, feature) => {
+            const meta = getParsedMetadata(feature);
+            if (meta.parent_feature_id !== parentFeatureId) return max;
+
+            const displayNumber = currentNumbers[feature.id] || "";
+            if (!displayNumber.startsWith(prefix)) return max;
+
+            const childNumber = Number.parseInt(displayNumber.slice(prefix.length), 10);
+            return Number.isFinite(childNumber) ? Math.max(max, childNumber) : max;
+        }, 0);
+
+        return `${parentNumber}_${maxChildNumber + 1}`;
+    }
+
+    const maxRootNumber = features.reduce((max, feature) => {
+        if ((feature.group_id || null) !== (groupId || null)) return max;
+
+        const meta = getParsedMetadata(feature);
+        if (meta.parent_feature_id) return max;
+
+        const displayNumber = currentNumbers[feature.id] || "";
+        if (!/^\d+$/.test(displayNumber)) return max;
+
+        return Math.max(max, Number.parseInt(displayNumber, 10));
+    }, 0);
+
+    return `${maxRootNumber + 1}`;
 };
 
 /**

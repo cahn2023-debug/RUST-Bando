@@ -9,12 +9,29 @@ export const ANALYSIS_CORE_COLUMN_ORDER = [
   'index_stt',
   'display_order',
   'name',
+  'junction_scope',
   'geom_type',
   'group',
   'layer',
   'region',
   'status',
   'note',
+] as const;
+
+export const ANALYSIS_EXPORT_COLUMN_ORDER = [
+  ...ANALYSIS_CORE_COLUMN_ORDER,
+  'source_feature_id',
+  'source_group_id',
+  'source_group_type',
+  'source_layer_id',
+  'source_region_id',
+  'source_parent_feature_id',
+  'source_coordinates',
+  'source_technical_geom',
+  'source_icon',
+  'source_type',
+  'parent_intersection_name',
+  'parent_intersection_display_order',
 ] as const;
 
 const CORE_COLUMN_SET = new Set<string>(ANALYSIS_CORE_COLUMN_ORDER);

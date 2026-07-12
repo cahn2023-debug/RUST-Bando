@@ -401,4 +401,32 @@ describe('PropertyPanel clipboard images', () => {
     expect(mocks.selectFeature).not.toHaveBeenCalled();
     expect(mocks.setActiveParentFeature).not.toHaveBeenCalled();
   });
+
+  it('shows display order through the merged code field instead of a DISPLAY ORDER dynamic spec', async () => {
+    const originalMetadata = selectedFeature.metadata;
+    selectedFeature.metadata = JSON.stringify({ display_order: '21_4' });
+    mockUseDesignSync.mockReturnValue({
+      state: designState,
+      selectedFeatureId: selectedFeature.id,
+      selectFeature: mocks.selectFeature,
+      dispatchEvent: mocks.dispatchEvent,
+      queueEvent: mocks.queueEvent,
+      setDrawingMode: mocks.setDrawingMode,
+      setSelectedGroup: mocks.setSelectedGroup,
+      setActiveParentFeature: mocks.setActiveParentFeature,
+      setPreview: mocks.setPreview,
+      previewMetadata: null,
+      editingFeatureId: null,
+      setEditingFeatureId: mocks.setEditingFeatureId,
+      projectId: 'project-1',
+      selectionSet: new Set<string>(),
+    });
+
+    render(<PropertyPanel />);
+
+    await screen.findByDisplayValue('21_4');
+    expect(screen.queryByText(/display order/i)).not.toBeInTheDocument();
+
+    selectedFeature.metadata = originalMetadata;
+  });
 });

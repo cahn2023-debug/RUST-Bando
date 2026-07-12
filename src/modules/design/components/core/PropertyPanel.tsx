@@ -23,6 +23,7 @@ import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { buildFeaturePropertiesForPersistence, getTypeForIcon } from '@TOOL/utils/featurePersistence';
 import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
+import { getDeclaredOrderFieldKey, isOrderAliasKey, syncDisplayOrderAliases } from '@TOOL/utils/featureMapping';
 
 interface SegmentItem {
   id?: string | number;
@@ -49,6 +50,9 @@ const asNumberValue = (value: unknown, fallback = 0): number => {
 
 const asStringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+
+const getOrderFieldLabel = (metadata: Record<string, unknown>, properties?: FeatureProperties): string =>
+  getDeclaredOrderFieldKey(metadata, properties as Record<string, unknown> | undefined) || 'Mã hiệu (STT)';
 
 const readFileAsDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -653,7 +657,7 @@ const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ imageUrl, imageInde
   );
 };
 
-const preparePropertyMetadata = (metaInput: unknown): FeatureMetadata => {
+const preparePropertyMetadata = (metaInput: unknown, properties?: FeatureProperties): FeatureMetadata => {
   const metaToSave = { ...((metaInput || {}) as FeatureMetadata) };
 
   if (metaToSave.size !== undefined && metaToSave.size !== null) {
@@ -663,7 +667,11 @@ const preparePropertyMetadata = (metaInput: unknown): FeatureMetadata => {
     }
   }
 
-  const standardizedMeta = normalizeMetadataObject(metaToSave);
+  const standardizedMeta = syncDisplayOrderAliases(
+    normalizeMetadataObject(metaToSave) as Record<string, unknown>,
+    undefined,
+    properties as Record<string, unknown> | undefined
+  ) as FeatureMetadata;
   if (!standardizedMeta.size && metaToSave.size) {
     standardizedMeta.size = metaToSave.size;
   }
@@ -740,7 +748,7 @@ export const PropertyPanel: React.FC = () => {
   if (feature) {
     try {
       const parsed = typeof feature.metadata === 'string' ? JSON.parse(feature.metadata || '{}') : (feature.metadata || {});
-      persistedMeta = preparePropertyMetadata(parsed);
+      persistedMeta = preparePropertyMetadata(parsed, feature.properties as FeatureProperties);
       persistedMetaJson = JSON.stringify(persistedMeta);
     } catch {
       persistedMeta = {};
@@ -755,7 +763,7 @@ export const PropertyPanel: React.FC = () => {
   const draftName = (previewMetadata?.id === selectedFeatureId && previewMetadata.name !== undefined)
     ? previewMetadata.name
     : localName;
-  const isMetadataDirty = !!feature && JSON.stringify(preparePropertyMetadata(draftMeta)) !== persistedMetaJson;
+  const isMetadataDirty = !!feature && JSON.stringify(preparePropertyMetadata(draftMeta, feature.properties as FeatureProperties)) !== persistedMetaJson;
   const isNameDirty = !!feature && draftName !== persistedName;
 
   // Cleanup preview on unmount or when changing feature
@@ -807,6 +815,19 @@ export const PropertyPanel: React.FC = () => {
     }
   };
 
+  const orderFieldLabel = getOrderFieldLabel(localMeta as Record<string, unknown>, feature?.properties as FeatureProperties | undefined);
+  const updateOrderMeta = (value: string) => {
+    const next = syncDisplayOrderAliases(
+      localMeta as Record<string, unknown>,
+      value,
+      feature?.properties as Record<string, unknown> | undefined
+    ) as FeatureMetadata;
+    setLocalMeta(next);
+    if (selectedFeatureId) {
+      setPreview(selectedFeatureId, next, localName);
+    }
+  };
+
   const appendImageUrls = (dataUrls: string[]) => {
     if (dataUrls.length === 0) return;
     const currentImages = asStringArray(getMetaValue('media.imageUrls', 'imageUrls'));
@@ -848,7 +869,7 @@ export const PropertyPanel: React.FC = () => {
         imageUrls: newImgs,
       },
     } as FeatureMetadata;
-    const standardizedMeta = preparePropertyMetadata(nextMeta);
+    const standardizedMeta = preparePropertyMetadata(nextMeta, feature.properties as FeatureProperties);
     const nextProperties = buildFeaturePropertiesForPersistence(
       feature.properties as FeatureProperties | undefined,
       standardizedMeta
@@ -903,8 +924,8 @@ export const PropertyPanel: React.FC = () => {
 
     console.groupCollapsed(`[PropertyPanel] Icon change -> ${icon}`);
     console.log('featureId:', selectedFeatureId);
-    console.log('before:', getDebugShape(preparePropertyMetadata(localMeta), feature?.properties as FeatureProperties | undefined));
-    console.log('after:', getDebugShape(preparePropertyMetadata(nextMeta), feature?.properties as FeatureProperties | undefined));
+    console.log('before:', getDebugShape(preparePropertyMetadata(localMeta, feature?.properties as FeatureProperties | undefined), feature?.properties as FeatureProperties | undefined));
+    console.log('after:', getDebugShape(preparePropertyMetadata(nextMeta, feature?.properties as FeatureProperties | undefined), feature?.properties as FeatureProperties | undefined));
     console.groupEnd();
 
     setLocalMeta(nextMeta);
@@ -1005,7 +1026,7 @@ export const PropertyPanel: React.FC = () => {
     console.log('[PropertyPanel] 🎨 Color value:', draftMeta.color);
 
     try {
-      const standardizedMeta = preparePropertyMetadata(draftMeta);
+      const standardizedMeta = preparePropertyMetadata(draftMeta, feature.properties as FeatureProperties);
       const nextProperties = buildFeaturePropertiesForPersistence(
         feature.properties as FeatureProperties | undefined,
         standardizedMeta
@@ -1050,7 +1071,7 @@ export const PropertyPanel: React.FC = () => {
         const verifyMeta = typeof verifyFeature.metadata === 'string'
           ? JSON.parse(verifyFeature.metadata)
           : verifyFeature.metadata;
-        const normalizedVerifyMeta = preparePropertyMetadata(verifyMeta);
+        const normalizedVerifyMeta = preparePropertyMetadata(verifyMeta, feature.properties as FeatureProperties);
 
         console.groupCollapsed(`[PropertyPanel] Save verification ${feature.id}`);
         console.log('expected shape:', getDebugShape(standardizedMeta, nextProperties));
@@ -1335,6 +1356,16 @@ export const PropertyPanel: React.FC = () => {
               />
             </div>
 
+            <div className="space-y-1">
+              <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{orderFieldLabel}</label>
+              <input
+                className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:border-cad-accent outline-none transition-all"
+                value={asStringValue(getMetaValue('display_order', orderFieldLabel))}
+                onChange={e => updateOrderMeta(e.target.value)}
+                placeholder="Enter code..."
+              />
+            </div>
+
             {feature.geom_type === 'Point' && isIntersectionFeature && (
               <div className="pt-2 space-y-3">
                 <div className="space-y-2 p-3 bg-orange-500/5 border border-orange-500/10 rounded-md">
@@ -1593,9 +1624,10 @@ export const PropertyPanel: React.FC = () => {
         {(() => {
           const excludedKeys = [
             'description', 'color', 'size', 'icon', 'imageUrls', 'contractor', 'phoneNumber',
-            'business', 'media', 'gis', 'preview_rotation', 'preview_fov_angle', 'preview_fov_radius'
+            'business', 'media', 'gis', 'preview_rotation', 'preview_fov_angle', 'preview_fov_radius',
+            'display_order', 'stt', 'STT', 'order'
           ];
-          const dynamicSpecs = Object.entries(localMeta).filter(([key]) => !excludedKeys.includes(key));
+          const dynamicSpecs = Object.entries(localMeta).filter(([key]) => !excludedKeys.includes(key) && !isOrderAliasKey(key));
 
           if (dynamicSpecs.length === 0) return null;
 

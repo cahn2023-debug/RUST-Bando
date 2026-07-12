@@ -1,5 +1,6 @@
 import { safeInvoke as invoke } from "@IMPLEMENT/lib/tauri";
 import type { DesignEventType } from "@CONTRACT/designTypes";
+import { syncDisplayOrderAliases } from "@TOOL/utils/featureMapping";
 
 export interface FieldMeta {
   name: string;
@@ -50,13 +51,13 @@ export const buildFeatureCreatedEvents = (
 ): DesignEventType[] => {
   return records.map((record, index) => {
     const name = record.properties.name || record.properties.label || `Point ${index + 1}`;
-    const metadata = {
+    const metadata = syncDisplayOrderAliases({
       ...(record.properties.description ? { description: record.properties.description } : {}),
       ...(record.properties.display_order ? { display_order: record.properties.display_order } : {}),
       imported_from: "excel",
       imported_tile_id: record.tile_id,
       source_properties: record.properties,
-    };
+    }, record.properties.display_order, record.properties);
 
     return {
       type: "FeatureCreated",
