@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { initGoogleMaps, waitForGoogleMaps } from '@TOOL/utils/googleMapsLoader';
 import { getStreetViewUrl } from '@TOOL/utils/cameraMath';
@@ -13,6 +13,12 @@ export interface StaticStreetViewPreviewProps {
     fallback: React.ReactNode;
 }
 
+const STREET_VIEW_RADIUS_METERS = 200;
+const STREET_VIEW_RESOLVE_TIMEOUT_MS = 5000;
+type StreetViewLocationSource = 'direct' | 'nearest';
+type ResolvedStreetViewPano = { lat: number; lng: number; source: StreetViewLocationSource };
+type PreviewStatus = 'resolving' | 'building' | 'ready' | 'error';
+
 /**
  * Resolves the nearest outdoor panorama coordinates within 200m radius using Google Maps StreetViewService.
  * If the JS SDK fails to load or check, it falls back to a direct Metadata API fetch.
@@ -21,7 +27,7 @@ export async function resolveNearestStreetViewPano(
     lat: number,
     lng: number,
     apiKey: string
-): Promise<{ lat: number; lng: number } | null> {
+): Promise<ResolvedStreetViewPano | null> {
     const trimmedKey = apiKey.trim();
     if (!trimmedKey || trimmedKey === 'undefined') return null;
 
@@ -34,20 +40,33 @@ export async function resolveNearestStreetViewPano(
         if (g?.maps) {
             return new Promise((resolve) => {
                 const service = new g.maps.StreetViewService();
+                let settled = false;
+                const finish = (result: ResolvedStreetViewPano | null) => {
+                    if (settled) return;
+                    settled = true;
+                    window.clearTimeout(timeoutId);
+                    resolve(result);
+                };
+                const timeoutId = window.setTimeout(() => {
+                    console.warn('[resolveNearestStreetViewPano] StreetViewService timed out, falling back to metadata API.');
+                    finish(null);
+                }, STREET_VIEW_RESOLVE_TIMEOUT_MS);
+
                 service.getPanorama(
                     {
                         location: { lat, lng },
-                        radius: 200,
+                        radius: STREET_VIEW_RADIUS_METERS,
                         source: g.maps.StreetViewSource.OUTDOOR
                     },
                     (data: any, status: string) => {
                         if (status === g.maps.StreetViewStatus.OK && data.location) {
-                            resolve({
+                            finish({
                                 lat: data.location.latLng.lat(),
-                                lng: data.location.latLng.lng()
+                                lng: data.location.latLng.lng(),
+                                source: 'nearest'
                             });
                         } else {
-                            resolve(null);
+                            finish(null);
                         }
                     }
                 );
@@ -59,14 +78,21 @@ export async function resolveNearestStreetViewPano(
 
     // Direct JSON API Fallback (useful in CI or if SDK script injection fails)
     try {
+        const params = new URLSearchParams({
+            location: `${lat},${lng}`,
+            radius: String(STREET_VIEW_RADIUS_METERS),
+            source: 'outdoor',
+            key: trimmedKey
+        });
         const response = await fetch(
-            `https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${trimmedKey}`
+            `https://maps.googleapis.com/maps/api/streetview/metadata?${params.toString()}`
         );
         const data = await response.json();
         if (data.status === 'OK' && data.location) {
             return {
                 lat: data.location.lat,
-                lng: data.location.lng
+                lng: data.location.lng,
+                source: 'nearest'
             };
         }
     } catch (err) {
@@ -97,16 +123,17 @@ export async function buildStaticStreetViewUrl({
 }): Promise<string> {
     const trimmedKey = apiKey.trim();
     const cleanFov = Math.max(10, Math.min(120, fov));
-    const unsignedUrl = getStreetViewUrl(lat, lng, heading, cleanFov, pitch, trimmedKey);
+    const unsignedUrl = new URL(getStreetViewUrl(lat, lng, heading, cleanFov, pitch, trimmedKey));
+    unsignedUrl.searchParams.set('return_error_code', 'true');
     try {
         const signedUrl = await invoke<string>('sign_streetview_url', {
-            urlToSign: unsignedUrl,
+            urlToSign: unsignedUrl.toString(),
             secret: ''
         });
         return signedUrl;
     } catch (err) {
         console.warn('[buildStaticStreetViewUrl] Tauri sign_streetview_url failed, falling back to unsigned:', err);
-        return unsignedUrl;
+        return unsignedUrl.toString();
     }
 }
 
@@ -119,35 +146,73 @@ export const StaticStreetViewPreview: React.FC<StaticStreetViewPreviewProps> = (
     apiKey,
     fallback
 }) => {
-    const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+    const [status, setStatus] = useState<PreviewStatus>('resolving');
+    const [resolvedLocation, setResolvedLocation] = useState<ResolvedStreetViewPano | null>(null);
     const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
     const [imageError, setImageError] = useState(false);
+    const [resolveFinished, setResolveFinished] = useState(false);
+    const [pendingDirectImageError, setPendingDirectImageError] = useState(false);
+    const pendingDirectImageErrorRef = useRef(false);
+
+    useEffect(() => {
+        pendingDirectImageErrorRef.current = pendingDirectImageError;
+    }, [pendingDirectImageError]);
 
     useEffect(() => {
         let active = true;
-        setStatus('loading');
         setImageError(false);
+        setPendingDirectImageError(false);
 
-        const loadPreview = async () => {
+        const resolvePano = async () => {
             if (isNaN(lat) || isNaN(lng) || !apiKey.trim() || apiKey === 'undefined') {
-                if (active) setStatus('error');
+                if (active) {
+                    setResolvedLocation(null);
+                    setResolvedUrl(null);
+                    setStatus('error');
+                }
                 return;
             }
 
-            // 1. Resolve nearest pano
+            setResolvedLocation({ lat, lng, source: 'direct' });
+            setResolveFinished(false);
+            setStatus('resolving');
             const nearest = await resolveNearestStreetViewPano(lat, lng, apiKey);
             if (!active) return;
 
+            setResolveFinished(true);
             if (!nearest) {
-                console.warn(`[StaticStreetViewPreview] No Street View coverage within 200m of ${lat}, ${lng}`);
-                setStatus('error');
+                console.warn(`[StaticStreetViewPreview] Could not resolve nearest pano within 200m of ${lat}, ${lng}. Falling back to direct Street View image request.`);
+                if (pendingDirectImageErrorRef.current) {
+                    setImageError(true);
+                    setStatus('error');
+                }
                 return;
             }
 
-            // 2. Build signed static image URL
+            setResolvedLocation(nearest);
+        };
+
+        void resolvePano();
+
+        return () => {
+            active = false;
+        };
+    }, [lat, lng, apiKey]);
+
+    useEffect(() => {
+        let active = true;
+
+        const buildPreview = async () => {
+            if (!resolvedLocation || !apiKey.trim() || apiKey === 'undefined') {
+                return;
+            }
+
+            setImageError(false);
+            setStatus((current) => (current === 'ready' ? 'building' : 'resolving'));
+
             const url = await buildStaticStreetViewUrl({
-                lat: nearest.lat,
-                lng: nearest.lng,
+                lat: resolvedLocation.lat,
+                lng: resolvedLocation.lng,
                 heading,
                 fov,
                 pitch,
@@ -159,12 +224,23 @@ export const StaticStreetViewPreview: React.FC<StaticStreetViewPreviewProps> = (
             setStatus('ready');
         };
 
-        void loadPreview();
+        void buildPreview();
 
         return () => {
             active = false;
         };
-    }, [lat, lng, heading, fov, pitch, apiKey]);
+    }, [resolvedLocation, heading, fov, pitch, apiKey]);
+
+    useEffect(() => {
+        if (
+            resolveFinished &&
+            pendingDirectImageError &&
+            resolvedLocation?.source === 'direct'
+        ) {
+            setImageError(true);
+            setStatus('error');
+        }
+    }, [resolveFinished, pendingDirectImageError, resolvedLocation]);
 
     if (status === 'error' || imageError) {
         return <>{fallback}</>;
@@ -176,20 +252,32 @@ export const StaticStreetViewPreview: React.FC<StaticStreetViewPreviewProps> = (
                 <img
                     src={resolvedUrl}
                     alt="Street View Preview"
-                    className={`w-full h-full object-cover transition-opacity duration-300 ${status === 'loading' || imageError ? 'opacity-0' : 'opacity-100'}`}
+                    className={`w-full h-full object-cover transition-opacity duration-300 ${imageError ? 'opacity-0' : 'opacity-100'}`}
                     onError={() => {
+                        if (resolvedLocation?.source === 'direct' && !resolveFinished) {
+                            console.warn('[StaticStreetViewPreview] Direct Street View image failed before pano resolution finished. Waiting for nearest pano result.');
+                            setPendingDirectImageError(true);
+                            return;
+                        }
                         console.error('[StaticStreetViewPreview] Image failed to load, falling back to HUD.');
                         setImageError(true);
+                        setStatus('error');
                     }}
                 />
             )}
 
-            {status === 'loading' && (
+            {(status === 'resolving' || (status === 'building' && !resolvedUrl)) && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 z-20">
                     <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                     <div className="mt-2 text-[9px] font-mono text-gray-500 uppercase tracking-widest">
                         Resolving Nearest Pano...
                     </div>
+                </div>
+            )}
+
+            {status === 'building' && resolvedUrl && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20 z-20 pointer-events-none">
+                    <div className="w-8 h-8 border-2 border-emerald-500/80 border-t-transparent rounded-full animate-spin" />
                 </div>
             )}
 

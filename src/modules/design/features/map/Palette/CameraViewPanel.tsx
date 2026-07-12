@@ -15,6 +15,7 @@ import {
     calculatePPM,
     getDORICategory,
     mapRotationToHeading,
+    mapHeadingToRotation,
     calculateDORIDistance
 } from '@TOOL/utils/cameraMath';
 import { RecognitionSimulator } from '@DESIGN/features/map/Palette/RecognitionSimulator';
@@ -23,7 +24,7 @@ import { X } from 'lucide-react';
 import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore';
 import { cn } from '@TOOL/utils/cn';
 import { DORILegend } from '@DESIGN/features/map/MapLayerComponents/DORILegend';
-import { StaticStreetViewPreview } from './StaticStreetViewPreview';
+import { InteractiveStreetViewPreview } from './InteractiveStreetViewPreview';
 import { CameraHudFallback } from './CameraHudFallback';
 import { getGoogleMapsApiKey } from '@TOOL/utils/googleMapsRuntime';
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
@@ -341,13 +342,16 @@ export const CameraViewPanel: React.FC = () => {
 
                     {expandedSections.simulation && (
                         <div className="bg-[#111] p-3 rounded border border-[#333]">
-                            <StaticStreetViewPreview
+                            <InteractiveStreetViewPreview
                                 lat={coords?.[1] ?? NaN}
                                 lng={coords?.[0] ?? NaN}
                                 heading={mapRotationToHeading(rotation)}
                                 fov={hfov}
-                                pitch={0}
                                 apiKey={getGoogleMapsApiKey()}
+                                onHeadingChange={(newHeading) => {
+                                    const newRotation = mapHeadingToRotation(newHeading);
+                                    updateNestedMeta('gis.rotation', newRotation);
+                                }}
                                 fallback={
                                     <CameraHudFallback
                                         hfov={hfov}

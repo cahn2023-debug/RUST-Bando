@@ -122,6 +122,14 @@ export function mapRotationToHeading(uiRotation: number): number {
 }
 
 /**
+ * Maps Compass Heading back to UI Rotation
+ * Formula: Rotation = (Heading - 90 + 360) % 360
+ */
+export function mapHeadingToRotation(heading: number): number {
+    return (heading - 90 + 360) % 360;
+}
+
+/**
  * Generates Google Street View Static API URL
  */
 export function getStreetViewUrl(
