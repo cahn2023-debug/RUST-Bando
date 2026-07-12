@@ -120,7 +120,7 @@ export const StaticStreetViewPreview: React.FC<StaticStreetViewPreviewProps> = (
     fallback
 }) => {
     const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-    const [resolvedUrl, setResolvedUrl] = useState<string>('');
+    const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
     const [imageError, setImageError] = useState(false);
 
     useEffect(() => {
@@ -172,15 +172,17 @@ export const StaticStreetViewPreview: React.FC<StaticStreetViewPreviewProps> = (
 
     return (
         <div className="relative w-full aspect-video rounded-lg bg-[#070b12] border border-white/10 overflow-hidden shadow-2xl select-none group">
-            <img
-                src={resolvedUrl}
-                alt="Street View Preview"
-                className={`w-full h-full object-cover transition-opacity duration-300 ${status === 'loading' || imageError ? 'opacity-0' : 'opacity-100'}`}
-                onError={() => {
-                    console.error('[StaticStreetViewPreview] Image failed to load, falling back to HUD.');
-                    setImageError(true);
-                }}
-            />
+            {resolvedUrl && (
+                <img
+                    src={resolvedUrl}
+                    alt="Street View Preview"
+                    className={`w-full h-full object-cover transition-opacity duration-300 ${status === 'loading' || imageError ? 'opacity-0' : 'opacity-100'}`}
+                    onError={() => {
+                        console.error('[StaticStreetViewPreview] Image failed to load, falling back to HUD.');
+                        setImageError(true);
+                    }}
+                />
+            )}
 
             {status === 'loading' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 z-20">

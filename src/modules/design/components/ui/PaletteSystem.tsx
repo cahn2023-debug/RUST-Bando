@@ -11,7 +11,7 @@ interface PaletteSystemProps {
 }
 
 export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
-    isOneObjectSelected
+    isOneObjectSelected: _isOneObjectSelected
 }) => {
     const layoutColumns = useLayoutStore(s => s.layoutColumns);
     const paletteConfigs = useLayoutStore(s => s.paletteConfigs);
@@ -65,11 +65,7 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
             })}
 
             {Object.keys(paletteConfigs).filter(id => {
-                const isVisible = paletteConfigs[id].isFloating && paletteConfigs[id].isVisible;
-                if (!isVisible) return false;
-                if (id === 'device-config') return isOneObjectSelected;
-                if (id === 'camera-view') return true;
-                return true;
+                return paletteConfigs[id].isFloating && paletteConfigs[id].isVisible;
             }).map(id => (
                 <PalettePanel key={id} id={id}>
                     <div className="flex-1 overflow-hidden p-1.5 custom-scrollbar h-full">

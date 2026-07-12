@@ -307,38 +307,3 @@ export const getProjectBomTable = async (): Promise<any> => {
     return { bom_table: [] };
   }
 };
-
-let metadataDebounceTimer: any = null;
-let pendingMetadataPatch: Record<string, any> = {};
-
-export const updateMetadataV2Debounced = (fileId: string, patch: any, delay = 300) => {
-  pendingMetadataPatch[fileId] = { ...(pendingMetadataPatch[fileId] || {}), ...patch };
-
-  if (metadataDebounceTimer) clearTimeout(metadataDebounceTimer);
-
-  metadataDebounceTimer = setTimeout(async () => {
-    const patches = { ...pendingMetadataPatch };
-    pendingMetadataPatch = {};
-    metadataDebounceTimer = null;
-
-    for (const [id, p] of Object.entries(patches)) {
-      try {
-        await invoke(
-          'update_metadata_v2',
-          withCompatArgs(
-            {
-              file_id: id,
-              patch: p,
-            },
-            {
-              fileId: id,
-              patch: p,
-            }
-          )
-        );
-      } catch (err) {
-        console.error(`[V2] Debounced update failed for ${id}:`, err);
-      }
-    }
-  }, delay);
-};

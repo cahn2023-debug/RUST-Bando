@@ -158,10 +158,10 @@ export const VectorLayer = React.memo(({
                                 center={latLngs[0]}
                                 radius={Math.max(4, weight)}
                                 pathOptions={{
-                                    fillColor: isSelected ? '#00f2ff' : lineColor,
-                                    fillOpacity: 0.8,
-                                    color: (f.id === selectedFeatureId) ? '#ffffff' : lineColor,
-                                    weight: (f.id === selectedFeatureId) ? 3 : 1,
+                                    fillColor: isSelected ? '#22d3ee' : lineColor,
+                                    fillOpacity: isSelected ? 0.72 : 0.58,
+                                    color: (f.id === selectedFeatureId) ? '#c7f9ff' : lineColor,
+                                    weight: (f.id === selectedFeatureId) ? 2 : 1,
                                     className: isClickThrough ? 'pointer-events-none' : 'cursor-pointer'
                                 }}
                                 interactive={drawingMode === 'none' || drawingMode === 'move'}
@@ -224,10 +224,10 @@ export const VectorLayer = React.memo(({
                                 pathOptions={{
                                     color: isSelected ? '#22d3ee' : (displayInfo.color || '#EF4444'),
                                     weight: weight,
-                                    opacity: 0.9, // Increased opacity for better visibility
+                                    opacity: isSelected ? 0.82 : 0.72,
                                     lineCap: 'round',
                                     lineJoin: 'round',
-                                    dashArray: isSelected ? '12, 12' : undefined,
+                                    dashArray: isSelected ? '10, 10' : undefined,
                                     className: `${isClickThrough ? 'pointer-events-none' : ''} ${isSelected ? 'polyline-selected' : ''}`
                                 }}
                                 interactive={false}
@@ -245,10 +245,11 @@ export const VectorLayer = React.memo(({
                             positions={latLngs}
                             pathOptions={{
                                 color: displayInfo.color || '#EF4444',
-                                weight: isSelected ? 4 : 2,
-                                fillOpacity: isSelected ? 0.4 : 0.1,
+                                weight: isSelected ? 3 : 2,
+                                fillOpacity: isSelected ? 0.22 : 0.08,
                                 fillColor: displayInfo.color || '#EF4444',
-                                dashArray: isSelected ? '8, 8' : undefined,
+                                opacity: isSelected ? 0.82 : 0.68,
+                                dashArray: isSelected ? '6, 6' : undefined,
                                 className: isClickThrough ? 'pointer-events-none' : ''
                             }}
                             interactive={drawingMode === 'none' || drawingMode === 'move'}

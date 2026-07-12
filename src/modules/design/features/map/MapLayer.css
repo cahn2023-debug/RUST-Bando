@@ -187,15 +187,20 @@
     background: transparent !important;
 }
 
-/* Polyline Selection Glow */
+/* Keep selected vectors readable without making them float above the basemap */
 .polyline-selected {
-    filter: drop-shadow(0 0 3px #22d3ee) drop-shadow(0 0 1px #22d3ee);
+    filter: drop-shadow(0 0 1px rgba(34, 211, 238, 0.35));
 }
 
 /* Custom Map Marker styles */
 .custom-map-marker {
     cursor: pointer;
     pointer-events: auto !important;
+    transition: opacity 0.18s ease, filter 0.18s ease;
+}
+
+.custom-map-marker.selected-marker {
+    filter: saturate(1.02);
 }
 
 .custom-pegman-marker {

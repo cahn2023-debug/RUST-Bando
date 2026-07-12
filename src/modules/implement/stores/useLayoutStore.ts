@@ -41,14 +41,13 @@ interface LayoutState {
 export const useLayoutStore = create<LayoutState>()(
     persist(
         (set) => ({
-            layoutColumns: [['spec-panel', 'summary-panel', 'camera-view', 'device-config', 'bulk-edit']],
+            layoutColumns: [['spec-panel', 'summary-panel', 'camera-view', 'device-config']],
             activePaletteId: null,
             paletteConfigs: {
                 'spec-panel': { id: 'spec-panel', title: 'Thông số thiết kế', icon: 'Settings', isPinned: true, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } },
                 'summary-panel': { id: 'summary-panel', title: 'Tổng hợp khối lượng', icon: 'Calculator', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
                 'device-config': { id: 'device-config', title: 'Cấu hình thiết bị', icon: 'Camera', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
                 'camera-view': { id: 'camera-view', title: 'Góc Nhìn', icon: 'Video', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
-                'bulk-edit': { id: 'bulk-edit', title: 'Chỉnh sửa hàng loạt', icon: 'Layers', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
             },
             draggingPaletteId: null,
             showPerformanceOverlay: false,
@@ -244,9 +243,22 @@ export const useLayoutStore = create<LayoutState>()(
         }),
         {
             name: 'cad-layout-storage',
-            version: 8,
+            version: 9,
             migrate: (persistedState: any, version: number) => {
                 let state = persistedState as any;
+                const stripBulkEditPalette = () => {
+                    if (state.paletteConfigs) {
+                        delete state.paletteConfigs['bulk-edit'];
+                    }
+                    if (state.layoutColumns) {
+                        state.layoutColumns = state.layoutColumns
+                            .map((col: string[]) => col.filter(id => id !== 'bulk-edit'))
+                            .filter((col: string[]) => col.length > 0);
+                    }
+                    if (state.activePaletteId === 'bulk-edit') state.activePaletteId = null;
+                    if (state.draggingPaletteId === 'bulk-edit') state.draggingPaletteId = null;
+                };
+
                 if (version === 0) {
                     // version 0 to 1 logic
                     if (state.rightPalettes && state.rightPalettes.includes('property-manager')) {
@@ -285,7 +297,6 @@ export const useLayoutStore = create<LayoutState>()(
                         'summary-panel': { id: 'summary-panel', title: 'Tổng hợp khối lượng', icon: 'Calculator', isPinned: false, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } },
                         'device-config': { id: 'device-config', title: 'Cấu hình thiết bị', icon: 'Camera', isPinned: false, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
                         'camera-view': { id: 'camera-view', title: 'Góc Nhìn', icon: 'Video', isPinned: false, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } },
-                        'bulk-edit': { id: 'bulk-edit', title: 'Chỉnh sửa hàng loạt', icon: 'Layers', isPinned: false, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } }
                     };
 
                     if (!state.paletteConfigs) state.paletteConfigs = {};
@@ -361,7 +372,7 @@ export const useLayoutStore = create<LayoutState>()(
                 if (version < 7) {
                     // version to 7: Force pinning for all palettes to fix 'black screen' layout collapse
                     if (state.paletteConfigs) {
-                        const standardIds = ['spec-panel', 'summary-panel', 'camera-view', 'device-config', 'bulk-edit'];
+                        const standardIds = ['spec-panel', 'summary-panel', 'camera-view', 'device-config'];
                         standardIds.forEach(id => {
                             if (state.paletteConfigs[id]) {
                                 state.paletteConfigs[id].isPinned = true;
@@ -372,14 +383,15 @@ export const useLayoutStore = create<LayoutState>()(
                     }
 
                     // Force the standard columns layout (single column for more space)
-                    state.layoutColumns = [['spec-panel', 'summary-panel', 'camera-view', 'device-config', 'bulk-edit']];
+                    state.layoutColumns = [['spec-panel', 'summary-panel', 'camera-view', 'device-config']];
+                    stripBulkEditPalette();
                     return state;
                 }
 
                 if (version < 8) {
                     // version 8: Refine visibility to maximize map space
                     if (state.paletteConfigs) {
-                        const idsToHide = ['summary-panel', 'bulk-edit'];
+                        const idsToHide = ['summary-panel'];
                         const idsToShow = ['camera-view', 'device-config'];
                         idsToHide.forEach(id => {
                             if (state.paletteConfigs[id]) {
@@ -398,7 +410,8 @@ export const useLayoutStore = create<LayoutState>()(
                             state.paletteConfigs['spec-panel'].isPinned = true;
                         }
                     }
-                    state.layoutColumns = [['spec-panel', 'summary-panel', 'camera-view', 'device-config', 'bulk-edit']];
+                    state.layoutColumns = [['spec-panel', 'summary-panel', 'camera-view', 'device-config']];
+                    stripBulkEditPalette();
                     return state;
                 }
 
@@ -413,8 +426,10 @@ export const useLayoutStore = create<LayoutState>()(
                             }
                         });
                     }
+                    stripBulkEditPalette();
                     return state;
                 }
+                stripBulkEditPalette();
                 return state;
             }
         }

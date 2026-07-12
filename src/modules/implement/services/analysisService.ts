@@ -32,7 +32,7 @@ export const analysisService = {
 
       await invoke('save_binary_file', {
         path: filePath,
-        data: new Uint8Array(excelBuffer)
+        data: Array.from(new Uint8Array(excelBuffer))
       });
 
       return true;

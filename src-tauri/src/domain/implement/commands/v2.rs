@@ -15,6 +15,24 @@ pub struct ActorState {
     pub gateway_tx: mpsc::Sender<StorageCommand>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DashboardProjectStats {
+    pub total_files: i64,
+    pub total_size: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DashboardExtensionStat {
+    pub extension: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DashboardFileStat {
+    pub name: String,
+    pub size: i64,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct ImportMappingPayload {
     pub name_column: String,
@@ -71,6 +89,21 @@ fn ensure_excel_extension(path: &Path) -> Result<(), String> {
         "Only Excel files (.xlsx, .xls, .xlsm, .xlsb) are supported in this import flow"
             .to_string(),
     )
+}
+
+#[tauri::command]
+pub async fn save_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
+    let path = PathBuf::from(path);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("Failed to create parent directory: {error}"))?;
+    }
+    std::fs::write(&path, data).map_err(|error| format!("Failed to save file: {error}"))
+}
+
+#[tauri::command]
+pub async fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
+    std::fs::read(PathBuf::from(path)).map_err(|error| format!("Failed to read file: {error}"))
 }
 
 fn normalize_column_key(value: &str) -> String {
@@ -1325,6 +1358,136 @@ pub async fn get_stats_v2(state: State<'_, ActorState>) -> Result<Value, String>
     }))
 }
 
+async fn dashboard_project_stats_for_project(
+    state: &ActorState,
+    project_id: String,
+) -> Result<DashboardProjectStats, String> {
+    let sql = "
+        SELECT
+            COUNT(*) as total_files,
+            COALESCE(SUM(COALESCE(file_size, 0)), 0) as total_size
+        FROM files
+        WHERE project_id = ?1
+    ";
+    let rows = exec_query(state, sql, vec![project_id]).await?;
+    let row = rows
+        .as_array()
+        .and_then(|items| items.first())
+        .ok_or_else(|| "Analytics query returned no rows".to_string())?;
+
+    Ok(DashboardProjectStats {
+        total_files: row
+            .get("total_files")
+            .and_then(Value::as_i64)
+            .unwrap_or(0),
+        total_size: row.get("total_size").and_then(Value::as_i64).unwrap_or(0),
+    })
+}
+
+async fn dashboard_extension_dist_for_project(
+    state: &ActorState,
+    project_id: String,
+) -> Result<Vec<DashboardExtensionStat>, String> {
+    let sql = "
+        SELECT
+            COALESCE(NULLIF(TRIM(LOWER(extension)), ''), 'none') as extension,
+            COUNT(*) as count
+        FROM files
+        WHERE project_id = ?1
+        GROUP BY COALESCE(NULLIF(TRIM(LOWER(extension)), ''), 'none')
+        ORDER BY count DESC, extension ASC
+    ";
+    let rows = exec_query(state, sql, vec![project_id]).await?;
+
+    Ok(rows
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|row| DashboardExtensionStat {
+            extension: row
+                .get("extension")
+                .and_then(Value::as_str)
+                .unwrap_or("none")
+                .to_string(),
+            count: row.get("count").and_then(Value::as_i64).unwrap_or(0),
+        })
+        .collect())
+}
+
+async fn dashboard_top_files_for_project(
+    state: &ActorState,
+    project_id: String,
+    limit: i64,
+) -> Result<Vec<DashboardFileStat>, String> {
+    let sql = "
+        SELECT
+            filename as name,
+            COALESCE(file_size, 0) as size
+        FROM files
+        WHERE project_id = ?1
+        ORDER BY COALESCE(file_size, 0) DESC, filename ASC
+        LIMIT ?2
+    ";
+    let rows = exec_query(state, sql, vec![project_id, limit.to_string()]).await?;
+
+    Ok(rows
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|row| DashboardFileStat {
+            name: row
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            size: row.get("size").and_then(Value::as_i64).unwrap_or(0),
+        })
+        .collect())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn get_dashboard_project_stats(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+) -> Result<DashboardProjectStats, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    dashboard_project_stats_for_project(&state, project_id).await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn get_dashboard_extension_dist(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+) -> Result<Vec<DashboardExtensionStat>, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    dashboard_extension_dist_for_project(&state, project_id).await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn get_dashboard_top_files(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    limit: Option<i64>,
+) -> Result<Vec<DashboardFileStat>, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let limit = limit.unwrap_or(10).clamp(1, 100);
+    dashboard_top_files_for_project(&state, project_id, limit).await
+}
+
 // --- V1/V2 Realized Projections ---
 // Moved to v2_bridge.rs with project_id support
 
@@ -1656,6 +1819,23 @@ mod tests {
     use tempfile::tempdir;
     use tokio::sync::mpsc;
     use tokio::sync::oneshot;
+
+    #[tokio::test]
+    async fn binary_file_commands_round_trip_bytes() {
+        let dir = tempdir().expect("tempdir");
+        let file_path = dir.path().join("analysis_export.xlsx");
+        let bytes = vec![0_u8, 1, 2, 3, 254, 255];
+
+        save_binary_file(file_path.to_string_lossy().to_string(), bytes.clone())
+            .await
+            .expect("save binary file");
+
+        let actual = read_binary_file(file_path.to_string_lossy().to_string())
+            .await
+            .expect("read binary file");
+
+        assert_eq!(actual, bytes);
+    }
 
     #[tokio::test]
     async fn active_project_keys_roundtrip_for_reopen_flow() {
@@ -2057,5 +2237,162 @@ mod tests {
             Some("Điểm đúng")
         );
         assert_eq!(records[0].geometry, [105.9, 21.5]);
+    }
+
+    async fn seed_dashboard_project(actor_state: &ActorState, project_id: &str) {
+        let _ = exec_query(
+            actor_state,
+            "INSERT INTO projects (id, name, title, base_dir_hint) VALUES (?1, ?2, ?3, ?4)",
+            vec![
+                project_id.to_string(),
+                "Analytics Project".to_string(),
+                "Analytics Project".to_string(),
+                "C:/workspace".to_string(),
+            ],
+        )
+        .await
+        .expect("insert project");
+    }
+
+    #[tokio::test]
+    async fn dashboard_commands_aggregate_project_file_data() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("analytics_commands.pmp");
+        let db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let (tx, rx) = mpsc::channel(32);
+        let _handle = StorageWorker::spawn(rx, db);
+        let actor_state = ActorState { gateway_tx: tx };
+        let project_id = "analytics-project";
+
+        seed_dashboard_project(&actor_state, project_id).await;
+
+        let _ = exec_query(
+            &actor_state,
+            "INSERT INTO files (id, project_id, rel_path, filename, extension, file_size, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            vec![
+                "f1".to_string(),
+                project_id.to_string(),
+                "src/main.ts".to_string(),
+                "main.ts".to_string(),
+                "ts".to_string(),
+                "512".to_string(),
+                "{}".to_string(),
+            ],
+        )
+        .await
+        .expect("insert file 1");
+        let _ = exec_query(
+            &actor_state,
+            "INSERT INTO files (id, project_id, rel_path, filename, extension, file_size, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            vec![
+                "f2".to_string(),
+                project_id.to_string(),
+                "docs/readme.md".to_string(),
+                "readme.md".to_string(),
+                "md".to_string(),
+                "128".to_string(),
+                "{}".to_string(),
+            ],
+        )
+        .await
+        .expect("insert file 2");
+        let _ = exec_query(
+            &actor_state,
+            "INSERT INTO files (id, project_id, rel_path, filename, extension, file_size, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            vec![
+                "f3".to_string(),
+                project_id.to_string(),
+                "assets/logo".to_string(),
+                "logo".to_string(),
+                "".to_string(),
+                "2048".to_string(),
+                "{}".to_string(),
+            ],
+        )
+        .await
+        .expect("insert file 3");
+
+        let stats = dashboard_project_stats_for_project(&actor_state, project_id.to_string())
+        .await
+        .expect("stats");
+        let dist = dashboard_extension_dist_for_project(&actor_state, project_id.to_string())
+        .await
+        .expect("dist");
+        let top_files =
+            dashboard_top_files_for_project(&actor_state, project_id.to_string(), 2)
+        .await
+        .expect("top files");
+
+        assert_eq!(
+            stats,
+            DashboardProjectStats {
+                total_files: 3,
+                total_size: 2688
+            }
+        );
+        assert_eq!(
+            dist,
+            vec![
+                DashboardExtensionStat {
+                    extension: "md".to_string(),
+                    count: 1
+                },
+                DashboardExtensionStat {
+                    extension: "none".to_string(),
+                    count: 1
+                },
+                DashboardExtensionStat {
+                    extension: "ts".to_string(),
+                    count: 1
+                }
+            ]
+        );
+        assert_eq!(
+            top_files,
+            vec![
+                DashboardFileStat {
+                    name: "logo".to_string(),
+                    size: 2048
+                },
+                DashboardFileStat {
+                    name: "main.ts".to_string(),
+                    size: 512
+                }
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn dashboard_commands_return_empty_results_for_project_without_files() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("analytics_empty.pmp");
+        let db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let (tx, rx) = mpsc::channel(32);
+        let _handle = StorageWorker::spawn(rx, db);
+        let actor_state = ActorState { gateway_tx: tx };
+        let project_id = "analytics-empty";
+
+        seed_dashboard_project(&actor_state, project_id).await;
+
+        let stats = dashboard_project_stats_for_project(&actor_state, project_id.to_string())
+        .await
+        .expect("stats");
+        let dist = dashboard_extension_dist_for_project(&actor_state, project_id.to_string())
+        .await
+        .expect("dist");
+        let top_files =
+            dashboard_top_files_for_project(&actor_state, project_id.to_string(), 10)
+        .await
+        .expect("top files");
+
+        assert_eq!(
+            stats,
+            DashboardProjectStats {
+                total_files: 0,
+                total_size: 0
+            }
+        );
+        assert!(dist.is_empty());
+        assert!(top_files.is_empty());
     }
 }

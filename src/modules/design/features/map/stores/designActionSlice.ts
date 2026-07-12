@@ -146,7 +146,7 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
         if (!queuedProjectId) return;
 
         const preparedEvents = events.map(enrichEventBeforeDispatch);
-        get().applyEventsOptimistically(preparedEvents);
+        get().applyEventsOptimistically(events);
         set({ pendingSync: true });
 
         try {

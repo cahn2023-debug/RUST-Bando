@@ -72,4 +72,57 @@ describe("useFlattenedTree - Direct Intersection Nesting", () => {
         expect(items[3].type).toBe("feature");
         expect(items[3].id).toBe("feat-child");
     });
+
+    it("should filter nested objects across the project even when parents are collapsed", () => {
+        const regionsMap: Record<string, RegionState> = {
+            "region-1": { id: "region-1", name: "Region 1", parent_id: null, description: null, is_visible: true }
+        };
+        const layersMap: Record<string, LayerState> = {
+            "layer-1": { id: "layer-1", region_id: "region-1", name: "Layer 1", is_visible: true }
+        };
+        const groupsMap: Record<string, FeatureGroupState> = {};
+        const featuresMap: Record<string, FeatureState> = {
+            "feat-parent": {
+                id: "feat-parent",
+                layer_id: "layer-1",
+                group_id: null,
+                name: "Nút giao A",
+                is_visible: true,
+                geom_type: "POINT",
+                coordinates: [0, 0],
+                properties: {},
+                metadata: JSON.stringify({ type: "INTERSECTION", display_order: 1 })
+            },
+            "feat-child": {
+                id: "feat-child",
+                layer_id: "layer-1",
+                group_id: null,
+                name: "Camera trong nút giao",
+                is_visible: true,
+                geom_type: "POINT",
+                coordinates: [0, 0],
+                properties: {},
+                metadata: JSON.stringify({ parent_feature_id: "feat-parent", icon: "cctv", display_order: 2 })
+            }
+        };
+
+        const { result } = renderHook(() => useFlattenedTree({
+            regionsMap,
+            layersMap,
+            groupsMap,
+            featuresMap,
+            expanded: {},
+            treeSearchQuery: "",
+            filterType: "CCTV",
+            reverseOrder: false,
+            sortField: "name"
+        }));
+
+        const ids = result.current.flattenedItems.map(item => item.id);
+
+        expect(ids).toContain("region-1");
+        expect(ids).toContain("virtual-intersection-region-1");
+        expect(ids).toContain("feat-parent");
+        expect(ids).toContain("feat-child");
+    });
 });

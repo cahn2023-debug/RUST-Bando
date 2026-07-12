@@ -150,13 +150,15 @@ const createNativeIcon = (
 ) => {
     const { color, iconKey, isIntersection, isCamera } = getFeatureDisplayInfo(feature, group.type, group.name, metadata);
 
-    const size = metadata.size ? parseInt(String(metadata.size), 10) : 32;
+    const baseSize = metadata.size ? parseInt(String(metadata.size), 10) : 32;
+    // Tăng kích thước biểu tượng lên gấp rưỡi để số nằm gọn bên trong
+    const size = (isIntersection || isCamera) ? Math.floor(baseSize * 1.5) : baseSize;
     const rotation = parseFloat(String(getFeatureMetadataValue(feature, 'gis.rotation', 'rotation', metadata) ?? 0));
     const markerColor = safeString(metadata.color) || '#10b981';
 
-    const baseVisualFilter = `filter: brightness(1.05) saturate(1.1) drop-shadow(0 2px 4px rgba(0,0,0,0.4));`;
+    const baseVisualFilter = `filter: saturate(0.96) drop-shadow(0 1px 1px rgba(0,0,0,0.18));`;
     const highlightStyle = isSelected
-        ? `box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.6), 0 0 20px rgba(6, 182, 212, 0.4); border-color: #06b6d4 !important; z-index: 1000; scale: 1.1;`
+        ? `outline: 2px solid rgba(34, 211, 238, 0.82); outline-offset: 1px; border-color: rgba(186, 230, 253, 0.92) !important; z-index: 1000;`
         : '';
 
     let iconHtml = '';
@@ -166,7 +168,7 @@ const createNativeIcon = (
         const rawIconType = isCameraIcon(iconKey) ? iconKey : 'cctv';
         iconHtml = `<div style="width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center; ${baseVisualFilter} ${highlightStyle}">${getIconSvgString(rawIconType, color, size, indexInGroup, rotation)}</div>`;
     } else {
-        iconHtml = `<div style="width: ${size}px; height: ${size}px; background-color: ${markerColor}; border: 2px solid white; border-radius: 50%; box-shadow: 0 4px 8px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; color: white; font-weight: 900; font-size: ${Math.max(9, size / 2.8)}px; overflow: hidden; text-shadow: 0 1px 2px rgba(0,0,0,0.6); ${baseVisualFilter} ${highlightStyle}">${indexInGroup}</div>`;
+        iconHtml = `<div style="width: ${size}px; height: ${size}px; background-color: ${markerColor}; border: 1px solid rgba(255,255,255,0.72); border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.16); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.98); font-weight: 900; font-size: ${Math.max(9, size / 2.8)}px; overflow: hidden; text-shadow: 0 1px 1px rgba(0,0,0,0.35); ${baseVisualFilter} ${highlightStyle}">${indexInGroup}</div>`;
     }
 
 

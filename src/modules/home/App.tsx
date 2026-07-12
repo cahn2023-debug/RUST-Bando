@@ -152,6 +152,43 @@ export default function App() {
   }, [selectedProject, pendingSync, logout]);
 
   useEffect(() => {
+    const unlisten = listen<{
+      id: string;
+      type: 'feature' | 'group' | 'layer' | 'region' | 'location';
+      location?: [number, number];
+      timestamp: number;
+    }>("sync-zoom-to", (event) => {
+      const trigger = event.payload;
+      if (!trigger?.id) return;
+
+      const store = useDesignSync.getState();
+      const feature = store.state?.features?.[trigger.id];
+
+      if (feature) {
+        const geomType = (feature.geom_type || '').toUpperCase();
+        const isVector = geomType === 'LINESTRING' || geomType === 'POLYLINE' || geomType === 'POLYGON';
+
+        useDesignSync.setState({
+          selectedFeatureId: feature.id,
+          selectedGroupId: feature.group_id,
+          selectedPopupLocation: trigger.type === 'location' ? trigger.location || null : null,
+          editingFeatureId: isVector ? feature.id : null,
+          previewMetadata: null,
+          selectionSet: new Set([feature.id]),
+          zoomToTrigger: trigger,
+        });
+        return;
+      }
+
+      useDesignSync.setState({ zoomToTrigger: trigger });
+    });
+
+    return () => {
+      unlisten.then(f => f());
+    };
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Ctrl+S for Force Save (Flush & Checkpoint)
       if ((event.ctrlKey || event.metaKey) && event.key === 's') {

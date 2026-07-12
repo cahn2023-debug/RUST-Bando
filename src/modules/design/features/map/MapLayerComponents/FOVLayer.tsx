@@ -18,7 +18,8 @@ export const FOVLayer = React.memo(({
     features,
     feature_groups,
     previewMetadata,
-    currentZoom
+    currentZoom,
+    renderedPointIds
 }: any) => {
     const drawingMode = useDesignSync(s => s.drawingMode);
     const showFovTypes = useSettingsStore(s => s.showFovTypes);
@@ -31,6 +32,7 @@ export const FOVLayer = React.memo(({
                 // Only process points (cameras are always points)
                 const geomType = String(f.geom_type || '').toLowerCase();
                 if (geomType && geomType !== 'point') return null;
+                if (renderedPointIds && !renderedPointIds.has(f.id)) return null;
 
                 const group = feature_groups[f.group_id];
                 if (!group) return null;

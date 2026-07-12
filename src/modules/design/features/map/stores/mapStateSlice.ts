@@ -125,6 +125,13 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 case 'FeatureCreated':
                 case 'FeatureUpdated':
                     const currentFeature = newState.features[payload.id];
+                    if (type === 'FeatureUpdated') {
+                        console.groupCollapsed(`[Sync] applyPatchToState FeatureUpdated ${payload.id}`);
+                        console.log('incoming payload:', payload);
+                        console.log('before metadata:', currentFeature?.metadata);
+                        console.log('before properties:', currentFeature?.properties);
+                        console.groupEnd();
+                    }
                     newState.features = {
                         ...newState.features,
                         [payload.id]: currentFeature ? {
@@ -226,6 +233,13 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
             switch (type) {
                 case 'FeatureCreated':
                 case 'FeatureUpdated':
+                    if (type === 'FeatureUpdated') {
+                        console.groupCollapsed(`[Sync] applyQueuedAckToState FeatureUpdated ${payload.id}`);
+                        console.log('incoming payload:', payload);
+                        console.log('before metadata:', newState.features[payload.id]?.metadata);
+                        console.log('before properties:', newState.features[payload.id]?.properties);
+                        console.groupEnd();
+                    }
                     newState.features = {
                         ...newState.features,
                         [payload.id]: {
@@ -292,9 +306,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         if ('applied_event' in response) {
             newState.lastEventId = response.event_id;
+            applySingle(response.applied_event);
             response.side_effects?.forEach(applySingle);
         } else {
             newState.lastEventId = response.last_event_id;
+            response.applied_events?.forEach(applySingle);
             response.side_effects?.forEach(applySingle);
         }
 
@@ -319,6 +335,13 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                     const fPayload = { ...payload };
                     if (fPayload.group_id === '') fPayload.group_id = null;
                     const currentFeature = newState.features[payload.id];
+                    if (type === 'FeatureUpdated') {
+                        console.groupCollapsed(`[Sync] applyEventsOptimistically FeatureUpdated ${payload.id}`);
+                        console.log('incoming payload:', fPayload);
+                        console.log('before metadata:', currentFeature?.metadata);
+                        console.log('before properties:', currentFeature?.properties);
+                        console.groupEnd();
+                    }
                     newState.features = {
                         ...newState.features,
                         [payload.id]: currentFeature ? {

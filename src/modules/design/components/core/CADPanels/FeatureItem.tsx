@@ -28,6 +28,7 @@ export interface FeatureItemProps {
   onToggleCheck?: () => void;
   visible?: boolean;
   onToggleVisible?: (e: React.MouseEvent) => void;
+  customAction?: React.ReactNode;
   hovered?: boolean;
   // Drag & Drop Target
   onDragOver?: (e: React.DragEvent) => void;
@@ -63,6 +64,7 @@ export const FeatureItem = React.memo(({
   onToggleCheck,
   visible = true,
   onToggleVisible,
+  customAction,
   hovered,
   onDragOver: _onDragOver,
   onDragLeave: _onDragLeave,
@@ -174,6 +176,7 @@ export const FeatureItem = React.memo(({
           "flex items-center gap-1 transition-opacity",
           !visible ? "opacity-100" : "opacity-0 group-hover/feat:opacity-100"
         )}>
+          {customAction}
           {onToggleVisible && (
             <button
               onClick={(e) => { e.stopPropagation(); onToggleVisible(e); }}

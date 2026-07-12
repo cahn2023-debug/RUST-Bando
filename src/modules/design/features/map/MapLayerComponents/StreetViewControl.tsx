@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { listen } from '@tauri-apps/api/event';
+import { listen, TauriEvent } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { useMap, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
@@ -21,6 +21,8 @@ const FOV_JITTER_EPSILON = 1;
 const STREETVIEW_SYNC_INTERVAL_MS = 500;
 const STREETVIEW_SYNC_MIN_APPLY_MS = 120;
 const STREETVIEW_SMOOTH_FACTOR = 0.45;
+const ICON_HEADING_OFFSET = 0;
+const STREETVIEW_PEGMAN_PANE = 'streetview-pegman-pane';
 
 type PegmanSource = 'map' | 'streetview';
 
@@ -39,8 +41,6 @@ type StreetViewPovPayload = {
   fov?: number;
 };
 
-type WebviewWindowHandle = InstanceType<(typeof import('@tauri-apps/api/webviewWindow'))['WebviewWindow']>;
-
 function normalizeHeading(value: number) {
   return ((value % 360) + 360) % 360;
 }
@@ -58,6 +58,10 @@ function getHeadingDelta(from: number, to: number) {
 
 function blendHeading(from: number, to: number, factor: number) {
   return normalizeHeading(from + getHeadingDelta(from, to) * factor);
+}
+
+function getPegmanRotationDegrees(heading: number) {
+  return normalizeHeading(heading + ICON_HEADING_OFFSET);
 }
 
 function hasMeaningfulMovement(
@@ -95,13 +99,23 @@ function parseStreetViewUrl(rawUrl: string | null) {
   if (!pointMatch) return null;
 
   const headingMatch =
-    rawUrl.match(/heading=(-?\d+(?:\.\d+)?)/) ||
-    rawUrl.match(/,(-?\d+(?:\.\d+)?)t/) ||
-    rawUrl.match(/,(-?\d+(?:\.\d+)?)h/);
+    rawUrl.match(/heading=(-?\d+(?:\.\d+)?)/i) ||
+    rawUrl.match(/,(-?\d+(?:\.\d+)?)h(?:[/?&#,]|$)/i) ||
+    rawUrl.match(/[?&]h=(-?\d+(?:\.\d+)?)/i);
   const fovMatch =
-    rawUrl.match(/fov=(\d+(?:\.\d+)?)/) ||
-    rawUrl.match(/,(\d+(?:\.\d+)?)y/) ||
-    rawUrl.match(/,(\d+(?:\.\d+)?)f/);
+    rawUrl.match(/fov=(\d+(?:\.\d+)?)/i) ||
+    rawUrl.match(/,(\d+(?:\.\d+)?)y(?:[/?&#,]|$)/i) ||
+    rawUrl.match(/[?&]y=(\d+(?:\.\d+)?)/i) ||
+    rawUrl.match(/,(\d+(?:\.\d+)?)f(?:[/?&#,]|$)/i);
+
+  console.log('[StreetViewControl] parseStreetViewUrl', {
+    rawUrl,
+    locationMatch: pointMatch[0],
+    headingMatch: headingMatch?.[0] ?? null,
+    parsedHeading: headingMatch ? normalizeHeading(parseFloat(headingMatch[1])) : null,
+    fovMatch: fovMatch?.[0] ?? null,
+    parsedFov: fovMatch ? clampFov(parseFloat(fovMatch[1])) : DEFAULT_FOV
+  });
 
   return {
     lat: parseFloat(pointMatch[1]),
@@ -136,7 +150,10 @@ function PegmanIcon({
   const fovPath = `M 12 12 L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
 
   return (
-    <div className="relative transition-transform duration-200" style={{ transform: `rotate(${heading}deg)` }}>
+    <div
+      className="relative transition-transform duration-200"
+      style={{ transform: `rotate(${getPegmanRotationDegrees(heading)}deg)` }}
+    >
       <style>{`
         @keyframes radar {
           0% { transform: scale(1); opacity: 0.6; }
@@ -173,20 +190,23 @@ function PegmanIcon({
 function createPegmanIcon(heading: number, fov: number = DEFAULT_FOV) {
   const color = '#10B981';
   const fovColor = 'rgba(16,185,129,0.25)';
+  const size = 24;
+  const center = 12;
   const radius = 24;
   const startAngle = (-fov / 2 - 90) * Math.PI / 180;
   const endAngle = (fov / 2 - 90) * Math.PI / 180;
-  const x1 = 12 + radius * Math.cos(startAngle);
-  const y1 = 12 + radius * Math.sin(startAngle);
-  const x2 = 12 + radius * Math.cos(endAngle);
-  const y2 = 12 + radius * Math.sin(endAngle);
+  const x1 = center + radius * Math.cos(startAngle);
+  const y1 = center + radius * Math.sin(startAngle);
+  const x2 = center + radius * Math.cos(endAngle);
+  const y2 = center + radius * Math.sin(endAngle);
   const largeArcFlag = fov > 180 ? 1 : 0;
-  const fovPath = `M 12 12 L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
+  const fovPath = `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
 
   return L.divIcon({
     html: `
-      <div style="width:24px;height:24px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5));transform:rotate(${heading}deg);">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="overflow: visible;">
+      <div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;">
+        <div class="pegman-rotor" style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5));transform:rotate(${getPegmanRotationDegrees(heading)}deg);transform-origin:50% 50%;transition:transform 120ms linear;will-change:transform;">
+        <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" xmlns="http://www.w3.org/2000/svg" style="overflow: visible;">
           <path d="${fovPath}" fill="${fovColor}" />
           <circle cx="12" cy="12" r="10" stroke="${color}" stroke-width="1" stroke-dasharray="2 2" opacity="0.4" />
           <circle cx="6" cy="12" r="3" fill="${color}" />
@@ -195,11 +215,12 @@ function createPegmanIcon(heading: number, fov: number = DEFAULT_FOV) {
           <circle cx="12" cy="12" r="3.5" fill="#F7DA4D" stroke="white" stroke-width="1" />
           <path d="M12 5 L10 8 L14 8 Z" fill="white" />
         </svg>
+        </div>
       </div>
     `,
     className: 'custom-pegman-marker',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12]
+    iconSize: [size, size],
+    iconAnchor: [center, center]
   });
 }
 
@@ -210,9 +231,15 @@ const CLEANUP_STREET_VIEW_SCRIPT = `
       const style = document.createElement('style');
       style.id = styleId;
       style.innerHTML = [
-        '.widget-pane-section-back,.widget-minimap,.widget-minimap-shim,.widget-reveal-card,.scene-footer,.watermark,#minimap,.gm-style-cc{display:none!important;}',
+        '.widget-pane-section-back,.scene-footer,.watermark,.gm-style-cc{display:none!important;}',
         '.gm-style > div:first-child > div:nth-child(2){display:none!important;pointer-events:none!important;}',
-        '.dismissButton{display:none!important;}'
+        '.dismissButton{display:none!important;}',
+        '.widget-reveal-card,.widget-pane,.widget-pane-section{transform:scale(.82)!important;transform-origin:top left!important;}',
+        '.widget-minimap,.widget-minimap-shim,#minimap{transform:scale(.72)!important;transform-origin:bottom left!important;}',
+        '.widget-minimap,.widget-minimap-shim,#minimap{margin-left:-18px!important;margin-bottom:-18px!important;}',
+        '.widget-minimap canvas,#minimap canvas{border-radius:10px!important;}',
+        '.app-viewcard-strip,.scene-footer-container,.widget-zoom,.widget-compass,.widget-scene-controls{transform:scale(.84)!important;transform-origin:bottom right!important;}',
+        '.widget-zoom,.widget-compass,.widget-scene-controls{margin-right:-10px!important;margin-bottom:-10px!important;}'
       ].join('');
       document.head.appendChild(style);
     }
@@ -234,16 +261,25 @@ const SURVIVOR_SYNC_SCRIPT = `
         if (!pointMatch) return null;
 
         const headingMatch =
-          url.match(/heading=(-?\\d+(?:\\.\\d+)?)/) ||
-          url.match(/,(-?\\d+(?:\\.\\d+)?)t/) ||
-          url.match(/,(-?\\d+(?:\\.\\d+)?)h/);
+          url.match(/heading=(-?\\d+(?:\\.\\d+)?)/i) ||
+          url.match(/,(-?\\d+(?:\\.\\d+)?)h(?:[/?&#,]|$)/i) ||
+          url.match(/[?&]h=(-?\\d+(?:\\.\\d+)?)/i);
         const fovMatch =
-          url.match(/fov=(\\d+(?:\\.\\d+)?)/) ||
-          url.match(/,(\\d+(?:\\.\\d+)?)y/) ||
-          url.match(/,(\\d+(?:\\.\\d+)?)f/);
+          url.match(/fov=(\\d+(?:\\.\\d+)?)/i) ||
+          url.match(/,(\\d+(?:\\.\\d+)?)y(?:[/?&#,]|$)/i) ||
+          url.match(/[?&]y=(\\d+(?:\\.\\d+)?)/i) ||
+          url.match(/,(\\d+(?:\\.\\d+)?)f(?:[/?&#,]|$)/i);
 
         const heading = headingMatch ? headingMatch[1] : '0';
         const fov = fovMatch ? fovMatch[1] : '90';
+        console.log('[StreetViewControl] public payload extracted', {
+          url,
+          locationMatch: pointMatch[0],
+          headingMatch: headingMatch ? headingMatch[0] : null,
+          heading,
+          fovMatch: fovMatch ? fovMatch[0] : null,
+          fov
+        });
         return syncMarker + pointMatch[1] + ',' + pointMatch[2] + ',' + heading + ',' + fov;
       } catch (error) {
         console.warn('[StreetViewControl] Failed to parse current Street View payload:', error);
@@ -283,6 +319,7 @@ export function StreetViewControl() {
 
   const latestPegmanState = useRef(pegmanState);
   latestPegmanState.current = pegmanState;
+  const pegmanMarkerRef = useRef<L.Marker | null>(null);
   const pendingStreetViewSyncRef = useRef<Partial<typeof pegmanState> | null>(null);
   const streetViewSyncTimerRef = useRef<number | null>(null);
   const lastStreetViewApplyAtRef = useRef(0);
@@ -316,6 +353,14 @@ export function StreetViewControl() {
     };
   }, [map]);
 
+  useEffect(() => {
+    if (!map.getPane(STREETVIEW_PEGMAN_PANE)) {
+      const pane = map.createPane(STREETVIEW_PEGMAN_PANE);
+      pane.style.zIndex = '1350';
+      pane.style.pointerEvents = 'auto';
+    }
+  }, [map]);
+
   const injectCleanup = useCallback(async () => {
     try {
       await invoke('eval_webview', {
@@ -341,10 +386,22 @@ export function StreetViewControl() {
   const syncPegmanState = useCallback(
     (payload: Partial<typeof pegmanState> & { source?: PegmanSource }) => {
       const current = latestPegmanState.current;
+      const nextHeading =
+        payload.heading !== undefined ? normalizeHeading(payload.heading) : current.heading;
+      const nextFov = payload.fov !== undefined ? clampFov(payload.fov) : current.fov;
+      console.log('[StreetViewControl] syncPegmanState', {
+        source: payload.source ?? current.source ?? 'streetview',
+        currentHeading: current.heading,
+        nextHeading,
+        currentFov: current.fov,
+        nextFov,
+        windowOpen: payload.windowOpen ?? current.windowOpen ?? true,
+        location: payload.location ?? current.location
+      });
       setPegmanState({
         ...payload,
-        heading: payload.heading !== undefined ? normalizeHeading(payload.heading) : current.heading,
-        fov: payload.fov !== undefined ? clampFov(payload.fov) : current.fov,
+        heading: nextHeading,
+        fov: nextFov,
         source: payload.source ?? current.source ?? 'streetview',
         windowOpen: payload.windowOpen ?? current.windowOpen ?? true,
         lastSyncAt: Date.now()
@@ -366,7 +423,7 @@ export function StreetViewControl() {
       ...pending,
       source: 'streetview',
       windowOpen: true
-    });
+      });
   }, [syncPegmanState]);
 
   const scheduleStreetViewSync = useCallback(
@@ -433,6 +490,43 @@ export function StreetViewControl() {
     [flushStreetViewSync]
   );
 
+  const closeStreetViewSession = useCallback(() => {
+    if (streetViewSyncTimerRef.current !== null) {
+      window.clearTimeout(streetViewSyncTimerRef.current);
+      streetViewSyncTimerRef.current = null;
+    }
+    pendingStreetViewSyncRef.current = null;
+    setIsActive(false);
+    setPegmanState({
+      active: false,
+      windowOpen: false,
+      source: 'map',
+      lastSyncAt: Date.now()
+    });
+  }, [setPegmanState]);
+
+  const applyPegmanDomRotation = useCallback(
+    (nextHeading: number) => {
+      const markerElement = pegmanMarkerRef.current?.getElement();
+      const rotor = markerElement?.querySelector('.pegman-rotor');
+      if (!(rotor instanceof HTMLElement)) {
+        console.log('[StreetViewControl] pegman rotor element not ready', {
+          heading: nextHeading
+        });
+        return;
+      }
+
+      const rotation = getPegmanRotationDegrees(nextHeading);
+      console.log('[StreetViewControl] applying pegman marker rotation', {
+        heading: nextHeading,
+        rotation
+      });
+      rotor.style.transform = `rotate(${rotation}deg)`;
+      rotor.style.transformOrigin = '50% 50%';
+    },
+    []
+  );
+
   const openStreetViewWindow = useCallback(
     async (lat: number, lng: number) => {
       try {
@@ -447,7 +541,6 @@ export function StreetViewControl() {
         let nextHeading = latestPegmanState.current.heading || 0;
         let nextFov = latestPegmanState.current.fov || DEFAULT_FOV;
         let panoId = '';
-
         if (feature && shouldSeedFromFeature) {
           const meta = getParsedMetadata(feature);
           const gis = typeof meta.gis === 'object' && meta.gis ? meta.gis as Record<string, unknown> : {};
@@ -490,17 +583,21 @@ export function StreetViewControl() {
           featureId: selectedFeatureId ?? null
         });
 
-        const publicUrl = buildStreetViewUrl(lat, lng, nextHeading, nextFov, panoId);
+        const streetViewUrl = buildStreetViewUrl(lat, lng, nextHeading, nextFov, panoId);
         const existingWindow = await WebviewWindow.getByLabel(STREET_VIEW_WINDOW_LABEL);
 
         if (existingWindow) {
-          await invoke('navigate_webview', { label: STREET_VIEW_WINDOW_LABEL, url: publicUrl });
+          await invoke('navigate_webview', { label: STREET_VIEW_WINDOW_LABEL, url: streetViewUrl });
           await existingWindow.setTitle('Street View');
           await existingWindow.show();
           await existingWindow.setFocus();
+          window.setTimeout(() => {
+            void injectCleanup();
+            void injectSurvivorSync();
+          }, 900);
         } else {
           const newWindow = new WebviewWindow(STREET_VIEW_WINDOW_LABEL, {
-            url: publicUrl,
+            url: streetViewUrl,
             title: 'Street View',
             width: 920,
             height: 620,
@@ -527,11 +624,6 @@ export function StreetViewControl() {
           });
         }
 
-        window.setTimeout(() => {
-          void injectCleanup();
-          void injectSurvivorSync();
-        }, 900);
-
         if (!panoId) {
           console.info('[StreetViewControl] Public Street View window opened without pano precheck.');
         }
@@ -544,7 +636,7 @@ export function StreetViewControl() {
         return false;
       }
     },
-    [injectCleanup, selectedFeatureId, showFeedback, state, syncPegmanState]
+    [injectCleanup, injectSurvivorSync, selectedFeatureId, showFeedback, state, syncPegmanState]
   );
 
   useEffect(() => {
@@ -554,7 +646,7 @@ export function StreetViewControl() {
       const unlisteners = await Promise.all([
         listen<StreetViewLocationPayload>('pano-changed', (event) => {
           if (disposed) return;
-          const { lat, lng, heading, fov } = event.payload;
+          const { lat, lng, fov } = event.payload;
           const current = latestPegmanState.current;
           const nextLocation = hasMeaningfulMovement(current.location, lat, lng)
             ? ([lat, lng] as [number, number])
@@ -562,7 +654,6 @@ export function StreetViewControl() {
 
           scheduleStreetViewSync({
             location: nextLocation ?? [lat, lng],
-            heading: heading ?? current.heading,
             fov: fov ?? current.fov
           });
         }),
@@ -570,16 +661,26 @@ export function StreetViewControl() {
           if (disposed) return;
           const { heading, fov } = event.payload;
           const current = latestPegmanState.current;
+          console.log('[StreetViewControl] pov-changed received', {
+            heading,
+            normalizedHeading: normalizeHeading(heading),
+            currentHeading: current.heading,
+            delta: getHeadingDelta(current.heading, heading),
+            fov,
+            currentFov: current.fov
+          });
           if (
-            Math.abs(normalizeHeading(heading) - current.heading) < HEADING_EPSILON &&
+            Math.abs(getHeadingDelta(current.heading, heading)) < HEADING_EPSILON &&
             Math.abs(clampFov(fov ?? current.fov) - current.fov) < FOV_EPSILON
           ) {
             return;
           }
 
-          scheduleStreetViewSync({
+          syncPegmanState({
             heading,
-            fov: fov ?? current.fov
+            fov: fov ?? current.fov,
+            source: 'streetview',
+            windowOpen: true
           });
         }),
         listen('panorama-ready', () => {
@@ -611,7 +712,39 @@ export function StreetViewControl() {
       return;
     }
 
-    let webviewRef: WebviewWindowHandle | null = null;
+    let disposed = false;
+    let cleanup: (() => void) | undefined;
+
+    const bindDestroyedListener = async () => {
+      const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+      const windowHandle = await WebviewWindow.getByLabel(STREET_VIEW_WINDOW_LABEL);
+      if (!windowHandle || disposed) {
+        if (!disposed) {
+          closeStreetViewSession();
+        }
+        return;
+      }
+
+      cleanup = await windowHandle.listen(TauriEvent.WINDOW_DESTROYED, () => {
+        if (disposed) return;
+        closeStreetViewSession();
+      });
+    };
+
+    void bindDestroyedListener();
+
+    return () => {
+      disposed = true;
+      cleanup?.();
+    };
+  }, [closeStreetViewSession, pegmanState.windowOpen]);
+
+  useEffect(() => {
+    if (!pegmanState.windowOpen) {
+      return;
+    }
+
+    let webviewRef: { title: () => Promise<string>; } | null = null;
     let isWindowAlive = true;
 
     const syncTask = async () => {
@@ -621,7 +754,12 @@ export function StreetViewControl() {
           webviewRef = await WebviewWindow.getByLabel(STREET_VIEW_WINDOW_LABEL);
         }
 
-        if (!webviewRef || !isWindowAlive) {
+        if (!webviewRef) {
+          closeStreetViewSession();
+          return;
+        }
+
+        if (!isWindowAlive) {
           return;
         }
 
@@ -637,7 +775,7 @@ export function StreetViewControl() {
           })) as string;
           const parsed = parseStreetViewUrl(rawUrl);
           if (!parsed) {
-            console.debug('[StreetViewControl] Unable to parse Street View URL, re-injecting sync helper.');
+            console.log('[StreetViewControl] Unable to parse Street View URL, re-injecting sync helper.');
             void injectSurvivorSync();
             return;
           }
@@ -663,19 +801,35 @@ export function StreetViewControl() {
           return;
         }
 
-        if (
-          hasMeaningfulMovement(current.location, nextLat, nextLng) ||
-          Math.abs(nextHeading - current.heading) > HEADING_EPSILON ||
-          Math.abs(nextFov - current.fov) > FOV_EPSILON
-        ) {
-          scheduleStreetViewSync({
-            location: [nextLat, nextLng],
-            heading: nextHeading,
-            fov: nextFov
-          });
+        const nextLocation = [nextLat, nextLng] as [number, number];
+        const shouldSyncLocation = hasMeaningfulMovement(current.location, nextLat, nextLng);
+        const shouldSyncHeading =
+          Math.abs(getHeadingDelta(current.heading, nextHeading)) > HEADING_EPSILON;
+        const shouldSyncFov = Math.abs(nextFov - current.fov) > FOV_EPSILON;
+
+        if (!shouldSyncLocation && !shouldSyncHeading && !shouldSyncFov) {
+          return;
         }
+
+        console.log('[StreetViewControl] public street view sync payload', {
+          nextLocation,
+          nextHeading,
+          nextFov,
+          currentHeading: current.heading,
+          currentLocation: current.location,
+          currentFov: current.fov
+        });
+
+        syncPegmanState({
+          location: nextLocation,
+          heading: nextHeading,
+          fov: nextFov,
+          source: 'streetview',
+          windowOpen: true
+        });
       } catch (error) {
-        console.warn('[StreetViewControl] Street View sync read failed, preserving pegman session:', error);
+        console.warn('[StreetViewControl] Street View sync read failed, closing pegman session:', error);
+        closeStreetViewSession();
       }
     };
 
@@ -691,7 +845,7 @@ export function StreetViewControl() {
       }
       pendingStreetViewSyncRef.current = null;
     };
-  }, [injectSurvivorSync, pegmanState.windowOpen, scheduleStreetViewSync]);
+  }, [closeStreetViewSession, injectSurvivorSync, pegmanState.windowOpen, syncPegmanState]);
 
   useEffect(() => {
     if (!isActive) {
@@ -723,6 +877,42 @@ export function StreetViewControl() {
   const location = pegmanState.location;
   const heading = normalizeHeading(pegmanState.heading || 0);
   const fov = clampFov(pegmanState.fov || DEFAULT_FOV);
+
+  useEffect(() => {
+    if (!pegmanMarkerRef.current || !shouldShowPegman || !location) {
+      return;
+    }
+
+    console.log('[StreetViewControl] syncing pegman marker location', {
+      heading,
+      location
+    });
+    pegmanMarkerRef.current.setLatLng(new L.LatLng(location[0], location[1]));
+  }, [heading, location, shouldShowPegman]);
+
+  useEffect(() => {
+    if (!pegmanMarkerRef.current || !shouldShowPegman || !location) {
+      return;
+    }
+
+    console.log('[StreetViewControl] rebuilding pegman icon', {
+      heading,
+      fov,
+      location
+    });
+    pegmanMarkerRef.current.setIcon(createPegmanIcon(heading, fov));
+    window.requestAnimationFrame(() => {
+      applyPegmanDomRotation(heading);
+    });
+  }, [applyPegmanDomRotation, fov, heading, location, shouldShowPegman]);
+
+  useEffect(() => {
+    if (!shouldShowPegman) {
+      return;
+    }
+
+    applyPegmanDomRotation(heading);
+  }, [applyPegmanDomRotation, heading, shouldShowPegman]);
 
   const controlButton = container
     ? createPortal(
@@ -757,6 +947,10 @@ export function StreetViewControl() {
 
       {shouldShowPegman && location && (
         <Marker
+          ref={(marker) => {
+            pegmanMarkerRef.current = marker;
+          }}
+          pane={STREETVIEW_PEGMAN_PANE}
           position={new L.LatLng(location[0], location[1])}
           icon={createPegmanIcon(heading, fov)}
           draggable={true}

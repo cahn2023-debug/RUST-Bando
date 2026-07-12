@@ -14,12 +14,13 @@ interface ExplorerModalsProps {
     themeGroupId: string | null;
     setThemeGroupId: (id: string | null) => void;
     groupName?: string;
+    themeTargetFeatureIds?: string[];
     mappingData: MappingDialogData | null;
     setMappingData: (data: MappingDialogData | null) => void;
     handleMappingConfirm: (mapping: ImportMapping) => Promise<void>;
     deleteModal: {
         isOpen: boolean;
-        type: 'region' | 'group' | 'layer' | 'feature' | null;
+        type: 'region' | 'group' | 'layer' | 'feature' | 'featureChildren' | null;
         id: string;
         name: string;
     };
@@ -31,6 +32,7 @@ export function ExplorerModals({
     themeGroupId,
     setThemeGroupId,
     groupName,
+    themeTargetFeatureIds,
     mappingData,
     setMappingData,
     handleMappingConfirm,
@@ -45,6 +47,7 @@ export function ExplorerModals({
                     groupId={themeGroupId}
                     groupName={groupName || 'Group'}
                     onClose={() => setThemeGroupId(null)}
+                    targetFeatureIds={themeTargetFeatureIds}
                 />
             )}
 
@@ -61,8 +64,8 @@ export function ExplorerModals({
                 isOpen={deleteModal.isOpen}
                 onClose={() => setDeleteModal((prev) => ({ ...prev, isOpen: false }))}
                 onConfirm={confirmDelete}
-                title={`Xóa ${deleteModal.type === 'feature' ? 'Đối tượng' : deleteModal.type === 'region' ? 'Dự án' : 'Nhóm'}`}
-                message={`Bạn có chắc chắn muốn xóa ${deleteModal.type === 'feature' ? 'đối tượng' : 'thư mục'} "${deleteModal.name}"${deleteModal.type !== 'feature' ? ' và toàn bộ nội dung bên trong' : ''}? Hành động này không thể hoàn tác.`}
+                title={`Xóa ${deleteModal.type === 'feature' ? 'Đối tượng' : deleteModal.type === 'region' ? 'Dự án' : deleteModal.type === 'featureChildren' ? 'Đối tượng trong nút giao' : 'Nhóm'}`}
+                message={`Bạn có chắc chắn muốn xóa ${deleteModal.type === 'feature' ? 'đối tượng' : deleteModal.type === 'featureChildren' ? 'toàn bộ đối tượng trong nút giao' : 'thư mục'} "${deleteModal.name}"${deleteModal.type !== 'feature' && deleteModal.type !== 'featureChildren' ? ' và toàn bộ nội dung bên trong' : ''}? Hành động này không thể hoàn tác.`}
                 itemName={deleteModal.name}
             />
         </>

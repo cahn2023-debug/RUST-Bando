@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import type { IconType } from '@CONTRACT/types';
+import type { FeatureMetadata, FeatureProperties, IconType } from '@CONTRACT/types';
 import {
   Save, Camera, MapPin, Route,
   Info, Palette, Settings, Image as ImageIcon,
@@ -20,8 +20,8 @@ import { useProjectData } from '@IMPLEMENT/hooks/useProjectData';
 import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
 
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
-import { FeatureMetadata } from '@CONTRACT/types';
-import { useMetadataAutosave } from '@DESIGN/hooks/useMetadataAutosave';
+import { buildFeaturePropertiesForPersistence, getTypeForIcon } from '@TOOL/utils/featurePersistence';
+import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
 
 interface SegmentItem {
   id?: string | number;
@@ -67,24 +67,18 @@ const preparePropertyMetadata = (metaInput: unknown): FeatureMetadata => {
   return standardizedMeta;
 };
 
-const getTypeForIcon = (icon: IconType): string => {
-  switch (icon) {
-    case 'cctv':
-      return 'cctv';
-    case 'ptz':
-      return 'ptz';
-    case 'speed':
-      return 'speed';
-    case 'lpr':
-      return 'lpr';
-    case 'intersection':
-      return 'intersection';
-    default:
-      return 'point';
-  }
-};
+const getDebugShape = (metadata: FeatureMetadata, properties?: FeatureProperties) => ({
+  metaIcon: metadata.icon ?? null,
+  metaType: metadata.type ?? null,
+  metaColor: metadata.color ?? null,
+  metaSize: metadata.size ?? null,
+  propIcon: properties?.icon ?? null,
+  propIconKey: properties?.iconKey ?? null,
+  propType: properties?.type ?? null,
+});
 
 export const PropertyPanel: React.FC = () => {
+  const { onPin, onClose, isPinned, dragHandleProps } = usePaletteContext() || {};
   const {
     state,
     selectedFeatureId,
@@ -95,6 +89,7 @@ export const PropertyPanel: React.FC = () => {
     setSelectedGroup,
     setActiveParentFeature,
     setPreview,
+    previewMetadata,
     editingFeatureId,
     setEditingFeatureId,
     projectId,
@@ -149,8 +144,14 @@ export const PropertyPanel: React.FC = () => {
   }
 
   const persistedName = feature ? getCleanName(feature, String(persistedMeta.display_order || persistedMeta.stt || persistedMeta.STT || '')) : '';
-  const isMetadataDirty = !!feature && JSON.stringify(preparePropertyMetadata(localMeta)) !== persistedMetaJson;
-  const isNameDirty = !!feature && localName !== persistedName;
+  const draftMeta = (previewMetadata?.id === selectedFeatureId && previewMetadata.metadata)
+    ? previewMetadata.metadata as FeatureMetadata
+    : localMeta;
+  const draftName = (previewMetadata?.id === selectedFeatureId && previewMetadata.name !== undefined)
+    ? previewMetadata.name
+    : localName;
+  const isMetadataDirty = !!feature && JSON.stringify(preparePropertyMetadata(draftMeta)) !== persistedMetaJson;
+  const isNameDirty = !!feature && draftName !== persistedName;
 
   // Cleanup preview on unmount or when changing feature
   useEffect(() => {
@@ -197,7 +198,7 @@ export const PropertyPanel: React.FC = () => {
 
     setLocalMeta(next as FeatureMetadata);
     if (selectedFeatureId) {
-      setPreview(selectedFeatureId, next as FeatureMetadata);
+      setPreview(selectedFeatureId, next as FeatureMetadata, localName);
     }
   };
 
@@ -220,9 +221,15 @@ export const PropertyPanel: React.FC = () => {
       type: getTypeForIcon(icon),
     } as FeatureMetadata;
 
+    console.groupCollapsed(`[PropertyPanel] Icon change -> ${icon}`);
+    console.log('featureId:', selectedFeatureId);
+    console.log('before:', getDebugShape(preparePropertyMetadata(localMeta), feature?.properties as FeatureProperties | undefined));
+    console.log('after:', getDebugShape(preparePropertyMetadata(nextMeta), feature?.properties as FeatureProperties | undefined));
+    console.groupEnd();
+
     setLocalMeta(nextMeta);
     if (selectedFeatureId) {
-      setPreview(selectedFeatureId, nextMeta);
+      setPreview(selectedFeatureId, nextMeta, localName);
     }
 
     if (isCameraIcon(icon)) {
@@ -262,6 +269,14 @@ export const PropertyPanel: React.FC = () => {
         const meta = typeof feature.metadata === 'string' ? JSON.parse(feature.metadata || '{}') : (feature.metadata || {});
         const normalized = normalizeMetadataObject(meta);
 
+        console.groupCollapsed(`[PropertyPanel] Feature synced from store ${feature.id}`);
+        console.log('name:', feature.name);
+        console.log('metadata(raw):', meta);
+        console.log('metadata(normalized):', normalized);
+        console.log('properties:', feature.properties);
+        console.log('shape:', getDebugShape(normalized, feature.properties as FeatureProperties | undefined));
+        console.groupEnd();
+
         // Cập nhật tên (làm sạch STT nếu có)
         const sttValue = asStringValue(normalized.display_order ?? normalized.stt ?? normalized.STT);
         setLocalName(getCleanName(feature, sttValue));
@@ -275,6 +290,18 @@ export const PropertyPanel: React.FC = () => {
     }
   }, [feature?.id]);
 
+  useEffect(() => {
+    if (previewMetadata?.id === selectedFeatureId && previewMetadata.metadata) {
+      setLocalMeta((prev) => {
+        const incoming = previewMetadata.metadata as FeatureMetadata;
+        return JSON.stringify(prev) !== JSON.stringify(incoming) ? incoming : prev;
+      });
+      if (previewMetadata.name !== undefined) {
+        setLocalName((prev) => prev !== previewMetadata.name ? previewMetadata.name! : prev);
+      }
+    }
+  }, [previewMetadata, selectedFeatureId]);
+
   // Handle ESC
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -287,46 +314,42 @@ export const PropertyPanel: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectFeature]);
 
-  const { isSaving: isAutoSaving } = useMetadataAutosave({
-    featureId: selectedFeatureId,
-    localMeta,
-    persistedMeta,
-    queueEvent,
-    setPreview,
-    debounceMs: 300,
-    prepareMetadata: preparePropertyMetadata,
-    onPersisted: () => {
-      setIsSaved(true);
-      setTimeout(() => setIsSaved(false), 1500);
-    },
-    onError: (error) => {
-      console.error('[PropertyPanel] Auto-save failed:', error);
-    }
-  });
-
   const handleSave = async () => {
     if (!feature || (!isNameDirty && !isMetadataDirty)) return;
     setIsSaving(true);
     setIsSaved(false);
 
     console.log('[PropertyPanel] 💾 Saving feature:', feature.id);
-    console.log('[PropertyPanel] 📝 localMeta before save:', JSON.stringify(localMeta, null, 2));
-    console.log('[PropertyPanel] 🔧 Size/Stroke value:', localMeta.size);
-    console.log('[PropertyPanel] 🎨 Color value:', localMeta.color);
+    console.log('[PropertyPanel] 📝 draftMeta before save:', JSON.stringify(draftMeta, null, 2));
+    console.log('[PropertyPanel] 🔧 Size/Stroke value:', draftMeta.size);
+    console.log('[PropertyPanel] 🎨 Color value:', draftMeta.color);
 
     try {
-      const standardizedMeta = preparePropertyMetadata(localMeta);
+      const standardizedMeta = preparePropertyMetadata(draftMeta);
+      const nextProperties = buildFeaturePropertiesForPersistence(
+        feature.properties as FeatureProperties | undefined,
+        standardizedMeta
+      );
+
+      console.groupCollapsed(`[PropertyPanel] Save payload ${feature.id}`);
+      console.log('persisted-before:', getDebugShape(persistedMeta, feature.properties as FeatureProperties | undefined));
+      console.log('standardizedMeta:', standardizedMeta);
+      console.log('nextProperties:', nextProperties);
+      console.log('persisted-after:', getDebugShape(standardizedMeta, nextProperties));
+      console.groupEnd();
 
       console.log('[PropertyPanel] ✅ Standardized metadata:', JSON.stringify(standardizedMeta, null, 2));
       console.log('[PropertyPanel] 📦 Final payload size:', standardizedMeta.size);
+      console.log('[PropertyPanel] 🧭 Final payload icon/type:', nextProperties.iconKey, nextProperties.type);
 
       // Save to database via event queue
       await queueEvent({
         type: 'FeatureUpdated',
         payload: {
           id: feature.id,
-          name: localName,
-          metadata: JSON.stringify(standardizedMeta)
+          name: draftName,
+          metadata: JSON.stringify(standardizedMeta),
+          properties: nextProperties
         }
       });
 
@@ -347,14 +370,28 @@ export const PropertyPanel: React.FC = () => {
         const verifyMeta = typeof verifyFeature.metadata === 'string'
           ? JSON.parse(verifyFeature.metadata)
           : verifyFeature.metadata;
+        const normalizedVerifyMeta = preparePropertyMetadata(verifyMeta);
+
+        console.groupCollapsed(`[PropertyPanel] Save verification ${feature.id}`);
+        console.log('expected shape:', getDebugShape(standardizedMeta, nextProperties));
+        console.log('actual metadata:', verifyMeta);
+        console.log('actual properties:', verifyFeature.properties);
+        console.log('actual shape:', getDebugShape(normalizedVerifyMeta, verifyFeature.properties as FeatureProperties | undefined));
+        console.groupEnd();
 
         console.log('[PropertyPanel] 🔍 Verification:');
         console.log('[PropertyPanel]   Expected size:', standardizedMeta.size);
         console.log('[PropertyPanel]   Actual size:', verifyMeta.size);
 
-        if (verifyMeta.size !== standardizedMeta.size) {
+        if (
+          verifyMeta.size !== standardizedMeta.size ||
+          normalizedVerifyMeta.icon !== standardizedMeta.icon ||
+          normalizedVerifyMeta.type !== standardizedMeta.type ||
+          verifyFeature.properties?.iconKey !== nextProperties.iconKey ||
+          verifyFeature.properties?.type !== nextProperties.type
+        ) {
           console.error('[PropertyPanel] ❌ Metadata was not saved correctly!');
-          console.error('[PropertyPanel] This indicates a database write issue.');
+          console.error('[PropertyPanel] This indicates a sync/database write issue or state overwrite.');
         } else {
           console.log('[PropertyPanel] ✅ Metadata saved successfully!');
         }
@@ -448,7 +485,14 @@ export const PropertyPanel: React.FC = () => {
 
   if (selectionSet.size > 1) {
     return (
-      <aside className="w-full h-full bg-[#1e1e1e] border-l border-[#333] flex flex-col shadow-2xl z-20 text-cad-text-muted">
+      <aside className="w-full h-full bg-[#1e1e1e] border border-[#333] flex flex-col shadow-2xl text-cad-text-muted rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between w-full p-3 border-b border-[#333] bg-[#252525] drag-handle cursor-move" {...dragHandleProps}>
+            <div className="flex items-center gap-2">
+                <Settings className="w-3.5 h-3.5 text-[#444]" />
+                <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÔNG SỐ THIẾT KẾ</span>
+            </div>
+            <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-[#333] hover:text-white transition-all rounded"><X size={12} /></button>
+        </div>
         <div className="p-4 overflow-y-auto flex-1 flex flex-col items-center justify-center text-center opacity-50">
           <div className="w-16 h-16 bg-[#252525] rounded-full flex items-center justify-center mb-4 text-cad-accent">
             <Layers className="w-8 h-8" />
@@ -472,7 +516,14 @@ export const PropertyPanel: React.FC = () => {
 
   if (!feature) {
     return (
-      <aside className="w-full h-full bg-[#1e1e1e] border-l border-[#333] flex flex-col shadow-2xl z-20 text-cad-text-muted">
+      <aside className="w-full h-full bg-[#1e1e1e] border border-[#333] flex flex-col shadow-2xl text-cad-text-muted rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between w-full p-3 border-b border-[#333] bg-[#252525] drag-handle cursor-move" {...dragHandleProps}>
+            <div className="flex items-center gap-2">
+                <Settings className="w-3.5 h-3.5 text-[#444]" />
+                <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÔNG SỐ THIẾT KẾ</span>
+            </div>
+            <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-[#333] hover:text-white transition-all rounded"><X size={12} /></button>
+        </div>
         <div className="p-4 overflow-y-auto flex-1 flex flex-col items-center justify-center text-center opacity-50">
           <div className="w-16 h-16 bg-[#252525] rounded-full flex items-center justify-center mb-4">
             <Settings className="w-8 h-8 text-[#444]" />
@@ -496,7 +547,7 @@ export const PropertyPanel: React.FC = () => {
 
   return (
     <aside
-      className="w-full h-full bg-[#1e1e1e] border-l border-[#333] flex flex-col shadow-2xl z-50 text-white font-mono"
+      className="w-full h-full bg-[#1e1e1e] border border-[#333] flex flex-col shadow-2xl text-white font-mono rounded-xl overflow-hidden"
       onContextMenu={(e) => {
         e.preventDefault();
         selectFeature(null);
@@ -527,19 +578,23 @@ export const PropertyPanel: React.FC = () => {
       )}
 
       {/* Header */}
-      <div className="p-3 border-b border-[#333] flex justify-between items-center bg-[#252525] sticky top-0 backdrop-blur-md z-11">
+      <div 
+        {...dragHandleProps}
+        className="p-3 border-b border-[#333] flex justify-between items-center bg-[#252525] sticky top-0 backdrop-blur-md z-11 drag-handle cursor-move"
+      >
         <div className="flex items-center gap-2">
           {displayInfo?.icon ? (
-            <displayInfo.icon className={cn("w-3.5 h-3.5", displayInfo.tailwindColor || "text-indigo-400")} />
+            <displayInfo.icon className={cn("w-3.5 h-3.5", displayInfo.tailwindColor || "text-cad-accent")} />
           ) : (
-            isPolyline ? <Route className="w-3.5 h-3.5 text-emerald-400" /> : <MapPin className="w-3.5 h-3.5 text-indigo-400" />
+            isPolyline ? <Route className="w-3.5 h-3.5 text-cad-accent" /> : <MapPin className="w-3.5 h-3.5 text-cad-accent" />
           )}
-          <h2 className="text-[10px] font-black tracking-widest uppercase text-cad-accent">Spec Design</h2>
+          <h2 className="text-[10px] font-black tracking-widest uppercase text-cad-accent">THÔNG SỐ THIẾT KẾ</h2>
         </div>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-1">
           <button
             onClick={handleDelete}
             className="p-1 px-2 hover:bg-red-500/20 text-red-400 rounded transition-colors text-[9px] font-bold uppercase border border-red-500/10"
+            title="Xóa đối tượng"
           >
             Delete
           </button>
@@ -561,7 +616,14 @@ export const PropertyPanel: React.FC = () => {
             </button>
           )}
           <button
-            onClick={() => { selectFeature(null); setActiveParentFeature(null); }}
+            onClick={onPin}
+            className={`p-1 px-2 hover:bg-[#333] transition-colors rounded text-[9px] font-bold uppercase ${isPinned ? 'text-cad-accent bg-[#333]' : 'text-cad-text-muted'}`}
+            title={isPinned ? "Auto-hide" : "Pin"}
+          >
+            {isPinned ? 'Unpin' : 'Pin'}
+          </button>
+          <button
+            onClick={() => { if(onClose) onClose(); selectFeature(null); setActiveParentFeature(null); }}
             className="p-1 px-2 hover:bg-[#333] text-cad-text-muted rounded transition-colors text-[9px] font-bold uppercase"
           >
             Close
@@ -582,7 +644,13 @@ export const PropertyPanel: React.FC = () => {
               <input
                 className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:border-cad-accent outline-none transition-all"
                 value={localName}
-                onChange={e => setLocalName(e.target.value)}
+                onChange={e => {
+                  const nextName = e.target.value;
+                  setLocalName(nextName);
+                  if (selectedFeatureId) {
+                    setPreview(selectedFeatureId, localMeta, nextName);
+                  }
+                }}
                 placeholder="Enter name..."
               />
             </div>
@@ -922,7 +990,7 @@ export const PropertyPanel: React.FC = () => {
       <div className="p-3 border-t border-[#333] bg-[#222]">
         <button
           onClick={handleSave}
-          disabled={isSaving || isAutoSaving || (!isNameDirty && !isMetadataDirty)}
+          disabled={isSaving || (!isNameDirty && !isMetadataDirty)}
           className={cn(
             "w-full py-2.5 rounded text-[10px] font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95",
             isSaved
@@ -930,14 +998,14 @@ export const PropertyPanel: React.FC = () => {
               : "bg-cad-accent hover:bg-cad-accent/90 disabled:bg-[#333] text-[#111]"
           )}
         >
-          {isSaving || isAutoSaving ? (
+          {isSaving ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : isSaved ? (
             <Zap className="w-3.5 h-3.5 animate-bounce" />
           ) : (
             <Save className="w-3.5 h-3.5" />
           )}
-          {isSaving || isAutoSaving ? 'PERSISTING...' : isSaved ? 'SAVED SUCCESSFUL' : 'SAVE SPECS'}
+          {isSaving ? 'PERSISTING...' : isSaved ? 'SAVED SUCCESSFUL' : 'SAVE SPECS'}
         </button>
       </div>
       <DeleteConfirmationModal

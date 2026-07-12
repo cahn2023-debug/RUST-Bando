@@ -119,7 +119,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ projectId }) =>
                         value="Active"
                         icon={BarChart3}
                         color="green"
-                        description="DuckDB indexing is currently live"
+                        description="Project file indexing is currently available"
                     />
                 </div>
             </div>

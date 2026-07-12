@@ -97,7 +97,7 @@ export type UIControlSlice = {
         location?: [number, number],
         timestamp: number
     } | null;
-    previewMetadata: { id: string, metadata: any } | null;
+    previewMetadata: { id: string, metadata: any, name?: string } | null;
     groupThemePreview: { groupId: string, config: any } | null;
     searchResultMarker: { lat: number, lng: number, name: string } | null;
     printArea: [number, number, number, number] | null;
@@ -116,7 +116,7 @@ export type UIControlSlice = {
     zoomTo: (id: string, type: 'feature' | 'group' | 'layer' | 'region' | 'location', location?: [number, number]) => void;
     /** Toggle map visibility for a layer/group (only affects map, not Explorer tree) */
     toggleMapHidden: (id: string) => void;
-    setPreview: (id: string | null, metadata: any | null) => void;
+    setPreview: (id: string | null, metadata: any | null, name?: string) => void;
     setGroupThemePreview: (groupId: string | null, config: any | null) => void;
     setSearchResultMarker: (marker: UIControlSlice['searchResultMarker']) => void;
     setPrintArea: (bounds: [number, number, number, number] | null) => void;

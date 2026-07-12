@@ -16,6 +16,7 @@ import {
   useVirtualDrag
 } from "./Explorer";
 import { GroupIcon } from "@DESIGN/components/core/CADPanels/GroupIcon";
+import { getFeatureDisplayInfo } from "@TOOL/utils/featureUtils";
 import type { RegionState, LayerState, FeatureGroupState, FeatureState } from "@CONTRACT/types";
 import type { FlatTreeItem } from "@DESIGN/components/core/CADPanels/Explorer/useFlattenedTree";
 
@@ -28,7 +29,7 @@ interface MappingData {
 
 interface DeleteModalState {
   isOpen: boolean;
-  type: 'region' | 'group' | 'layer' | 'feature' | null;
+  type: 'region' | 'group' | 'layer' | 'feature' | 'featureChildren' | null;
   id: string;
   name: string;
 }
@@ -103,6 +104,7 @@ export function DrawingExplorer() {
 
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [themeGroupId, setThemeGroupId] = useState<string | null>(null);
+  const [themeTargetFeatureIds, setThemeTargetFeatureIds] = useState<string[] | undefined>(undefined);
   const [mappingData, setMappingData] = useState<MappingData | null>(null);
   const [deleteModal, setDeleteModal] = useState<DeleteModalState>({ isOpen: false, type: null, id: '', name: '' });
 
@@ -189,11 +191,41 @@ export function DrawingExplorer() {
     }
   };
 
+  const collectChildFeatureIds = (featureId: string): string[] => {
+    const children = featureChildrenMap[featureId] || [];
+    return children.flatMap(child => [child.id, ...collectChildFeatureIds(child.id)]);
+  };
+
+  const handleOpenFeatureChildrenTheme = (feature: FeatureState, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const childIds = collectChildFeatureIds(feature.id);
+    if (!childIds.length) return;
+    setThemeTargetFeatureIds(childIds);
+    setThemeGroupId(feature.id);
+  };
+
+  const handleToggleFeatureChildrenVisible = (featureId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const childIds = collectChildFeatureIds(featureId);
+    if (!childIds.length) return;
+
+    const shouldHide = childIds.some(id => !mapHiddenIds.has(id));
+    childIds.forEach(id => {
+      if (mapHiddenIds.has(id) !== shouldHide) {
+        toggleMapHidden(id);
+      }
+    });
+  };
+
   const confirmDelete = async () => {
     if (!deleteModal.isOpen) return;
     const { type, id } = deleteModal;
     if (type === 'region') dispatchEvent({ type: 'RegionDeleted', payload: { id } });
     else if (type === 'group') dispatchEvent({ type: 'FeatureGroupDeleted', payload: { id } });
+    else if (type === 'featureChildren') {
+      const childIds = collectChildFeatureIds(id);
+      await dispatchEvents(childIds.map(childId => ({ type: 'FeatureDeleted', payload: { id: childId } })));
+    }
     else if (type === 'feature') id === 'selected' ? deleteSelectedFeatures() : dispatchEvent({ type: 'FeatureDeleted', payload: { id } });
     setDeleteModal({ isOpen: false, type: null, id: '', name: '' });
   };
@@ -267,7 +299,7 @@ export function DrawingExplorer() {
                   customAction={
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setThemeGroupId(item.id); }}
+                        onClick={(e) => { e.stopPropagation(); setThemeTargetFeatureIds(undefined); setThemeGroupId(item.id); }}
                         className="p-1 hover:bg-emerald-500/20 rounded text-emerald-400 hover:text-emerald-300 transition-colors"
                         title="Theme"
                       >
@@ -292,23 +324,49 @@ export function DrawingExplorer() {
                 />
               )}
               {item.type === 'feature' && (
-                <FeatureItem
-                  feature={item.data as FeatureState} level={item.level} levelOffset={item.levelOffset}
-                  selected={selectedFeatureId === item.id}
-                  onSelect={() => {
-                    selectFeature(item.id);
-                    const gId = (item.data as FeatureState).group_id;
-                    if (gId) setSelectedGroup(gId);
-                  }}
-                  onZoomTo={() => zoomTo(item.id, 'feature')}
-                  onMouseDown={(e) => handleVirtualDragStart(e, 'feature', item.id)}
-                  onDelete={() => setDeleteModal({ isOpen: true, type: 'feature', id: item.id, name: item.data.name })}
-                  index={featureNumbers[item.id] ?? (index + 1)}
-                  expanded={!!expanded[`feature-${item.id}`]}
-                  hasChildren={!!featureChildrenMap[item.id]?.length}
-                  onToggleExpand={() => setExpanded(p => ({ ...p, [`feature-${item.id}`]: !p[`feature-${item.id}`] }))}
-                  onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'feature', id: item.id, data: item.data }); }}
-                />
+                (() => {
+                  const feature = item.data as FeatureState;
+                  const childIds = collectChildFeatureIds(feature.id);
+                  const hasChildren = childIds.length > 0;
+                  const isIntersectionWithChildren = hasChildren && getFeatureDisplayInfo(feature).isIntersection;
+                  const childrenVisible = childIds.some(id => !mapHiddenIds.has(id));
+
+                  return (
+                    <FeatureItem
+                      feature={feature} level={item.level} levelOffset={item.levelOffset}
+                      selected={selectedFeatureId === item.id}
+                      onSelect={() => {
+                        selectFeature(item.id);
+                        const gId = feature.group_id;
+                        if (gId) setSelectedGroup(gId);
+                      }}
+                      onZoomTo={() => zoomTo(item.id, 'feature')}
+                      onMouseDown={(e) => handleVirtualDragStart(e, 'feature', item.id)}
+                      onDelete={() => setDeleteModal({
+                        isOpen: true,
+                        type: isIntersectionWithChildren ? 'featureChildren' : 'feature',
+                        id: item.id,
+                        name: feature.name
+                      })}
+                      index={featureNumbers[item.id] ?? (index + 1)}
+                      expanded={!!expanded[`feature-${item.id}`]}
+                      hasChildren={hasChildren}
+                      onToggleExpand={() => setExpanded(p => ({ ...p, [`feature-${item.id}`]: !p[`feature-${item.id}`] }))}
+                      onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'feature', id: item.id, data: item.data }); }}
+                      visible={isIntersectionWithChildren ? childrenVisible : !mapHiddenIds.has(item.id)}
+                      onToggleVisible={isIntersectionWithChildren ? (e) => handleToggleFeatureChildrenVisible(item.id, e) : (e) => handleToggleVisible('feature', item.id, item.data, e)}
+                      customAction={isIntersectionWithChildren ? (
+                        <button
+                          onClick={(e) => handleOpenFeatureChildrenTheme(feature, e)}
+                          className="p-0.5 hover:bg-emerald-500/20 rounded text-emerald-400 hover:text-emerald-300 transition-colors"
+                          title="Chỉnh giao diện đối tượng trong nút giao"
+                        >
+                          <Palette size={10} />
+                        </button>
+                      ) : null}
+                    />
+                  );
+                })()
               )}
             </div>
           )}
@@ -316,11 +374,18 @@ export function DrawingExplorer() {
       </div>
 
       <ExplorerModals
-        themeGroupId={themeGroupId} setThemeGroupId={setThemeGroupId}
-        groupName={groupsMap[themeGroupId!]?.name}
+        themeGroupId={themeGroupId}
+        setThemeGroupId={(id) => {
+          if (!id) setThemeTargetFeatureIds(undefined);
+          setThemeGroupId(id);
+        }}
+        groupName={groupsMap[themeGroupId!]?.name || featuresMap[themeGroupId!]?.name}
+        themeTargetFeatureIds={themeTargetFeatureIds}
         mappingData={mappingData} setMappingData={setMappingData}
         handleMappingConfirm={handleMappingConfirm}
-        deleteModal={deleteModal} setDeleteModal={setDeleteModal} confirmDelete={confirmDelete}
+        deleteModal={deleteModal}
+        setDeleteModal={setDeleteModal}
+        confirmDelete={confirmDelete}
       />
       
       {/* Context Menu Overlay */}

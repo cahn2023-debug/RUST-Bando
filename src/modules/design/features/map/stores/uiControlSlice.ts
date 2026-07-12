@@ -61,9 +61,13 @@ export const createUIControlSlice: StateCreator<DesignSyncStore, [], [], UIContr
         emit('sync-zoom-to', trigger);
     },
 
-    setPreview: (id, metadata) => {
-        set({ previewMetadata: id && metadata ? { id, metadata } : null });
-        emit('sync-preview-metadata', { id, metadata });
+    setPreview: (id, metadata, name) => {
+        set((state) => {
+            const previousName = state.previewMetadata?.id === id ? state.previewMetadata.name : undefined;
+            const nextPreview = id && metadata ? { id, metadata, name: name ?? previousName } : null;
+            emit('sync-preview-metadata', nextPreview || { id, metadata });
+            return { previewMetadata: nextPreview };
+        });
     },
 
     setGroupThemePreview: (groupId, config) => {

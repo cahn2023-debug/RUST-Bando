@@ -75,6 +75,9 @@ export const flattenFeature = (f: FeatureState, state: MapState, preParsedMetada
     'status': metadata.status || 'N/A',
     'geom_type': getFeatureDisplayType(f, group?.type, group?.name), // Unified display type
     'technical_geom': f.geom_type,
+    'is_visible': metadata.is_visible ?? f.is_visible ?? true,
+    'length': f.length ?? '',
+    'area': f.area ?? '',
   };
 
   // 2. Extract Latitude and Longitude
@@ -86,6 +89,7 @@ export const flattenFeature = (f: FeatureState, state: MapState, preParsedMetada
         row['latitude'] = p[1];
         row['longitude'] = p[0];
       }
+      row['coordinates_summary'] = safeTruncate(coords, 500);
     }
   } catch (e) {
     // Silently ignore coord errors for flattening

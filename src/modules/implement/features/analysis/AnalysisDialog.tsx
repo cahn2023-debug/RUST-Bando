@@ -3,15 +3,23 @@
  * Combines data grid, BOM summary, filtering, and technical specs
  */
 
-import { useMemo, useState, useCallback } from 'react';
+import { useCallback, useMemo, useState, type ChangeEvent } from 'react';
 import { Trash2, Eraser, Filter, Package, ListFilter } from 'lucide-react';
+import { type ColumnDef } from '@tanstack/react-table';
 import { AnalysisTable } from '@DESIGN/components/ui/AnalysisTable';
 import { BOMSummaryPanel } from '@DESIGN/components/ui/BOMSummaryPanel';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
-import { ColumnDef } from '@tanstack/react-table';
-import { useDesignSync, DesignEventType } from '@IMPLEMENT/stores/useDesignSync';
-import { flattenFeature } from '@TOOL/utils/dataFlattening';
+import { useDesignSync, type DesignEventType } from '@IMPLEMENT/stores/useDesignSync';
 import { EditableCell, DropdownCell, GEOM_TYPES_OPTIONS } from '@IMPLEMENT/features/analysis/AnalysisCells';
+import {
+  ANALYSIS_CORE_COLUMN_ORDER,
+  buildAnalysisExportRows,
+  getAnalysisUserColumnKeys,
+  isAllowedAnalysisDynamicColumnKey,
+  isAnalysisScalarValue,
+  normalizeAnalysisColumnKey,
+} from '@IMPLEMENT/features/analysis/analysisColumns';
+import { flattenFeature } from '@TOOL/utils/dataFlattening';
 import { cn } from '@TOOL/utils/cn';
 import { getLineCoordinates, getPointCoordinates, getPolygonCoordinates } from '@TOOL/utils/featureUtils';
 
@@ -35,6 +43,72 @@ interface FlatFeature {
 
 type ViewMode = 'grid' | 'bom';
 
+const CORE_COLUMN_TITLES: Record<string, string> = {
+  id: 'ID',
+  index_stt: 'STT',
+  display_order: 'MA HIEU',
+  name: 'TEN DOI TUONG',
+  type: 'LOAI',
+  group: 'NHOM',
+  region: 'VUNG',
+  layer: 'LOP',
+  geom_type: 'GEO TYPE',
+  technical_geom: 'KY THUAT',
+  latitude: 'VI DO',
+  longitude: 'KINH DO',
+  status: 'TRANG THAI',
+  note: 'GHI CHU',
+  description: 'MO TA',
+  is_visible: 'HIEN THI',
+  length: 'CHIEU DAI',
+  area: 'DIEN TICH',
+  coordinates_summary: 'TOA DO',
+};
+
+const NON_EDITABLE_FIELDS = new Set([
+  'id',
+  'index_stt',
+  'group',
+  'region',
+  'layer',
+  'technical_geom',
+  'coordinates_summary',
+  'length',
+  'area',
+]);
+
+const BATCH_NOTE_OPTIONS = ['Da kiem tra', 'Can sua', 'OK'];
+const BOOLEAN_OPTIONS = ['Co', 'Khong'];
+
+const toColumnLabel = (key: string) => {
+  if (CORE_COLUMN_TITLES[key]) return CORE_COLUMN_TITLES[key];
+  return key.replace(/_/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
+};
+
+const getColumnWidth = (key: string) => {
+  if (['name', 'description', 'coordinates_summary'].includes(key)) return 220;
+  if (['note', 'status', 'type', 'group', 'region', 'layer', 'geom_type', 'technical_geom'].includes(key)) return 140;
+  if (['latitude', 'longitude', 'length', 'area'].includes(key)) return 120;
+  if (['is_visible', 'id'].includes(key)) return 110;
+  return 160;
+};
+
+const buildDisplayValue = (value: unknown) => {
+  if (typeof value === 'boolean') {
+    return value ? 'Co' : 'Khong';
+  }
+  return value;
+};
+
+const hasKeyInRows = (rows: FlatFeature[], key: string) => rows.some((row) => key in row);
+
+const getGeomIconValue = (value: unknown) => {
+  const lowerVal = String(value ?? '').toLowerCase();
+  if (['cctv', 'ptz', 'speed', 'lpr'].includes(lowerVal)) return lowerVal;
+  if (lowerVal.includes('nut giao')) return 'intersection';
+  return null;
+};
+
 export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
   const { state, selectFeature, zoomTo, dispatchEvent, deleteFeature, deduplicate } = useDesignSync();
   const projectId = useDesignSync.getState().projectId;
@@ -45,27 +119,23 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
     itemName: string;
     message: string;
   }>({ isOpen: false, type: null, id: null, itemName: '', message: '' });
-
-  // View mode state
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
-
-  // Filter states
   const [filterGroup, setFilterGroup] = useState<string>('ALL');
   const [filterLayer, setFilterLayer] = useState<string>('ALL');
   const [filterRegion, setFilterRegion] = useState<string>('ALL');
   const [filterGeomType, setFilterGeomType] = useState<string>('ALL');
+  const [manualColumnKeys, setManualColumnKeys] = useState<string[]>([]);
 
-  // 1. Data Flattening with Filtering
   const allData = useMemo(() => {
     if (!state) return [];
-    const processedFeatures = Object.values(state.features).map(f => {
+    const processedFeatures = Object.values(state.features).map((feature) => {
       let meta: any = {};
       try {
-        meta = typeof f.metadata === 'string' ? JSON.parse(f.metadata || '{}') : (f.metadata || {});
-      } catch (e) {
-        console.error(`[Analysis] Error parsing metadata for ${f.id}:`, e);
+        meta = typeof feature.metadata === 'string' ? JSON.parse(feature.metadata || '{}') : (feature.metadata || {});
+      } catch (error) {
+        console.error(`[Analysis] Error parsing metadata for ${feature.id}:`, error);
       }
-      return { feature: f, metadata: meta, displayOrder: meta.display_order || '', name: f.name || '' };
+      return { feature, metadata: meta, displayOrder: meta.display_order || '', name: feature.name || '' };
     });
 
     processedFeatures.sort((a, b) => {
@@ -75,115 +145,181 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
 
     return processedFeatures.map((item, idx) => ({
       ...flattenFeature(item.feature, state, item.metadata),
-      index_stt: (idx + 1).toString(),
+      index_stt: String(idx + 1),
     })) as FlatFeature[];
   }, [state]);
 
-  // Available filter options
   const filterOptions = useMemo(() => {
     const groups = new Set<string>();
     const layers = new Set<string>();
     const regions = new Set<string>();
     const geomTypes = new Set<string>();
 
-    allData.forEach(f => {
-      if (f.group) groups.add(f.group);
-      if (f.layer) layers.add(f.layer);
-      if (f.region) regions.add(f.region);
-      if (f.geom_type) geomTypes.add(f.geom_type);
+    allData.forEach((feature) => {
+      if (feature.group) groups.add(feature.group);
+      if (feature.layer) layers.add(feature.layer);
+      if (feature.region) regions.add(feature.region);
+      if (feature.geom_type) geomTypes.add(feature.geom_type);
     });
 
     return {
       groups: Array.from(groups).sort(),
       layers: Array.from(layers).sort(),
       regions: Array.from(regions).sort(),
-      geomTypes: Array.from(geomTypes).sort()
+      geomTypes: Array.from(geomTypes).sort(),
     };
   }, [allData]);
 
-  // Apply filters
   const data = useMemo(() => {
-    return allData.filter(f => {
-      if (filterGroup !== 'ALL' && f.group !== filterGroup) return false;
-      if (filterLayer !== 'ALL' && f.layer !== filterLayer) return false;
-      if (filterRegion !== 'ALL' && f.region !== filterRegion) return false;
-      if (filterGeomType !== 'ALL' && f.technical_geom !== filterGeomType) return false;
+    return allData.filter((feature) => {
+      if (filterGroup !== 'ALL' && feature.group !== filterGroup) return false;
+      if (filterLayer !== 'ALL' && feature.layer !== filterLayer) return false;
+      if (filterRegion !== 'ALL' && feature.region !== filterRegion) return false;
+      if (filterGeomType !== 'ALL' && feature.geom_type !== filterGeomType) return false;
       return true;
     });
   }, [allData, filterGroup, filterLayer, filterRegion, filterGeomType]);
 
-  // 2. Event Handlers
-  const handleUpdate = useCallback(async (id: string, key: string, value: any) => {
-    const f = state?.features[id];
-    if (!f) return;
+  const userColumnKeys = useMemo(() => (
+    getAnalysisUserColumnKeys(Object.values(state?.features || {}), manualColumnKeys)
+  ), [manualColumnKeys, state]);
 
-    const meta = typeof f.metadata === 'string' ? JSON.parse(f.metadata || '{}') : { ...(f.metadata as any) };
-    const props = typeof f.properties === 'object' ? { ...(f.properties as any) } : {};
+  const analysisColumnKeys = useMemo(() => {
+    const coreKeys = ANALYSIS_CORE_COLUMN_ORDER.filter((key) => hasKeyInRows(allData, key));
+    const dynamicKeys = userColumnKeys.filter((key) => !coreKeys.includes(key as (typeof coreKeys)[number]));
+    return [...coreKeys, ...dynamicKeys];
+  }, [allData, userColumnKeys]);
+
+  const exportRows = useMemo(() => (
+    buildAnalysisExportRows(data, analysisColumnKeys, toColumnLabel)
+  ), [analysisColumnKeys, data]);
+
+  const handleGoToFeatureLocation = useCallback((row: FlatFeature) => {
+    const feature = state?.features[row.id];
+    if (!feature) return;
+
+    selectFeature(feature.id);
+
+    try {
+      const point = getPointCoordinates(feature);
+      const line = getLineCoordinates(feature);
+      const polygon = getPolygonCoordinates(feature)?.[0];
+      const center = point || polygon?.[0] || line?.[0];
+
+      if (center) {
+        zoomTo(feature.id, 'location', [center[1], center[0]]);
+        return;
+      }
+    } catch (error) {
+      console.error('Go to feature location error:', error);
+    }
+
+    zoomTo(feature.id, 'feature');
+  }, [selectFeature, state, zoomTo]);
+
+  const handleUpdate = useCallback(async (id: string, key: string, value: any) => {
+    const feature = state?.features[id];
+    if (!feature) return;
+
+    const meta = typeof feature.metadata === 'string' ? JSON.parse(feature.metadata || '{}') : { ...(feature.metadata as any) };
+    const props = typeof feature.properties === 'object' ? { ...(feature.properties as any) } : {};
 
     if (key === 'name') {
       await dispatchEvent({ type: 'FeatureUpdated', payload: { id, name: value } });
-    } else if (['display_order', 'description', 'geom_type'].includes(key) || key.toLowerCase().includes('stt')) {
-      const targetKey = (key.toLowerCase().includes('stt') || key === 'display_order') ? 'display_order' : (key === 'geom_type' ? 'type' : key);
+      return;
+    }
+
+    if (key === 'is_visible') {
+      meta.is_visible = Boolean(value);
+      await dispatchEvent({ type: 'FeatureUpdated', payload: { id, metadata: JSON.stringify(meta) } });
+      return;
+    }
+
+    if (['display_order', 'description', 'geom_type', 'status', 'note'].includes(key) || key.toLowerCase().includes('stt')) {
+      const targetKey = key.toLowerCase().includes('stt') || key === 'display_order'
+        ? 'display_order'
+        : (key === 'geom_type' ? 'type' : key);
       meta[targetKey] = value;
+      if (key === 'note') meta.notes = value;
       if (key === 'geom_type') {
-        const lowerVal = value.toLowerCase();
-        if (['cctv', 'ptz', 'speed', 'lpr'].includes(lowerVal)) meta.icon = lowerVal;
-        else if (lowerVal.includes('nút giao')) meta.icon = 'intersection';
+        const nextIcon = getGeomIconValue(value);
+        if (nextIcon) meta.icon = nextIcon;
       }
       await dispatchEvent({ type: 'FeatureUpdated', payload: { id, metadata: JSON.stringify(meta) } });
-    } else if (key === 'latitude' || key === 'longitude') {
+      return;
+    }
+
+    if (key === 'latitude' || key === 'longitude') {
       try {
-        const val = parseFloat(value);
-        if (!isNaN(val)) {
-          const point = getPointCoordinates(f);
-          const line = getLineCoordinates(f);
-          const polygon = getPolygonCoordinates(f)?.[0];
+        const nextCoord = parseFloat(value);
+        if (!Number.isNaN(nextCoord)) {
+          const point = getPointCoordinates(feature);
+          const line = getLineCoordinates(feature);
+          const polygon = getPolygonCoordinates(feature)?.[0];
 
           if (point) {
             const coords = [...point] as [number, number];
-            if (key === 'latitude') coords[1] = val; else coords[0] = val;
+            if (key === 'latitude') coords[1] = nextCoord;
+            else coords[0] = nextCoord;
             await dispatchEvent({ type: 'FeatureUpdated', payload: { id, coordinates: coords } });
           } else if (polygon?.[0]) {
             const coords = polygon.map((coord) => [...coord] as [number, number]);
-            if (key === 'latitude') coords[0][1] = val; else coords[0][0] = val;
+            if (key === 'latitude') coords[0][1] = nextCoord;
+            else coords[0][0] = nextCoord;
             await dispatchEvent({ type: 'FeatureUpdated', payload: { id, coordinates: [coords] } });
           } else if (line?.[0]) {
             const coords = line.map((coord) => [...coord] as [number, number]);
-            if (key === 'latitude') coords[0][1] = val; else coords[0][0] = val;
+            if (key === 'latitude') coords[0][1] = nextCoord;
+            else coords[0][0] = nextCoord;
             await dispatchEvent({ type: 'FeatureUpdated', payload: { id, coordinates: coords } });
           }
         }
-      } catch (e) { console.error("Coord update error:", e); }
-    } else {
-      props[key] = value;
-      await dispatchEvent({ type: 'FeatureUpdated', payload: { id, properties: props } });
+      } catch (error) {
+        console.error('Coord update error:', error);
+      }
+      return;
     }
+
+    props[key] = value;
+    await dispatchEvent({ type: 'FeatureUpdated', payload: { id, properties: props } });
   }, [state, dispatchEvent]);
 
   const onBatchUpdate = useCallback(async (selectedIds: string[], field: string, value: any) => {
     if (!state) return;
-    const events: DesignEventType[] = [];
-    selectedIds.forEach(id => {
-      const f = state.features[id];
-      if (!f) return;
-      const meta = typeof f.metadata === 'string' ? JSON.parse(f.metadata || '{}') : { ...(f.metadata as any) };
-      const props = typeof f.properties === 'object' ? { ...(f.properties as any) } : {};
 
-      if (['geom_type', 'type', 'category', 'technical', 'display_order', 'description'].includes(field)) {
+    const events: DesignEventType[] = [];
+    selectedIds.forEach((id) => {
+      const feature = state.features[id];
+      if (!feature) return;
+
+      const meta = typeof feature.metadata === 'string' ? JSON.parse(feature.metadata || '{}') : { ...(feature.metadata as any) };
+      const props = typeof feature.properties === 'object' ? { ...(feature.properties as any) } : {};
+
+      if (field === 'is_visible') {
+        meta.is_visible = value === true || value === 'Co';
+        events.push({ type: 'FeatureUpdated', payload: { id, metadata: JSON.stringify(meta) } });
+        return;
+      }
+
+      if (['geom_type', 'type', 'category', 'technical', 'display_order', 'description', 'status', 'note'].includes(field)) {
         const targetKey = field === 'geom_type' ? 'type' : field;
         meta[targetKey] = value;
+        if (field === 'note') meta.notes = value;
         if (field === 'geom_type') {
-          const lowerVal = value.toLowerCase();
-          if (['cctv', 'ptz', 'speed', 'lpr'].includes(lowerVal)) meta.icon = lowerVal;
-          else if (lowerVal.includes('nút giao')) meta.icon = 'intersection';
+          const nextIcon = getGeomIconValue(value);
+          if (nextIcon) meta.icon = nextIcon;
         }
         events.push({ type: 'FeatureUpdated', payload: { id, metadata: JSON.stringify(meta) } });
-      } else if (field === 'layer' || field === 'group') {
-        events.push({ type: 'FeatureUpdated', payload: { id, [field]: value } });
-      } else {
-        props[field] = value;
-        events.push({ type: 'FeatureUpdated', payload: { id, properties: props } });
+        return;
       }
+
+      if (field === 'layer' || field === 'group') {
+        events.push({ type: 'FeatureUpdated', payload: { id, [field]: value } });
+        return;
+      }
+
+      props[field] = value;
+      events.push({ type: 'FeatureUpdated', payload: { id, properties: props } });
     });
 
     if (events.length > 0) {
@@ -192,161 +328,302 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
     }
   }, [state]);
 
+  const handleAddColumn = useCallback(async () => {
+    if (!state || data.length === 0) {
+      alert('Khong co doi tuong de them cot.');
+      return;
+    }
+
+    const label = window.prompt('Nhap ten cot moi');
+    if (!label) return;
+
+    const columnKey = normalizeAnalysisColumnKey(label);
+    if (!columnKey || !isAllowedAnalysisDynamicColumnKey(columnKey)) {
+      alert('Ten cot khong hop le hoac trung voi cot he thong.');
+      return;
+    }
+
+    if (analysisColumnKeys.includes(columnKey)) {
+      alert('Cot nay da ton tai.');
+      return;
+    }
+
+    const { dispatchEvents } = useDesignSync.getState();
+    const events: DesignEventType[] = data
+      .map((row) => state.features[row.id])
+      .filter((feature): feature is NonNullable<typeof feature> => Boolean(feature))
+      .map((feature) => ({
+        type: 'FeatureUpdated',
+        payload: {
+          id: feature.id,
+          properties: {
+            ...(typeof feature.properties === 'object' ? feature.properties : {}),
+            [columnKey]: '',
+          },
+        },
+      }));
+
+    if (events.length > 0) {
+      await dispatchEvents(events);
+    }
+
+    setManualColumnKeys((prev) => (
+      prev.includes(columnKey) ? prev : [...prev, columnKey]
+    ));
+  }, [analysisColumnKeys, data, state]);
+
   const handleExport = async () => {
     try {
       const { analysisService } = await import('@IMPLEMENT/services/analysisService');
-      await analysisService.exportToExcel(data, projectId?.toString() || 'default');
-    } catch (error: any) { alert(`Export error: ${error.message}`); }
+      await analysisService.exportToExcel(exportRows, projectId?.toString() || 'default');
+    } catch (error: any) {
+      alert(`Export error: ${error.message}`);
+    }
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
     if (!file || !state) return;
+
     try {
       const { analysisService } = await import('@IMPLEMENT/services/analysisService');
       const events = await analysisService.importFromExcel(state);
       if (events.length > 0) {
         setDeleteModalConfig({
-          isOpen: true, type: 'import', id: JSON.stringify(events),
-          itemName: `${events.length} thay đổi`,
-          message: `Tìm thấy ${events.length} thay đổi. Bạn có muốn cập nhật?`
+          isOpen: true,
+          type: 'import',
+          id: JSON.stringify(events),
+          itemName: `${events.length} thay doi`,
+          message: `Tim thay ${events.length} thay doi. Ban co muon cap nhat?`,
         });
-      } else alert("Không tìm thấy thay đổi.");
-    } catch (error: any) { alert(`Import error: ${error.message}`); }
+      } else {
+        alert('Khong tim thay thay doi.');
+      }
+    } catch (error: any) {
+      alert(`Import error: ${error.message}`);
+    }
   };
 
-  // 3. Columns Definition
-  const columns = useMemo<ColumnDef<FlatFeature>[]>(() => [
-    {
-      id: 'select', size: 40,
-      header: ({ table }) => (
-        <input type="checkbox" checked={table.getIsAllPageRowsSelected()} onChange={table.getToggleAllPageRowsSelectedHandler()} className="accent-cad-accent w-4 h-4" />
-      ),
-      cell: ({ row }) => (
-        <input type="checkbox" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} className="accent-cad-accent w-4 h-4" />
-      )
-    },
-    { header: 'STT', accessorKey: 'index_stt', size: 60 },
-    {
-      header: 'MÃ HIỆU', accessorKey: 'display_order', size: 100,
-      cell: info => <EditableCell value={info.getValue()} row={info.row} column={info.column} onUpdate={handleUpdate} />
-    },
-    {
-      header: 'TÊN ĐỐI TƯỢNG', accessorKey: 'name', size: 200,
-      cell: info => (
-        <EditableCell
-          value={info.getValue()} row={info.row} column={info.column} onUpdate={handleUpdate}
-          className="font-bold text-cad-accent"
-          onClick={() => {
-            const f = state?.features[info.row.original.id];
-            if (f) {
-              const coords = typeof f.coordinates === 'string' ? JSON.parse(f.coordinates) : f.coordinates;
-              const center = f.geom_type.toUpperCase() === 'POINT' ? (Array.isArray(coords[0]) ? coords[0] : coords) : coords[0][0] || coords[0];
-              selectFeature(f.id); zoomTo(f.id, 'location', [center[1], center[0]]);
-            }
-          }}
-        />
-      )
-    },
-    { header: 'LOẠI', accessorKey: 'type', size: 100 },
-    { header: 'PHÂN LOẠI', accessorKey: 'group', size: 120 },
-    { header: 'VÙNG', accessorKey: 'region', size: 120 },
-    { header: 'LỚP', accessorKey: 'layer', size: 120 },
-    {
-      header: 'GEO TYPE', accessorKey: 'geom_type', size: 140,
-      cell: info => <DropdownCell value={info.getValue() as string} options={GEOM_TYPES_OPTIONS} row={info.row} column={info.column} onUpdate={handleUpdate} />
-    },
-    {
-      header: 'MÔ TẢ', accessorKey: 'description', size: 250,
-      cell: info => <EditableCell value={info.getValue()} row={info.row} column={info.column} onUpdate={handleUpdate} />
-    },
-    {
-      id: 'Action', size: 80, header: 'Xóa',
-      cell: ({ row }) => (
-        <button onClick={() => deleteFeature(row.original.id)} className="p-1 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
-      )
-    }
-  ], [state, zoomTo, handleUpdate]);
+  const columns = useMemo<ColumnDef<FlatFeature>[]>(() => {
+    const detailColumns: ColumnDef<FlatFeature>[] = ANALYSIS_CORE_COLUMN_ORDER
+      .filter((key) => hasKeyInRows(allData, key))
+      .map((key) => {
+        if (key === 'name') {
+          return {
+            header: toColumnLabel(key),
+            accessorKey: key,
+            size: 220,
+            cell: (info) => (
+              <EditableCell
+                value={info.getValue()}
+                row={info.row}
+                column={info.column}
+                onUpdate={handleUpdate}
+                className="font-bold text-cad-accent"
+              />
+            ),
+          };
+        }
 
-  const activeFiltersCount = [filterGroup, filterLayer, filterRegion, filterGeomType].filter(f => f !== 'ALL').length;
+        if (key === 'geom_type') {
+          return {
+            header: toColumnLabel(key),
+            accessorKey: key,
+            size: getColumnWidth(key),
+            meta: { options: GEOM_TYPES_OPTIONS },
+            cell: (info) => (
+              <DropdownCell
+                value={String(info.getValue() ?? '')}
+                options={GEOM_TYPES_OPTIONS}
+                row={info.row}
+                column={info.column}
+                onUpdate={handleUpdate}
+              />
+            ),
+          };
+        }
+
+        if (NON_EDITABLE_FIELDS.has(key)) {
+          return {
+            header: toColumnLabel(key),
+            accessorKey: key,
+            size: getColumnWidth(key),
+          };
+        }
+
+        return {
+          header: toColumnLabel(key),
+          accessorKey: key,
+          size: getColumnWidth(key),
+          cell: (info) => (
+            <EditableCell
+              value={buildDisplayValue(info.getValue())}
+              row={info.row}
+              column={info.column}
+              onUpdate={handleUpdate}
+            />
+          ),
+        };
+      });
+
+    const extraColumns: ColumnDef<FlatFeature>[] = userColumnKeys.map((key) => ({
+      header: toColumnLabel(key),
+      accessorKey: key,
+      size: getColumnWidth(key),
+      cell: (info) => {
+        const value = info.getValue();
+        if (!isAnalysisScalarValue(value)) {
+          return <span className="text-cad-text-muted">N/A</span>;
+        }
+
+        if (NON_EDITABLE_FIELDS.has(key)) {
+          return <span>{String(buildDisplayValue(value) ?? '')}</span>;
+        }
+
+        return (
+          <EditableCell
+            value={buildDisplayValue(value)}
+            row={info.row}
+            column={info.column}
+            onUpdate={handleUpdate}
+          />
+        );
+      },
+    }));
+
+    return [
+      {
+        id: 'select',
+        size: 40,
+        header: ({ table }) => (
+          <div className="relative flex items-center justify-center">
+            <input
+              type="checkbox"
+              checked={table.getIsAllPageRowsSelected()}
+              onChange={table.getToggleAllPageRowsSelectedHandler()}
+              className="peer appearance-none w-4 h-4 rounded border border-cad-border hover:border-cad-accent checked:bg-cad-accent checked:border-cad-accent outline-none cursor-pointer transition-all"
+            />
+            <svg
+              className="absolute w-2.5 h-2.5 pointer-events-none stroke-black stroke-[3.5] fill-none opacity-0 peer-checked:opacity-100 transition-opacity"
+              viewBox="0 0 24 24"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+        ),
+        cell: ({ row }) => (
+          <div className="relative flex items-center justify-center">
+            <input
+              type="checkbox"
+              checked={row.getIsSelected()}
+              onChange={row.getToggleSelectedHandler()}
+              className="peer appearance-none w-4 h-4 rounded border border-cad-border hover:border-cad-accent checked:bg-cad-accent checked:border-cad-accent outline-none cursor-pointer transition-all"
+            />
+            <svg
+              className="absolute w-2.5 h-2.5 pointer-events-none stroke-black stroke-[3.5] fill-none opacity-0 peer-checked:opacity-100 transition-opacity"
+              viewBox="0 0 24 24"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          </div>
+        ),
+      },
+      ...detailColumns,
+      ...extraColumns,
+      {
+        id: 'Action',
+        size: 80,
+        header: 'XOA',
+        cell: ({ row }) => (
+          <button onClick={() => deleteFeature(row.original.id)} className="p-1 hover:text-rose-500 transition-colors">
+            <Trash2 size={14} />
+          </button>
+        ),
+      },
+    ];
+  }, [allData, userColumnKeys, handleUpdate, deleteFeature]);
+
+  const activeFiltersCount = [filterGroup, filterLayer, filterRegion, filterGeomType].filter((value) => value !== 'ALL').length;
 
   return (
     <>
-      <div className="flex flex-col h-full w-full bg-cad-bg">
-        {/* View Mode Switcher */}
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-cad-border bg-cad-elevated">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded transition-all',
-              viewMode === 'grid'
-                ? 'bg-cad-accent text-white'
-                : 'text-cad-text-muted hover:text-cad-text-primary hover:bg-cad-surface'
-            )}
-          >
-            <ListFilter size={14} />
-            Bảng dữ liệu
-          </button>
-          <button
-            onClick={() => setViewMode('bom')}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded transition-all',
-              viewMode === 'bom'
-                ? 'bg-cad-accent text-white'
-                : 'text-cad-text-muted hover:text-cad-text-primary hover:bg-cad-surface'
-            )}
-          >
-            <Package size={14} />
-            BOM Summary
-          </button>
+      <div
+        className="absolute inset-0 flex flex-col min-h-0 min-w-0 overflow-hidden bg-cad-bg"
+      >
+        <div className="flex items-center justify-between px-6 py-2.5 border-b border-cad-border/50 bg-cad-elevated/70 backdrop-blur-md select-none gap-4">
+          <div className="flex p-0.5 bg-cad-bg/60 border border-cad-border/60 rounded-lg h-9 items-center">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={cn(
+                'flex items-center gap-2 px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer',
+                viewMode === 'grid'
+                  ? 'bg-cad-surface text-cad-accent border border-cad-border/40 shadow-sm font-black'
+                  : 'text-cad-text-secondary hover:text-cad-text-primary hover:bg-cad-surface/30 border border-transparent'
+              )}
+            >
+              <ListFilter size={13} />
+              Bảng dữ liệu
+            </button>
+            <button
+              onClick={() => setViewMode('bom')}
+              className={cn(
+                'flex items-center gap-2 px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all cursor-pointer',
+                viewMode === 'bom'
+                  ? 'bg-cad-surface text-cad-accent border border-cad-border/40 shadow-sm font-black'
+                  : 'text-cad-text-secondary hover:text-cad-text-primary hover:bg-cad-surface/30 border border-transparent'
+              )}
+            >
+              <Package size={13} />
+              BOM Summary
+            </button>
+          </div>
 
-          <div className="ml-auto flex items-center gap-2">
-            {/* Filter Controls */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-cad-surface border border-cad-border rounded-lg">
-              <Filter size={14} className="text-cad-text-muted" />
-              <span className="text-[10px] font-bold text-cad-text-muted uppercase">Lọc:</span>
-              
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-cad-surface/80 border border-cad-border/40 rounded-lg shadow-inner">
+              <Filter size={12} className="text-cad-text-muted" />
+              <span className="text-[10px] font-bold text-cad-text-secondary uppercase mr-1">Lọc:</span>
+
               <select
                 value={filterGroup}
-                onChange={e => setFilterGroup(e.target.value)}
-                className="bg-cad-bg border border-cad-border rounded px-2 py-0.5 text-[10px] font-bold text-cad-text-primary outline-none focus:border-cad-accent max-w-[120px] truncate"
+                onChange={(e) => setFilterGroup(e.target.value)}
+                className="bg-cad-bg/90 border border-cad-border/60 hover:border-cad-accent/50 focus:border-cad-accent text-[10px] font-semibold text-cad-text-primary rounded px-2.5 py-1 outline-none transition-all cursor-pointer max-w-[125px] truncate appearance-none pr-6 bg-[image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[position:right_4px_center] bg-[size:16px_16px] bg-no-repeat"
               >
                 <option value="ALL">Tất cả nhóm</option>
-                {filterOptions.groups.map(g => (
-                  <option key={g} value={g}>{g}</option>
+                {filterOptions.groups.map((group) => (
+                  <option key={group} value={group}>{group}</option>
                 ))}
               </select>
 
               <select
                 value={filterLayer}
-                onChange={e => setFilterLayer(e.target.value)}
-                className="bg-cad-bg border border-cad-border rounded px-2 py-0.5 text-[10px] font-bold text-cad-text-primary outline-none focus:border-cad-accent max-w-[120px] truncate"
+                onChange={(e) => setFilterLayer(e.target.value)}
+                className="bg-cad-bg/90 border border-cad-border/60 hover:border-cad-accent/50 focus:border-cad-accent text-[10px] font-semibold text-cad-text-primary rounded px-2.5 py-1 outline-none transition-all cursor-pointer max-w-[125px] truncate appearance-none pr-6 bg-[image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[position:right_4px_center] bg-[size:16px_16px] bg-no-repeat"
               >
                 <option value="ALL">Tất cả lớp</option>
-                {filterOptions.layers.map(l => (
-                  <option key={l} value={l}>{l}</option>
+                {filterOptions.layers.map((layer) => (
+                  <option key={layer} value={layer}>{layer}</option>
                 ))}
               </select>
 
               <select
                 value={filterRegion}
-                onChange={e => setFilterRegion(e.target.value)}
-                className="bg-cad-bg border border-cad-border rounded px-2 py-0.5 text-[10px] font-bold text-cad-text-primary outline-none focus:border-cad-accent max-w-[120px] truncate"
+                onChange={(e) => setFilterRegion(e.target.value)}
+                className="bg-cad-bg/90 border border-cad-border/60 hover:border-cad-accent/50 focus:border-cad-accent text-[10px] font-semibold text-cad-text-primary rounded px-2.5 py-1 outline-none transition-all cursor-pointer max-w-[125px] truncate appearance-none pr-6 bg-[image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[position:right_4px_center] bg-[size:16px_16px] bg-no-repeat"
               >
                 <option value="ALL">Tất cả vùng</option>
-                {filterOptions.regions.map(r => (
-                  <option key={r} value={r}>{r}</option>
+                {filterOptions.regions.map((region) => (
+                  <option key={region} value={region}>{region}</option>
                 ))}
               </select>
 
               <select
                 value={filterGeomType}
-                onChange={e => setFilterGeomType(e.target.value)}
-                className="bg-cad-bg border border-cad-border rounded px-2 py-0.5 text-[10px] font-bold text-cad-text-primary outline-none focus:border-cad-accent max-w-[120px] truncate"
+                onChange={(e) => setFilterGeomType(e.target.value)}
+                className="bg-cad-bg/90 border border-cad-border/60 hover:border-cad-accent/50 focus:border-cad-accent text-[10px] font-semibold text-cad-text-primary rounded px-2.5 py-1 outline-none transition-all cursor-pointer max-w-[125px] truncate appearance-none pr-6 bg-[image:url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2020%2020%22%20fill%3D%22none%22%3E%3Cpath%20d%3D%22M7%209l3%203%203-3%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E')] bg-[position:right_4px_center] bg-[size:16px_16px] bg-no-repeat"
               >
-                <option value="ALL">Tất cả Geo</option>
-                {filterOptions.geomTypes.map(gt => (
-                  <option key={gt} value={gt}>{gt}</option>
+                <option value="ALL">Tất cả geo</option>
+                {filterOptions.geomTypes.map((geomType) => (
+                  <option key={geomType} value={geomType}>{geomType}</option>
                 ))}
               </select>
 
@@ -358,7 +635,7 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
                     setFilterRegion('ALL');
                     setFilterGeomType('ALL');
                   }}
-                  className="text-[10px] font-bold text-rose-400 hover:text-rose-300 transition-colors"
+                  className="text-[10px] font-bold text-rose-400 hover:text-rose-300 transition-colors cursor-pointer px-1.5 py-0.5 hover:bg-rose-500/10 rounded"
                 >
                   Xóa lọc ({activeFiltersCount})
                 </button>
@@ -367,29 +644,41 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
           {viewMode === 'grid' ? (
             <AnalysisTable
               data={data}
               columns={columns}
               projectId={projectId ?? undefined}
-              title={`BẢNG TỔNG HỢP GIS (${data.length} đối tượng)`}
+              title={`BANG TONG HOP GIS (${data.length} DOI TUONG)`}
+              isStandalone={true}
+              showWindowControls={false}
               onClose={onClose}
               onUpdate={handleUpdate}
+              onGoToRowLocation={handleGoToFeatureLocation}
               batchFields={[
                 { label: 'Layer', value: 'layer' },
                 { label: 'Group', value: 'group' },
-                { label: 'Note', value: 'note', options: ['Đã kiểm tra', 'Cần sửa', 'OK'] },
-                { label: 'Geom Type', value: 'geom_type', options: GEOM_TYPES_OPTIONS }
+                { label: 'Status', value: 'status', options: ['N/A', 'Da kiem tra', 'Can sua', 'OK'] },
+                { label: 'Note', value: 'note', options: BATCH_NOTE_OPTIONS },
+                { label: 'Geom Type', value: 'geom_type', options: GEOM_TYPES_OPTIONS },
+                { label: 'Hien thi', value: 'is_visible', options: BOOLEAN_OPTIONS },
               ]}
               onBatchUpdate={onBatchUpdate}
               onExport={handleExport}
-              onImport={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls'; (input as any).onchange = handleImport; input.click(); return Promise.resolve(); }}
+              onAddColumn={handleAddColumn}
+              onImport={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.xlsx,.xls';
+                (input as any).onchange = handleImport;
+                input.click();
+                return Promise.resolve();
+              }}
               renderExtraActions={() => (
                 <button
                   onClick={() => deduplicate()}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 text-amber-600 rounded text-[10px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-all"
+                  className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/30 hover:border-amber-500/60 text-amber-500 hover:bg-amber-500 hover:text-black rounded-lg text-xs font-semibold uppercase tracking-wider transition-all duration-200 shadow-sm cursor-pointer"
                 >
                   <Eraser size={14} /> Dọn trùng
                 </button>
@@ -403,15 +692,15 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
 
       <DeleteConfirmationModal
         isOpen={deleteModalConfig.isOpen}
-        onClose={() => setDeleteModalConfig(prev => ({ ...prev, isOpen: false }))}
+        onClose={() => setDeleteModalConfig((prev) => ({ ...prev, isOpen: false }))}
         onConfirm={async () => {
           if (deleteModalConfig.type === 'import' && deleteModalConfig.id) {
             const events = JSON.parse(deleteModalConfig.id);
-            for (const e of events) await dispatchEvent(e);
+            for (const event of events) await dispatchEvent(event);
           }
-          setDeleteModalConfig(prev => ({ ...prev, isOpen: false }));
+          setDeleteModalConfig((prev) => ({ ...prev, isOpen: false }));
         }}
-        title="Xác nhận"
+        title="Xac nhan"
         itemName={deleteModalConfig.itemName}
         message={deleteModalConfig.message}
       />

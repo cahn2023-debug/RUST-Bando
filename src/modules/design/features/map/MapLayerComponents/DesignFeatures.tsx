@@ -186,6 +186,11 @@ export const DesignFeatures = () => {
         return result;
     }, [visibleFeatures, feature_groups, previewMetadata, featureHierarchy, currentZoom, selectedFeatureId]);
 
+    const renderedPointIds = React.useMemo(
+        () => new Set(pointsToRender.map(f => f.id)),
+        [pointsToRender]
+    );
+
     return (
         <>
             {/* Search Result Layer */}
@@ -237,6 +242,7 @@ export const DesignFeatures = () => {
                 feature_groups={feature_groups}
                 previewMetadata={previewMetadata}
                 currentZoom={currentZoom}
+                renderedPointIds={renderedPointIds}
             />
 
             {/* Floating Popup Manager (Cluster-aware) */}

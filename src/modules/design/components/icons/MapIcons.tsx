@@ -147,24 +147,34 @@ export const PolylineIcon = ({ className, ...props }: IconProps) => (
 );
 
 export const getIntersectionSvgString = (color: string, size: number = 40, index?: number | string) => {
-  return `<div class="relative z-10 filter hover:scale-110 transition-transform" style="filter: brightness(1.2) saturate(1.2) drop-shadow(0 4px 6px rgba(0,0,0,0.4));">
+  const isWhite = ['#ffffff', 'white', '#fff', 'rgb(255, 255, 255)', 'rgba(255, 255, 255, 1)'].includes(color.toLowerCase().trim());
+  const textColor = isWhite ? '#111827' : '#ffffff';
+  const textShadow = isWhite 
+    ? '-1px -1px 0 rgba(255,255,255,0.8), 1px -1px 0 rgba(255,255,255,0.8), -1px 1px 0 rgba(255,255,255,0.8), 1px 1px 0 rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.2)' 
+    : '-1px -1px 0 rgba(0,0,0,0.7), 1px -1px 0 rgba(0,0,0,0.7), -1px 1px 0 rgba(0,0,0,0.7), 1px 1px 0 rgba(0,0,0,0.7), 0 2px 4px rgba(0,0,0,0.5)';
+
+  return `<div class="relative z-10" style="filter: saturate(0.96) drop-shadow(0 1px 1px rgba(0,0,0,0.18));">
         <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="transform origin-center">
           <g transform="rotate(45 12 12)">
-            <path d="M8 2 L8 8 L2 8" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M16 2 L16 8 L22 8" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M22 16 L16 16 L16 22" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M8 22 L8 16 L2 16" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 2 L8 8 L2 8" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M16 2 L16 8 L22 8" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M22 16 L16 16 L16 22" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M8 22 L8 16 L2 16" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
           </g>
         </svg>
-        ${index ? `<div class="absolute inset-0 flex items-center justify-center font-bold text-sm" style="color: ${color}; text-shadow: 0 0 2px white, 0 0 4px white, 1px 1px 1px rgba(0,0,0,0.4);">${index}</div>` : ''}
+        ${index ? `<div class="absolute inset-0 flex items-center justify-center font-black" style="font-size: 14px; color: ${textColor}; text-shadow: ${textShadow};">${index}</div>` : ''}
       </div>`;
 }
 
 export const getIconSvgString = (type: string, color: string, size: number, index?: number | string, rotation: number = 0) => {
-  const common = `width="${size}" height="${size}" viewBox="0 0 24 24" fill="white" stroke="${color}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"`;
+  const isWhite = ['#ffffff', 'white', '#fff', 'rgb(255, 255, 255)', 'rgba(255, 255, 255, 1)'].includes(color.toLowerCase().trim());
+  const textColor = isWhite ? '#111827' : '#ffffff';
+  const textStrokeColor = isWhite ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)';
+
+  const common = `width="${size}" height="${size}" viewBox="0 0 24 24" fill="white" stroke="${color}" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round"`;
 
   // High contrast text style for SVG - Enhanced with thicker stroke and filter
-  const textStyle = `stroke="white" stroke-width="1.2" paint-order="stroke" font-family="Arial, sans-serif" font-weight="900" text-anchor="middle" fill="${color}" filter="drop-shadow(0 0.5px 1px rgba(0,0,0,0.2))"`;
+  const textStyle = `stroke="${textStrokeColor}" stroke-width="1.2" paint-order="stroke" font-family="Arial, sans-serif" font-weight="900" text-anchor="middle" fill="${textColor}" filter="drop-shadow(0 1px 1px rgba(0,0,0,0.25))"`;
 
   let iconContent = '';
   let textContent = '';
@@ -173,7 +183,7 @@ export const getIconSvgString = (type: string, color: string, size: number, inde
   const textY = type === 'speed' ? 14.5 : (type === 'ptz' ? 18.5 : (type === 'lpr' ? 16.5 : 14.5));
   const fontSize = type === 'cctv' || type === 'camera' ? 8 : 9;
 
-  const brightenFilter = `filter: brightness(1.1) saturate(1.2) drop-shadow(0 2px 4px rgba(0,0,0,0.3));`;
+  const brightenFilter = `filter: saturate(0.98) drop-shadow(0 1px 1px rgba(0,0,0,0.18));`;
 
   if (index !== undefined && index !== '') {
     textContent = `<text x="${textX}" y="${textY}" font-size="${fontSize}" ${textStyle}>${index}</text>`;

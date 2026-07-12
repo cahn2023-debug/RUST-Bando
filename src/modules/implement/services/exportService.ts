@@ -111,7 +111,7 @@ export const exportProjectData = async (projectState: MapState, projectName: str
 
     await invoke('save_binary_file', {
       path: filePath,
-      data: finalContent
+      data: Array.from(finalContent)
     });
 
     updateProgress(100, 'Hoàn tất! Cấu trúc ZIP phân cấp đã được lưu.');

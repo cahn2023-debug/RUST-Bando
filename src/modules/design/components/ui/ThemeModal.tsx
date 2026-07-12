@@ -7,9 +7,10 @@ interface ThemeModalProps {
   groupId: string;
   groupName: string;
   onClose: () => void;
+  targetFeatureIds?: string[];
 }
 
-export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
+export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: ThemeModalProps) {
   const state = useDesignSync(s => s.state);
   const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
   const dispatchEvents = useDesignSync(s => s.dispatchEvents);
@@ -19,6 +20,7 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
   const [size, setSize] = useState<number>(32);
   const [isApplying, setIsApplying] = useState(false);
   const loadedRef = useRef(false);
+  const hasExplicitTargets = !!targetFeatureIds?.length;
 
   const asString = (value: unknown) => (typeof value === 'string' ? value : '');
   const asNumber = (value: unknown, fallback: number) =>
@@ -27,7 +29,7 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
   // Initial load: Only load once per groupId
   useEffect(() => {
     loadedRef.current = false;
-  }, [groupId]);
+  }, [groupId, targetFeatureIds]);
 
   useEffect(() => {
     if (loadedRef.current || !state) return;
@@ -35,7 +37,7 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
     // 1. Prioritize currently selected feature if it is in this group
     if (selectedFeatureId) {
       const selectedFeature = state.features[selectedFeatureId];
-      if (selectedFeature && selectedFeature.group_id === groupId) {
+      if (selectedFeature && (selectedFeature.group_id === groupId || targetFeatureIds?.includes(selectedFeatureId))) {
         const meta = getParsedMetadata(selectedFeature);
         if (meta.icon) setIconType(asString(meta.icon) || iconType);
         if (meta.color) setColor(asString(meta.color) || color);
@@ -46,7 +48,7 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
     }
 
     // 2. Fallback to Group's saved theme config
-    if (state.feature_groups[groupId]) {
+    if (!hasExplicitTargets && state.feature_groups[groupId]) {
       const group = state.feature_groups[groupId];
       try {
         const themeConfig = typeof group.metadata === 'string'
@@ -63,7 +65,7 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
         console.warn("Failed to parse group theme metadata", e);
       }
     }
-  }, [groupId, state, selectedFeatureId]);
+  }, [groupId, state, selectedFeatureId, targetFeatureIds, hasExplicitTargets]);
 
   // Handle Real-time Preview
   useEffect(() => {
@@ -90,40 +92,43 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
     setIsApplying(true);
 
     try {
-      // 1. Save theme config to the Group itself
       const group = state.feature_groups[groupId];
-      if (!group) {
+      if (!group && !hasExplicitTargets) {
         console.error("Group not found:", groupId);
         alert("Group not found");
         setIsApplying(false);
         return;
       }
 
-      const groupMeta = typeof group.metadata === 'string' ? JSON.parse(group.metadata || '{}') : (group.metadata || {});
-      const updatedGroupMeta = {
-        ...groupMeta,
-        theme_config: {
-          icon: iconType,
-          color: color,
-          size: size
-        }
-      };
+      const groupUpdateEvent = group ? (() => {
+        const groupMeta = typeof group.metadata === 'string' ? JSON.parse(group.metadata || '{}') : (group.metadata || {});
+        const updatedGroupMeta = {
+          ...groupMeta,
+          theme_config: {
+            icon: iconType,
+            color: color,
+            size: size
+          }
+        };
 
-      const groupUpdateEvent = {
-        type: 'FeatureGroupUpdated' as const,
-        payload: {
-          id: groupId,
-          layer_id: group.layer_id || '',
-          parent_id: group.parent_id || null,
-          name: group.name || '',
-          is_visible: group.is_visible !== undefined ? group.is_visible : true,
-          metadata: JSON.stringify(updatedGroupMeta)
-        }
-      };
+        return {
+          type: 'FeatureGroupUpdated' as const,
+          payload: {
+            id: groupId,
+            layer_id: group.layer_id || '',
+            parent_id: group.parent_id || null,
+            name: group.name || '',
+            is_visible: group.is_visible !== undefined ? group.is_visible : true,
+            metadata: JSON.stringify(updatedGroupMeta)
+          }
+        };
+      })() : null;
 
       // 2. Filter features: Only apply to direct features of this group,
       // AND skip any features that belong to a subgroup of type INTERSECTION
-      const featuresInGroup = Object.values(state.features).filter(f => {
+      const featuresInGroup = hasExplicitTargets ? targetFeatureIds!
+        .map(id => state.features[id])
+        .filter(Boolean) : Object.values(state.features).filter(f => {
         // Must be in the current group
         if (f.group_id !== groupId) return false;
 
@@ -176,7 +181,7 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
           };
         });
 
-      const allEvents = [groupUpdateEvent, ...featureEvents];
+      const allEvents = groupUpdateEvent ? [groupUpdateEvent, ...featureEvents] : featureEvents;
 
       if (allEvents.length > 0) {
         console.log(`[Theme] Applying theme to group "${groupName}" with ${featureEvents.length} features`);
