@@ -13,7 +13,7 @@ export interface FeatureItemProps {
   selected: boolean;
   expanded: boolean;
   hasChildren: boolean;
-  onSelect: () => void;
+  onSelect: (e: React.MouseEvent) => void;
   onToggleExpand: () => void;
   onZoomTo: () => void;
   onDragStart?: (e: React.DragEvent) => void;
@@ -87,7 +87,7 @@ export const FeatureItem = React.memo(({
         id={`sidebar-feature-${feature.id}`}
         onClick={(e) => {
           e.stopPropagation();
-          onSelect();
+          onSelect(e);
           if (hasChildren) {
             onToggleExpand();
           }

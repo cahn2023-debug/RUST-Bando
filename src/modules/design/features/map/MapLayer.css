@@ -206,6 +206,17 @@
 .custom-pegman-marker {
     background: transparent !important;
     border: none !important;
+    cursor: pointer;
+    pointer-events: auto !important;
+}
+
+.custom-pegman-marker.selected {
+    cursor: grab;
+    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.7));
+}
+
+.custom-pegman-marker.leaflet-drag-target {
+    cursor: grabbing;
 }
 
 .custom-pegman-marker svg {

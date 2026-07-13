@@ -121,6 +121,8 @@ export function DrawingExplorer() {
   const dispatchEvents = useDesignSync(st => st.dispatchEvents);
   const zoomTo = useDesignSync(st => st.zoomTo);
   const selectionSet = useDesignSync(st => st.selectionSet);
+  const toggleSelection = useDesignSync(st => st.toggleSelection);
+  const selectAll = useDesignSync(st => st.selectAll);
   const deleteSelectedFeatures = useDesignSync(st => st.deleteSelectedFeatures);
   const projectId = useDesignSync(st => st.projectId);
   const isLoading = useDesignSync(st => st.isLoading);
@@ -150,6 +152,7 @@ export function DrawingExplorer() {
   const isRestoringViewStateRef = useRef(false);
   const pendingScrollRestoreRef = useRef<{ id: string | null; index: number } | null>(null);
   const hasAutoExpanded = useRef(false);
+  const lastSelectedFeatureIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!projectId || restoredProjectRef.current === projectId) return;
@@ -337,6 +340,39 @@ export function DrawingExplorer() {
     });
   };
 
+  const handleSelectFeatureFromPanel = (feature: FeatureState, itemIndex: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (e.shiftKey && lastSelectedFeatureIdRef.current) {
+      const featureItems = flattenedItems.filter(item => item.type === 'feature');
+      const startIndex = featureItems.findIndex(item => item.id === lastSelectedFeatureIdRef.current);
+      const endIndex = featureItems.findIndex(item => item.id === feature.id);
+
+      if (startIndex !== -1 && endIndex !== -1) {
+        const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+        clearSelection();
+        selectAll(featureItems.slice(from, to + 1).map(item => item.id));
+        selectFeature(feature.id, true);
+      } else {
+        selectFeature(feature.id);
+      }
+    } else if (e.ctrlKey || e.metaKey) {
+      const wasSelected = selectionSet.has(feature.id);
+      toggleSelection(feature.id);
+      if (wasSelected && selectedFeatureId === feature.id) {
+        selectFeature(null, true);
+      } else if (!wasSelected) {
+        selectFeature(feature.id, true);
+      }
+    } else {
+      selectFeature(feature.id);
+    }
+
+    if (feature.group_id) setSelectedGroup(feature.group_id);
+    lastSelectedFeatureIdRef.current = feature.id;
+    setTopItem({ id: feature.id, index: itemIndex });
+  };
+
   const confirmDelete = async () => {
     if (!deleteModal.isOpen) return;
     const { type, id } = deleteModal;
@@ -370,7 +406,12 @@ export function DrawingExplorer() {
           data={flattenedItems}
           rangeChanged={handleRangeChanged}
           itemContent={(index: number, item: FlatTreeItem) => (
-            <div key={item.id} onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: item.type, id: item.id, data: item.data }); }}>
+            <div
+              key={item.id}
+              data-drag-id={item.type === 'region' || item.type === 'group' || item.type === 'feature' ? item.id : undefined}
+              data-drag-type={item.type === 'region' || item.type === 'group' || item.type === 'feature' ? item.type : undefined}
+              onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: item.type, id: item.id, data: item.data }); }}
+            >
               {item.type === 'region' && (
                 <TreeItem
                   name={item.data.name}
@@ -455,12 +496,8 @@ export function DrawingExplorer() {
                   return (
                     <FeatureItem
                       feature={feature} level={item.level} levelOffset={item.levelOffset}
-                      selected={selectedFeatureId === item.id}
-                      onSelect={() => {
-                        selectFeature(item.id);
-                        const gId = feature.group_id;
-                        if (gId) setSelectedGroup(gId);
-                      }}
+                      selected={selectionSet.has(item.id) || selectedFeatureId === item.id}
+                      onSelect={(e) => handleSelectFeatureFromPanel(feature, index, e)}
                       onZoomTo={() => zoomTo(item.id, 'feature')}
                       onMouseDown={(e) => handleVirtualDragStart(e, 'feature', item.id)}
                       onDelete={() => setDeleteModal({

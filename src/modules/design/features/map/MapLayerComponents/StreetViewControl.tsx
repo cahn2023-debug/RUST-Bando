@@ -187,7 +187,7 @@ function PegmanIcon({
   );
 }
 
-function createPegmanIcon(heading: number, fov: number = DEFAULT_FOV) {
+function createPegmanIcon(heading: number, fov: number = DEFAULT_FOV, isSelected = false) {
   const color = '#10B981';
   const fovColor = 'rgba(16,185,129,0.25)';
   const size = 24;
@@ -218,7 +218,7 @@ function createPegmanIcon(heading: number, fov: number = DEFAULT_FOV) {
         </div>
       </div>
     `,
-    className: 'custom-pegman-marker',
+    className: `custom-pegman-marker ${isSelected ? 'selected' : ''}`,
     iconSize: [size, size],
     iconAnchor: [center, center]
   });
@@ -309,6 +309,7 @@ const SURVIVOR_SYNC_SCRIPT = `
 export function StreetViewControl() {
   const map = useMap();
   const [isActive, setIsActive] = useState(false);
+  const [isPegmanSelected, setIsPegmanSelected] = useState(false);
   const [container, setContainer] = useState<HTMLElement | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -320,6 +321,7 @@ export function StreetViewControl() {
   const latestPegmanState = useRef(pegmanState);
   latestPegmanState.current = pegmanState;
   const pegmanMarkerRef = useRef<L.Marker | null>(null);
+  const isDraggingPegmanRef = useRef(false);
   const pendingStreetViewSyncRef = useRef<Partial<typeof pegmanState> | null>(null);
   const streetViewSyncTimerRef = useRef<number | null>(null);
   const lastStreetViewApplyAtRef = useRef(0);
@@ -749,6 +751,10 @@ export function StreetViewControl() {
 
     const syncTask = async () => {
       try {
+        if (isDraggingPegmanRef.current) {
+          return;
+        }
+
         if (!webviewRef) {
           const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
           webviewRef = await WebviewWindow.getByLabel(STREET_VIEW_WINDOW_LABEL);
@@ -859,6 +865,7 @@ export function StreetViewControl() {
     if (!isActive) return;
 
     const onClick = (event: L.LeafletMouseEvent) => {
+      setIsPegmanSelected(false);
       void openStreetViewWindow(event.latlng.lat, event.latlng.lng).then((opened) => {
         if (opened) {
           setIsActive(false);
@@ -879,7 +886,13 @@ export function StreetViewControl() {
   const fov = clampFov(pegmanState.fov || DEFAULT_FOV);
 
   useEffect(() => {
-    if (!pegmanMarkerRef.current || !shouldShowPegman || !location) {
+    if (!shouldShowPegman) {
+      setIsPegmanSelected(false);
+    }
+  }, [shouldShowPegman]);
+
+  useEffect(() => {
+    if (!pegmanMarkerRef.current || !shouldShowPegman || !location || isDraggingPegmanRef.current) {
       return;
     }
 
@@ -900,11 +913,11 @@ export function StreetViewControl() {
       fov,
       location
     });
-    pegmanMarkerRef.current.setIcon(createPegmanIcon(heading, fov));
+    pegmanMarkerRef.current.setIcon(createPegmanIcon(heading, fov, isPegmanSelected));
     window.requestAnimationFrame(() => {
       applyPegmanDomRotation(heading);
     });
-  }, [applyPegmanDomRotation, fov, heading, location, shouldShowPegman]);
+  }, [applyPegmanDomRotation, fov, heading, isPegmanSelected, location, shouldShowPegman]);
 
   useEffect(() => {
     if (!shouldShowPegman) {
@@ -952,12 +965,27 @@ export function StreetViewControl() {
           }}
           pane={STREETVIEW_PEGMAN_PANE}
           position={new L.LatLng(location[0], location[1])}
-          icon={createPegmanIcon(heading, fov)}
-          draggable={true}
+          icon={createPegmanIcon(heading, fov, isPegmanSelected)}
+          draggable={isPegmanSelected}
           eventHandlers={{
+            click: (event) => {
+              L.DomEvent.stopPropagation(event.originalEvent);
+              setIsPegmanSelected(true);
+            },
+            dragstart: () => {
+              isDraggingPegmanRef.current = true;
+            },
             dragend: (event) => {
-              const marker = event.target;
+              isDraggingPegmanRef.current = false;
+              setIsPegmanSelected(true);
+              const marker = event.target as L.Marker;
               const position = marker.getLatLng();
+              syncPegmanState({
+                location: [position.lat, position.lng],
+                source: 'map',
+                windowOpen: latestPegmanState.current.windowOpen,
+                featureId: selectedFeatureId ?? latestPegmanState.current.featureId ?? null
+              });
               void openStreetViewWindow(position.lat, position.lng);
             }
           }}
