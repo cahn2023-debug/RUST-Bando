@@ -256,9 +256,12 @@ export default function App() {
               onTabSwitch={async (id: string) => {
                 const tab = useTabStore.getState().tabs.find(t => t.id === id);
                 if (tab) {
-                  const success = await handleOpenProject(tab.path);
-                  if (success && activeTab === 'HOME') {
+                  if (activeTab === 'HOME') {
                     setActiveTab('DESIGN');
+                  }
+                  const success = await handleOpenProject(tab.path);
+                  if (!success && activeTab === 'HOME') {
+                    setActiveTab('HOME');
                   }
                 }
               }}
@@ -312,8 +315,9 @@ export default function App() {
                 onOpenProject={handleOpenProject}
                 onDeleteProject={handleDeleteProject}
                 onSelectProject={async (project) => {
+                  setActiveTab("DESIGN");
                   const success = await handleOpenProject(project.path);
-                  if (success) setActiveTab("DESIGN");
+                  if (!success) setActiveTab("HOME");
                 }}
                 onShowCreate={() => setShowCreate(true)}
                 onRestoreFromConfig={handleRestoreFromConfig}

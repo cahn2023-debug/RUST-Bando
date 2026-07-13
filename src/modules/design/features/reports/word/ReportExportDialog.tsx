@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
-import { Check, Download, Eye, FileText, Loader2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Download, Eye, FileText, Loader2, X } from "lucide-react";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import { cn } from "@TOOL/utils/cn";
 import {
@@ -24,6 +24,8 @@ type CaptureResult = { captureId?: string; dataUrl: string };
 type CaptureError = { captureId?: string; error: string };
 
 const keyOf = (selection: ReportSelection): string => `${selection.type}:${selection.id}`;
+type SelectableReportItem = ReturnType<typeof getSelectableReportItems>[number];
+const REPORT_MAP_CAPTURE_MAX_ZOOM = 36;
 
 const parseKey = (key: string): ReportSelection | null => {
   const [type, id] = key.split(":");
@@ -33,13 +35,44 @@ const parseKey = (key: string): ReportSelection | null => {
 };
 
 const sanitizeFileName = (value: string): string =>
-  value.replace(/[\\/:*?"<>|]/g, "-").trim() || "Bao-cao-thiet-ke";
+  value.replace(/[\\/:*?"<>|]/g, "-").trim() || "Báo-cáo-thiết-kế";
+
+const getDescendantKeys = (items: SelectableReportItem[], key: string): string[] => {
+  const index = items.findIndex((item) => item.key === key);
+  if (index < 0) return [];
+  const parentLevel = items[index].level;
+  const keys: string[] = [];
+  for (let i = index + 1; i < items.length; i += 1) {
+    if (items[i].level <= parentLevel) break;
+    keys.push(items[i].key);
+  }
+  return keys;
+};
+
+const getVisibleSelectableItems = (
+  items: SelectableReportItem[],
+  expandedKeys: Set<string>,
+): SelectableReportItem[] => {
+  const visible: SelectableReportItem[] = [];
+  const collapsedLevels: number[] = [];
+  items.forEach((item) => {
+    while (collapsedLevels.length > 0 && item.level <= collapsedLevels[collapsedLevels.length - 1]) {
+      collapsedLevels.pop();
+    }
+    if (collapsedLevels.length === 0) visible.push(item);
+    if (!expandedKeys.has(item.key) && getDescendantKeys(items, item.key).length > 0) {
+      collapsedLevels.push(item.level);
+    }
+  });
+  return visible;
+};
 
 const requestMapCapture = async (
   bounds: ReportBounds | null,
   captureId: string,
   scale = 2,
   fitToBounds = true,
+  zoom = REPORT_MAP_CAPTURE_MAX_ZOOM,
 ): Promise<string | undefined> => {
   if (!bounds) return undefined;
 
@@ -50,7 +83,7 @@ const requestMapCapture = async (
     const timeout = window.setTimeout(() => {
       cleanup();
       resolve(undefined);
-    }, 15000);
+    }, 45000);
 
     const cleanup = () => {
       if (done) return;
@@ -60,19 +93,28 @@ const requestMapCapture = async (
       unlistenError?.();
     };
 
-    listen<CaptureResult>("map-capture-result", (event) => {
-      if (event.payload.captureId && event.payload.captureId !== captureId) return;
-      cleanup();
-      resolve(event.payload.dataUrl);
-    }).then((unlisten) => { unlistenResult = unlisten; });
+    const setupAndEmit = async () => {
+      unlistenResult = await listen<CaptureResult>("map-capture-result", (event) => {
+        if (event.payload.captureId && event.payload.captureId !== captureId) return;
+        cleanup();
+        resolve(event.payload.dataUrl);
+      });
 
-    listen<CaptureError>("map-capture-error", (event) => {
-      if (event.payload.captureId && event.payload.captureId !== captureId) return;
+      unlistenError = await listen<CaptureError>("map-capture-error", (event) => {
+        if (event.payload.captureId && event.payload.captureId !== captureId) return;
+        cleanup();
+        resolve(undefined);
+      });
+
+      if (!done) {
+        await emit("request-map-capture", { captureId, printArea: bounds, scale, fitToBounds, zoom });
+      }
+    };
+
+    void setupAndEmit().catch(() => {
       cleanup();
       resolve(undefined);
-    }).then((unlisten) => { unlistenError = unlisten; });
-
-    void emit("request-map-capture", { captureId, printArea: bounds, scale, fitToBounds });
+    });
   });
 };
 
@@ -106,6 +148,7 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
 
   const selectableItems = useMemo(() => state ? getSelectableReportItems(state) : [], [state]);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [expandedSelectionKeys, setExpandedSelectionKeys] = useState<Set<string>>(new Set());
   const [imageMap, setImageMap] = useState<ReportImageMap>({});
   const [activeView, setActiveView] = useState<"select" | "preview">("preview");
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
@@ -118,12 +161,28 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
   useEffect(() => {
     if (!state) return;
     const defaults = getDefaultReportSelections(state, { selectionSet, selectedFeatureId, selectedGroupId });
-    setSelectedKeys(new Set(defaults.map(keyOf)));
-  }, [state, selectedFeatureId, selectedGroupId, selectionSet]);
+    const keys = defaults.map(keyOf);
+    keys.forEach((key) => getDescendantKeys(selectableItems, key).forEach((childKey) => keys.push(childKey)));
+    setSelectedKeys(new Set(keys));
+  }, [selectableItems, state, selectedFeatureId, selectedGroupId, selectionSet]);
+
+  useEffect(() => {
+    setExpandedSelectionKeys((prev) => {
+      const expandableKeys = new Set(selectableItems
+        .filter((item) => getDescendantKeys(selectableItems, item.key).length > 0)
+        .map((item) => item.key));
+      if (prev.size === 0) return expandableKeys;
+      return new Set(Array.from(prev).filter((key) => expandableKeys.has(key)));
+    });
+  }, [selectableItems]);
 
   const selections = useMemo(() => Array.from(selectedKeys)
     .map(parseKey)
     .filter((selection): selection is ReportSelection => selection !== null), [selectedKeys]);
+  const visibleSelectableItems = useMemo(
+    () => getVisibleSelectableItems(selectableItems, expandedSelectionKeys),
+    [expandedSelectionKeys, selectableItems],
+  );
 
   const reportModel = useMemo(() => {
     if (!state) return null;
@@ -145,11 +204,24 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
   const toggleSelection = (key: string) => {
     setSelectedKeys((prev) => {
       const next = new Set(prev);
+      const cascadeKeys = [key, ...getDescendantKeys(selectableItems, key)];
+      const shouldRemove = cascadeKeys.every((itemKey) => next.has(itemKey));
+      cascadeKeys.forEach((itemKey) => {
+        if (shouldRemove) next.delete(itemKey);
+        else next.add(itemKey);
+      });
+      return next;
+    });
+    setImageMap({});
+  };
+
+  const toggleSelectionExpanded = (key: string) => {
+    setExpandedSelectionKeys((prev) => {
+      const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
-    setImageMap({});
   };
 
   const handlePreview = async () => {
@@ -186,30 +258,30 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
   const handleExport = async () => {
     if (!reportModel || reportModel.sections.length === 0) return;
     setError(null);
-    setExportStatus("Dang chuan bi file Word...");
+    setExportStatus("Đang chuẩn bị file Word...");
     setIsExporting(true);
     try {
       if (includeMapImages) {
-        setExportStatus("Dang chup anh ban do...");
+        setExportStatus("Đang chụp ảnh bản đồ...");
       }
       const nextImageMap = includeMapImages
         ? await captureMissingReportImages(reportModel, imageMap, (current, total) => {
-          setExportStatus(`Dang chup anh ban do ${current}/${total}...`);
+          setExportStatus(`Đang chụp ảnh bản đồ ${current}/${total}...`);
         })
         : imageMap;
       setImageMap(nextImageMap);
       const filePath = await save({
         filters: [{ name: "Word Document", extensions: ["docx"] }],
-        defaultPath: `${sanitizeFileName(projectName)}-bao-cao-thiet-ke.docx`,
+        defaultPath: `${sanitizeFileName(projectName)}-báo-cáo-thiết-kế.docx`,
       });
       if (!filePath) {
         setExportStatus(null);
         return;
       }
 
-      setExportStatus("Dang tao noi dung Word...");
+      setExportStatus("Đang tạo nội dung Word...");
       const buffer = await buildReportDocx(reportModel, nextImageMap);
-      setExportStatus("Dang luu file...");
+      setExportStatus("Đang lưu file...");
       await invoke("save_binary_file", {
         path: filePath,
         data: Array.from(new Uint8Array(buffer)),
@@ -299,33 +371,46 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
             </label>
             <div className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted mb-2">Thư mục / đối tượng</div>
             <div className="space-y-1">
-              {selectableItems.map((item) => {
+              {visibleSelectableItems.map((item) => {
                 const checked = selectedKeys.has(item.key);
+                const hasChildren = getDescendantKeys(selectableItems, item.key).length > 0;
+                const isExpanded = expandedSelectionKeys.has(item.key);
                 return (
-                  <label
+                  <div
                     key={item.key}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 cursor-pointer text-xs"
+                    className="flex items-center gap-1 rounded px-1 py-1 hover:bg-white/5 text-xs"
                     style={{ paddingLeft: 8 + item.level * 16 }}
                   >
-                    <span className={cn("w-4 h-4 border rounded flex items-center justify-center shrink-0", checked ? "bg-cad-accent border-cad-accent text-black" : "border-cad-border")}>
-                      {checked && <Check size={12} />}
-                    </span>
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={checked}
-                      onChange={() => toggleSelection(item.key)}
-                    />
-                    <span className="truncate text-cad-text-secondary">{item.name}</span>
-                  </label>
+                    <button
+                      type="button"
+                      onClick={() => hasChildren && toggleSelectionExpanded(item.key)}
+                      className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded text-cad-text-muted", hasChildren && "hover:bg-white/10 hover:text-cad-text-primary")}
+                      aria-label={hasChildren ? (isExpanded ? "Thu gọn mục" : "Mở rộng mục") : undefined}
+                      disabled={!hasChildren}
+                    >
+                      {hasChildren && (isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />)}
+                    </button>
+                    <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2">
+                      <span className={cn("w-4 h-4 border rounded flex items-center justify-center shrink-0", checked ? "bg-cad-accent border-cad-accent text-black" : "border-cad-border")}>
+                        {checked && <Check size={12} />}
+                      </span>
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={checked}
+                        onChange={() => toggleSelection(item.key)}
+                      />
+                      <span className="truncate text-cad-text-secondary">{item.name}</span>
+                    </label>
+                  </div>
                 );
               })}
             </div>
           </aside>
 
-          <main className="overflow-y-auto bg-white text-slate-900 p-8">
+          <main className="overflow-hidden bg-white text-slate-900">
             {activeView === "select" ? (
-              <div className="text-sm text-slate-600">
+              <div className="p-8 text-sm text-slate-600">
                 Đã chọn {selectedKeys.size} mục. Bấm Preview để xem trước nội dung báo cáo.
               </div>
             ) : (
@@ -355,25 +440,105 @@ function ReportPreview({
   onSelectSection: (sectionId: string) => void;
 }) {
   const activeSection = model.sections.find((section) => section.id === activeSectionId) || model.sections[0];
+  const [isTocOpen, setIsTocOpen] = useState(true);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    () => new Set(activeSection ? [activeSection.id] : []),
+  );
+
+  useEffect(() => {
+    if (!activeSection) return;
+    setExpandedSections((prev) => {
+      if (prev.has(activeSection.id)) return prev;
+      const next = new Set(prev);
+      next.add(activeSection.id);
+      return next;
+    });
+  }, [activeSection]);
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) next.delete(sectionId);
+      else next.add(sectionId);
+      return next;
+    });
+  };
 
   return (
-    <article className="max-w-[820px] mx-auto text-sm leading-relaxed">
-      <h1 className="text-2xl font-bold text-center mb-2">{model.title}</h1>
-      <p className="text-center text-slate-500 mb-8">Ngày tạo: {new Date(model.generatedAt).toLocaleString("vi-VN")}</p>
-      <h2 className="text-lg font-bold border-b pb-2 mb-3">Mục lục</h2>
-      <ol className="list-decimal pl-5 mb-8 space-y-1 text-blue-700">
-        {model.sections.map((section) => (
-          <li key={section.id}>
-            <button
-              type="button"
-              onClick={() => onSelectSection(section.id)}
-              className={cn("text-left hover:underline", activeSection?.id === section.id && "font-bold text-blue-900")}
-            >
-              {section.title}
-            </button>
-          </li>
-        ))}
-      </ol>
+    <div className="grid h-full min-h-0 grid-cols-[300px_1fr] bg-slate-50 text-sm">
+      <aside className="min-h-0 overflow-y-auto border-r border-slate-200 bg-slate-100/90">
+        <div className="sticky top-0 z-10 border-b border-slate-200 bg-slate-100/95 p-3">
+          <h1 className="truncate text-sm font-black uppercase text-slate-900">{model.title}</h1>
+          <p className="text-[11px] text-slate-500">{model.sections.length} mục chi tiết</p>
+        </div>
+        <div className="p-2">
+          <button
+            type="button"
+            onClick={() => setIsTocOpen((value) => !value)}
+            className="mb-1 flex w-full items-center gap-1 rounded px-2 py-2 text-left text-[11px] font-black uppercase tracking-wide text-slate-700 hover:bg-white"
+          >
+            {isTocOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            Mục lục
+          </button>
+          {isTocOpen && (
+            <div className="space-y-1">
+              {model.sections.map((section, index) => {
+                const isActive = activeSection?.id === section.id;
+                const isExpanded = expandedSections.has(section.id);
+                return (
+                  <div key={section.id}>
+                    <div className={cn("flex items-center rounded", isActive ? "bg-white shadow-sm" : "hover:bg-white/70")}>
+                      <button
+                        type="button"
+                        onClick={() => toggleSection(section.id)}
+                        className="flex h-8 w-7 shrink-0 items-center justify-center text-slate-500"
+                        aria-label={isExpanded ? "Thu gọn mục" : "Mở rộng mục"}
+                      >
+                        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onSelectSection(section.id)}
+                        className={cn("min-w-0 flex-1 truncate py-2 pr-2 text-left text-xs", isActive ? "font-bold text-blue-800" : "text-slate-700")}
+                        title={section.title}
+                      >
+                        {index + 1}. {section.title}
+                      </button>
+                    </div>
+                    {isExpanded && (
+                      <div className="ml-7 mt-1 space-y-1 border-l border-slate-200 pl-2">
+                        <button
+                          type="button"
+                          onClick={() => onSelectSection(section.id)}
+                          className="block w-full truncate rounded px-2 py-1 text-left text-[11px] text-slate-500 hover:bg-white"
+                        >
+                          Ảnh bản đồ và tổng hợp
+                        </button>
+                        {section.details.map((detail) => (
+                          <button
+                            key={detail.feature.id}
+                            type="button"
+                            onClick={() => onSelectSection(section.id)}
+                            className="block w-full truncate rounded px-2 py-1 text-left text-[11px] text-slate-500 hover:bg-white"
+                            title={`${detail.label}: ${detail.feature.name}`}
+                          >
+                            {detail.label}: {detail.feature.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </aside>
+
+      <article className="min-h-0 overflow-y-auto bg-white p-8 leading-relaxed text-slate-900">
+        <div className="mx-auto max-w-[820px]">
+          <h1 className="mb-2 text-center text-2xl font-bold">{model.title}</h1>
+          <p className="mb-8 text-center text-slate-500">Ngày tạo: {new Date(model.generatedAt).toLocaleString("vi-VN")}</p>
 
       {activeSection ? (
         <section key={activeSection.id} id={activeSection.anchor} className="mb-10 break-inside-avoid">
@@ -414,6 +579,8 @@ function ReportPreview({
       ) : (
         <div className="h-40 border bg-slate-100 text-slate-500 flex items-center justify-center">Không có nội dung preview</div>
       )}
-    </article>
+        </div>
+      </article>
+    </div>
   );
 }

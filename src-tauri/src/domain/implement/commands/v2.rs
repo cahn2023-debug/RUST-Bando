@@ -1,6 +1,7 @@
 use crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand;
 use crate::domain::implement::modules::v2::storage::connection::PmpDatabase;
 use crate::domain::implement::state::hydrator::{self, AppState, StoredRecentProject};
+use base64::{engine::general_purpose, Engine as _};
 use calamine::{open_workbook_auto, Reader};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -104,6 +105,49 @@ pub async fn save_binary_file(path: String, data: Vec<u8>) -> Result<(), String>
 #[tauri::command]
 pub async fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
     std::fs::read(PathBuf::from(path)).map_err(|error| format!("Failed to read file: {error}"))
+}
+
+#[tauri::command]
+pub async fn fetch_url_as_data_url(url: String) -> Result<String, String> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err("Only http/https URLs are supported".to_string());
+    }
+
+    tokio::task::spawn_blocking(move || {
+        let client = reqwest::blocking::Client::builder()
+            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            .timeout(std::time::Duration::from_secs(12))
+            .build()
+            .map_err(|error| format!("Failed to create HTTP client: {error}"))?;
+
+        let response = client
+            .get(&url)
+            .send()
+            .map_err(|error| format!("Failed to fetch URL: {error}"))?
+            .error_for_status()
+            .map_err(|error| format!("HTTP error while fetching URL: {error}"))?;
+
+        let content_type = response
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("image/png")
+            .split(';')
+            .next()
+            .unwrap_or("image/png")
+            .to_string();
+
+        let bytes = response
+            .bytes()
+            .map_err(|error| format!("Failed to read response bytes: {error}"))?;
+        Ok(format!(
+            "data:{};base64,{}",
+            content_type,
+            general_purpose::STANDARD.encode(bytes)
+        ))
+    })
+    .await
+    .map_err(|error| format!("Failed to join fetch task: {error}"))?
 }
 
 fn normalize_column_key(value: &str) -> String {

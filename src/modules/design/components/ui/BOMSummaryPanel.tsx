@@ -60,7 +60,7 @@ export const BOMSummaryPanel: React.FC<BOMSummaryProps> = ({ className }) => {
     try {
       const filePath = await save({
         filters: [{ name: 'Excel', extensions: ['xlsx'] }],
-        defaultPath: `BOM_Summary_${new Date().toISOString().split('T')[0]}.xlsx`
+        defaultPath: `Tổng-hợp-BOM_${new Date().toISOString().split('T')[0]}.xlsx`
       });
 
       if (!filePath) return;
@@ -68,7 +68,7 @@ export const BOMSummaryPanel: React.FC<BOMSummaryProps> = ({ className }) => {
       const excelData = bomToExcelData(bomSummary);
       const worksheet = XLSX.utils.json_to_sheet(excelData);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'BOM Summary');
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Tổng hợp BOM');
 
       const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
       const { invoke } = await import('@tauri-apps/api/core');

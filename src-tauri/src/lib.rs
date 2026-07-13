@@ -38,6 +38,7 @@ pub fn run() {
             crate::domain::implement::commands::v2::analyze_import_file,
             crate::domain::implement::commands::v2::save_binary_file,
             crate::domain::implement::commands::v2::read_binary_file,
+            crate::domain::implement::commands::v2::fetch_url_as_data_url,
             crate::domain::implement::commands::v2::start_import_task,
             crate::domain::implement::commands::v2::sync_v2_get_status,
             crate::domain::implement::commands::v2::sync_v2_is_online,

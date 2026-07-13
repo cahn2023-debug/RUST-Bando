@@ -5,6 +5,7 @@ import {
   expandReportSelections,
   getDefaultReportSelections,
   getFeatureBounds,
+  getSelectableReportItems,
 } from "./reportModel";
 
 const state: MapState = {
@@ -85,6 +86,18 @@ describe("reportModel", () => {
     expect(model.sections[0].summary).toContain("Số vị trí thuộc nút giao: 1");
     expect(model.sections[0].details[0].label).toBe("Đối tượng 1_1");
     expect(model.sections[0].details[0].photos[0].dataUrl).toBe("data:image/png;base64,AAAA");
+  });
+
+  it("nests intersection children under their parent in selectable items", () => {
+    const items = getSelectableReportItems(state);
+    const intersection = items.find((item) => item.key === "feature:intersection");
+    const camera = items.find((item) => item.key === "feature:camera");
+
+    expect(intersection?.level).toBe(2);
+    expect(camera?.level).toBe(3);
+    expect(items.findIndex((item) => item.key === "feature:camera")).toBe(
+      (items.findIndex((item) => item.key === "feature:intersection")) + 1,
+    );
   });
 
   it("computes padded bounds for points and lines", () => {

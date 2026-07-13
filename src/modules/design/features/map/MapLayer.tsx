@@ -1,4 +1,5 @@
-import { MapContainer, TileLayer, LayersControl } from 'react-leaflet';
+import { useState } from 'react';
+import { MapContainer, TileLayer, LayersControl, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './MapLayer.css';
@@ -33,6 +34,32 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
+const BASEMAP_STORAGE_KEY = 'design.map.selectedBasemap';
+const BASEMAP_NAMES = [
+    'Google Streets',
+    'Google Satellite (Hybrid)',
+    'Google Satellite (Trắng đen)',
+    'Google Terrain'
+] as const;
+const DEFAULT_BASEMAP_NAME = 'Google Satellite (Hybrid)';
+
+type BasemapName = typeof BASEMAP_NAMES[number];
+
+const isBasemapName = (value: string | null): value is BasemapName => {
+    return BASEMAP_NAMES.includes(value as BasemapName);
+};
+
+const getSavedBasemapName = (): BasemapName => {
+    if (typeof window === 'undefined') return DEFAULT_BASEMAP_NAME;
+
+    try {
+        const savedBasemapName = window.localStorage.getItem(BASEMAP_STORAGE_KEY);
+        return isBasemapName(savedBasemapName) ? savedBasemapName : DEFAULT_BASEMAP_NAME;
+    } catch {
+        return DEFAULT_BASEMAP_NAME;
+    }
+};
+
 interface MapLayerProps {
     center: [number, number];
     zoom: number;
@@ -41,7 +68,25 @@ interface MapLayerProps {
     onFinishDrawingSession?: () => void;
 }
 
+function BasemapPersistence({ onBasemapChange }: { onBasemapChange: (name: BasemapName) => void }) {
+    useMapEvents({
+        baselayerchange: (event: L.LayersControlEvent) => {
+            if (!isBasemapName(event.name)) return;
+
+            onBasemapChange(event.name);
+            try {
+                window.localStorage.setItem(BASEMAP_STORAGE_KEY, event.name);
+            } catch {
+                // localStorage can be unavailable in restricted browser contexts.
+            }
+        }
+    });
+
+    return null;
+}
+
 export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing, onFinishDrawingSession }: MapLayerProps) {
+    const [selectedBasemapName, setSelectedBasemapName] = useState<BasemapName>(getSavedBasemapName);
     const {
         isGrayscale,
         setIsGrayscale,
@@ -56,6 +101,7 @@ export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing, onFi
         <MapContainer
             center={center}
             zoom={zoom}
+            maxZoom={36}
             scrollWheelZoom={true}
             preferCanvas={true}
             style={{ height: '100%', width: '100%', background: 'transparent' }}
@@ -64,36 +110,40 @@ export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing, onFi
             className={isGrayscale ? 'grayscale-basemap' : ''}
         >
             <LayersControl position="topright">
-                <LayersControl.BaseLayer name="Google Streets">
+                <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Streets'} name="Google Streets">
                     <TileLayer
                         key={`r-${mapKey}`}
                         url={getStyledUrl('r')}
-                        maxZoom={20}
+                        maxZoom={36}
+                        maxNativeZoom={20}
                         attribution="&copy; Google"
                     />
                 </LayersControl.BaseLayer>
-                <LayersControl.BaseLayer checked name="Google Satellite (Hybrid)">
+                <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Satellite (Hybrid)'} name="Google Satellite (Hybrid)">
                     <TileLayer
                         key={`y-${mapKey}`}
                         url={getStyledUrl('y')}
-                        maxZoom={20}
+                        maxZoom={36}
+                        maxNativeZoom={20}
                         attribution="&copy; Google"
                     />
                 </LayersControl.BaseLayer>
-                <LayersControl.BaseLayer name="Google Satellite (Trắng đen)">
+                <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Satellite (Trắng đen)'} name="Google Satellite (Trắng đen)">
                     <TileLayer
                         className="grayscale-tile"
                         key={`sbw-${mapKey}`}
                         url={getStyledUrl('y')}
-                        maxZoom={20}
+                        maxZoom={36}
+                        maxNativeZoom={20}
                         attribution="&copy; Google"
                     />
                 </LayersControl.BaseLayer>
-                <LayersControl.BaseLayer name="Google Terrain">
+                <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Terrain'} name="Google Terrain">
                     <TileLayer
                         key={`p-${mapKey}`}
                         url={getStyledUrl('p')}
-                        maxZoom={20}
+                        maxZoom={36}
+                        maxNativeZoom={20}
                         attribution="&copy; Google"
                     />
                 </LayersControl.BaseLayer>
@@ -102,6 +152,7 @@ export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing, onFi
                     <TileLayer url="" eventHandlers={{ add: () => setIsGrayscale(true), remove: () => setIsGrayscale(false) }} />
                 </LayersControl.Overlay>
             </LayersControl>
+            <BasemapPersistence onBasemapChange={setSelectedBasemapName} />
 
             <MapSettingsPortal>
                 <MapSettingsPanel

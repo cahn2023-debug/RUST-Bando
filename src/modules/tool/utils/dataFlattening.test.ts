@@ -9,7 +9,7 @@ describe('dataFlattening', () => {
         region1: { id: 'region1', parent_id: null, name: 'Khu A', description: null, is_visible: true },
       },
       layers: {
-        layer1: { id: 'layer1', region_id: 'region1', name: 'Lop chinh', is_visible: true },
+        layer1: { id: 'layer1', region_id: 'region1', name: 'Lớp chính', is_visible: true },
       },
       feature_groups: {
         group1: { id: 'group1', layer_id: 'layer1', name: 'Camera', type: 'camera', is_visible: true },
@@ -19,7 +19,7 @@ describe('dataFlattening', () => {
           id: 'intersection-1',
           layer_id: 'layer1',
           group_id: 'group1',
-          name: 'Nut giao A',
+          name: 'Nút giao A',
           geom_type: 'POINT',
           metadata: {
             display_order: '12',
@@ -43,17 +43,17 @@ describe('dataFlattening', () => {
         display_order: '12',
         status: 'Đã kiểm tra',
         note: 'Cảnh báo',
-        description: 'Mo ta',
+        description: 'Mô tả',
         parent_feature_id: 'intersection-1',
         technical_specs: {
           power: '220V',
         },
         gis: {
-          road_name: 'Tran Hung Dao',
+          road_name: 'Trần Hưng Đạo',
         },
       },
       properties: {
-        owner: 'Doi van hanh',
+        owner: 'Đội vận hành',
       },
       coordinates: [106.7, 10.8],
       is_visible: false,
@@ -66,13 +66,13 @@ describe('dataFlattening', () => {
     expect(row.id).toBe('feature-1');
     expect(row.display_order).toBe('12');
     expect(row.group).toBe('Camera');
-    expect(row.layer).toBe('Lop chinh');
+    expect(row.layer).toBe('Lớp chính');
     expect(row.region).toBe('Khu A');
     expect(row.status).toBe('Đã kiểm tra');
     expect(row.note).toBe('Cảnh báo');
-    expect(row.owner).toBe('Doi van hanh');
+    expect(row.owner).toBe('Đội vận hành');
     expect(row.power).toBe('220V');
-    expect(row.GIS_road_name).toBe('Tran Hung Dao');
+    expect(row.GIS_road_name).toBe('Trần Hưng Đạo');
     expect(row.longitude).toBe(106.7);
     expect(row.latitude).toBe(10.8);
     expect(row.is_visible).toBe(false);
@@ -83,7 +83,7 @@ describe('dataFlattening', () => {
     expect(row.source_group_id).toBe('group1');
     expect(row.source_group_type).toBe('camera');
     expect(row.source_parent_feature_id).toBe('intersection-1');
-    expect(row.parent_intersection_name).toBe('Nut giao A');
+    expect(row.parent_intersection_name).toBe('Nút giao A');
     expect(row.parent_intersection_display_order).toBe('12');
     expect(row.source_coordinates).toBe('[106.7,10.8]');
   });

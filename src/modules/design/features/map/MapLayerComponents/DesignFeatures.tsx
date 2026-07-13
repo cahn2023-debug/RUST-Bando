@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useMap, useMapEvents, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
@@ -20,6 +20,7 @@ import { getFeatureDisplayInfo } from '@TOOL/utils/featureUtils';
 
 const ZOOM_THRESHOLD = 19;
 const BOUNDS_DEBOUNCE_MS = 150;
+const REPORT_CAPTURE_EVENT = 'design-report-map-capture';
 
 /**
  * Orchestrator component for Map Design Features.
@@ -63,7 +64,16 @@ export const DesignFeatures = () => {
     const moveGroupRef = React.useRef<any>(null);
     const [currentZoom, setCurrentZoom] = useState(map.getZoom());
     const [bounds, setBounds] = useState<L.LatLngBounds>(map.getBounds());
+    const [isReportCaptureActive, setIsReportCaptureActive] = useState(false);
     const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        const handler = (event: Event) => {
+            setIsReportCaptureActive(Boolean((event as CustomEvent<{ active?: boolean }>).detail?.active));
+        };
+        window.addEventListener(REPORT_CAPTURE_EVENT, handler);
+        return () => window.removeEventListener(REPORT_CAPTURE_EVENT, handler);
+    }, []);
 
     const debouncedSetBounds = useCallback(() => {
         if (boundsTimerRef.current) clearTimeout(boundsTimerRef.current);
@@ -167,7 +177,7 @@ export const DesignFeatures = () => {
             const expansionZoom = ZOOM_THRESHOLD + (depth * 2);
             const parentExpansionZoom = depth > 0 ? ZOOM_THRESHOLD + ((depth - 1) * 2) : 0;
 
-            if (depth > 0 && currentZoom < parentExpansionZoom) return false;
+            if (!isReportCaptureActive && depth > 0 && currentZoom < parentExpansionZoom) return false;
 
             const { isIntersection, iconKey } = getFeatureDisplayInfo(f, group?.type, group?.name, metadata);
             const isJunctionIcon = isIntersection && iconKey === 'intersection';
@@ -175,16 +185,16 @@ export const DesignFeatures = () => {
             const hasContent = metadata.has_data || isParent;
 
             // Hide aggregate when zoomed in deep, unless selected
-            if ((isJunctionIcon || isParent) && currentZoom >= expansionZoom && hasContent && !isSelected) return false;
+            if (!isReportCaptureActive && (isJunctionIcon || isParent) && currentZoom >= expansionZoom && hasContent && !isSelected) return false;
 
             // Hide details in Intersection groups when zoomed out, unless selected
-            if (!isJunctionIcon && group?.type === 'INTERSECTION' && currentZoom < expansionZoom && !isSelected) return false;
+            if (!isReportCaptureActive && !isJunctionIcon && group?.type === 'INTERSECTION' && currentZoom < expansionZoom && !isSelected) return false;
 
             return true;
         });
         console.log(`[DesignFeatures] Points filter: ${beforeFilter} visible → ${result.length} points to render (zoom: ${currentZoom})`);
         return result;
-    }, [visibleFeatures, feature_groups, previewMetadata, featureHierarchy, currentZoom, selectedFeatureId]);
+    }, [visibleFeatures, feature_groups, previewMetadata, featureHierarchy, currentZoom, selectedFeatureId, isReportCaptureActive]);
 
     const renderedPointIds = React.useMemo(
         () => new Set(pointsToRender.map(f => f.id)),
@@ -232,7 +242,7 @@ export const DesignFeatures = () => {
                 featureNumberMap={featureNumberMap}
                 clusterGroupRef={clusterGroupRef}
                 moveGroupRef={moveGroupRef}
-                showFeatureGroups={showFeatureGroups}
+                showFeatureGroups={showFeatureGroups && !isReportCaptureActive}
                 dispatchEvent={dispatchEvent}
             />
 
@@ -241,7 +251,7 @@ export const DesignFeatures = () => {
                 features={visibleFeatures}
                 feature_groups={feature_groups}
                 previewMetadata={previewMetadata}
-                currentZoom={currentZoom}
+                currentZoom={isReportCaptureActive ? Math.max(currentZoom, 23) : currentZoom}
                 renderedPointIds={renderedPointIds}
             />
 

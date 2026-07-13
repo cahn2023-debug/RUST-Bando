@@ -620,7 +620,7 @@ export function StreetViewControl() {
 
           newWindow.once('tauri://error', () => {
             syncPegmanState({ windowOpen: false });
-            showFeedback('Khong tao duoc cua so Street View.');
+            showFeedback('Không tạo được cửa sổ Street View.');
           });
         }
 

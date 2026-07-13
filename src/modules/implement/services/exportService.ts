@@ -69,12 +69,12 @@ export const exportProjectData = async (projectState: MapState, projectName: str
         { "Trường": "Tổng số đối tượng", "Giá trị": Object.keys(projectState.features).length }
       ];
       const projectSheet = XLSX.utils.json_to_sheet(projectSheetData);
-      XLSX.utils.book_append_sheet(workbook, projectSheet, "Project Info");
+      XLSX.utils.book_append_sheet(workbook, projectSheet, "Thông tin dự án");
     }
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Metadata");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Siêu dữ liệu");
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    mainZip.file(`Metadata_${timestamp}.xlsx`, excelBuffer);
+    mainZip.file(`Dữ-liệu-thuộc-tính_${timestamp}.xlsx`, excelBuffer);
     updateProgress(20, 'Đã tạo xong Excel.');
 
     // 3. Generate KML (.kml) -> Add to KMZ ZIP

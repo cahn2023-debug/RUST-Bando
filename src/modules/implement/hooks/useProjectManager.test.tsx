@@ -9,6 +9,16 @@ const mockAddTab = vi.fn();
 const mockRemoveTab = vi.fn();
 const mockResetDesign = vi.fn();
 
+const createDeferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
 vi.mock("@IMPLEMENT/lib/tauri", () => ({
   safeInvoke: (...args: unknown[]) => mockInvoke(...args),
   safeOpenDialog: (...args: unknown[]) => mockOpenDialog(...args),
@@ -133,5 +143,110 @@ describe("useProjectManager", () => {
     expect(mockInvoke).toHaveBeenCalledWith("load_pmp_file", { path: backendProject.path });
     expect(mockInvoke).toHaveBeenCalledWith("save_recent_projects", { projects: [backendProject] });
     expect(mockInvoke).toHaveBeenCalledWith("save_last_opened_project", { project: backendProject });
+  });
+
+  it("opens a recent project optimistically before backend attach finishes", async () => {
+    const attachedProject = {
+      ...backendProject,
+      name: "Existing Project Refreshed",
+      updated_at: "2026-07-11T00:00:00Z",
+    };
+    const loadDeferred = createDeferred<typeof attachedProject>();
+
+    mockInvoke.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
+      switch (command) {
+        case "get_active_project":
+          return null;
+        case "get_recent_projects":
+          return [backendProject];
+        case "get_app_config":
+          return { recent_pmps: [backendProject] };
+        case "load_pmp_file":
+          expect(args).toEqual({ path: backendProject.path });
+          return loadDeferred.promise;
+        case "save_recent_projects":
+        case "save_last_opened_project":
+          return null;
+        default:
+          return null;
+      }
+    });
+
+    const { result } = renderHook(() => useProjectManager());
+
+    await waitFor(() => {
+      expect(result.current.loadingProjects).toBe(false);
+      expect(result.current.projects).toEqual([backendProject]);
+    });
+
+    let success = false;
+    await act(async () => {
+      success = await result.current.handleOpenProject(backendProject.path);
+    });
+
+    expect(success).toBe(true);
+    expect(result.current.selectedProject).toEqual(backendProject);
+    expect(result.current.projects).toEqual([backendProject]);
+    expect(mockAddTab).toHaveBeenCalledWith({
+      id: backendProject.id,
+      name: backendProject.name,
+      path: backendProject.path,
+    });
+
+    expect(mockInvoke).not.toHaveBeenCalledWith("save_last_opened_project", { project: backendProject });
+
+    await act(async () => {
+      loadDeferred.resolve(attachedProject);
+      await loadDeferred.promise;
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedProject).toEqual(attachedProject);
+      expect(mockInvoke).toHaveBeenCalledWith("save_last_opened_project", { project: attachedProject });
+    });
+  });
+
+  it("keeps an optimistically opened recent project if backend attach fails", async () => {
+    const loadDeferred = createDeferred<typeof backendProject>();
+
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "get_active_project":
+          return null;
+        case "get_recent_projects":
+          return [backendProject];
+        case "get_app_config":
+          return { recent_pmps: [backendProject] };
+        case "load_pmp_file":
+          return loadDeferred.promise;
+        case "save_recent_projects":
+        case "save_last_opened_project":
+          return null;
+        default:
+          return null;
+      }
+    });
+
+    const { result } = renderHook(() => useProjectManager());
+
+    await waitFor(() => {
+      expect(result.current.loadingProjects).toBe(false);
+    });
+
+    await act(async () => {
+      const success = await result.current.handleOpenProject(backendProject.path);
+      expect(success).toBe(true);
+    });
+
+    expect(result.current.selectedProject).toEqual(backendProject);
+
+    await act(async () => {
+      loadDeferred.reject(new Error("locked"));
+      await loadDeferred.promise.catch(() => null);
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedProject).toEqual(backendProject);
+    });
   });
 });

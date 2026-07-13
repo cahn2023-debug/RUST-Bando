@@ -31,7 +31,7 @@ describe('CameraHudFallback', () => {
                 targetHeight={1.7}
                 rotation={45}
                 ppm={128}
-                statusLabel="Chi tiet"
+                statusLabel="Chi tiết"
                 statusColor="#f59e0b"
             />
         );
@@ -40,7 +40,7 @@ describe('CameraHudFallback', () => {
         expect(screen.getByText('128')).toBeInTheDocument();
         expect(screen.getByText('35m')).toBeInTheDocument();
         expect(screen.getByText('4.5m')).toBeInTheDocument();
-        expect(screen.getByText('Chi tiet')).toBeInTheDocument();
+        expect(screen.getByText('Chi tiết')).toBeInTheDocument();
         expect(screen.getByText(/HDG:\s*135°/)).toBeInTheDocument();
     });
 });

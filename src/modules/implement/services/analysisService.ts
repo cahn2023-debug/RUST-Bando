@@ -519,7 +519,7 @@ export const analysisService = {
   exportToExcel: async (data: AnalysisRow[], projectId: string) => {
     try {
       const timestamp = format(new Date(), 'yyyyMMdd_HHmmss');
-      const defaultPath = `Analysis_${projectId}_${timestamp}.xlsx`;
+      const defaultPath = `Phân-tích_${projectId}_${timestamp}.xlsx`;
 
       const filePath = await save({
         filters: [{ name: 'Excel Workbook', extensions: ['xlsx'] }],
@@ -530,7 +530,7 @@ export const analysisService = {
 
       const worksheet = XLSX.utils.json_to_sheet(data);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Analysis Data');
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Dữ liệu phân tích');
 
       const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
 

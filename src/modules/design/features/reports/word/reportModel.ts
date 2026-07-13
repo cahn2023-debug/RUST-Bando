@@ -49,7 +49,8 @@ export interface ReportModel {
 }
 
 const POINT_PADDING_DEGREES = 0.0009;
-const LINE_PADDING_RATIO = 0.12;
+const CLUSTER_PADDING_DEGREES = 0.00006;
+const LINE_PADDING_RATIO = 0.08;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -194,10 +195,42 @@ const collectPointsFromCoordinates = (coords: unknown, points: Array<[number, nu
   coords.forEach((child) => collectPointsFromCoordinates(child, points));
 };
 
+const getRepresentativePoint = (feature: FeatureState): [number, number] | null => {
+  const points = getFeaturePoints(feature);
+  if (points.length === 0) return null;
+  const lng = points.reduce((sum, point) => sum + point[0], 0) / points.length;
+  const lat = points.reduce((sum, point) => sum + point[1], 0) / points.length;
+  return [lng, lat];
+};
+
 export const getFeaturePoints = (feature: FeatureState): Array<[number, number]> => {
   const points: Array<[number, number]> = [];
   collectPointsFromCoordinates(parseCoordinates(feature), points);
   return points;
+};
+
+export const getFeatureClusterBounds = (feature: FeatureState, related: FeatureState[] = []): ReportBounds | null => {
+  const allPoints = [feature, ...related]
+    .map(getRepresentativePoint)
+    .filter((point): point is [number, number] => point !== null);
+  if (allPoints.length === 0) return getFeatureBounds(feature, related);
+
+  let minLng = Math.min(...allPoints.map((point) => point[0]));
+  let maxLng = Math.max(...allPoints.map((point) => point[0]));
+  let minLat = Math.min(...allPoints.map((point) => point[1]));
+  let maxLat = Math.max(...allPoints.map((point) => point[1]));
+
+  const width = Math.max(maxLng - minLng, CLUSTER_PADDING_DEGREES);
+  const height = Math.max(maxLat - minLat, CLUSTER_PADDING_DEGREES);
+  const padLng = width * LINE_PADDING_RATIO + CLUSTER_PADDING_DEGREES;
+  const padLat = height * LINE_PADDING_RATIO + CLUSTER_PADDING_DEGREES;
+
+  minLng -= padLng;
+  maxLng += padLng;
+  minLat -= padLat;
+  maxLat += padLat;
+
+  return [minLat, minLng, maxLat, maxLng];
 };
 
 export const getFeatureBounds = (feature: FeatureState, related: FeatureState[] = []): ReportBounds | null => {
@@ -362,7 +395,7 @@ export const buildReportModel = (state: MapState, selections: ReportSelection[],
       summary: makeSectionSummary(feature, state, children, metadata, childrenMap),
       details,
       photos: getFeaturePhotos(feature, metadata),
-      bounds: getFeatureBounds(feature, children),
+      bounds: info.isIntersection ? getFeatureClusterBounds(feature, children) : getFeatureBounds(feature, children),
     } satisfies ReportSection;
   });
 
@@ -382,6 +415,22 @@ export const getSelectableReportItems = (state: MapState): Array<{
 }> => {
   const items: Array<{ key: string; selection: ReportSelection; name: string; level: number }> = [];
   const regions = Object.values(state.regions || {}).sort((a: RegionState, b: RegionState) => a.name.localeCompare(b.name));
+  const childrenMap = getFeatureChildrenMap(state);
+
+  const addFeature = (feature: FeatureState, level: number) => {
+    items.push({
+      key: `feature:${feature.id}`,
+      selection: { type: "feature", id: feature.id },
+      name: feature.name || feature.id,
+      level,
+    });
+    (childrenMap.get(feature.id) || []).forEach((child) => addFeature(child, level + 1));
+  };
+
+  const isChildFeature = (feature: FeatureState): boolean => {
+    const metadata = getParsedMetadata(feature);
+    return typeof metadata.parent_feature_id === "string" && metadata.parent_feature_id.length > 0;
+  };
 
   regions.forEach((region) => {
     items.push({ key: `region:${region.id}`, selection: { type: "region", id: region.id }, name: region.name, level: 0 });
@@ -398,25 +447,17 @@ export const getSelectableReportItems = (state: MapState): Array<{
         .forEach((child) => addGroup(child, level + 1));
       Object.values(state.features || {})
         .filter((feature) => feature.group_id === group.id)
+        .filter((feature) => !isChildFeature(feature))
         .sort(compareFeatures)
-        .forEach((feature) => items.push({
-          key: `feature:${feature.id}`,
-          selection: { type: "feature", id: feature.id },
-          name: feature.name || feature.id,
-          level: level + 1,
-        }));
+        .forEach((feature) => addFeature(feature, level + 1));
     };
 
     topGroups.forEach((group) => addGroup(group, 1));
     Object.values(state.features || {})
       .filter((feature) => layerIds.has(feature.layer_id) && !feature.group_id)
+      .filter((feature) => !isChildFeature(feature))
       .sort(compareFeatures)
-      .forEach((feature) => items.push({
-        key: `feature:${feature.id}`,
-        selection: { type: "feature", id: feature.id },
-        name: feature.name || feature.id,
-        level: 1,
-      }));
+      .forEach((feature) => addFeature(feature, 1));
   });
 
   return items;
