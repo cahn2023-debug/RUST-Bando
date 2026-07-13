@@ -57,7 +57,7 @@ export const DesignRibbonTools = ({
     togglePalette, activePaletteId,
     drawingMode, setDrawingMode, selectedGroupId,
     toggleCoordinatePanel, isCoordinatePanelOpen,
-    onOpenStandalone, onExport
+    onOpenStandalone, onExport, onOpenReport
 }: CommonRibbonProps & {
     undo: () => void; redo: () => void;
     showSystemConfig: boolean; setShowSystemConfig: (v: boolean) => void; systemConfigRef: React.RefObject<HTMLDivElement | null>;
@@ -66,7 +66,7 @@ export const DesignRibbonTools = ({
     setDrawingMode: (m: 'none' | 'point' | 'polyline' | 'image' | 'intersection' | 'move' | 'print_area') => void;
     selectedGroupId: string | null;
     toggleCoordinatePanel: () => void; isCoordinatePanelOpen: boolean;
-    onOpenStandalone: (view: any) => void; onExport: () => void;
+    onOpenStandalone: (view: any) => void; onExport: () => void; onOpenReport: () => void;
 }) => (
     <>
         <ToolGroup label="HISTORY">
@@ -129,6 +129,7 @@ export const DesignRibbonTools = ({
         </ToolGroup>
         <RibbonSeparator />
         <ToolGroup label="DATA">
+            <ToolButton onClick={onOpenReport} icon={FileText} label="BÁO CÁO" />
             <ToolButton onClick={() => onOpenStandalone('analysis')} icon={BarChart2} label="ANALYSIS" />
             <ToolButton onClick={() => onOpenStandalone('print')} icon={Printer} label="PRINT" />
             <ToolButton onClick={onExport} icon={FileDown} label="EXPORT" />

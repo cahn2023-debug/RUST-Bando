@@ -9,6 +9,7 @@ import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
 import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
 import { safeInvoke } from "@IMPLEMENT/lib/tauri";
 import { ImportDialog } from "@IMPLEMENT/features/files/ImportDialog";
+import { ReportExportDialog } from "@DESIGN/features/reports/word/ReportExportDialog";
 import { HomeRibbonTools, DesignRibbonTools, ContractRibbonTools } from "./RibbonTabContent";
 import { useRibbonActions } from "@IMPLEMENT/hooks/useRibbonActions";
 import { useClickOutside } from "@IMPLEMENT/hooks/useClickOutside";
@@ -44,14 +45,15 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
   const [isAdmin, setIsAdmin] = useState(false);
 
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
   const [showSystemConfig, setShowSystemConfig] = useState(false);
   const systemConfigRef = useRef<HTMLDivElement>(null);
 
   useClickOutside(systemConfigRef, () => setShowSystemConfig(false), showSystemConfig);
 
   useEffect(() => {
-    setAnyDialogOpen(isImportOpen);
-  }, [isImportOpen, setAnyDialogOpen]);
+    setAnyDialogOpen(isImportOpen || isReportOpen);
+  }, [isImportOpen, isReportOpen, setAnyDialogOpen]);
 
   useEffect(() => {
     const checkRole = async () => {
@@ -195,6 +197,7 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
             drawingMode={drawingMode} setDrawingMode={setDrawingMode} selectedGroupId={selectedGroupId}
             toggleCoordinatePanel={toggleCoordinatePanel} isCoordinatePanelOpen={isCoordinatePanelOpen}
             onOpenStandalone={openStandaloneWindow}
+            onOpenReport={() => setIsReportOpen(true)}
             onExport={async () => {
               const { state } = useDesignSync.getState();
               if (state) {
@@ -214,6 +217,13 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
         <ImportDialog
           onClose={() => setIsImportOpen(false)}
           onSuccess={(id) => console.log("Imported dataset:", id)}
+        />
+      )}
+
+      {isReportOpen && (
+        <ReportExportDialog
+          projectName={project?.name || "Project"}
+          onClose={() => setIsReportOpen(false)}
         />
       )}
     </div>
