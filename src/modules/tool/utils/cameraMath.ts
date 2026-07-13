@@ -138,9 +138,9 @@ export function getStreetViewUrl(
     heading: number,
     fov: number,
     pitch: number = 0,
-    apiKey: string = ''
+    apiKey: string = '',
+    size: string = '640x480'
 ): string {
-    const size = '640x480';
     const base = 'https://maps.googleapis.com/maps/api/streetview';
     const hFix = (Number(heading) || 0).toFixed(2);
     const fFix = (Math.max(10, Math.min(120, Number(fov) || 90))).toFixed(2);

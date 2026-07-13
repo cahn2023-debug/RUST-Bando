@@ -15,6 +15,7 @@ export interface StaticStreetViewPreviewProps {
 
 const STREET_VIEW_RADIUS_METERS = 200;
 const STREET_VIEW_RESOLVE_TIMEOUT_MS = 5000;
+const SIMULATION_PREVIEW_IMAGE_SIZE = '160x90';
 type StreetViewLocationSource = 'direct' | 'nearest';
 type ResolvedStreetViewPano = { lat: number; lng: number; source: StreetViewLocationSource };
 type PreviewStatus = 'resolving' | 'building' | 'ready' | 'error';
@@ -123,7 +124,9 @@ export async function buildStaticStreetViewUrl({
 }): Promise<string> {
     const trimmedKey = apiKey.trim();
     const cleanFov = Math.max(10, Math.min(120, fov));
-    const unsignedUrl = new URL(getStreetViewUrl(lat, lng, heading, cleanFov, pitch, trimmedKey));
+    const unsignedUrl = new URL(
+        getStreetViewUrl(lat, lng, heading, cleanFov, pitch, trimmedKey, SIMULATION_PREVIEW_IMAGE_SIZE)
+    );
     unsignedUrl.searchParams.set('return_error_code', 'true');
     try {
         const signedUrl = await invoke<string>('sign_streetview_url', {
@@ -252,7 +255,7 @@ export const StaticStreetViewPreview: React.FC<StaticStreetViewPreviewProps> = (
                 <img
                     src={resolvedUrl}
                     alt="Street View Preview"
-                    className={`w-full h-full object-cover transition-opacity duration-300 ${imageError ? 'opacity-0' : 'opacity-100'}`}
+                    className={`w-full h-full object-contain transition-opacity duration-300 image-pixelated ${imageError ? 'opacity-0' : 'opacity-100'}`}
                     onError={() => {
                         if (resolvedLocation?.source === 'direct' && !resolveFinished) {
                             console.warn('[StaticStreetViewPreview] Direct Street View image failed before pano resolution finished. Waiting for nearest pano result.');
