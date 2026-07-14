@@ -2,10 +2,16 @@ use crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand;
 use crate::domain::implement::modules::v2::storage::connection::PmpDatabase;
 use crate::domain::implement::modules::v2::storage::path_meta::compute_rel_path;
 use crate::domain::models::v2::{AppEvent, EventEnvelope};
+use base64::{engine::general_purpose, Engine as _};
 use rusqlite::{params, OptionalExtension, Transaction};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
+use std::fs;
 use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
+
+const MAX_EVENT_PAYLOAD_BYTES: usize = 256 * 1024;
 
 #[derive(Debug)]
 pub struct StorageWorker {
@@ -37,6 +43,10 @@ impl StorageWorker {
                                     | StorageCommand::RestoreProject { .. }
                                     | StorageCommand::VerifyIntegrity { .. }
                                     | StorageCommand::GetProjectHealth { .. }
+                                    | StorageCommand::ImportMediaAsset { .. }
+                                    | StorageCommand::DeleteMediaAsset { .. }
+                                    | StorageCommand::ResolveMediaAsset { .. }
+                                    | StorageCommand::OptimizeProjectStorage { .. }
                             ) {
                                 worker.execute_batch(batch).await;
                                 worker.execute(next).await;
@@ -62,7 +72,7 @@ impl StorageWorker {
                 let result = match PmpDatabase::open_or_create(path) {
                     Ok(new_db) => {
                         self.db = new_db;
-                        Ok(())
+                        self.auto_migrate_legacy_media_on_open()
                     }
                     Err(e) => Err(e.to_string()),
                 };
@@ -99,7 +109,7 @@ impl StorageWorker {
                 let res = catch_unwind(AssertUnwindSafe(|| {
                     self.db
                         .conn
-                        .execute_batch("PRAGMA wal_checkpoint(PASSIVE);")
+                        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
                         .map_err(|e| e.to_string())
                 }))
                 .map_err(panic_to_string)
@@ -172,11 +182,72 @@ impl StorageWorker {
                     });
                 let _ = reply.send(res);
             }
+            StorageCommand::ImportMediaAsset {
+                project_id,
+                feature_id,
+                data_url,
+                file_path,
+                reply,
+            } => {
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.import_media_asset(&project_id, &feature_id, data_url, file_path)
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
+                let _ = reply.send(res);
+            }
+            StorageCommand::DeleteMediaAsset {
+                project_id,
+                asset_id,
+                reply,
+            } => {
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.delete_media_asset(&project_id, &asset_id)
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
+                let _ = reply.send(res);
+            }
+            StorageCommand::ResolveMediaAsset {
+                project_id,
+                asset_id,
+                reply,
+            } => {
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.resolve_media_asset(&project_id, &asset_id)
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
+                let _ = reply.send(res);
+            }
+            StorageCommand::OptimizeProjectStorage { project_id, reply } => {
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.optimize_project_storage(&project_id)
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
+                let _ = reply.send(res);
+            }
             StorageCommand::GetProjectHealth { project_id, reply } => {
                 let res = (|| -> Result<Value, String> {
-                    let wal_path = self.db.pmp_path.with_extension("pmp-wal");
+                    let wal_path = wal_path_for(&self.db.pmp_path);
                     let wal_size = std::fs::metadata(&wal_path).map(|m| m.len()).unwrap_or(0);
+                    let db_size = std::fs::metadata(&self.db.pmp_path)
+                        .map(|m| m.len())
+                        .unwrap_or(0);
                     let integrity = self.db.verify_integrity().map_err(|e| e.to_string())?;
+                    let page_size: i64 = self
+                        .db
+                        .conn
+                        .pragma_query_value(None, "page_size", |r| r.get(0))
+                        .map_err(|e| e.to_string())?;
+                    let freelist_count: i64 = self
+                        .db
+                        .conn
+                        .pragma_query_value(None, "freelist_count", |r| r.get(0))
+                        .map_err(|e| e.to_string())?;
+                    let asset_stats = self.media_asset_stats(&project_id)?;
+                    let table_sizes = self.table_size_summary().unwrap_or_else(|_| json!([]));
                     let backups = self.db.list_backups(&project_id)?;
                     let last_backup_at: Option<String> = self
                         .db
@@ -208,7 +279,12 @@ impl StorageWorker {
                     Ok(json!({
                         "projectId": project_id,
                         "databasePath": self.db.pmp_path.to_string_lossy().to_string(),
+                        "databaseSizeBytes": db_size,
                         "walSizeBytes": wal_size,
+                        "freelistBytes": freelist_count * page_size,
+                        "mediaAssetCount": asset_stats.0,
+                        "mediaAssetsSizeBytes": asset_stats.1,
+                        "tableSizes": table_sizes,
                         "integrityStatus": if integrity == "ok" { "ok" } else { "failed" },
                         "lastBackupAt": last_backup_at,
                         "lastIntegrityCheckAt": last_integrity_check_at,
@@ -245,6 +321,10 @@ impl StorageWorker {
                     | StorageCommand::RestoreProject { .. }
                     | StorageCommand::VerifyIntegrity { .. }
                     | StorageCommand::GetProjectHealth { .. }
+                    | StorageCommand::ImportMediaAsset { .. }
+                    | StorageCommand::DeleteMediaAsset { .. }
+                    | StorageCommand::ResolveMediaAsset { .. }
+                    | StorageCommand::OptimizeProjectStorage { .. }
             ) {
                 self.execute(commands.into_iter().next().expect("single command"))
                     .await;
@@ -325,6 +405,298 @@ impl StorageWorker {
         Ok(Value::Array(results))
     }
 
+    fn import_media_asset(
+        &mut self,
+        project_id: &str,
+        feature_id: &str,
+        data_url: Option<String>,
+        file_path: Option<String>,
+    ) -> Result<Value, String> {
+        let input = read_media_input(data_url, file_path)?;
+        let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
+        let asset = persist_media_asset(
+            &tx,
+            &self.db.base_dir,
+            &self.db.pmp_path,
+            project_id,
+            Some(feature_id),
+            &input.bytes,
+            &input.mime_type,
+        )?;
+        rebuild_project_snapshot(&tx, project_id)?;
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok(asset)
+    }
+
+    fn delete_media_asset(&mut self, project_id: &str, asset_id: &str) -> Result<(), String> {
+        let asset_record: Option<(String, Option<String>)> = self
+            .db
+            .conn
+            .query_row(
+                "SELECT ma.rel_path, fm.feature_id
+                 FROM media_assets ma
+                 LEFT JOIN feature_media fm ON fm.asset_id = ma.id
+                 WHERE ma.project_id = ?1 AND ma.id = ?2
+                 LIMIT 1",
+                params![project_id, asset_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+        let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
+        if let Some((_, Some(feature_id))) = &asset_record {
+            unlink_media_asset_from_feature_metadata(&tx, feature_id, asset_id)?;
+        }
+        tx.execute(
+            "DELETE FROM feature_media WHERE asset_id = ?1",
+            params![asset_id],
+        )
+        .map_err(|e| e.to_string())?;
+        tx.execute(
+            "DELETE FROM media_assets WHERE project_id = ?1 AND id = ?2",
+            params![project_id, asset_id],
+        )
+        .map_err(|e| e.to_string())?;
+        rebuild_project_snapshot(&tx, project_id)?;
+        tx.commit().map_err(|e| e.to_string())?;
+        if let Some((rel_path, _)) = asset_record {
+            let full_path = self.db.base_dir.join(rel_path);
+            let _ = fs::remove_file(full_path);
+        }
+        Ok(())
+    }
+
+    fn resolve_media_asset(&self, project_id: &str, asset_id: &str) -> Result<Value, String> {
+        let mut asset = self
+            .db
+            .conn
+            .query_row(
+                "SELECT id, sha256, rel_path, mime_type, byte_size, width, height
+                 FROM media_assets WHERE project_id = ?1 AND id = ?2",
+                params![project_id, asset_id],
+                |row| {
+                    let rel_path: String = row.get(2)?;
+                    let full_path = self.db.base_dir.join(&rel_path);
+                    Ok(json!({
+                        "id": row.get::<_, String>(0)?,
+                        "assetId": row.get::<_, String>(0)?,
+                        "projectId": project_id,
+                        "sha256": row.get::<_, String>(1)?,
+                        "relPath": rel_path,
+                        "path": full_path.to_string_lossy().to_string(),
+                        "mimeType": row.get::<_, String>(3)?,
+                        "byteSize": row.get::<_, i64>(4)?,
+                        "width": row.get::<_, Option<i64>>(5)?,
+                        "height": row.get::<_, Option<i64>>(6)?,
+                    }))
+                },
+            )
+            .optional()
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| format!("Media asset not found: {asset_id}"))?;
+        let mut repaired_rel_path: Option<String> = None;
+        if let Some(asset_obj) = asset.as_object_mut() {
+            if let (Some(rel_path), Some(sha256), Some(mime_type)) = (
+                asset_obj
+                    .get("relPath")
+                    .and_then(Value::as_str)
+                    .map(ToString::to_string),
+                asset_obj
+                    .get("sha256")
+                    .and_then(Value::as_str)
+                    .map(ToString::to_string),
+                asset_obj
+                    .get("mimeType")
+                    .and_then(Value::as_str)
+                    .map(ToString::to_string),
+            ) {
+                let mut path = self.db.base_dir.join(&rel_path);
+                if !path.exists() {
+                    path = find_media_asset_file(&self.db.base_dir, &self.db.pmp_path, &sha256)
+                        .ok_or_else(|| format!("Media asset file not found: {asset_id}"))?;
+                    let next_rel_path = compute_rel_path(&path, &self.db.base_dir)?;
+                    asset_obj.insert("relPath".to_string(), json!(next_rel_path.clone()));
+                    repaired_rel_path = Some(next_rel_path);
+                }
+                let bytes =
+                    fs::read(&path).map_err(|e| format!("Failed to read media asset: {e}"))?;
+                asset_obj.insert(
+                    "path".to_string(),
+                    json!(path.to_string_lossy().to_string()),
+                );
+                asset_obj.insert(
+                    "dataUrl".to_string(),
+                    json!(format!(
+                        "data:{};base64,{}",
+                        mime_type,
+                        general_purpose::STANDARD.encode(bytes)
+                    )),
+                );
+            }
+        }
+        if let Some(rel_path) = repaired_rel_path {
+            self.db
+                .conn
+                .execute(
+                    "UPDATE media_assets SET rel_path = ?1 WHERE project_id = ?2 AND id = ?3",
+                    params![rel_path, project_id, asset_id],
+                )
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(asset)
+    }
+
+    fn optimize_project_storage(&mut self, project_id: &str) -> Result<Value, String> {
+        let before = project_storage_summary(&self.db.conn, &self.db.pmp_path, project_id)?;
+        let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
+        let migrated =
+            migrate_feature_media(&tx, &self.db.base_dir, &self.db.pmp_path, project_id)?;
+        rebuild_project_snapshot(&tx, project_id)?;
+        let compacted_events = compact_large_events(&tx, project_id)?;
+        tx.execute(
+            "UPDATE projects
+             SET metadata_json = json_object('schema_version', '4.0.0', 'storage', json_object('snapshot', 'project_snapshots')),
+                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+             WHERE id = ?1",
+            params![project_id],
+        )
+        .map_err(|e| e.to_string())?;
+        tx.commit().map_err(|e| e.to_string())?;
+
+        self.db
+            .conn
+            .execute_batch(
+                "PRAGMA wal_checkpoint(TRUNCATE); VACUUM; PRAGMA wal_checkpoint(TRUNCATE);",
+            )
+            .map_err(|e| e.to_string())?;
+        let after = project_storage_summary(&self.db.conn, &self.db.pmp_path, project_id)?;
+        Ok(json!({
+            "projectId": project_id,
+            "migratedMediaRefs": migrated,
+            "compactedEvents": compacted_events,
+            "before": before,
+            "after": after,
+            "optimizedAt": chrono::Local::now().to_rfc3339(),
+        }))
+    }
+
+    fn auto_migrate_legacy_media_on_open(&mut self) -> Result<(), String> {
+        let project_ids = list_project_ids(&self.db.conn)?;
+        if project_ids.is_empty() {
+            return Ok(());
+        }
+
+        let mut migrated_any = false;
+        let mut backup_created = false;
+        for project_id in project_ids {
+            let needs_legacy_migration =
+                project_needs_legacy_media_migration(&self.db.conn, &project_id)?;
+            let needs_link_repair = project_needs_media_link_repair(&self.db.conn, &project_id)?;
+            if !needs_legacy_migration && !needs_link_repair {
+                continue;
+            }
+            if needs_legacy_migration && !backup_created {
+                self.db
+                    .conn
+                    .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+                    .map_err(|e| e.to_string())?;
+                backup_legacy_media_migration(&self.db.pmp_path)?;
+                backup_created = true;
+            }
+
+            let before = project_storage_summary(&self.db.conn, &self.db.pmp_path, &project_id)?;
+            let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
+            let hydrated_from_snapshot =
+                hydrate_tables_from_legacy_snapshot_if_needed(&tx, &project_id)?;
+            let migrated_refs =
+                migrate_feature_media(&tx, &self.db.base_dir, &self.db.pmp_path, &project_id)?;
+            let repaired_links =
+                repair_media_links(&tx, &self.db.base_dir, &self.db.pmp_path, &project_id)?;
+            let compacted_events = compact_large_events(&tx, &project_id)?;
+            if hydrated_from_snapshot
+                || migrated_refs > 0
+                || compacted_events > 0
+                || repaired_links > 0
+            {
+                rebuild_project_snapshot(&tx, &project_id)?;
+                tx.execute(
+                    "UPDATE projects
+                     SET metadata_json = json_object('schema_version', '4.0.0', 'storage', json_object('snapshot', 'project_snapshots')),
+                         updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                     WHERE id = ?1",
+                    params![&project_id],
+                )
+                .map_err(|e| e.to_string())?;
+                tx.execute(
+                    "INSERT OR REPLACE INTO sys_config(key, value) VALUES(?1, ?2)",
+                    params![
+                        format!("legacy_media_migrated:{project_id}"),
+                        json!({
+                            "migratedAt": chrono::Local::now().to_rfc3339(),
+                            "migratedMediaRefs": migrated_refs,
+                            "repairedMediaLinks": repaired_links,
+                            "compactedEvents": compacted_events,
+                            "hydratedFromSnapshot": hydrated_from_snapshot,
+                            "before": before,
+                        })
+                        .to_string()
+                    ],
+                )
+                .map_err(|e| e.to_string())?;
+                migrated_any = true;
+            }
+            tx.commit().map_err(|e| e.to_string())?;
+        }
+
+        if migrated_any {
+            self.db
+                .conn
+                .execute_batch(
+                    "PRAGMA wal_checkpoint(TRUNCATE); VACUUM; PRAGMA wal_checkpoint(TRUNCATE);",
+                )
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+
+    fn media_asset_stats(&self, project_id: &str) -> Result<(i64, i64), String> {
+        self.db
+            .conn
+            .query_row(
+                "SELECT COUNT(*), COALESCE(SUM(byte_size), 0) FROM media_assets WHERE project_id = ?1",
+                params![project_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(|e| e.to_string())
+    }
+
+    fn table_size_summary(&self) -> Result<Value, String> {
+        let mut stmt = self
+            .db
+            .conn
+            .prepare(
+                "SELECT name, SUM(pgsize) AS bytes
+                 FROM dbstat
+                 GROUP BY name
+                 ORDER BY bytes DESC
+                 LIMIT 12",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(json!({
+                    "name": row.get::<_, String>(0)?,
+                    "bytes": row.get::<_, i64>(1)?,
+                }))
+            })
+            .map_err(|e| e.to_string())?;
+        let mut values = Vec::new();
+        for row in rows {
+            values.push(row.map_err(|e| e.to_string())?);
+        }
+        Ok(Value::Array(values))
+    }
+
     fn commit_tx_batch(&mut self, commands: Vec<StorageCommand>) -> Result<(), String> {
         let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
         for cmd in commands {
@@ -386,7 +758,11 @@ impl StorageWorker {
                 | StorageCommand::ListBackups { .. }
                 | StorageCommand::RestoreProject { .. }
                 | StorageCommand::VerifyIntegrity { .. }
-                | StorageCommand::GetProjectHealth { .. } => {}
+                | StorageCommand::GetProjectHealth { .. }
+                | StorageCommand::ImportMediaAsset { .. }
+                | StorageCommand::DeleteMediaAsset { .. }
+                | StorageCommand::ResolveMediaAsset { .. }
+                | StorageCommand::OptimizeProjectStorage { .. } => {}
             }
         }
         tx.commit().map_err(|e| e.to_string())
@@ -401,6 +777,1093 @@ fn panic_to_string(payload: Box<dyn std::any::Any + Send>) -> String {
     } else {
         "storage worker panicked".to_string()
     }
+}
+
+struct MediaInput {
+    bytes: Vec<u8>,
+    mime_type: String,
+}
+
+fn read_media_input(
+    data_url: Option<String>,
+    file_path: Option<String>,
+) -> Result<MediaInput, String> {
+    match (data_url, file_path) {
+        (Some(data_url), _) => decode_data_url(&data_url),
+        (None, Some(file_path)) => {
+            let path = PathBuf::from(&file_path);
+            let bytes = fs::read(&path).map_err(|e| format!("Failed to read media file: {e}"))?;
+            let mime_type = mime_guess::from_path(&path)
+                .first_or_octet_stream()
+                .essence_str()
+                .to_string();
+            Ok(MediaInput { bytes, mime_type })
+        }
+        (None, None) => Err("Either data_url or file_path is required".to_string()),
+    }
+}
+
+fn decode_data_url(data_url: &str) -> Result<MediaInput, String> {
+    let Some((header, encoded)) = data_url.split_once(',') else {
+        return Err("Invalid data URL".to_string());
+    };
+    if !header.starts_with("data:") || !header.contains(";base64") {
+        return Err("Only base64 data URLs are supported".to_string());
+    }
+    let mime_type = header
+        .trim_start_matches("data:")
+        .split(';')
+        .next()
+        .filter(|value| !value.is_empty())
+        .unwrap_or("application/octet-stream")
+        .to_string();
+    let bytes = general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|e| format!("Invalid base64 media payload: {e}"))?;
+    Ok(MediaInput { bytes, mime_type })
+}
+
+fn persist_media_asset(
+    tx: &Transaction<'_>,
+    base_dir: &Path,
+    pmp_path: &Path,
+    project_id: &str,
+    feature_id: Option<&str>,
+    bytes: &[u8],
+    mime_type: &str,
+) -> Result<Value, String> {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    let sha256 = hex::encode(hasher.finalize());
+    let asset_scope = format!(
+        "{}:{}:{}",
+        project_id,
+        feature_id.unwrap_or("global"),
+        sha256
+    );
+    let asset_id =
+        uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, asset_scope.as_bytes()).to_string();
+    let extension = extension_for_mime(mime_type);
+    let asset_dir_name = pmp_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("project");
+    let mut rel_path = PathBuf::from(format!("{asset_dir_name}.assets")).join("media");
+    if let Some(feature_id) = feature_id {
+        for segment in media_hierarchy_segments(tx, project_id, feature_id)? {
+            rel_path = rel_path.join(segment);
+        }
+    }
+    rel_path = rel_path.join(format!("{sha256}.{extension}"));
+    let full_path = base_dir.join(&rel_path);
+    if let Some(parent) = full_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Failed to create media directory: {e}"))?;
+    }
+    if !full_path.exists() {
+        fs::write(&full_path, bytes).map_err(|e| format!("Failed to save media asset: {e}"))?;
+    }
+    let (width, height) = image::load_from_memory(bytes)
+        .map(|image| (Some(image.width() as i64), Some(image.height() as i64)))
+        .unwrap_or((None, None));
+    let rel_path_text = rel_path.to_string_lossy().to_string();
+    tx.execute(
+        "INSERT INTO media_assets (id, project_id, sha256, rel_path, mime_type, byte_size, width, height)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+         ON CONFLICT(id) DO UPDATE SET
+            rel_path = excluded.rel_path,
+            mime_type = excluded.mime_type,
+            byte_size = excluded.byte_size,
+            width = excluded.width,
+            height = excluded.height",
+        params![
+            &asset_id,
+            project_id,
+            &sha256,
+            &rel_path_text,
+            mime_type,
+            bytes.len() as i64,
+            width,
+            height,
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    if let Some(feature_id) = feature_id {
+        let sort_order: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM feature_media WHERE feature_id = ?1",
+                params![feature_id],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        let is_primary = if sort_order == 0 { 1 } else { 0 };
+        tx.execute(
+            "INSERT OR IGNORE INTO feature_media (feature_id, asset_id, sort_order, is_primary)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![feature_id, asset_id, sort_order, is_primary],
+        )
+        .map_err(|e| e.to_string())?;
+        link_media_asset_in_feature_metadata(tx, feature_id, &asset_id)?;
+    }
+    let display_path = fs::canonicalize(&full_path).unwrap_or_else(|_| full_path.clone());
+    Ok(json!({
+        "id": asset_id,
+        "assetId": asset_id,
+        "projectId": project_id,
+        "featureId": feature_id,
+        "sha256": sha256,
+        "relPath": rel_path_text,
+        "path": display_path.to_string_lossy().to_string(),
+        "mimeType": mime_type,
+        "byteSize": bytes.len() as i64,
+        "width": width,
+        "height": height,
+        "dataUrl": format!(
+            "data:{};base64,{}",
+            mime_type,
+            general_purpose::STANDARD.encode(bytes)
+        ),
+    }))
+}
+
+fn extension_for_mime(mime_type: &str) -> &'static str {
+    match mime_type {
+        "image/jpeg" | "image/jpg" => "jpg",
+        "image/png" => "png",
+        "image/webp" => "webp",
+        "image/gif" => "gif",
+        "image/bmp" => "bmp",
+        _ => "bin",
+    }
+}
+
+fn find_media_asset_file(base_dir: &Path, pmp_path: &Path, sha256: &str) -> Option<PathBuf> {
+    let preferred_assets = pmp_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .map(|stem| base_dir.join(format!("{stem}.assets")));
+    if let Some(found) = preferred_assets
+        .as_ref()
+        .and_then(|assets_dir| find_file_by_stem(assets_dir, sha256))
+    {
+        return Some(found);
+    }
+
+    let entries = fs::read_dir(base_dir).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
+            continue;
+        };
+        if !name.ends_with(".assets") {
+            continue;
+        }
+        if preferred_assets
+            .as_ref()
+            .map(|preferred| preferred == &path)
+            .unwrap_or(false)
+        {
+            continue;
+        }
+        if let Some(found) = find_file_by_stem(&path, sha256) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+fn find_file_by_stem(root: &Path, stem: &str) -> Option<PathBuf> {
+    let entries = fs::read_dir(root).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            if let Some(found) = find_file_by_stem(&path, stem) {
+                return Some(found);
+            }
+        } else if path
+            .file_stem()
+            .and_then(|value| value.to_str())
+            .map(|value| value.eq_ignore_ascii_case(stem))
+            .unwrap_or(false)
+        {
+            return Some(path);
+        }
+    }
+    None
+}
+
+fn link_media_asset_in_feature_metadata(
+    tx: &Transaction<'_>,
+    feature_id: &str,
+    asset_id: &str,
+) -> Result<(), String> {
+    let metadata_text: Option<String> = tx
+        .query_row(
+            "SELECT metadata_json FROM features WHERE id = ?1",
+            params![feature_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    let Some(metadata_text) = metadata_text else {
+        return Ok(());
+    };
+    let mut metadata = serde_json::from_str::<Value>(&metadata_text).unwrap_or_else(|_| json!({}));
+    let Some(metadata_obj) = metadata.as_object_mut() else {
+        return Ok(());
+    };
+    let mut media = metadata_obj
+        .remove("media")
+        .filter(|value| value.is_object())
+        .unwrap_or_else(|| json!({}));
+    let media_obj = media.as_object_mut().expect("media object");
+    let mut asset_ids = media_obj
+        .get("imageAssetIds")
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    if !asset_ids.iter().any(|value| value == asset_id) {
+        asset_ids.push(asset_id.to_string());
+    }
+    media_obj.insert(
+        "imageAssetIds".to_string(),
+        Value::Array(asset_ids.iter().map(|value| json!(value)).collect()),
+    );
+    media_obj
+        .entry("primaryImageAssetId".to_string())
+        .or_insert_with(|| json!(asset_id));
+    media_obj.remove("imageUrl");
+    media_obj.remove("imageUrls");
+    metadata_obj.remove("imageUrl");
+    metadata_obj.remove("imageUrls");
+    metadata_obj.insert("media".to_string(), media);
+    tx.execute(
+        "UPDATE features SET metadata_json = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+        params![metadata.to_string(), feature_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn unlink_media_asset_from_feature_metadata(
+    tx: &Transaction<'_>,
+    feature_id: &str,
+    asset_id: &str,
+) -> Result<(), String> {
+    let metadata_text: Option<String> = tx
+        .query_row(
+            "SELECT metadata_json FROM features WHERE id = ?1",
+            params![feature_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    let Some(metadata_text) = metadata_text else {
+        return Ok(());
+    };
+    let mut metadata = serde_json::from_str::<Value>(&metadata_text).unwrap_or_else(|_| json!({}));
+    let Some(metadata_obj) = metadata.as_object_mut() else {
+        return Ok(());
+    };
+    let Some(media_obj) = metadata_obj.get_mut("media").and_then(Value::as_object_mut) else {
+        return Ok(());
+    };
+    let remaining = media_obj
+        .get("imageAssetIds")
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .filter_map(Value::as_str)
+                .filter(|value| *value != asset_id)
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    media_obj.insert(
+        "imageAssetIds".to_string(),
+        Value::Array(remaining.iter().map(|value| json!(value)).collect()),
+    );
+    if media_obj
+        .get("primaryImageAssetId")
+        .and_then(Value::as_str)
+        .map(|value| value == asset_id)
+        .unwrap_or(false)
+    {
+        if let Some(next_primary) = remaining.first() {
+            media_obj.insert("primaryImageAssetId".to_string(), json!(next_primary));
+        } else {
+            media_obj.remove("primaryImageAssetId");
+        }
+    }
+    tx.execute(
+        "UPDATE features SET metadata_json = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+        params![metadata.to_string(), feature_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn media_hierarchy_segments(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    feature_id: &str,
+) -> Result<Vec<String>, String> {
+    let Some(feature) = load_feature_media_node(tx, feature_id)? else {
+        return Ok(vec![safe_path_segment("unassigned", feature_id)]);
+    };
+
+    let mut segments = Vec::new();
+    if let Some((region_name, region_id, layer_name, layer_id)) =
+        load_layer_region_names(tx, project_id, &feature.layer_id)?
+    {
+        segments.push(safe_path_segment(&region_name, &region_id));
+        segments.push(safe_path_segment(&layer_name, &layer_id));
+    } else {
+        segments.push("unassigned-layer".to_string());
+    }
+
+    if let Some(group_id) = feature.group_id.as_deref() {
+        for group in load_group_chain(tx, project_id, group_id)? {
+            segments.push(safe_path_segment(&group.name, &group.id));
+        }
+    }
+
+    for parent in load_parent_feature_chain(tx, project_id, &feature)? {
+        segments.push(safe_path_segment(&parent.name, &parent.id));
+    }
+    segments.push(safe_path_segment(&feature.name, &feature.id));
+    Ok(segments)
+}
+
+#[derive(Debug, Clone)]
+struct MediaFeatureNode {
+    id: String,
+    layer_id: String,
+    group_id: Option<String>,
+    name: String,
+    parent_feature_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+struct MediaGroupNode {
+    id: String,
+    parent_id: Option<String>,
+    name: String,
+}
+
+fn load_feature_media_node(
+    tx: &Transaction<'_>,
+    feature_id: &str,
+) -> Result<Option<MediaFeatureNode>, String> {
+    tx.query_row(
+        "SELECT id, layer_id, group_id, name, metadata_json FROM features WHERE id = ?1",
+        params![feature_id],
+        |row| {
+            let metadata_json: String = row.get(4)?;
+            let metadata =
+                serde_json::from_str::<Value>(&metadata_json).unwrap_or_else(|_| json!({}));
+            Ok(MediaFeatureNode {
+                id: row.get(0)?,
+                layer_id: row.get(1)?,
+                group_id: row.get(2)?,
+                name: row.get(3)?,
+                parent_feature_id: metadata
+                    .get("parent_feature_id")
+                    .and_then(Value::as_str)
+                    .map(ToString::to_string),
+            })
+        },
+    )
+    .optional()
+    .map_err(|e| e.to_string())
+}
+
+fn load_layer_region_names(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    layer_id: &str,
+) -> Result<Option<(String, String, String, String)>, String> {
+    tx.query_row(
+        "SELECT COALESCE(r.name, 'Region'), COALESCE(r.id, 'region'), l.name, l.id
+         FROM layers l
+         LEFT JOIN regions r ON r.id = l.region_id
+         WHERE l.project_id = ?1 AND l.id = ?2",
+        params![project_id, layer_id],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+    )
+    .optional()
+    .map_err(|e| e.to_string())
+}
+
+fn load_group_chain(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    group_id: &str,
+) -> Result<Vec<MediaGroupNode>, String> {
+    let mut chain = Vec::new();
+    let mut current_id = Some(group_id.to_string());
+    let mut seen = std::collections::BTreeSet::new();
+    while let Some(id) = current_id {
+        if !seen.insert(id.clone()) {
+            break;
+        }
+        let group = tx
+            .query_row(
+                "SELECT id, parent_id, name FROM feature_groups WHERE project_id = ?1 AND id = ?2",
+                params![project_id, id],
+                |row| {
+                    Ok(MediaGroupNode {
+                        id: row.get(0)?,
+                        parent_id: row.get(1)?,
+                        name: row.get(2)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+        let Some(group) = group else {
+            break;
+        };
+        current_id = group.parent_id.clone();
+        chain.push(group);
+    }
+    chain.reverse();
+    Ok(chain)
+}
+
+fn load_parent_feature_chain(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    feature: &MediaFeatureNode,
+) -> Result<Vec<MediaFeatureNode>, String> {
+    let mut chain = Vec::new();
+    let mut current_id = feature.parent_feature_id.clone();
+    let mut seen = std::collections::BTreeSet::new();
+    while let Some(id) = current_id {
+        if id == feature.id || !seen.insert(id.clone()) {
+            break;
+        }
+        let Some(parent) = load_feature_media_node(tx, &id)? else {
+            break;
+        };
+        if parent.layer_id != feature.layer_id {
+            break;
+        }
+        current_id = parent.parent_feature_id.clone();
+        if parent
+            .group_id
+            .as_deref()
+            .map(|group_id| group_id == feature.group_id.as_deref().unwrap_or_default())
+            .unwrap_or(feature.group_id.is_none())
+            || parent.group_id.is_some()
+        {
+            chain.push(parent);
+        }
+    }
+    chain.reverse();
+    let filtered = chain
+        .into_iter()
+        .filter(|node| {
+            tx.query_row(
+                "SELECT COUNT(*) FROM features WHERE project_id = ?1 AND id = ?2",
+                params![project_id, node.id],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap_or(0)
+                > 0
+        })
+        .collect();
+    Ok(filtered)
+}
+
+fn safe_path_segment(name: &str, id: &str) -> String {
+    let mut cleaned = String::with_capacity(name.len());
+    for ch in name.chars() {
+        let invalid =
+            matches!(ch, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || ch.is_control();
+        if invalid {
+            cleaned.push('_');
+        } else {
+            cleaned.push(ch);
+        }
+    }
+    let cleaned = cleaned.trim().trim_matches('.').trim();
+    let fallback = if cleaned.is_empty() { "item" } else { cleaned };
+    let short_id: String = id.chars().take(8).collect();
+    format!("{fallback} [{short_id}]")
+}
+
+fn wal_path_for(pmp_path: &Path) -> PathBuf {
+    PathBuf::from(format!("{}-wal", pmp_path.to_string_lossy()))
+}
+
+fn project_storage_summary(
+    conn: &rusqlite::Connection,
+    pmp_path: &Path,
+    project_id: &str,
+) -> Result<Value, String> {
+    let db_size = fs::metadata(pmp_path).map(|m| m.len()).unwrap_or(0);
+    let wal_size = fs::metadata(wal_path_for(pmp_path))
+        .map(|m| m.len())
+        .unwrap_or(0);
+    let page_size: i64 = conn
+        .pragma_query_value(None, "page_size", |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    let freelist_count: i64 = conn
+        .pragma_query_value(None, "freelist_count", |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    let (media_count, media_bytes): (i64, i64) = conn
+        .query_row(
+            "SELECT COUNT(*), COALESCE(SUM(byte_size), 0) FROM media_assets WHERE project_id = ?1",
+            params![project_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(json!({
+        "databaseSizeBytes": db_size,
+        "walSizeBytes": wal_size,
+        "freelistBytes": freelist_count * page_size,
+        "mediaAssetCount": media_count,
+        "mediaAssetsSizeBytes": media_bytes,
+    }))
+}
+
+fn list_project_ids(conn: &rusqlite::Connection) -> Result<Vec<String>, String> {
+    let mut stmt = conn
+        .prepare("SELECT id FROM projects ORDER BY created_at, id")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(|e| e.to_string())?;
+    let mut ids = Vec::new();
+    for row in rows {
+        ids.push(row.map_err(|e| e.to_string())?);
+    }
+    Ok(ids)
+}
+
+fn project_needs_legacy_media_migration(
+    conn: &rusqlite::Connection,
+    project_id: &str,
+) -> Result<bool, String> {
+    let feature_hits: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM features WHERE project_id = ?1 AND metadata_json LIKE '%data:image%' LIMIT 1",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if feature_hits > 0 {
+        return Ok(true);
+    }
+
+    let snapshot_hits: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM project_snapshots WHERE project_id = ?1 AND state_json LIKE '%data:image%' LIMIT 1",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if snapshot_hits > 0 {
+        return Ok(true);
+    }
+
+    let project_hits: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM projects WHERE id = ?1 AND metadata_json LIKE '%data:image%' LIMIT 1",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if project_hits > 0 {
+        return Ok(true);
+    }
+
+    let large_event_hits: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE project_id = ?1 AND length(payload_json) > ?2 LIMIT 1",
+            params![project_id, MAX_EVENT_PAYLOAD_BYTES as i64],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(large_event_hits > 0)
+}
+
+fn project_needs_media_link_repair(
+    conn: &rusqlite::Connection,
+    project_id: &str,
+) -> Result<bool, String> {
+    let asset_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM media_assets WHERE project_id = ?1",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let feature_link_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*)
+             FROM feature_media fm
+             JOIN features f ON f.id = fm.feature_id
+             WHERE f.project_id = ?1",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(asset_count > 0 || feature_link_count > 0)
+}
+
+fn repair_media_links(
+    tx: &Transaction<'_>,
+    base_dir: &Path,
+    pmp_path: &Path,
+    project_id: &str,
+) -> Result<usize, String> {
+    let mut repaired = normalize_media_asset_paths(tx, base_dir, pmp_path, project_id)?;
+    repaired += sync_feature_media_metadata(tx, project_id)?;
+    Ok(repaired)
+}
+
+fn normalize_media_asset_paths(
+    tx: &Transaction<'_>,
+    base_dir: &Path,
+    pmp_path: &Path,
+    project_id: &str,
+) -> Result<usize, String> {
+    let mut stmt = tx
+        .prepare("SELECT id, sha256, rel_path FROM media_assets WHERE project_id = ?1")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![project_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut records = Vec::new();
+    for row in rows {
+        records.push(row.map_err(|e| e.to_string())?);
+    }
+    drop(stmt);
+
+    let mut repaired = 0usize;
+    for (asset_id, sha256, rel_path) in records {
+        let stored_path = PathBuf::from(&rel_path);
+        let current_path = if stored_path.is_absolute() {
+            stored_path.clone()
+        } else {
+            base_dir.join(&stored_path)
+        };
+
+        let next_path = if current_path.exists() {
+            current_path
+        } else if let Some(found) = find_media_asset_file(base_dir, pmp_path, &sha256) {
+            found
+        } else {
+            continue;
+        };
+
+        let next_rel_path = compute_rel_path(&next_path, base_dir)?;
+        if next_rel_path != rel_path {
+            tx.execute(
+                "UPDATE media_assets SET rel_path = ?1 WHERE project_id = ?2 AND id = ?3",
+                params![next_rel_path, project_id, asset_id],
+            )
+            .map_err(|e| e.to_string())?;
+            repaired += 1;
+        }
+    }
+    Ok(repaired)
+}
+
+fn sync_feature_media_metadata(tx: &Transaction<'_>, project_id: &str) -> Result<usize, String> {
+    let mut stmt = tx
+        .prepare(
+            "SELECT fm.feature_id, fm.asset_id
+             FROM feature_media fm
+             JOIN features f ON f.id = fm.feature_id
+             JOIN media_assets ma ON ma.id = fm.asset_id
+             WHERE f.project_id = ?1 AND ma.project_id = ?1
+             ORDER BY fm.feature_id, fm.sort_order, fm.asset_id",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![project_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut grouped: std::collections::BTreeMap<String, Vec<String>> =
+        std::collections::BTreeMap::new();
+    for row in rows {
+        let (feature_id, asset_id) = row.map_err(|e| e.to_string())?;
+        grouped.entry(feature_id).or_default().push(asset_id);
+    }
+    drop(stmt);
+
+    let mut repaired = 0usize;
+    for (feature_id, asset_ids) in grouped {
+        let metadata_text: Option<String> = tx
+            .query_row(
+                "SELECT metadata_json FROM features WHERE project_id = ?1 AND id = ?2",
+                params![project_id, feature_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+        let Some(metadata_text) = metadata_text else {
+            continue;
+        };
+        let mut metadata =
+            serde_json::from_str::<Value>(&metadata_text).unwrap_or_else(|_| json!({}));
+        let Some(metadata_obj) = metadata.as_object_mut() else {
+            continue;
+        };
+        let mut media = metadata_obj
+            .remove("media")
+            .filter(|value| value.is_object())
+            .unwrap_or_else(|| json!({}));
+        let media_obj = media.as_object_mut().expect("media object");
+        let existing = media_obj
+            .get("imageAssetIds")
+            .and_then(Value::as_array)
+            .map(|values| {
+                values
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let existing_primary = media_obj
+            .get("primaryImageAssetId")
+            .and_then(Value::as_str)
+            .map(ToString::to_string);
+        let next_primary = asset_ids.first().cloned();
+
+        if existing == asset_ids && existing_primary == next_primary {
+            metadata_obj.insert("media".to_string(), media);
+            continue;
+        }
+
+        media_obj.insert(
+            "imageAssetIds".to_string(),
+            Value::Array(asset_ids.iter().map(|asset_id| json!(asset_id)).collect()),
+        );
+        if let Some(primary) = next_primary {
+            media_obj.insert("primaryImageAssetId".to_string(), json!(primary));
+        } else {
+            media_obj.remove("primaryImageAssetId");
+        }
+        media_obj.remove("imageUrl");
+        media_obj.remove("imageUrls");
+        metadata_obj.remove("imageUrl");
+        metadata_obj.remove("imageUrls");
+        metadata_obj.insert("media".to_string(), media);
+
+        tx.execute(
+            "UPDATE features SET metadata_json = ?1, updated_at = CURRENT_TIMESTAMP WHERE project_id = ?2 AND id = ?3",
+            params![metadata.to_string(), project_id, feature_id],
+        )
+        .map_err(|e| e.to_string())?;
+        repaired += 1;
+    }
+    Ok(repaired)
+}
+
+fn backup_legacy_media_migration(pmp_path: &Path) -> Result<(), String> {
+    let backup_path = next_legacy_backup_path(pmp_path);
+    fs::copy(pmp_path, &backup_path)
+        .map_err(|e| format!("Failed to backup .pmp before media migration: {e}"))?;
+
+    let wal_path = wal_path_for(pmp_path);
+    if wal_path.exists() {
+        let wal_backup = PathBuf::from(format!("{}-wal", backup_path.to_string_lossy()));
+        fs::copy(&wal_path, wal_backup)
+            .map_err(|e| format!("Failed to backup .pmp-wal before media migration: {e}"))?;
+    }
+    Ok(())
+}
+
+fn next_legacy_backup_path(pmp_path: &Path) -> PathBuf {
+    let preferred = PathBuf::from(format!("{}.bak", pmp_path.to_string_lossy()));
+    if !preferred.exists() {
+        return preferred;
+    }
+    PathBuf::from(format!(
+        "{}.bak.{}",
+        pmp_path.to_string_lossy(),
+        chrono::Local::now().format("%Y%m%d_%H%M%S")
+    ))
+}
+
+fn hydrate_tables_from_legacy_snapshot_if_needed(
+    tx: &Transaction<'_>,
+    project_id: &str,
+) -> Result<bool, String> {
+    let feature_count: i64 = tx
+        .query_row(
+            "SELECT COUNT(*) FROM features WHERE project_id = ?1",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if feature_count > 0 {
+        return Ok(false);
+    }
+
+    let state = load_legacy_design_state(tx, project_id)?;
+    if !state_has_design_data(&state) {
+        return Ok(false);
+    }
+    replace_state_tables(tx, project_id, &state)?;
+    Ok(true)
+}
+
+fn load_legacy_design_state(tx: &Transaction<'_>, project_id: &str) -> Result<Value, String> {
+    let snapshot_state: Option<String> = tx
+        .query_row(
+            "SELECT state_json FROM project_snapshots WHERE project_id = ?1",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    if let Some(text) = snapshot_state {
+        let value = serde_json::from_str::<Value>(&text).unwrap_or_else(|_| json!({}));
+        if state_has_design_data(&value) {
+            return Ok(value);
+        }
+    }
+
+    let metadata_state: Option<String> = tx
+        .query_row(
+            "SELECT metadata_json FROM projects WHERE id = ?1",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    Ok(metadata_state
+        .and_then(|text| serde_json::from_str::<Value>(&text).ok())
+        .unwrap_or_else(|| json!({})))
+}
+
+fn state_has_design_data(state: &Value) -> bool {
+    ["regions", "layers", "feature_groups", "features"]
+        .iter()
+        .any(|key| {
+            state
+                .get(*key)
+                .and_then(Value::as_object)
+                .map(|items| !items.is_empty())
+                .unwrap_or(false)
+        })
+}
+
+fn migrate_feature_media(
+    tx: &Transaction<'_>,
+    base_dir: &Path,
+    pmp_path: &Path,
+    project_id: &str,
+) -> Result<usize, String> {
+    let mut stmt = tx
+        .prepare("SELECT id, metadata_json FROM features WHERE project_id = ?1")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![project_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut records = Vec::new();
+    for row in rows {
+        records.push(row.map_err(|e| e.to_string())?);
+    }
+    drop(stmt);
+
+    let mut migrated_refs = 0usize;
+    for (feature_id, metadata_text) in records {
+        let mut metadata =
+            serde_json::from_str::<Value>(&metadata_text).unwrap_or_else(|_| json!({}));
+        let migrated = scrub_media_metadata(
+            tx,
+            base_dir,
+            pmp_path,
+            project_id,
+            &feature_id,
+            &mut metadata,
+        )?;
+        if migrated > 0 {
+            migrated_refs += migrated;
+            tx.execute(
+                "UPDATE features SET metadata_json = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+                params![metadata.to_string(), feature_id],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(migrated_refs)
+}
+
+fn scrub_media_metadata(
+    tx: &Transaction<'_>,
+    base_dir: &Path,
+    pmp_path: &Path,
+    project_id: &str,
+    feature_id: &str,
+    metadata: &mut Value,
+) -> Result<usize, String> {
+    let Some(obj) = metadata.as_object_mut() else {
+        return Ok(0);
+    };
+    let mut sources = Vec::new();
+    collect_media_sources(obj.remove("imageUrl"), &mut sources);
+    collect_media_sources(obj.remove("imageUrls"), &mut sources);
+
+    let mut media = obj
+        .remove("media")
+        .filter(|value| value.is_object())
+        .unwrap_or_else(|| json!({}));
+    if let Some(media_obj) = media.as_object_mut() {
+        collect_media_sources(media_obj.remove("imageUrl"), &mut sources);
+        collect_media_sources(media_obj.remove("imageUrls"), &mut sources);
+    }
+
+    let mut asset_ids = Vec::new();
+    let mut external_urls = Vec::new();
+    for source in sources {
+        if source.starts_with("data:") {
+            let input = decode_data_url(&source)?;
+            let asset = persist_media_asset(
+                tx,
+                base_dir,
+                pmp_path,
+                project_id,
+                Some(feature_id),
+                &input.bytes,
+                &input.mime_type,
+            )?;
+            if let Some(asset_id) = asset.get("assetId").and_then(Value::as_str) {
+                asset_ids.push(asset_id.to_string());
+            }
+        } else if !source.trim().is_empty() {
+            external_urls.push(source);
+        }
+    }
+
+    if let Some(media_obj) = media.as_object_mut() {
+        let mut existing = media_obj
+            .get("imageAssetIds")
+            .and_then(Value::as_array)
+            .map(|values| {
+                values
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        for asset_id in asset_ids {
+            if !existing.contains(&asset_id) {
+                existing.push(asset_id);
+            }
+        }
+        if !existing.is_empty() {
+            if media_obj.get("primaryImageAssetId").is_none() {
+                media_obj.insert(
+                    "primaryImageAssetId".to_string(),
+                    Value::String(existing[0].clone()),
+                );
+            }
+            media_obj.insert(
+                "imageAssetIds".to_string(),
+                Value::Array(existing.iter().map(|id| json!(id)).collect()),
+            );
+        }
+        if !external_urls.is_empty() {
+            media_obj.insert(
+                "externalUrls".to_string(),
+                Value::Array(external_urls.iter().map(|url| json!(url)).collect()),
+            );
+        }
+    }
+    obj.insert("media".to_string(), media);
+    Ok(obj
+        .get("media")
+        .and_then(|value| value.get("imageAssetIds"))
+        .and_then(Value::as_array)
+        .map(|values| values.len())
+        .unwrap_or(0))
+}
+
+fn collect_media_sources(value: Option<Value>, sources: &mut Vec<String>) {
+    match value {
+        Some(Value::String(text)) => sources.push(text),
+        Some(Value::Array(values)) => {
+            for value in values {
+                if let Some(text) = value.as_str() {
+                    sources.push(text.to_string());
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn compact_large_events(tx: &Transaction<'_>, project_id: &str) -> Result<usize, String> {
+    let mut stmt = tx
+        .prepare(
+            "SELECT global_seq, entity_id, event_type, length(payload_json)
+             FROM events
+             WHERE project_id = ?1 AND length(payload_json) > ?2",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![project_id, MAX_EVENT_PAYLOAD_BYTES as i64], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i64>(3)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut records = Vec::new();
+    for row in rows {
+        records.push(row.map_err(|e| e.to_string())?);
+    }
+    drop(stmt);
+
+    for (global_seq, entity_id, event_type, original_bytes) in &records {
+        let compacted = json!({
+            "type": "CompactedEvent",
+            "originalEventType": event_type,
+            "entityId": entity_id,
+            "originalPayloadBytes": original_bytes,
+            "compactedAt": chrono::Local::now().to_rfc3339(),
+            "reason": "payload exceeded storage budget"
+        });
+        tx.execute(
+            "UPDATE events SET payload_json = ?1, metadata_json = json_patch(metadata_json, json(?2)) WHERE global_seq = ?3",
+            params![
+                compacted.to_string(),
+                json!({"compacted": true}).to_string(),
+                global_seq
+            ],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(records.len())
 }
 
 fn empty_design_state() -> Value {
@@ -435,6 +1898,12 @@ fn merge_objects(base: &mut Value, patch: &Value) {
 
 fn persist_event(tx: &Transaction<'_>, envelope: &EventEnvelope) -> Result<(), String> {
     let payload = serde_json::to_string(&envelope.event).map_err(|e| e.to_string())?;
+    if payload.len() > MAX_EVENT_PAYLOAD_BYTES {
+        return Err(format!(
+            "Event payload is too large ({} bytes). Store media through import_media_asset before dispatching the event.",
+            payload.len()
+        ));
+    }
     let meta = serde_json::to_string(&envelope.metadata.clone().unwrap_or_else(|| json!({})))
         .map_err(|e| e.to_string())?;
     tx.execute(
@@ -776,8 +2245,18 @@ fn rebuild_project_snapshot(tx: &Transaction<'_>, project_id: &str) -> Result<()
     )
     .map_err(|e| e.to_string())?;
     tx.execute(
-        "UPDATE projects SET metadata_json = ?1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?2",
-        params![snapshot.to_string(), project_id],
+        "UPDATE projects
+         SET metadata_json = json_patch(COALESCE(metadata_json, '{}'), json(?1)),
+             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         WHERE id = ?2",
+        params![
+            json!({
+                "schema_version": "4.0.0",
+                "storage": {"snapshot": "project_snapshots"}
+            })
+            .to_string(),
+            project_id
+        ],
     )
     .map_err(|e| e.to_string())?;
     Ok(())
@@ -1202,11 +2681,11 @@ mod tests {
         let loaded: String = reopened
             .conn
             .query_row(
-                "SELECT metadata_json FROM projects WHERE id = ?1",
+                "SELECT state_json FROM project_snapshots WHERE project_id = ?1",
                 params![project_id],
                 |r| r.get(0),
             )
-            .expect("select metadata_json");
+            .expect("select state_json");
         let parsed: Value = serde_json::from_str(&loaded).expect("json parse");
 
         assert!(
@@ -1328,5 +2807,330 @@ mod tests {
             )
             .expect("feature count");
         assert_eq!(feature_count, 1);
+    }
+
+    #[test]
+    fn media_asset_path_follows_design_tree_hierarchy() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("tree_media.pmp");
+        let mut db = PmpDatabase::open_or_create(pmp_path.clone()).expect("open db");
+        let project_id = "project-tree";
+        db.conn
+            .execute(
+                "INSERT INTO projects (id, name, title) VALUES (?1, ?2, ?3)",
+                params![project_id, "Tree Project", "Tree Project"],
+            )
+            .expect("project");
+        db.conn
+            .execute(
+                "INSERT INTO regions (id, project_id, name, metadata_json) VALUES (?1, ?2, ?3, ?4)",
+                params!["region-1", project_id, "Khu A", "{}"],
+            )
+            .expect("region");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, region_id, name, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params!["layer-1", project_id, "region-1", "Tuyen camera", "{}"],
+            )
+            .expect("layer");
+        db.conn
+            .execute(
+                "INSERT INTO feature_groups (id, project_id, layer_id, name, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params!["group-1", project_id, "layer-1", "Nut giao", "{}"],
+            )
+            .expect("group");
+        db.conn
+            .execute(
+                "INSERT INTO features (id, project_id, layer_id, group_id, name, geom_type, properties_json, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    "parent-feature",
+                    project_id,
+                    "layer-1",
+                    "group-1",
+                    "Nga tu A",
+                    "Point",
+                    "{}",
+                    "{}"
+                ],
+            )
+            .expect("parent feature");
+        db.conn
+            .execute(
+                "INSERT INTO features (id, project_id, layer_id, group_id, name, geom_type, properties_json, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    "child-feature",
+                    project_id,
+                    "layer-1",
+                    "group-1",
+                    "Camera 01",
+                    "Point",
+                    "{}",
+                    json!({"parent_feature_id": "parent-feature"}).to_string()
+                ],
+            )
+            .expect("child feature");
+
+        let tx = db.conn.transaction().expect("tx");
+        let asset = persist_media_asset(
+            &tx,
+            dir.path(),
+            &pmp_path,
+            project_id,
+            Some("child-feature"),
+            b"image-bytes",
+            "image/jpeg",
+        )
+        .expect("persist asset");
+        tx.commit().expect("commit");
+
+        let rel_path = asset.get("relPath").and_then(Value::as_str).unwrap_or("");
+        let data_url = asset.get("dataUrl").and_then(Value::as_str).unwrap_or("");
+        assert!(rel_path.contains("Khu A [region-1]"));
+        assert!(rel_path.contains("Tuyen camera [layer-1]"));
+        assert!(rel_path.contains("Nut giao [group-1]"));
+        assert!(rel_path.contains("Nga tu A [parent-f]"));
+        assert!(rel_path.contains("Camera 01 [child-fe]"));
+        assert!(data_url.starts_with("data:image/jpeg;base64,"));
+
+        let metadata_text: String = db
+            .conn
+            .query_row(
+                "SELECT metadata_json FROM features WHERE id = ?1",
+                params!["child-feature"],
+                |row| row.get(0),
+            )
+            .expect("metadata");
+        let metadata: Value = serde_json::from_str(&metadata_text).expect("metadata json");
+        let asset_id = asset.get("assetId").and_then(Value::as_str).unwrap_or("");
+        assert_eq!(
+            metadata
+                .get("media")
+                .and_then(|media| media.get("imageAssetIds"))
+                .and_then(Value::as_array)
+                .and_then(|ids| ids.first())
+                .and_then(Value::as_str),
+            Some(asset_id)
+        );
+
+        let (_tx, rx) = mpsc::channel(1);
+        let worker = StorageWorker { rx, db };
+        let resolved = worker
+            .resolve_media_asset(project_id, asset_id)
+            .expect("resolve asset");
+        assert_eq!(
+            resolved.get("assetId").and_then(Value::as_str),
+            Some(asset_id)
+        );
+        assert!(resolved
+            .get("dataUrl")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .starts_with("data:image/jpeg;base64,"));
+    }
+
+    #[test]
+    fn opening_old_project_migrates_base64_media_to_assets() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("legacy_media.pmp");
+        let db = PmpDatabase::open_or_create(pmp_path.clone()).expect("open db");
+        let project_id = "legacy-project";
+        let data_url = format!(
+            "data:image/png;base64,{}",
+            general_purpose::STANDARD.encode(b"legacy-image")
+        );
+
+        db.conn
+            .execute(
+                "INSERT INTO projects (id, name, title, metadata_json) VALUES (?1, ?2, ?3, ?4)",
+                params![project_id, "Legacy", "Legacy", "{}"],
+            )
+            .expect("project");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name, metadata_json) VALUES (?1, ?2, ?3, ?4)",
+                params!["layer-1", project_id, "Layer", "{}"],
+            )
+            .expect("layer");
+        db.conn
+            .execute(
+                "INSERT INTO features (id, project_id, layer_id, name, geom_type, properties_json, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    "feature-1",
+                    project_id,
+                    "layer-1",
+                    "Camera",
+                    "Point",
+                    "{}",
+                    json!({"media": {"imageUrl": data_url.clone()}}).to_string()
+                ],
+            )
+            .expect("feature");
+        db.conn
+            .execute(
+                "INSERT INTO project_snapshots (project_id, state_json) VALUES (?1, ?2)",
+                params![
+                    project_id,
+                    json!({
+                        "layers": {"layer-1": {"id": "layer-1", "name": "Layer"}},
+                        "features": {
+                            "feature-1": {
+                                "id": "feature-1",
+                                "layer_id": "layer-1",
+                                "name": "Camera",
+                                "geom_type": "Point",
+                                "metadata": json!({"media": {"imageUrl": data_url}}).to_string(),
+                                "properties": {},
+                                "coordinates": null
+                            }
+                        }
+                    })
+                    .to_string()
+                ],
+            )
+            .expect("snapshot");
+
+        let (_tx, rx) = mpsc::channel(1);
+        let mut worker = StorageWorker { rx, db };
+        worker
+            .auto_migrate_legacy_media_on_open()
+            .expect("auto migrate");
+
+        assert!(PathBuf::from(format!("{}.bak", pmp_path.to_string_lossy())).exists());
+
+        let metadata_text: String = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT metadata_json FROM features WHERE id = ?1",
+                params!["feature-1"],
+                |row| row.get(0),
+            )
+            .expect("metadata");
+        assert!(!metadata_text.contains("data:image"));
+        let metadata: Value = serde_json::from_str(&metadata_text).expect("metadata json");
+        let asset_id = metadata
+            .get("media")
+            .and_then(|media| media.get("imageAssetIds"))
+            .and_then(Value::as_array)
+            .and_then(|ids| ids.first())
+            .and_then(Value::as_str)
+            .expect("asset id");
+
+        let rel_path: String = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT rel_path FROM media_assets WHERE id = ?1",
+                params![asset_id],
+                |row| row.get(0),
+            )
+            .expect("asset rel path");
+        assert!(worker.db.base_dir.join(rel_path).exists());
+
+        let snapshot_text: String = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT state_json FROM project_snapshots WHERE project_id = ?1",
+                params![project_id],
+                |row| row.get(0),
+            )
+            .expect("snapshot");
+        assert!(!snapshot_text.contains("data:image"));
+        assert!(snapshot_text.contains(asset_id));
+    }
+
+    #[test]
+    fn media_assets_relink_after_project_folder_move() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("portable_media.pmp");
+        let mut db = PmpDatabase::open_or_create(pmp_path.clone()).expect("open db");
+        let project_id = "portable-project";
+        db.conn
+            .execute(
+                "INSERT INTO projects (id, name, title) VALUES (?1, ?2, ?3)",
+                params![project_id, "Portable", "Portable"],
+            )
+            .expect("project");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name, metadata_json) VALUES (?1, ?2, ?3, ?4)",
+                params!["layer-1", project_id, "Layer", "{}"],
+            )
+            .expect("layer");
+        db.conn
+            .execute(
+                "INSERT INTO features (id, project_id, layer_id, name, geom_type, properties_json, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params!["feature-1", project_id, "layer-1", "Camera", "Point", "{}", "{}"],
+            )
+            .expect("feature");
+
+        let tx = db.conn.transaction().expect("tx");
+        let asset = persist_media_asset(
+            &tx,
+            dir.path(),
+            &pmp_path,
+            project_id,
+            Some("feature-1"),
+            b"portable-image",
+            "image/png",
+        )
+        .expect("persist asset");
+        tx.commit().expect("commit");
+        let asset_id = asset.get("assetId").and_then(Value::as_str).unwrap_or("");
+        let sha256 = asset.get("sha256").and_then(Value::as_str).unwrap_or("");
+
+        db.conn
+            .execute(
+                "UPDATE media_assets SET rel_path = ?1 WHERE id = ?2",
+                params![format!(r"C:\old-machine\missing\{sha256}.png"), asset_id],
+            )
+            .expect("break rel path");
+        db.conn
+            .execute(
+                "UPDATE features SET metadata_json = '{}' WHERE id = ?1",
+                params!["feature-1"],
+            )
+            .expect("break metadata link");
+
+        let (_tx, rx) = mpsc::channel(1);
+        let mut worker = StorageWorker { rx, db };
+        worker
+            .auto_migrate_legacy_media_on_open()
+            .expect("repair links");
+
+        let resolved = worker
+            .resolve_media_asset(project_id, asset_id)
+            .expect("resolve repaired asset");
+        let repaired_rel_path = resolved
+            .get("relPath")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        assert!(!PathBuf::from(repaired_rel_path).is_absolute());
+        assert!(resolved
+            .get("dataUrl")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .starts_with("data:image/png;base64,"));
+
+        let metadata_text: String = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT metadata_json FROM features WHERE id = ?1",
+                params!["feature-1"],
+                |row| row.get(0),
+            )
+            .expect("metadata");
+        let metadata: Value = serde_json::from_str(&metadata_text).expect("metadata json");
+        assert_eq!(
+            metadata
+                .get("media")
+                .and_then(|media| media.get("imageAssetIds"))
+                .and_then(Value::as_array)
+                .and_then(|ids| ids.first())
+                .and_then(Value::as_str),
+            Some(asset_id)
+        );
     }
 }

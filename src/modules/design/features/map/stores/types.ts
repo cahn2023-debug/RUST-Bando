@@ -67,6 +67,7 @@ export type DrawingSlice = {
     currentDrawingSnapIds: (string | null)[];
     snappedPoint: { x: number, y: number, id?: string } | null;
     activeParentFeatureId: string | null;
+    networkConnectionDraft: { fromFeatureId: string; toFeatureId: string } | null;
 
     setDrawingMode: (mode: DrawingSlice['drawingMode']) => void;
     setEditingFeatureId: (id: string | null) => void;
@@ -74,6 +75,8 @@ export type DrawingSlice = {
     addDrawingPoint: (lat: number, lng: number, snapId?: string | null) => void;
     clearDrawingPoints: () => void;
     setSnappedPoint: (point: DrawingSlice['snappedPoint']) => void;
+    setNetworkConnectionDraft: (draft: { fromFeatureId: string; toFeatureId: string } | null) => void;
+    clearNetworkConnectionDraft: () => void;
 
     // High-level drawing actions
     setDrawingPoint: (index: number, lat: number, lng: number, snapId?: string | null) => Promise<void>;

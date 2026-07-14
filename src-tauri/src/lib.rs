@@ -8,18 +8,27 @@ pub use implement::modules;
 pub fn run() {
     env_logger::init();
     let (tx, rx) = tokio::sync::mpsc::channel(1024);
-    
+
     // Khởi tạo DB & Worker ngay khi app start
     let pmp_path = std::path::PathBuf::from("./default_project.pmp");
-    let db = crate::domain::implement::modules::v2::storage::connection::PmpDatabase::open_or_create(pmp_path)
+    let db =
+        crate::domain::implement::modules::v2::storage::connection::PmpDatabase::open_or_create(
+            pmp_path,
+        )
         .expect("Failed to init V2 DB");
-    
-    let _handle = crate::domain::implement::modules::v2::pipeline::worker_storage::StorageWorker::spawn(rx, db);
+
+    let _handle =
+        crate::domain::implement::modules::v2::pipeline::worker_storage::StorageWorker::spawn(
+            rx, db,
+        );
 
     use tauri::Manager;
     tauri::Builder::default()
         .setup(|app| {
-            let app_data_dir = app.path().app_data_dir().expect("Failed to get app data dir");
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .expect("Failed to get app data dir");
             let state = crate::domain::implement::state::hydrator::load_state(&app_data_dir);
             app.manage(state);
             Ok(())
@@ -79,6 +88,11 @@ pub fn run() {
             crate::domain::implement::commands::v2_bridge::get_notes_legacy,
             crate::domain::implement::commands::v2::get_projects,
             crate::domain::implement::commands::v2::close_active_project,
+            crate::domain::implement::commands::v2::import_media_asset,
+            crate::domain::implement::commands::v2::delete_media_asset,
+            crate::domain::implement::commands::v2::resolve_media_asset,
+            crate::domain::implement::commands::v2::optimize_project_storage,
+            crate::domain::implement::commands::v2::get_project_storage_health,
             crate::domain::implement::commands::v2::remove_recent_project,
             crate::domain::implement::commands::v2::delete_project,
             crate::domain::implement::commands::v2::rebuild_fts_v2,

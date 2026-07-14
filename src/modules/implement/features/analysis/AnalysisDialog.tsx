@@ -125,7 +125,7 @@ const getColumnWidth = (key: string) => {
 
 const buildDisplayValue = (value: unknown) => {
   if (typeof value === 'boolean') {
-    return value ? 'Co' : 'Khong';
+    return value ? 'Có' : 'Không';
   }
   return value;
 };

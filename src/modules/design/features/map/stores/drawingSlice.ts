@@ -21,11 +21,12 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
     currentDrawingSnapIds: [],
     snappedPoint: null,
     activeParentFeatureId: null,
+    networkConnectionDraft: null,
 
     setDrawingMode: (mode) => {
         const currentMode = get().drawingMode;
         if (currentMode !== mode) {
-            set({ drawingMode: mode, currentDrawingPoints: [], currentDrawingSnapIds: [] });
+            set({ drawingMode: mode, currentDrawingPoints: [], currentDrawingSnapIds: [], networkConnectionDraft: null });
             emit('sync-drawing-mode', { mode });
         }
     },
@@ -39,6 +40,8 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
     },
     clearDrawingPoints: () => set({ currentDrawingPoints: [], currentDrawingSnapIds: [] }),
     setSnappedPoint: (point) => set({ snappedPoint: point }),
+    setNetworkConnectionDraft: (draft) => set({ networkConnectionDraft: draft }),
+    clearNetworkConnectionDraft: () => set({ networkConnectionDraft: null }),
 
     setDrawingPoint: async (index, lat, lng, snapId = null) => {
         const { state, editingFeatureId, dispatchEvent } = get();

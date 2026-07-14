@@ -58,6 +58,15 @@ pub struct DatasetMetaResponse {
     pub sample_data: Option<Vec<BTreeMap<String, String>>>,
 }
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportMediaAssetPayload {
+    pub project_id: String,
+    pub feature_id: String,
+    pub data_url: Option<String>,
+    pub file_path: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ImportFeatureRecord {
     pub id: String,
@@ -1420,10 +1429,7 @@ async fn dashboard_project_stats_for_project(
         .ok_or_else(|| "Analytics query returned no rows".to_string())?;
 
     Ok(DashboardProjectStats {
-        total_files: row
-            .get("total_files")
-            .and_then(Value::as_i64)
-            .unwrap_or(0),
+        total_files: row.get("total_files").and_then(Value::as_i64).unwrap_or(0),
         total_size: row.get("total_size").and_then(Value::as_i64).unwrap_or(0),
     })
 }
@@ -1729,6 +1735,7 @@ pub async fn close_active_project(
     app: AppHandle,
     state: State<'_, ActorState>,
 ) -> Result<(), String> {
+    _save_project(&state).await?;
     let _ = exec_query(
         &state,
         "DELETE FROM sys_config WHERE key IN ('active_project_id', 'active_project_path')",
@@ -1740,6 +1747,122 @@ pub async fn close_active_project(
     app_state.pending_open_path = None;
     app_state.v2_loaded = false;
     persist_app_state(&app_data_dir, &app_state)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn import_media_asset(
+    state: State<'_, ActorState>,
+    projectId: Option<String>,
+    featureId: Option<String>,
+    dataUrl: Option<String>,
+    filePath: Option<String>,
+    payload: Option<ImportMediaAssetPayload>,
+) -> Result<Value, String> {
+    let (project_id, feature_id, data_url, file_path) = if let Some(payload) = payload {
+        (
+            payload.project_id,
+            payload.feature_id,
+            payload.data_url,
+            payload.file_path,
+        )
+    } else {
+        (
+            projectId.ok_or_else(|| "Missing projectId".to_string())?,
+            featureId.ok_or_else(|| "Missing featureId".to_string())?,
+            dataUrl,
+            filePath,
+        )
+    };
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::ImportMediaAsset {
+            project_id,
+            feature_id,
+            data_url,
+            file_path,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn delete_media_asset(
+    state: State<'_, ActorState>,
+    projectId: String,
+    assetId: String,
+) -> Result<(), String> {
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::DeleteMediaAsset {
+            project_id: projectId,
+            asset_id: assetId,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn resolve_media_asset(
+    state: State<'_, ActorState>,
+    projectId: String,
+    assetId: String,
+) -> Result<Value, String> {
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::ResolveMediaAsset {
+            project_id: projectId,
+            asset_id: assetId,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn optimize_project_storage(
+    state: State<'_, ActorState>,
+    projectId: String,
+) -> Result<Value, String> {
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::OptimizeProjectStorage {
+            project_id: projectId,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn get_project_storage_health(
+    state: State<'_, ActorState>,
+    projectId: String,
+) -> Result<Value, String> {
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::GetProjectHealth {
+            project_id: projectId,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -2357,15 +2480,14 @@ mod tests {
         .expect("insert file 3");
 
         let stats = dashboard_project_stats_for_project(&actor_state, project_id.to_string())
-        .await
-        .expect("stats");
+            .await
+            .expect("stats");
         let dist = dashboard_extension_dist_for_project(&actor_state, project_id.to_string())
-        .await
-        .expect("dist");
-        let top_files =
-            dashboard_top_files_for_project(&actor_state, project_id.to_string(), 2)
-        .await
-        .expect("top files");
+            .await
+            .expect("dist");
+        let top_files = dashboard_top_files_for_project(&actor_state, project_id.to_string(), 2)
+            .await
+            .expect("top files");
 
         assert_eq!(
             stats,
@@ -2419,15 +2541,14 @@ mod tests {
         seed_dashboard_project(&actor_state, project_id).await;
 
         let stats = dashboard_project_stats_for_project(&actor_state, project_id.to_string())
-        .await
-        .expect("stats");
+            .await
+            .expect("stats");
         let dist = dashboard_extension_dist_for_project(&actor_state, project_id.to_string())
-        .await
-        .expect("dist");
-        let top_files =
-            dashboard_top_files_for_project(&actor_state, project_id.to_string(), 10)
-        .await
-        .expect("top files");
+            .await
+            .expect("dist");
+        let top_files = dashboard_top_files_for_project(&actor_state, project_id.to_string(), 10)
+            .await
+            .expect("top files");
 
         assert_eq!(
             stats,

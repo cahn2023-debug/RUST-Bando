@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
 import { PalettePanel } from "@DESIGN/features/map/Palette/PalettePanel";
 import { VerticalResizeHandle } from "@DESIGN/components/ui/VerticalResizeHandle";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { PaletteRegistry } from "@DESIGN/features/map/Palette/PaletteRegistry";
+import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 
 interface PaletteSystemProps {
     isOneObjectSelected: boolean;
@@ -16,6 +17,28 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
     const layoutColumns = useLayoutStore(s => s.layoutColumns);
     const paletteConfigs = useLayoutStore(s => s.paletteConfigs);
     const updatePaletteFlex = useLayoutStore(s => s.updatePaletteFlex);
+    const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
+    const selectedFeature = useDesignSync(s => selectedFeatureId ? s.state?.features?.[selectedFeatureId] : null);
+    const togglePalette = useLayoutStore(s => s.togglePalette);
+
+    useEffect(() => {
+        if (!selectedFeature) return;
+
+        let metadata: any = {};
+        try {
+            metadata = typeof selectedFeature.metadata === 'string'
+                ? JSON.parse(selectedFeature.metadata || '{}')
+                : selectedFeature.metadata;
+        } catch {
+            metadata = {};
+        }
+        const isIntersection = metadata?.network?.role === 'intersection';
+        const networkConfig = paletteConfigs['network-graph'];
+
+        if (isIntersection && networkConfig && !networkConfig.isVisible && !networkConfig.userClosed) {
+            togglePalette('network-graph');
+        }
+    }, [paletteConfigs, selectedFeature, togglePalette]);
 
     const renderPaletteContent = (id: string) => {
         const RegisteredComponent = PaletteRegistry.getComponent(id);
@@ -28,11 +51,24 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
         );
     };
 
+    const rightLayoutColumns = layoutColumns
+        .map(column => column.filter(id => paletteConfigs[id]?.dockPosition !== 'bottom'))
+        .filter(column => column.length > 0);
+    const bottomPalettes = layoutColumns
+        .flat()
+        .filter(id => paletteConfigs[id]?.dockPosition === 'bottom' && paletteConfigs[id]?.isVisible && !paletteConfigs[id]?.isFloating);
+
+    const bottomHeight = bottomPalettes.reduce((sum, id) => sum + (paletteConfigs[id]?.height || 320), 0);
+
     return (
-        <div className="flex shrink-0 palette-container h-full flex-row-reverse overflow-x-auto transition-all duration-300 ease-in-out">
-            {layoutColumns.map((column, colIdx) => {
+        <>
+        <div 
+            className="flex shrink-0 palette-container flex-row-reverse overflow-x-auto transition-all duration-300 ease-in-out"
+            style={{ height: bottomHeight > 0 ? `calc(100% - ${bottomHeight}px)` : '100%' }}
+        >
+            {rightLayoutColumns.map((column, colIdx) => {
                 const visiblePalettes = column.filter(id => {
-                    return paletteConfigs[id]?.isVisible && !paletteConfigs[id]?.isFloating;
+                    return paletteConfigs[id]?.isVisible && !paletteConfigs[id]?.isFloating && paletteConfigs[id]?.dockPosition !== 'bottom';
                 });
                 if (visiblePalettes.length === 0) return null;
 
@@ -74,5 +110,17 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
                 </PalettePanel>
             ))}
         </div>
+        {bottomPalettes.length > 0 && (
+            <div className="fixed left-0 right-[32px] bottom-0 z-[1900] pointer-events-auto">
+                {bottomPalettes.map(id => (
+                    <PalettePanel key={id} id={id}>
+                        <div className="flex-1 overflow-hidden p-1.5 custom-scrollbar h-full">
+                            {renderPaletteContent(id)}
+                        </div>
+                    </PalettePanel>
+                ))}
+            </div>
+        )}
+        </>
     );
 });

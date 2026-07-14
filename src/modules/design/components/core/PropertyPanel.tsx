@@ -19,6 +19,7 @@ import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmatio
 import { cn } from '@TOOL/utils/cn';
 import { useProjectData } from '@IMPLEMENT/hooks/useProjectData';
 import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
+import { deleteMediaAsset, importMediaAsset, resolveMediaAsset } from '@IMPLEMENT/services/mediaAssetService';
 
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { buildFeaturePropertiesForPersistence, getTypeForIcon } from '@TOOL/utils/featurePersistence';
@@ -50,6 +51,36 @@ const asNumberValue = (value: unknown, fallback = 0): number => {
 
 const asStringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+
+const getMediaAssetIds = (metadata: FeatureMetadata): string[] => {
+  const media = asRecord(metadata.media);
+  return asStringArray(media?.imageAssetIds);
+};
+
+const getLegacyImageUrls = (metadata: FeatureMetadata): string[] => {
+  const media = asRecord(metadata.media);
+  const urls = asStringArray(media?.imageUrls);
+  const single = typeof media?.imageUrl === 'string' ? media.imageUrl : undefined;
+  return single && !urls.includes(single) ? [single, ...urls] : urls;
+};
+
+const isRenderableImageUrl = (url: string): boolean =>
+  url.startsWith('data:image') || /^https?:\/\//i.test(url);
+
+const withMediaAssets = (metadata: FeatureMetadata, assetIds: string[]): FeatureMetadata => {
+  const media = asRecord(metadata.media) || {};
+  const nextMedia: Record<string, unknown> = {
+    ...media,
+    imageAssetIds: assetIds,
+    primaryImageAssetId: assetIds[0] || undefined,
+  };
+  delete nextMedia.imageUrl;
+  delete nextMedia.imageUrls;
+  return {
+    ...metadata,
+    media: nextMedia,
+  };
+};
 
 const getOrderFieldLabel = (metadata: Record<string, unknown>, properties?: FeatureProperties): string =>
   getDeclaredOrderFieldKey(metadata, properties as Record<string, unknown> | undefined) || 'Mã hiệu (STT)';
@@ -765,6 +796,14 @@ export const PropertyPanel: React.FC = () => {
     : localName;
   const isMetadataDirty = !!feature && JSON.stringify(preparePropertyMetadata(draftMeta, feature.properties as FeatureProperties)) !== persistedMetaJson;
   const isNameDirty = !!feature && draftName !== persistedName;
+  const [resolvedMediaUrls, setResolvedMediaUrls] = useState<Record<string, string>>({});
+  const mediaSourceMeta = draftMeta || localMeta;
+  const imageAssetIds = getMediaAssetIds(mediaSourceMeta);
+  const legacyImageUrls = getLegacyImageUrls(mediaSourceMeta).filter(isRenderableImageUrl);
+  const displayImageUrls = imageAssetIds
+    .map((assetId) => resolvedMediaUrls[assetId])
+    .filter((url): url is string => !!url)
+    .concat(legacyImageUrls);
 
   // Cleanup preview on unmount or when changing feature
   useEffect(() => {
@@ -772,6 +811,31 @@ export const PropertyPanel: React.FC = () => {
       setPreview(null, null);
     };
   }, [selectedFeatureId]);
+
+  useEffect(() => {
+    if (!projectId || imageAssetIds.length === 0) {
+      setResolvedMediaUrls({});
+      return;
+    }
+    let cancelled = false;
+    Promise.all(
+      imageAssetIds.map(async (assetId) => {
+        const asset = await resolveMediaAsset(String(projectId), assetId);
+        return [assetId, asset.src] as const;
+      })
+    )
+      .then((entries) => {
+        if (!cancelled) {
+          setResolvedMediaUrls(Object.fromEntries(entries));
+        }
+      })
+      .catch((error) => {
+        console.error('[PropertyPanel] Failed to resolve media assets:', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, imageAssetIds.join('|')]);
 
   // Helper to get nested metadata values with legacy fallback
   const getMetaValue = (path: string, legacyKey?: string): unknown => {
@@ -828,10 +892,44 @@ export const PropertyPanel: React.FC = () => {
     }
   };
 
-  const appendImageUrls = (dataUrls: string[]) => {
+  const persistMediaAssetMetadata = async (nextMeta: FeatureMetadata) => {
+    if (!feature) return;
+    const standardizedMeta = preparePropertyMetadata(nextMeta, feature.properties as FeatureProperties);
+    await queueEvent({
+      type: 'FeatureUpdated',
+      payload: {
+        id: feature.id,
+        metadata: JSON.stringify(standardizedMeta),
+      },
+    });
+  };
+
+  const appendImageUrls = async (dataUrls: string[]) => {
     if (dataUrls.length === 0) return;
-    const currentImages = asStringArray(getMetaValue('media.imageUrls', 'imageUrls'));
-    updateNestedMeta('media.imageUrls', [...currentImages, ...dataUrls]);
+    if (!projectId || !selectedFeatureId || !feature) return;
+    const imported = await Promise.all(
+      dataUrls.map((dataUrl) => importMediaAsset(String(projectId), selectedFeatureId, dataUrl))
+    );
+    const currentAssetIds = getMediaAssetIds(localMeta);
+    const nextAssetIds = [
+      ...currentAssetIds,
+      ...imported.map((asset) => asset.assetId || asset.id),
+    ];
+    setResolvedMediaUrls((prev) => ({
+      ...prev,
+      ...Object.fromEntries(imported.map((asset, index) => [asset.assetId || asset.id, dataUrls[index]])),
+    }));
+    const nextMeta = updateMediaAssets(nextAssetIds);
+    await persistMediaAssetMetadata(nextMeta);
+  };
+
+  const updateMediaAssets = (assetIds: string[]): FeatureMetadata => {
+    const next = withMediaAssets(localMeta, assetIds);
+    setLocalMeta(next);
+    if (selectedFeatureId) {
+      setPreview(selectedFeatureId, next, localName);
+    }
+    return next;
   };
 
   const updateMediaImages = (imageUrls: string[]) => {
@@ -850,32 +948,56 @@ export const PropertyPanel: React.FC = () => {
     }
   };
 
-  const removeImageUrl = (index: number) => {
-    const newImgs = [...asStringArray(getMetaValue('media.imageUrls', 'imageUrls'))];
-    newImgs.splice(index, 1);
+  const removeImageUrl = async (index: number) => {
+    if (index < imageAssetIds.length) {
+      const removedAssetId = imageAssetIds[index];
+      const nextAssetIds = [...imageAssetIds];
+      nextAssetIds.splice(index, 1);
+      if (projectId) {
+        await deleteMediaAsset(String(projectId), removedAssetId);
+      }
+      setResolvedMediaUrls((prev) => {
+        const next = { ...prev };
+        delete next[removedAssetId];
+        return next;
+      });
+      const nextMeta = updateMediaAssets(nextAssetIds);
+      await persistMediaAssetMetadata(nextMeta);
+      return;
+    }
+    const legacyIndex = index - imageAssetIds.length;
+    const newImgs = [...legacyImageUrls];
+    newImgs.splice(legacyIndex, 1);
     updateMediaImages(newImgs);
   };
 
   const replaceImageUrl = async (index: number, dataUrl: string) => {
-    const newImgs = [...asStringArray(getMetaValue('media.imageUrls', 'imageUrls'))];
-    if (!feature || !newImgs[index]) return;
-    newImgs[index] = dataUrl;
+    if (!feature || !projectId) return;
+    const imported = await importMediaAsset(String(projectId), feature.id, dataUrl);
+    const assetId = imported.assetId || imported.id;
+    const nextAssetIds = [...imageAssetIds];
+    const replacedAssetId = index < nextAssetIds.length ? nextAssetIds[index] : null;
+    if (index < nextAssetIds.length) {
+      nextAssetIds[index] = assetId;
+    } else {
+      nextAssetIds.push(assetId);
+    }
+    if (replacedAssetId && replacedAssetId !== assetId) {
+      await deleteMediaAsset(String(projectId), replacedAssetId);
+    }
 
-    const nextMeta = {
-      ...localMeta,
-      media: {
-        ...(asRecord(localMeta.media) || {}),
-        imageUrl: newImgs[0] || undefined,
-        imageUrls: newImgs,
-      },
-    } as FeatureMetadata;
+    const nextMeta = withMediaAssets(localMeta, nextAssetIds);
     const standardizedMeta = preparePropertyMetadata(nextMeta, feature.properties as FeatureProperties);
     const nextProperties = buildFeaturePropertiesForPersistence(
       feature.properties as FeatureProperties | undefined,
       standardizedMeta
     );
 
-    updateMediaImages(newImgs);
+    setResolvedMediaUrls((prev) => ({
+      ...prev,
+      [assetId]: dataUrl,
+    }));
+    updateMediaAssets(nextAssetIds);
     await queueEvent({
       type: 'FeatureUpdated',
       payload: {
@@ -949,7 +1071,9 @@ export const PropertyPanel: React.FC = () => {
     capture
   } = useCamera({
     onCapture: (dataUrl) => {
-      appendImageUrls([dataUrl]);
+      void appendImageUrls([dataUrl]).catch((error) => {
+        console.error('[PropertyPanel] Failed to import captured image:', error);
+      });
     },
     watermarkData: {
       location: (() => {
@@ -973,6 +1097,7 @@ export const PropertyPanel: React.FC = () => {
         console.log('name:', feature.name);
         console.log('metadata(raw):', meta);
         console.log('metadata(normalized):', normalized);
+        console.log('media.imageAssetIds.count:', getMediaAssetIds(normalized).length);
         console.log('properties:', feature.properties);
         console.log('shape:', getDebugShape(normalized, feature.properties as FeatureProperties | undefined));
         console.groupEnd();
@@ -1671,8 +1796,8 @@ export const PropertyPanel: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-2 gap-2">
-            {asStringArray(getMetaValue('media.imageUrls', 'imageUrls')).length > 0 ? (
-              asStringArray(getMetaValue('media.imageUrls', 'imageUrls')).map((url, idx) => (
+            {displayImageUrls.length > 0 ? (
+              displayImageUrls.map((url, idx) => (
                 <div key={idx} className="aspect-video rounded overflow-hidden border border-[#333] relative group">
                   <img src={url} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">

@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { Check, ChevronDown, ChevronRight, Download, Eye, FileText, Loader2, X } from "lucide-react";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
+import { resolveMediaAsset } from "@IMPLEMENT/services/mediaAssetService";
 import { cn } from "@TOOL/utils/cn";
 import {
   buildReportModel,
@@ -11,6 +12,7 @@ import {
   getSelectableReportItems,
   type ReportBounds,
   type ReportModel,
+  type ReportPhoto,
   type ReportSelection,
 } from "./reportModel";
 import { buildReportDocx, type ReportImageMap } from "./reportDocx";
@@ -129,7 +131,13 @@ const captureMissingReportImages = async (
     const section = missingSections[index];
     onProgress?.(index + 1, missingSections.length);
     if (imageMap[section.id]) continue;
-    imageMap[section.id] = await requestMapCapture(section.bounds, `report-${section.id}-${Date.now()}`, 1.5, true);
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const dataUrl = await requestMapCapture(section.bounds, `report-${section.id}-${Date.now()}-${attempt}`, 1.5, true);
+      if (dataUrl) {
+        imageMap[section.id] = dataUrl;
+        break;
+      }
+    }
   }
   return imageMap;
 };
@@ -140,8 +148,42 @@ const capturePreviewImage = async (model: ReportModel, sectionId: string): Promi
   return requestMapCapture(section.bounds, `report-preview-${section.id}-${Date.now()}`, 1.25, true);
 };
 
+const hydrateReportPhotoAssets = async (model: ReportModel, projectId?: string | null): Promise<ReportModel> => {
+  if (!projectId) return model;
+  const cache = new Map<string, string>();
+  const resolvePhotos = async (photos: ReportPhoto[]): Promise<ReportPhoto[]> => {
+    const resolved = await Promise.all(photos.map(async (photo) => {
+      if (photo.dataUrl) return photo;
+      if (!photo.assetId) return null;
+      try {
+        if (!cache.has(photo.assetId)) {
+          const asset = await resolveMediaAsset(projectId, photo.assetId);
+          cache.set(photo.assetId, asset.src);
+        }
+        const dataUrl = cache.get(photo.assetId) || "";
+        return dataUrl ? { ...photo, dataUrl } : null;
+      } catch (error) {
+        console.warn("[ReportExportDialog] Failed to resolve report photo asset:", photo.assetId, error);
+        return null;
+      }
+    }));
+    return resolved.filter((photo): photo is ReportPhoto => !!photo && !!photo.dataUrl);
+  };
+
+  const sections = await Promise.all(model.sections.map(async (section) => ({
+    ...section,
+    photos: await resolvePhotos(section.photos),
+    details: await Promise.all(section.details.map(async (detail) => ({
+      ...detail,
+      photos: await resolvePhotos(detail.photos),
+    }))),
+  })));
+  return { ...model, sections };
+};
+
 export function ReportExportDialog({ projectName, onClose }: ReportExportDialogProps) {
   const state = useDesignSync((store) => store.state);
+  const projectId = useDesignSync((store) => store.projectId);
   const selectedFeatureId = useDesignSync((store) => store.selectedFeatureId);
   const selectedGroupId = useDesignSync((store) => store.selectedGroupId);
   const selectionSet = useDesignSync((store) => store.selectionSet);
@@ -184,10 +226,26 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
     [expandedSelectionKeys, selectableItems],
   );
 
-  const reportModel = useMemo(() => {
+  const baseReportModel = useMemo(() => {
     if (!state) return null;
     return buildReportModel(state, selections, `Báo cáo thiết kế - ${projectName}`);
   }, [projectName, selections, state]);
+  const [reportModel, setReportModel] = useState<ReportModel | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!baseReportModel) {
+      setReportModel(null);
+      return;
+    }
+    hydrateReportPhotoAssets(baseReportModel, projectId)
+      .then((hydrated) => {
+        if (!cancelled) setReportModel(hydrated);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [baseReportModel, projectId]);
 
   const currentSectionId = activeSectionId || reportModel?.sections[0]?.id || null;
 
@@ -269,6 +327,12 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
           setExportStatus(`Đang chụp ảnh bản đồ ${current}/${total}...`);
         })
         : imageMap;
+      if (includeMapImages) {
+        const missingMapImages = reportModel.sections.filter((section) => !nextImageMap[section.id]);
+        if (missingMapImages.length > 0) {
+          throw new Error(`Không chụp được ảnh bản đồ cho ${missingMapImages.length} mục. Vui lòng mở bản đồ và thử xuất lại.`);
+        }
+      }
       setImageMap(nextImageMap);
       const filePath = await save({
         filters: [{ name: "Word Document", extensions: ["docx"] }],
@@ -566,7 +630,7 @@ function ReportPreview({
               {detail.endPoint && <p><strong>Điểm cuối:</strong> {detail.endPoint[1].toFixed(6)}, {detail.endPoint[0].toFixed(6)}</p>}
               {detail.connectedNames.length > 0 && <p><strong>Kết nối/tuyến đi qua:</strong> {detail.connectedNames.join(", ")}</p>}
               <div className="grid grid-cols-2 gap-3 mt-3">
-                {detail.photos.map((photo) => (
+                {detail.photos.filter((photo) => !!photo.dataUrl).map((photo) => (
                   <figure key={photo.id} className="border p-2">
                     <img src={photo.dataUrl} alt={photo.label} loading="lazy" className="w-full h-40 object-contain" />
                     <figcaption className="text-xs text-slate-500 mt-1">{photo.label}</figcaption>

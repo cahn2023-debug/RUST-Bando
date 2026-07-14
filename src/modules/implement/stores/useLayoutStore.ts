@@ -10,6 +10,8 @@ export interface PaletteConfig {
     width: number;
     height?: number;
     flex?: number; // Added for docked relative height
+    dockPosition?: 'right' | 'bottom' | 'floating';
+    userClosed?: boolean;
     isFloating: boolean;
     position: { x: number; y: number };
 }
@@ -44,10 +46,11 @@ export const useLayoutStore = create<LayoutState>()(
             layoutColumns: [['spec-panel', 'summary-panel', 'camera-view', 'device-config']],
             activePaletteId: null,
             paletteConfigs: {
-                'spec-panel': { id: 'spec-panel', title: 'Thông số thiết kế', icon: 'Settings', isPinned: true, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } },
-                'summary-panel': { id: 'summary-panel', title: 'Tổng hợp khối lượng', icon: 'Calculator', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
-                'device-config': { id: 'device-config', title: 'Cấu hình thiết bị', icon: 'Camera', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
-                'camera-view': { id: 'camera-view', title: 'Góc Nhìn', icon: 'Video', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
+                'spec-panel': { id: 'spec-panel', title: 'Thông số thiết kế', icon: 'Settings', isPinned: true, isVisible: true, width: 350, dockPosition: 'right', isFloating: false, position: { x: 0, y: 0 } },
+                'summary-panel': { id: 'summary-panel', title: 'Tổng hợp khối lượng', icon: 'Calculator', isPinned: true, isVisible: false, width: 350, dockPosition: 'right', isFloating: false, position: { x: 0, y: 0 } },
+                'device-config': { id: 'device-config', title: 'Cấu hình thiết bị', icon: 'Camera', isPinned: true, isVisible: false, width: 350, dockPosition: 'right', isFloating: false, position: { x: 0, y: 0 } },
+                'camera-view': { id: 'camera-view', title: 'Góc Nhìn', icon: 'Video', isPinned: true, isVisible: false, width: 350, dockPosition: 'right', isFloating: false, position: { x: 0, y: 0 } },
+                'network-graph': { id: 'network-graph', title: 'Network', icon: 'Network', isPinned: true, isVisible: false, width: 900, height: 320, dockPosition: 'bottom', isFloating: false, position: { x: 0, y: 0 } },
             },
             draggingPaletteId: null,
             showPerformanceOverlay: false,
@@ -74,7 +77,7 @@ export const useLayoutStore = create<LayoutState>()(
                     return {
                         paletteConfigs: {
                             ...state.paletteConfigs,
-                            [id]: { ...config, isVisible: isOpening }
+                            [id]: { ...config, isVisible: isOpening, userClosed: isOpening ? false : true }
                         },
                         layoutColumns: newColumns,
                         activePaletteId: isOpening ? id : (state.activePaletteId === id ? null : state.activePaletteId)
@@ -141,7 +144,7 @@ export const useLayoutStore = create<LayoutState>()(
                     activePaletteId: state.activePaletteId === id ? null : state.activePaletteId,
                     paletteConfigs: {
                         ...state.paletteConfigs,
-                        [id]: { ...state.paletteConfigs[id], isVisible: false }
+                        [id]: { ...state.paletteConfigs[id], isVisible: false, userClosed: true }
                     }
                 })),
 
@@ -228,6 +231,7 @@ export const useLayoutStore = create<LayoutState>()(
                         isPinned: true,
                         isVisible: false,
                         width: 350,
+                        dockPosition: 'right',
                         isFloating: false,
                         position: { x: 0, y: 0 },
                         ...config
@@ -243,9 +247,36 @@ export const useLayoutStore = create<LayoutState>()(
         }),
         {
             name: 'cad-layout-storage',
-            version: 9,
+            version: 10,
             migrate: (persistedState: any, version: number) => {
                 let state = persistedState as any;
+                const ensureNetworkPalette = () => {
+                    if (!state.paletteConfigs) state.paletteConfigs = {};
+                    state.paletteConfigs['network-graph'] = {
+                        id: 'network-graph',
+                        title: 'Network',
+                        icon: 'Network',
+                        isPinned: true,
+                        isVisible: false,
+                        width: 900,
+                        height: 320,
+                        dockPosition: 'bottom',
+                        isFloating: false,
+                        position: { x: 0, y: 0 },
+                        ...(state.paletteConfigs['network-graph'] || {}),
+                    };
+
+                    Object.values(state.paletteConfigs).forEach((config: any) => {
+                        if (!config.dockPosition) {
+                            config.dockPosition = config.isFloating ? 'floating' : 'right';
+                        }
+                    });
+
+                    if (!state.layoutColumns) state.layoutColumns = [['spec-panel', 'summary-panel', 'camera-view', 'device-config']];
+                    if (!state.layoutColumns.some((col: string[]) => col.includes('network-graph'))) {
+                        state.layoutColumns.push(['network-graph']);
+                    }
+                };
                 const stripBulkEditPalette = () => {
                     if (state.paletteConfigs) {
                         delete state.paletteConfigs['bulk-edit'];
@@ -366,6 +397,7 @@ export const useLayoutStore = create<LayoutState>()(
                             state.layoutColumns = [['spec-panel'], ['summary-panel', 'camera-view']];
                         }
                     }
+                    ensureNetworkPalette();
                     return state;
                 }
 
@@ -385,6 +417,7 @@ export const useLayoutStore = create<LayoutState>()(
                     // Force the standard columns layout (single column for more space)
                     state.layoutColumns = [['spec-panel', 'summary-panel', 'camera-view', 'device-config']];
                     stripBulkEditPalette();
+                    ensureNetworkPalette();
                     return state;
                 }
 
@@ -412,6 +445,7 @@ export const useLayoutStore = create<LayoutState>()(
                     }
                     state.layoutColumns = [['spec-panel', 'summary-panel', 'camera-view', 'device-config']];
                     stripBulkEditPalette();
+                    ensureNetworkPalette();
                     return state;
                 }
 
@@ -427,9 +461,16 @@ export const useLayoutStore = create<LayoutState>()(
                         });
                     }
                     stripBulkEditPalette();
+                    ensureNetworkPalette();
+                    return state;
+                }
+
+                if (version < 10) {
+                    ensureNetworkPalette();
                     return state;
                 }
                 stripBulkEditPalette();
+                ensureNetworkPalette();
                 return state;
             }
         }

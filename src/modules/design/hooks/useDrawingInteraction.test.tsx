@@ -215,4 +215,65 @@ describe('useDrawingInteraction', () => {
 
         expect(useDesignSync.getState().drawingMode).toBe('none');
     });
+
+    it('finalizes a network connection draft as a SignalLine with explicit endpoints', async () => {
+        useDesignSync.setState({
+            drawingMode: 'polyline',
+            currentDrawingPoints: [[20, 10], [21, 11]],
+            currentDrawingSnapIds: ['cabinet-1', 'intersection-1'],
+            networkConnectionDraft: { fromFeatureId: 'cabinet-1', toFeatureId: 'intersection-1' },
+        });
+        const { result } = renderHook(() => useDrawingInteraction());
+
+        await act(async () => {
+            await result.current.finalizePolyline();
+        });
+
+        expect(dispatchEvent).toHaveBeenCalledTimes(1);
+        expect(dispatchEvent.mock.calls[0][0]).toMatchObject({
+            type: 'FeatureCreated',
+            payload: {
+                layer_id: 'layer-1',
+                group_id: 'group-1',
+                name: 'Tuyến SignalLine Mới',
+                geom_type: 'LineString',
+                coordinates: JSON.stringify([[20, 10], [21, 11]]),
+            },
+        });
+        expect(getMetadataFromCall(dispatchEvent)).toMatchObject({
+            infrastructure: { type: 'SignalLine' },
+            network: {
+                from_feature_id: 'cabinet-1',
+                to_feature_id: 'intersection-1',
+            },
+            start_node_id: 'cabinet-1',
+            end_node_id: 'intersection-1',
+        });
+        expect(useDesignSync.getState().networkConnectionDraft).toBeNull();
+        expect(useDesignSync.getState().drawingMode).toBe('none');
+    });
+
+    it('keeps a network connection draft when polyline finalization is blocked by missing group', async () => {
+        const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+        useDesignSync.setState({
+            drawingMode: 'polyline',
+            selectedGroupId: null,
+            currentDrawingPoints: [[20, 10], [21, 11]],
+            currentDrawingSnapIds: ['cabinet-1', 'intersection-1'],
+            networkConnectionDraft: { fromFeatureId: 'cabinet-1', toFeatureId: 'intersection-1' },
+        });
+        const { result } = renderHook(() => useDrawingInteraction());
+
+        await act(async () => {
+            await result.current.finalizePolyline();
+        });
+
+        expect(dispatchEvent).not.toHaveBeenCalled();
+        expect(useDesignSync.getState().networkConnectionDraft).toEqual({
+            fromFeatureId: 'cabinet-1',
+            toFeatureId: 'intersection-1',
+        });
+        expect(useDesignSync.getState().drawingMode).toBe('polyline');
+        alertSpy.mockRestore();
+    });
 });

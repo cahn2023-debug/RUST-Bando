@@ -15,6 +15,7 @@ export const PalettePanel = React.memo(({ id, children }: PalettePanelProps) => 
     const closePalette = useLayoutStore(s => s.closePalette);
     const expandPalette = useLayoutStore(s => s.expandPalette);
     const updatePaletteWidth = useLayoutStore(s => s.updatePaletteWidth);
+    const updatePaletteHeight = useLayoutStore(s => s.updatePaletteHeight);
     const updatePaletteSizeAndPosition = useLayoutStore(s => s.updatePaletteSizeAndPosition);
     const setFloating = useLayoutStore(s => s.setFloating);
     const updatePalettePosition = useLayoutStore(s => s.updatePalettePosition);
@@ -27,6 +28,7 @@ export const PalettePanel = React.memo(({ id, children }: PalettePanelProps) => 
 
     // 2. Computed values based on config
     const { isPinned, isVisible, isFloating, position } = config;
+    const isBottomDocked = !isFloating && config.dockPosition === 'bottom';
 
     // 3. Unified Resize handler
     const rafRef = useRef<number | null>(null);
@@ -69,6 +71,9 @@ export const PalettePanel = React.memo(({ id, children }: PalettePanelProps) => 
                         newY = startPosY + (startHeight - newHeight);
                     }
                     updatePaletteSizeAndPosition(id, newWidth, newHeight, newX, newY);
+                } else if (isBottomDocked && direction === 'n') {
+                    newHeight = Math.max(180, Math.min(window.innerHeight * 0.75, startHeight - deltaY));
+                    updatePaletteHeight(id, newHeight);
                 } else if (direction === 'w') {
                     const deltaXDocked = startX - moveEvent.clientX;
                     newWidth = Math.max(250, Math.min(600, startWidth + deltaXDocked));
@@ -180,16 +185,17 @@ export const PalettePanel = React.memo(({ id, children }: PalettePanelProps) => 
                 ref={containerRef}
                 className={cn(
                     "bg-cad-surface border border-cad-border flex flex-col transition-shadow duration-300 ease-in-out z-[2000] will-change-layout",
-                    isFloating ? "fixed shadow-2xl rounded-sm" : "relative border-l transition-all",
+                    isFloating ? "fixed shadow-2xl rounded-sm" : "relative transition-all",
+                    !isFloating && isBottomDocked ? "border-t" : "border-l",
                     !isFloating && !isPinned ? "absolute right-0 top-0 bottom-0 shadow-2xl" : "",
                     isVisible ? "opacity-100 scale-100" : "opacity-0 scale-x-0 w-0 pointer-events-none"
                 )}
                 style={{
-                    width: config.width,
+                    width: isBottomDocked ? '100%' : config.width,
                     left: isFloating ? position.x : undefined,
                     top: isFloating ? position.y : undefined,
-                    height: isFloating ? (config.height || 400) : undefined,
-                    flex: (!isFloating && isPinned) ? (config.flex ?? 1) : undefined,
+                    height: isFloating ? (config.height || 400) : (isBottomDocked ? (config.height || 320) : undefined),
+                    flex: (!isFloating && isPinned && !isBottomDocked) ? (config.flex ?? 1) : undefined,
                     maxHeight: isFloating ? '90vh' : '100%',
                     minHeight: isFloating ? '200px' : '0'
                 }}
@@ -211,6 +217,11 @@ export const PalettePanel = React.memo(({ id, children }: PalettePanelProps) => 
                         <div className="absolute bottom-0 left-0 w-2 h-2 cursor-nesw-resize z-[53]" onMouseDown={handleResize('sw')} />
                         <div className="absolute bottom-0 right-0 w-2 h-2 cursor-nwse-resize z-[53]" onMouseDown={handleResize('se')} />
                     </>
+                ) : isBottomDocked ? (
+                    <div
+                        className="absolute left-0 right-0 top-0 h-1 cursor-ns-resize hover:bg-cad-accent transition-colors z-[51]"
+                        onMouseDown={handleResize('n')}
+                    />
                 ) : (
                     <div
                         className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-cad-accent transition-colors z-[51]"

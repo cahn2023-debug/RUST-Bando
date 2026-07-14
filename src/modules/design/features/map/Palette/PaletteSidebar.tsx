@@ -1,12 +1,13 @@
 import React from 'react';
 import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
 import { cn } from '@TOOL/utils/cn';
-import { Calculator, Camera, Layers, Settings, Video } from 'lucide-react';
+import { Calculator, Camera, Layers, Network, Settings, Video } from 'lucide-react';
 
 const paletteIcons = {
     Calculator,
     Camera,
     Layers,
+    Network,
     Settings,
     Video,
 } as const;

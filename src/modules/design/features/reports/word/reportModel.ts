@@ -12,6 +12,7 @@ export interface ReportPhoto {
   id: string;
   label: string;
   dataUrl: string;
+  assetId?: string;
 }
 
 export interface ReportFeatureDetail {
@@ -274,14 +275,24 @@ const getFeaturePhotos = (feature: FeatureState, metadata: Record<string, unknow
   ];
   const singleUrl = safeString(media.imageUrl || metadata.imageUrl);
   if (singleUrl) urls.unshift(singleUrl);
+  const assetIds = asStringArray(media.imageAssetIds);
 
-  return Array.from(new Set(urls))
+  const legacyPhotos = Array.from(new Set(urls))
     .filter((url) => url.startsWith("data:image") || /^https?:\/\//i.test(url))
     .map((dataUrl, index) => ({
       id: `${feature.id}-photo-${index + 1}`,
       label: `Ảnh ${index + 1}`,
       dataUrl,
     }));
+
+  const assetPhotos = assetIds.map((assetId, index) => ({
+    id: `${feature.id}-asset-photo-${index + 1}`,
+    label: `Ảnh ${legacyPhotos.length + index + 1}`,
+    dataUrl: "",
+    assetId,
+  }));
+
+  return [...legacyPhotos, ...assetPhotos];
 };
 
 const toPlainRecord = (value: unknown): Record<string, unknown> =>

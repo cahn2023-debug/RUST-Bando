@@ -113,6 +113,35 @@ pub const V4_SCHEMA_SQL: &str = r#"
     );
     CREATE INDEX IF NOT EXISTS idx_features_project ON features (project_id);
 
+    CREATE TABLE IF NOT EXISTS media_assets (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        sha256 TEXT NOT NULL,
+        rel_path TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        byte_size INTEGER NOT NULL,
+        width INTEGER,
+        height INTEGER,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    DROP INDEX IF EXISTS idx_media_assets_project_sha;
+    CREATE INDEX IF NOT EXISTS idx_media_assets_project_sha ON media_assets (project_id, sha256);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_media_assets_project_rel_path ON media_assets (project_id, rel_path);
+    CREATE INDEX IF NOT EXISTS idx_media_assets_project ON media_assets (project_id);
+
+    CREATE TABLE IF NOT EXISTS feature_media (
+        feature_id TEXT NOT NULL,
+        asset_id TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        is_primary INTEGER NOT NULL DEFAULT 0 CHECK (is_primary IN (0, 1)),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        PRIMARY KEY (feature_id, asset_id),
+        FOREIGN KEY(feature_id) REFERENCES features(id) ON DELETE CASCADE,
+        FOREIGN KEY(asset_id) REFERENCES media_assets(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_feature_media_asset ON feature_media (asset_id);
+
     CREATE TABLE IF NOT EXISTS project_settings (
         project_id TEXT PRIMARY KEY,
         settings_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(settings_json) AND json_type(settings_json) = 'object'),

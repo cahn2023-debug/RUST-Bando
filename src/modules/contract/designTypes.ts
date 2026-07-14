@@ -41,6 +41,9 @@ export interface FeatureMetadata {
   media?: {
     imageUrl?: string;
     imageUrls?: string[];
+    imageAssetIds?: string[];
+    primaryImageAssetId?: string;
+    externalUrls?: string[];
   };
   gis?: {
     vn2000_x?: number;
@@ -80,6 +83,12 @@ export interface FeatureMetadata {
     // Trench
     depth?: number;
     surface_type?: string;
+  };
+  network?: {
+    role?: 'cabinet' | 'intersection' | 'device';
+    telemetry_id?: string;
+    from_feature_id?: string;
+    to_feature_id?: string;
   };
   specs?: {
     install_height?: number;

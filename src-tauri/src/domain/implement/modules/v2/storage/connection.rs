@@ -231,8 +231,19 @@ fn migrate_foundational_v4_state(conn: &Connection) -> Result<(), rusqlite::Erro
          SELECT id, metadata_json, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
          FROM projects
          WHERE json_valid(metadata_json)
+           AND json_type(metadata_json, '$.features') = 'object'
          ON CONFLICT(project_id) DO NOTHING",
         [],
+    )?;
+    conn.execute(
+        "UPDATE projects
+         SET metadata_json = json_object(
+             'schema_version', ?1,
+             'storage', json_object('snapshot', 'project_snapshots')
+         )
+         WHERE json_valid(metadata_json)
+           AND json_type(metadata_json, '$.features') = 'object'",
+        [CURRENT_SCHEMA_LABEL],
     )?;
 
     Ok(())

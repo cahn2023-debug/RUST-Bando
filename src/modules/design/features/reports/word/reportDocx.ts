@@ -63,10 +63,10 @@ const paragraph = (value: string, bold = false): Paragraph =>
 
 const loadImage = async (dataUrl: string): Promise<HTMLImageElement> => {
   const image = new Image();
-  image.src = dataUrl;
   await new Promise<void>((resolve, reject) => {
     image.onload = () => resolve();
     image.onerror = () => reject(new Error("Image load failed"));
+    image.src = dataUrl;
   });
   return image;
 };
@@ -115,7 +115,10 @@ const dataUrlToImage = async (dataUrl: string, width: number): Promise<ImageRun 
 const imageParagraph = async (dataUrl: string | undefined, width: number, fallback: string): Promise<Paragraph> => {
   if (!dataUrl) return paragraph(fallback);
   const image = await dataUrlToImage(dataUrl, width);
-  if (!image) return paragraph(dataUrl.startsWith("http") ? `Anh: ${dataUrl}` : fallback);
+  if (!image) {
+    if (dataUrl.startsWith("http")) return paragraph(`Anh: ${dataUrl}`);
+    throw new Error("Không thể nhúng ảnh bản đồ vào file Word.");
+  }
   return new Paragraph({
     children: [image],
     alignment: AlignmentType.CENTER,
@@ -155,10 +158,11 @@ const flattenRecord = (record: Record<string, unknown>, prefix = ""): Array<[str
 };
 
 const photoBlocks = async (photos: ReportPhoto[]): Promise<Paragraph[]> => {
-  if (photos.length === 0) return [paragraph("Không có ảnh site photo.")];
+  const availablePhotos = photos.filter((photo) => !!photo.dataUrl);
+  if (availablePhotos.length === 0) return [paragraph("No site photos.")];
 
   const blocks: Paragraph[] = [];
-  for (const photo of photos) {
+  for (const photo of availablePhotos) {
     blocks.push(paragraph(photo.label, true));
     blocks.push(await imageParagraph(photo.dataUrl, PHOTO_WIDTH, "Không thể nhúng ảnh này vào file Word."));
   }
@@ -166,7 +170,6 @@ const photoBlocks = async (photos: ReportPhoto[]): Promise<Paragraph[]> => {
 };
 
 const detailBlocks = async (detail: ReportFeatureDetail): Promise<Array<Paragraph | Table>> => {
-  const metadataRows = flattenRecord(detail.metadata);
   const propertyRows = flattenRecord(detail.properties);
   const rows: Array<[string, unknown]> = [
     ["Tên", detail.feature.name],
@@ -184,12 +187,9 @@ const detailBlocks = async (detail: ReportFeatureDetail): Promise<Array<Paragrap
       spacing: { before: 240, after: 120 },
     }),
     keyValueTable(rows),
-    ...(metadataRows.length ? [paragraph("Metadata", true), keyValueTable(metadataRows)] : []),
     ...(propertyRows.length ? [paragraph("Properties", true), keyValueTable(propertyRows)] : []),
     paragraph("Site photo", true),
     ...(await photoBlocks(detail.photos)),
-    paragraph("Ảnh góc nhìn dự kiến", true),
-    paragraph("Chưa có ảnh góc nhìn dự kiến khả dụng."),
   ];
 };
 

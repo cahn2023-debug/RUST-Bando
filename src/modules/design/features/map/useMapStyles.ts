@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export interface MapFeatures {
     roads: boolean;
@@ -8,15 +8,46 @@ export interface MapFeatures {
     labels: boolean;
 }
 
+const MAP_FEATURES_STORAGE_KEY = 'design.map.features';
+const DEFAULT_MAP_FEATURES: MapFeatures = {
+    roads: true,
+    roadNames: true,
+    buildings: true,
+    pois: true,
+    labels: true
+};
+
+const getSavedMapFeatures = (): MapFeatures => {
+    if (typeof window === 'undefined') return DEFAULT_MAP_FEATURES;
+
+    try {
+        const savedFeatures = window.localStorage.getItem(MAP_FEATURES_STORAGE_KEY);
+        if (!savedFeatures) return DEFAULT_MAP_FEATURES;
+
+        const parsedFeatures = JSON.parse(savedFeatures) as Partial<MapFeatures>;
+        return {
+            roads: typeof parsedFeatures.roads === 'boolean' ? parsedFeatures.roads : DEFAULT_MAP_FEATURES.roads,
+            roadNames: typeof parsedFeatures.roadNames === 'boolean' ? parsedFeatures.roadNames : DEFAULT_MAP_FEATURES.roadNames,
+            buildings: typeof parsedFeatures.buildings === 'boolean' ? parsedFeatures.buildings : DEFAULT_MAP_FEATURES.buildings,
+            pois: typeof parsedFeatures.pois === 'boolean' ? parsedFeatures.pois : DEFAULT_MAP_FEATURES.pois,
+            labels: typeof parsedFeatures.labels === 'boolean' ? parsedFeatures.labels : DEFAULT_MAP_FEATURES.labels
+        };
+    } catch {
+        return DEFAULT_MAP_FEATURES;
+    }
+};
+
 export function useMapStyles() {
     const [isGrayscale, setIsGrayscale] = useState(false);
-    const [mapFeatures, setMapFeatures] = useState<MapFeatures>({
-        roads: true,
-        roadNames: true,
-        buildings: true,
-        pois: true,
-        labels: true
-    });
+    const [mapFeatures, setMapFeatures] = useState<MapFeatures>(getSavedMapFeatures);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(MAP_FEATURES_STORAGE_KEY, JSON.stringify(mapFeatures));
+        } catch {
+            // localStorage can be unavailable in restricted browser contexts.
+        }
+    }, [mapFeatures]);
 
     const getStyledUrl = (lyr: string) => {
         const rules: string[] = [];

@@ -43,7 +43,9 @@ export function useDrawingInteraction() {
         setDrawingMode,
         addDrawingPoint,
         currentDrawingPoints,
-        currentDrawingSnapIds
+        currentDrawingSnapIds,
+        networkConnectionDraft,
+        clearNetworkConnectionDraft
     } = useDesignSync();
 
     const finalizePolyline = useCallback(async () => {
@@ -73,30 +75,47 @@ export function useDrawingInteraction() {
         const group = selectedGroupId ? state?.feature_groups?.[selectedGroupId] : null;
         if (!group) return;
 
+
+        const finalMetadata: any = {
+            ...metadata,
+            start_node_id: currentDrawingSnapIds[0] || null,
+            end_node_id: currentDrawingSnapIds[currentDrawingSnapIds.length - 1] || null
+        };
+
+        if (networkConnectionDraft) {
+            finalMetadata.infrastructure = {
+                ...(finalMetadata.infrastructure || {}),
+                type: 'SignalLine'
+            };
+            finalMetadata.network = {
+                ...(finalMetadata.network || {}),
+                from_feature_id: networkConnectionDraft.fromFeatureId,
+                to_feature_id: networkConnectionDraft.toFeatureId
+            };
+        }
+
         await dispatchEvent({
             type: 'FeatureCreated',
             payload: {
                 id,
                 layer_id: group.layer_id,
                 group_id: selectedGroupId,
-                name: "Đường Khảo Sát Mới",
+                name: networkConnectionDraft ? "Tuyến SignalLine Mới" : "Đường Khảo Sát Mới",
                 geom_type: 'LineString',
                 coordinates: JSON.stringify(currentDrawingPoints),
-                metadata: JSON.stringify({
-                    ...metadata,
-                    start_node_id: currentDrawingSnapIds[0] || null,
-                    end_node_id: currentDrawingSnapIds[currentDrawingSnapIds.length - 1] || null
-                }),
+                metadata: JSON.stringify(finalMetadata),
                 properties: JSON.stringify({})
             }
         } as any);
 
         setDrawingMode('none');
-    }, [currentDrawingPoints, selectedGroupId, state, activeParentFeatureId, currentDrawingSnapIds, dispatchEvent, setDrawingMode]);
+        clearNetworkConnectionDraft();
+    }, [currentDrawingPoints, selectedGroupId, state, activeParentFeatureId, currentDrawingSnapIds, dispatchEvent, setDrawingMode, networkConnectionDraft, clearNetworkConnectionDraft]);
 
     const finishDrawingSession = useCallback(() => {
         setDrawingMode('none');
-    }, [setDrawingMode]);
+        clearNetworkConnectionDraft();
+    }, [setDrawingMode, clearNetworkConnectionDraft]);
 
     const handleLocationChange = useCallback(async (lat: number, lng: number, _unused: number, snapId?: string | null) => {
         if (drawingMode === 'none') return;

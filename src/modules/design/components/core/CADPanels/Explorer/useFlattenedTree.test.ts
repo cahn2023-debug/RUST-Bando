@@ -125,4 +125,60 @@ describe("useFlattenedTree - Direct Intersection Nesting", () => {
         expect(ids).toContain("feat-parent");
         expect(ids).toContain("feat-child");
     });
+
+    it("should hide simulated NetworkLink features from the project tree", () => {
+        const regionsMap: Record<string, RegionState> = {
+            "region-1": { id: "region-1", name: "Region 1", parent_id: null, description: null, is_visible: true }
+        };
+        const layersMap: Record<string, LayerState> = {
+            "layer-1": { id: "layer-1", region_id: "region-1", name: "Layer 1", is_visible: true }
+        };
+        const groupsMap: Record<string, FeatureGroupState> = {
+            "group-1": { id: "group-1", layer_id: "layer-1", parent_id: null, name: "Group 1", group_type: "FOLDER", is_visible: true }
+        };
+        const featuresMap: Record<string, FeatureState> = {
+            "device-1": {
+                id: "device-1",
+                layer_id: "layer-1",
+                group_id: "group-1",
+                name: "Device 1",
+                is_visible: true,
+                geom_type: "POINT",
+                coordinates: [0, 0],
+                properties: {},
+                metadata: JSON.stringify({ icon: "cctv" })
+            },
+            "network-link-1": {
+                id: "network-link-1",
+                layer_id: "layer-1",
+                group_id: "group-1",
+                name: "NetworkLink Device 1",
+                is_visible: true,
+                geom_type: "NetworkLink",
+                coordinates: null,
+                properties: {},
+                metadata: JSON.stringify({
+                    infrastructure: { type: "NetworkLink", status: "simulated" },
+                    network: { from_feature_id: "device-1", to_feature_id: "device-2" }
+                })
+            }
+        };
+
+        const { result } = renderHook(() => useFlattenedTree({
+            regionsMap,
+            layersMap,
+            groupsMap,
+            featuresMap,
+            expanded: { "region-1": true, "group-1": true },
+            treeSearchQuery: "",
+            filterType: null,
+            reverseOrder: false,
+            sortField: "name"
+        }));
+
+        const ids = result.current.flattenedItems.map(item => item.id);
+
+        expect(ids).toContain("device-1");
+        expect(ids).not.toContain("network-link-1");
+    });
 });

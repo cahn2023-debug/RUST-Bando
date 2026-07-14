@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { save } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { useExportStore } from '@IMPLEMENT/stores/useExportStore';
+import { resolveMediaAsset } from '@IMPLEMENT/services/mediaAssetService';
 import { logger } from '@TOOL/utils/logger';
 
 /**
@@ -24,6 +25,38 @@ const escapeXml = (unsafe: string | number | boolean | null | undefined): string
       default: return m;
     }
   });
+};
+
+type MediaExportMetadata = TypesFeatureMetadata & {
+  media?: { imageUrl?: string; imageUrls?: string[]; imageAssetIds?: string[] };
+  imageUrl?: string;
+  imageUrls?: string[];
+};
+
+const getImageDataUrls = async (metadata: MediaExportMetadata, projectId?: string): Promise<string[]> => {
+  const media = metadata.media || {};
+  const legacyUrls = [
+    ...(media.imageUrl ? [media.imageUrl] : []),
+    ...(media.imageUrls || []),
+    ...(metadata.imageUrl ? [metadata.imageUrl] : []),
+    ...(metadata.imageUrls || []),
+  ].filter((url): url is string => typeof url === 'string' && url.startsWith('data:image'));
+
+  const assetUrls: string[] = [];
+  if (projectId) {
+    for (const assetId of media.imageAssetIds || []) {
+      try {
+        const asset = await resolveMediaAsset(projectId, assetId);
+        if (asset.src.startsWith('data:image')) {
+          assetUrls.push(asset.src);
+        }
+      } catch (error) {
+        logger.warn('[exportService] Failed to resolve media asset:', assetId, error);
+      }
+    }
+  }
+
+  return Array.from(new Set([...assetUrls, ...legacyUrls]));
 };
 
 /**
@@ -89,7 +122,7 @@ export const exportProjectData = async (projectState: MapState, projectName: str
 
     if (mainImgFolder && kmzImgFolder) {
       updateProgress(35, 'Đang xử lý hình ảnh hiện trường...');
-      await processAndAddImages(projectState, [mainImgFolder, kmzImgFolder], (prog, text) => {
+      await processAndAddImages(projectState, [mainImgFolder, kmzImgFolder], projectInfo?.id, (prog, text) => {
         // Map image processing (0-100) to overall progress (35-85)
         const overallProg = 35 + (prog * 0.5);
         updateProgress(overallProg, text);
@@ -190,6 +223,7 @@ const generateKML = (state: MapState, projectName: string, projectInfo?: Project
 const processAndAddImages = async (
   state: MapState,
   folders: JSZip[],
+  projectId?: string,
   onProgress?: (prog: number, status: string) => void
 ) => {
   const features = Object.values(state.features) as FeatureState[];
@@ -205,14 +239,14 @@ const processAndAddImages = async (
     const progressPercent = (idx / totalFeatures) * 100;
     onProgress?.(progressPercent, `Đang xử lý ảnh: ${f.name || 'Feature'} (${idx + 1}/${totalFeatures})...`);
 
-    let metadata: TypesFeatureMetadata & { media?: { imageUrls?: string[] }; imageUrls?: string[] } = {};
+    let metadata: MediaExportMetadata = {};
     try {
       metadata = typeof f.metadata === 'string' ? JSON.parse(f.metadata) : f.metadata;
     } catch (e) {
       continue;
     }
 
-    const imageUrls = metadata.media?.imageUrls || (metadata.imageUrls) || [];
+    const imageUrls = await getImageDataUrls(metadata, projectId);
 
     for (let i = 0; i < imageUrls.length; i++) {
       const dataUrl = imageUrls[i];
@@ -379,7 +413,7 @@ export const exportGroupToKML = async (state: MapState, groupId: string, groupNa
 /**
  * Exports a specific group to KMZ file (KML + images)
  */
-export const exportGroupToKMZ = async (state: MapState, groupId: string, groupName: string): Promise<void> => {
+export const exportGroupToKMZ = async (state: MapState, groupId: string, groupName: string, projectId?: string): Promise<void> => {
   const groupFeatures = getGroupFeatures(state, groupId);
 
   if (groupFeatures.length === 0) {
@@ -405,14 +439,14 @@ export const exportGroupToKMZ = async (state: MapState, groupId: string, groupNa
     const imagesFolder = kmzZip.folder('images');
     if (imagesFolder) {
       for (const f of groupFeatures) {
-        let metadata: TypesFeatureMetadata & { media?: { imageUrls?: string[] }; imageUrls?: string[] } = {};
+        let metadata: MediaExportMetadata = {};
         try {
           metadata = typeof f.metadata === 'string' ? JSON.parse(f.metadata) : f.metadata;
         } catch (e) {
           continue;
         }
 
-        const imageUrls = metadata.media?.imageUrls || metadata.imageUrls || [];
+        const imageUrls = await getImageDataUrls(metadata, projectId);
         for (let i = 0; i < imageUrls.length; i++) {
           const dataUrl = imageUrls[i];
           if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) continue;

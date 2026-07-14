@@ -10,6 +10,13 @@ const getGroupKind = (group: FeatureGroupState): string =>
 const hasStringId = (value: unknown): value is string =>
     typeof value === 'string' && value.length > 0;
 
+const isNetworkLinkFeature = (feature: FeatureState): boolean => {
+    const metadata = getParsedMetadata(feature);
+    return !!metadata.infrastructure &&
+        typeof metadata.infrastructure === 'object' &&
+        (metadata.infrastructure as Record<string, unknown>).type === 'NetworkLink';
+};
+
 export interface FlatTreeItem {
     type: 'region' | 'group' | 'feature' | 'intersection-children-group';
     id: string;
@@ -66,7 +73,7 @@ export function useFlattenedTree({
 
         const layers = Object.values(layersMap);
         const groups = Object.values(groupsMap);
-        const features = Object.values(featuresMap);
+        const features = Object.values(featuresMap).filter(feature => !isNetworkLinkFeature(feature));
 
         layers.forEach(l => {
             lRegionMap[l.id] = l.region_id;
@@ -256,7 +263,7 @@ export function useFlattenedTree({
                 const hasMatchingGroup = rGroups.some(g => groupVisibilityMap[g.id]);
                 if (hasMatchingGroup) return true;
 
-                return Object.values(featuresMap).some(f => {
+                return Object.values(featuresMap).filter(feature => !isNetworkLinkFeature(feature)).some(f => {
                     if (layerRegionMap[f.layer_id] !== r.id) return false;
                     if (!matchesSearch(f)) return false;
                     if (!filterType) return true;
