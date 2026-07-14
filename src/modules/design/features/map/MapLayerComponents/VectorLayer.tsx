@@ -15,15 +15,45 @@ export const VectorLayer = React.memo(({
     features,
     allFeatures = {},
     parentChildMap,
+    featureHierarchy,
     feature_groups,
     selectedFeatureId,
     previewMetadata,
+    currentZoom,
     zoomTo
 }: any) => {
     const drawingMode = useDesignSync(s => s.drawingMode);
     const editingFeatureId = useDesignSync(s => s.editingFeatureId);
     const groupThemePreview = useDesignSync(s => s.groupThemePreview);
     const isClickThrough = drawingMode !== 'none' && drawingMode !== 'move';
+
+    const getVectorEventHandlers = React.useCallback((featureId: string, groupId: string, isEditingFeature = false) => ({
+        click: (e: any) => {
+            const mode = useDesignSync.getState().drawingMode;
+            if (mode === 'none' || mode === 'move') {
+                stopFeatureEventPropagation(e);
+                handleFeatureSelection(featureId, groupId, e);
+            }
+        },
+        mouseover: () => {
+            const mode = useDesignSync.getState().drawingMode;
+            if (mode === 'none' || mode === 'move') {
+                useDesignSync.getState().setHoverId(featureId);
+            }
+        },
+        mouseout: () => {
+            useDesignSync.getState().setHoverId(null);
+        },
+        dblclick: (e: any) => {
+            if (!isEditingFeature) {
+                const mode = useDesignSync.getState().drawingMode;
+                if (mode === 'none' || mode === 'move') {
+                    L.DomEvent.stopPropagation((e as any).originalEvent || e);
+                    zoomTo(featureId, 'feature');
+                }
+            }
+        }
+    }), [zoomTo]);
 
     // Debug logging for vector features
     React.useEffect(() => {
@@ -70,6 +100,17 @@ export const VectorLayer = React.memo(({
 
                 const isLine = geomType === 'linestring' || geomType === 'polyline' || geomType === 'line';
                 const isPolygon = geomType === 'polygon';
+                const isSelected = f.id === selectedFeatureId;
+
+                if (isLine || isPolygon) {
+                    const depth = featureHierarchy?.depthMap?.[f.id] ?? (metadata.parent_feature_id ? 1 : 0);
+                    const expansionZoom = 19 + (depth * 2);
+                    const parentExpansionZoom = depth > 0 ? 19 + ((depth - 1) * 2) : 0;
+                    const isInsideIntersectionGroup = String(group?.type || '').toUpperCase() === 'INTERSECTION';
+
+                    if (depth > 0 && Number(currentZoom) < parentExpansionZoom && !isSelected) return null;
+                    if (depth === 0 && isInsideIntersectionGroup && Number(currentZoom) < expansionZoom && !isSelected) return null;
+                }
 
                 // V4 Fix: Coordinate Aggregation for Parents
                 // If a Polyline/Polygon has no internal coordinates, try to build them from children
@@ -98,7 +139,6 @@ export const VectorLayer = React.memo(({
                 if (!coords || !Array.isArray(coords)) return null;
 
                 const displayInfo = getFeatureDisplayInfo(f, group?.type, group?.name, metadata);
-                const isSelected = f.id === selectedFeatureId;
                 const isEditing = f.id === editingFeatureId;
 
                 if (isLine) {
@@ -200,23 +240,7 @@ export const VectorLayer = React.memo(({
                                     className: isClickThrough ? 'pointer-events-none' : 'cursor-pointer'
                                 }}
                                 interactive={drawingMode === 'none' || drawingMode === 'move'}
-                                eventHandlers={{
-                                    click: (e) => {
-                                        const mode = useDesignSync.getState().drawingMode;
-                                        if (mode === 'none' || mode === 'move') {
-                                            stopFeatureEventPropagation(e);
-                                            handleFeatureSelection(f.id, f.group_id, e);
-                                        }
-                                    },
-                                    mouseover: () => {
-                                        if (drawingMode === 'none' || drawingMode === 'move') {
-                                            useDesignSync.getState().setHoverId(f.id);
-                                        }
-                                    },
-                                    mouseout: () => {
-                                        useDesignSync.getState().setHoverId(null);
-                                    }
-                                }}
+                                eventHandlers={getVectorEventHandlers(f.id, f.group_id, isEditing)}
                             />
                             {/* Visible Polyline */}
                             <Polyline
@@ -228,9 +252,10 @@ export const VectorLayer = React.memo(({
                                     lineCap: 'round',
                                     lineJoin: 'round',
                                     dashArray: isSelected ? '10, 10' : undefined,
-                                    className: `${isClickThrough ? 'pointer-events-none' : ''} ${isSelected ? 'polyline-selected' : ''}`
+                                    className: `${isClickThrough ? 'pointer-events-none' : 'cursor-pointer'} ${isSelected ? 'polyline-selected' : ''}`
                                 }}
-                                interactive={false}
+                                interactive={drawingMode === 'none' || drawingMode === 'move'}
+                                eventHandlers={getVectorEventHandlers(f.id, f.group_id, isEditing)}
                             />
                         </React.Fragment>
                     );
@@ -253,32 +278,7 @@ export const VectorLayer = React.memo(({
                                 className: isClickThrough ? 'pointer-events-none' : ''
                             }}
                             interactive={drawingMode === 'none' || drawingMode === 'move'}
-                            eventHandlers={{
-                                click: (e) => {
-                                    if (drawingMode === 'none' || drawingMode === 'move') {
-                                        // Stop event propagation to prevent map background click
-                                        stopFeatureEventPropagation(e);
-
-                                        // Use centralized selection handler
-                                        // Pass the full Leaflet event 'e' which contains latlng
-                                        handleFeatureSelection(f.id, f.group_id, e);
-                                    }
-                                },
-                                mouseover: () => {
-                                    if (drawingMode === 'none' || drawingMode === 'move') {
-                                        useDesignSync.getState().setHoverId(f.id);
-                                    }
-                                },
-                                mouseout: () => {
-                                    useDesignSync.getState().setHoverId(null);
-                                },
-                                dblclick: (e) => {
-                                    if (!isEditing && (drawingMode === 'none' || drawingMode === 'move')) {
-                                        L.DomEvent.stopPropagation((e as any).originalEvent || e);
-                                        zoomTo(f.id, 'feature');
-                                    }
-                                }
-                            }}
+                            eventHandlers={getVectorEventHandlers(f.id, f.group_id, isEditing)}
                         />
                     );
                 }

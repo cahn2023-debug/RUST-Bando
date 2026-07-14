@@ -83,6 +83,11 @@ const linkIconLabel: Record<NetworkLinkIcon, string | undefined> = {
     none: undefined,
 };
 
+const edgeSourceLabel: Record<NetworkEdge['sourceType'], string> = {
+    'map-polyline': 'Từ polyline bản đồ',
+    'network-drawn': 'Vẽ trực tiếp trong Network',
+};
+
 const isNetworkLineStyle = (value: unknown): value is NetworkLineStyle =>
     value === 'solid' || value === 'dashed' || value === 'dotted';
 
@@ -98,6 +103,14 @@ const getNetworkLinkPresentation = (edge: NetworkEdge | null | undefined) => {
     const iconType = isNetworkLinkIcon(infrastructure.icon_type) ? infrastructure.icon_type : 'arrow';
 
     return { metadata, infrastructure, lineStyle, iconType };
+};
+
+const getEdgeStrokeDasharray = (edge: NetworkEdge, lineStyle: NetworkLineStyle) => {
+    if (edge.kind === 'relationship') return '5 5';
+    if (edge.directionState === 'pending') return '8 6';
+    if (edge.directionState === 'conflict') return '2 6';
+    if (edge.sourceType === 'network-drawn') return '10 4';
+    return lineStyleDash[lineStyle];
 };
 
 const nextStatus = (status: string | undefined) => {
@@ -329,20 +342,22 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                 animated: edge.kind === 'signal' && edgeStatus === 'online' && edge.directionState === 'confirmed',
                 selectable: edge.kind === 'signal',
                 interactionWidth: edge.kind === 'signal' ? 18 : 8,
-                data: { status: edgeStatus, label: edge.label, kind: edge.kind, iconType, lineStyle, directionState: edge.directionState },
+                data: {
+                    status: edgeStatus,
+                    label: edge.label,
+                    kind: edge.kind,
+                    iconType,
+                    lineStyle,
+                    directionState: edge.directionState,
+                    sourceType: edge.sourceType,
+                },
                 label: edge.kind === 'relationship' ? undefined : iconLabel || (edgeStatus === 'unknown' ? undefined : edgeStatus),
                 markerEnd: edge.kind === 'signal' && edge.directionState === 'confirmed' && iconType !== 'none'
                     ? { type: MarkerType.ArrowClosed, color }
                     : undefined,
                 style: {
                     stroke: edge.kind === 'relationship' ? '#64748b' : color,
-                    strokeDasharray: edge.kind === 'relationship'
-                        ? '5 5'
-                        : edge.directionState === 'pending'
-                            ? '8 6'
-                            : edge.directionState === 'conflict'
-                                ? '2 6'
-                                : lineStyleDash[lineStyle],
+                    strokeDasharray: getEdgeStrokeDasharray(edge, lineStyle),
                     strokeWidth: selectedEntity?.id === edge.id ? 3 : edge.kind === 'relationship' ? 1.5 : 2,
                 },
             };
@@ -681,11 +696,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                                 <div className="text-[10px] uppercase text-zinc-500">
                                     {selectedEdge.kind === 'relationship'
                                         ? 'Relationship'
-                                        : selectedEdge.directionState === 'conflict'
-                                            ? 'SignalLine conflict'
-                                            : selectedEdge.directionState === 'pending'
-                                                ? 'SignalLine pending'
-                                                : 'SignalLine confirmed'}
+                                        : edgeSourceLabel[selectedEdge.sourceType]}
                                 </div>
                             </div>
                         </div>
@@ -733,6 +744,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                         )}
 
                         <InspectorRow label="Trang thai" value={selectedEdge.kind === 'relationship' ? 'display-only' : snapshot.edges?.[selectedEdge.telemetryId || selectedEdge.id] || 'unknown'} />
+                        <InspectorRow label="Nguon ket noi" value={edgeSourceLabel[selectedEdge.sourceType]} />
                         <InspectorRow label="Huong" value={selectedEdge.directionState} />
                         <InspectorRow label="Nguon" value={<span className="font-mono">{selectedEdge.from}</span>} />
                         <InspectorRow label="Dich" value={<span className="font-mono">{selectedEdge.to}</span>} />

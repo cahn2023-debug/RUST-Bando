@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useEffect } from 'react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+import type { FeatureState } from '@CONTRACT/types';
 import { getPointCoordinates } from '@TOOL/utils/featureMapping';
 import { getParsedMetadata } from '@TOOL/utils/featureMetadata';
 import { getPolylineSnapCoordinate, isLineFeature, isNetworkEdgeFeature } from '@DESIGN/features/map/network/networkTopology';
@@ -15,11 +16,13 @@ function throttle<T extends (...args: any[]) => any>(func: T, limit: number): (.
     }
 }
 
+const EMPTY_OBJ = {};
+
 export const useSnap = () => {
     const drawingMode = useDesignSync(s => s.drawingMode);
     const editingFeatureId = useDesignSync(s => s.editingFeatureId);
     const setSnappedPoint = useDesignSync(s => s.setSnappedPoint);
-    const features = useDesignSync(s => s.state?.features || {});
+    const features = useDesignSync(s => s.state?.features || EMPTY_OBJ);
     const snappedPointRef = useRef<{ x: number, y: number, id?: string } | null>(null);
 
     // Use a manual subscription to update the Ref without triggering a re-render
@@ -38,7 +41,7 @@ export const useSnap = () => {
             let bestResult: { x: number; y: number; id?: string } | null = null;
             let bestDistance = threshold;
 
-            for (const feature of Object.values(features)) {
+            for (const feature of Object.values(features) as FeatureState[]) {
                 if (feature.id === editingFeatureId) continue;
 
                 const metadata = getParsedMetadata(feature);

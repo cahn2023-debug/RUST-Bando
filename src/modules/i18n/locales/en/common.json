@@ -46,7 +46,11 @@
     "created": "Created",
     "updated": "Updated",
     "noProjects": "No projects yet",
-    "createFirst": "Create your first project"
+    "createFirst": "Create first project",
+    "design": "Design",
+    "operate": "Operate",
+    "contracts": "Contracts",
+    "resources": "Resources"
   },
   "map": {
     "zoomIn": "Zoom In",

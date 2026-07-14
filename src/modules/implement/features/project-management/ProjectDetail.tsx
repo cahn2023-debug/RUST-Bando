@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Project } from "@CONTRACT/types";
 import { ProjectSidebar } from "./ProjectSidebar";
 import { ProjectMainView } from "./ProjectMainView";
@@ -5,6 +6,7 @@ import { ProjectOverlayLayer } from "./ProjectOverlayLayer";
 import { useProjectDetailLogic } from "@IMPLEMENT/hooks/useProjectDetailLogic";
 import { useResizablePanels } from "@IMPLEMENT/hooks/useResizablePanels";
 import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
+import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
 import { ResizeHandle } from "@DESIGN/components/ui/ResizeHandle";
 import { cn } from "@TOOL/utils/cn";
 import { invoke } from "@tauri-apps/api/core";
@@ -60,6 +62,16 @@ export function ProjectDetail({
   const { leftWidth, handleLeftResize } = useResizablePanels();
   const { lowPowerMode } = useSettingsStore();
 
+  const layoutColumns = useLayoutStore(s => s.layoutColumns);
+  const paletteConfigs = useLayoutStore(s => s.paletteConfigs);
+
+  const bottomHeight = useMemo(() => {
+    const bottomPalettes = layoutColumns
+      .flat()
+      .filter(id => paletteConfigs[id]?.dockPosition === 'bottom' && paletteConfigs[id]?.isVisible && !paletteConfigs[id]?.isFloating);
+    return bottomPalettes.reduce((sum, id) => sum + (paletteConfigs[id]?.height || 320), 0);
+  }, [layoutColumns, paletteConfigs]);
+
   const handleOpenExternally = async () => {
     if (selectedFile?.path) {
       try {
@@ -72,10 +84,16 @@ export function ProjectDetail({
 
   return (
     <div className={cn(
-      "flex-1 min-h-0 min-w-0 flex overflow-hidden bg-cad-bg",
+      "flex-1 min-h-0 min-w-0 flex overflow-hidden bg-cad-bg relative",
       lowPowerMode && "low-power-active"
     )}>
-      <div className="border-r border-cad-border flex flex-col shrink-0 bg-cad-surface group/sidebar relative min-h-0" style={{ width: leftWidth }}>
+      <div 
+        className="border-r border-cad-border flex flex-col shrink-0 bg-cad-surface group/sidebar relative min-h-0" 
+        style={{ 
+          width: leftWidth,
+          height: bottomHeight > 0 ? `calc(100% - ${bottomHeight}px)` : '100%'
+        }}
+      >
         <ResizeHandle direction="left" onResize={handleLeftResize} />
         <ProjectSidebar
           activeTab={activeTab}
@@ -88,27 +106,34 @@ export function ProjectDetail({
         />
       </div>
 
-      <ProjectMainView
-        project={project}
-        activeTab={activeTab}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        analysisData={analysisData}
-        showRawFile={showRawFile}
-        setShowRawFile={setShowRawFile}
-        analyzing={analyzing}
-        localMetadata={localMetadata}
-        globalBOMData={globalBOMData}
-        handleBulkSync={handleBulkSync}
-        handleSaveCorrections={handleSaveCorrections}
-        handleProjectMetadataUpdate={handleProjectMetadataUpdate}
-        contracts={contracts}
-        handleCreateContract={(form: any) => handleCreateContract(form || {})}
-        handleDeleteContract={handleDeleteContract}
-        handleFileSelect={(path, name, ext) => handleFileSelect(path, name, ext, activeTab)}
-        contentTypes={contentTypes}
-        contextMenu={null}
-      />
+      <div 
+        className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden relative"
+        style={{ 
+          height: bottomHeight > 0 ? `calc(100% - ${bottomHeight}px)` : '100%'
+        }}
+      >
+        <ProjectMainView
+          project={project}
+          activeTab={activeTab}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          analysisData={analysisData}
+          showRawFile={showRawFile}
+          setShowRawFile={setShowRawFile}
+          analyzing={analyzing}
+          localMetadata={localMetadata}
+          globalBOMData={globalBOMData}
+          handleBulkSync={handleBulkSync}
+          handleSaveCorrections={handleSaveCorrections}
+          handleProjectMetadataUpdate={handleProjectMetadataUpdate}
+          contracts={contracts}
+          handleCreateContract={(form: any) => handleCreateContract(form || {})}
+          handleDeleteContract={handleDeleteContract}
+          handleFileSelect={(path, name, ext) => handleFileSelect(path, name, ext, activeTab)}
+          contentTypes={contentTypes}
+          contextMenu={null}
+        />
+      </div>
 
       <ProjectOverlayLayer
         activeTab={activeTab}

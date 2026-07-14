@@ -372,6 +372,42 @@ export const getPolylineSnapCoordinate = (feature: FeatureState, lng: number, la
     return bestPoint;
 };
 
+const distanceToPoint = (source: [number, number], target: [number, number]): number =>
+    Math.hypot(source[0] - target[0], source[1] - target[1]);
+
+export const resolveNetworkNodeIdFromSnap = (
+    featuresById: Record<string, FeatureState>,
+    snapFeatureId: string | null | undefined,
+    snappedCoordinate?: [number, number] | null
+): string | null => {
+    if (!snapFeatureId) return null;
+    const snapFeature = featuresById[snapFeatureId];
+    if (!snapFeature) return null;
+
+    const snapMetadata = getParsedMetadata(snapFeature) as FeatureMetadata;
+    if (!isNetworkEdgeFeature(snapFeature, snapMetadata)) {
+        return isPointFeature(snapFeature) ? snapFeature.id : null;
+    }
+
+    const fromId = snapMetadata.network?.from_feature_id;
+    const toId = snapMetadata.network?.to_feature_id;
+    if (!fromId || !toId) return null;
+
+    const fromFeature = featuresById[fromId];
+    const toFeature = featuresById[toId];
+    const fromCoords = getPointCoordinates(fromFeature);
+    const toCoords = getPointCoordinates(toFeature);
+    if (!fromCoords || !toCoords) return null;
+
+    if (!snappedCoordinate) {
+        return fromId;
+    }
+
+    return distanceToPoint(snappedCoordinate, fromCoords) <= distanceToPoint(snappedCoordinate, toCoords)
+        ? fromId
+        : toId;
+};
+
 export const isPolylineEndpointIndex = (feature: FeatureState, index: number): boolean => {
     const coords = getParsedCoordinates(feature);
     if (!Array.isArray(coords)) return false;

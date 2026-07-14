@@ -68,7 +68,7 @@ describe('NetworkGraphService.build', () => {
         const graph = NetworkGraphService.build(byId(originNode('cabinet', 'cabinet'), node('a', 'device'), edge('line-a', 'cabinet', 'a')));
 
         expect(graph.nodes.map(item => item.id)).toEqual(['cabinet', 'a']);
-        expect(graph.edges).toMatchObject([{ id: 'line-a', from: 'cabinet', to: 'a', kind: 'signal', directionState: 'confirmed' }]);
+        expect(graph.edges).toMatchObject([{ id: 'line-a', from: 'cabinet', to: 'a', kind: 'signal', sourceType: 'map-polyline', directionState: 'confirmed' }]);
         expect(graph.diagnostics).toEqual([]);
     });
 
@@ -94,7 +94,7 @@ describe('NetworkGraphService.build', () => {
         ));
 
         expect(graph.nodes.map(item => item.id)).toEqual(['cabinet', 'camera-a']);
-        expect(graph.edges).toMatchObject([{ id: 'link-a', from: 'cabinet', to: 'camera-a', kind: 'signal' }]);
+        expect(graph.edges).toMatchObject([{ id: 'link-a', from: 'cabinet', to: 'camera-a', kind: 'signal', sourceType: 'network-drawn' }]);
         expect(graph.edges[0].feature?.geom_type).toBe('NetworkLink');
         expect(graph.edges[0].feature?.coordinates).toBeNull();
         expect(graph.diagnostics).toEqual([]);
@@ -141,6 +141,47 @@ describe('NetworkGraphService.build', () => {
 
         expect(graph.edges[0]).toMatchObject({ directionState: 'conflict' });
         expect(graph.diagnostics.map(item => item.type)).toContain('multiple-origins');
+    });
+
+    it('infers a network edge from a legacy line snapped into an existing SignalLine', () => {
+        const graph = NetworkGraphService.build(byId(
+            {
+                ...originNode('cabinet', 'cabinet'),
+                coordinates: [0, 0],
+            },
+            {
+                ...node('branch-a', 'device'),
+                coordinates: [10, 0],
+            },
+            {
+                ...node('branch-b', 'device'),
+                coordinates: [1, 1],
+            },
+            {
+                ...edge('main-line', 'cabinet', 'branch-a'),
+                coordinates: [[0, 0], [10, 0]],
+            },
+            {
+                id: 'legacy-branch',
+                layer_id: 'layer',
+                group_id: null,
+                name: 'Legacy branch',
+                geom_type: 'LineString',
+                metadata: {
+                    start_node_id: 'main-line',
+                    end_node_id: 'branch-b',
+                },
+                properties: {},
+                coordinates: [[0.2, 0.1], [1, 1]],
+            },
+        ));
+
+        expect(graph.edges.map(item => item.id)).toContain('legacy-branch');
+        expect(graph.edges.find(item => item.id === 'legacy-branch')).toMatchObject({
+            from: 'cabinet',
+            to: 'branch-b',
+            sourceType: 'map-polyline',
+        });
     });
 });
 

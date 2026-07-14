@@ -271,11 +271,13 @@ export const DesignFeatures = () => {
                 features={visibleFeatures}
                 allFeatures={features}
                 parentChildMap={parentChildMap}
+                featureHierarchy={featureHierarchy}
                 feature_groups={feature_groups}
                 selectedFeatureId={selectedFeatureId}
                 selectFeature={selectFeature}
                 setSelectedGroup={setSelectedGroup}
                 previewMetadata={previewMetadata}
+                currentZoom={isReportCaptureActive ? Math.max(currentZoom, 23) : currentZoom}
                 zoomTo={zoomTo}
             />
 

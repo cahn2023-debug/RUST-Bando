@@ -344,6 +344,51 @@ describe('useDrawingInteraction', () => {
         });
     });
 
+    it('creates a SignalLine when a point snaps to an existing SignalLine branch', async () => {
+        const dispatchEventSingle = vi.fn().mockResolvedValue(undefined);
+        useDesignSync.setState({
+            dispatchEvent: dispatchEventSingle as any,
+            dispatchEvents: vi.fn().mockResolvedValue(undefined) as any,
+            state: {
+                ...makeState(),
+                features: {
+                    ...makeState().features,
+                    'line-1': {
+                        id: 'line-1',
+                        layer_id: 'layer-1',
+                        group_id: 'group-1',
+                        name: 'Existing SignalLine',
+                        geom_type: 'LineString',
+                        coordinates: [[20, 10], [21, 11]],
+                        metadata: JSON.stringify({
+                            infrastructure: { type: 'SignalLine' },
+                            network: { from_feature_id: 'cabinet-1', to_feature_id: 'camera-1', direction_mode: 'auto' },
+                        }),
+                        properties: {},
+                    },
+                },
+            } as any,
+            drawingMode: 'polyline',
+            currentDrawingPoints: [[20.1, 10.1], [21, 11]],
+            currentDrawingSnapIds: ['line-1', 'intersection-1'],
+        });
+
+        const { result } = renderHook(() => useDrawingInteraction());
+
+        await act(async () => {
+            await result.current.finalizePolyline();
+        });
+
+        expect(dispatchEventSingle).toHaveBeenCalledTimes(1);
+        const metadata = JSON.parse(dispatchEventSingle.mock.calls[0][0].payload.metadata);
+        expect(metadata.infrastructure).toMatchObject({ type: 'SignalLine' });
+        expect(metadata.network).toMatchObject({
+            from_feature_id: 'cabinet-1',
+            to_feature_id: 'intersection-1',
+            direction_mode: 'auto',
+        });
+    });
+
     it('keeps a network connection draft when polyline finalization is blocked by missing group', async () => {
         const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
         useDesignSync.setState({

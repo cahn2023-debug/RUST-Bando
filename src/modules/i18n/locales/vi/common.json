@@ -46,7 +46,11 @@
     "created": "Đã tạo",
     "updated": "Đã cập nhật",
     "noProjects": "Chưa có dự án nào",
-    "createFirst": "Tạo dự án đầu tiên"
+    "createFirst": "Tạo dự án đầu tiên",
+    "design": "Thiết kế",
+    "operate": "Vận hành",
+    "contracts": "Hợp đồng",
+    "resources": "Tài nguyên"
   },
   "map": {
     "zoomIn": "Phóng to",

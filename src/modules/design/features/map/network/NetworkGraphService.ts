@@ -1,9 +1,10 @@
 import type { FeatureMetadata, FeatureState } from '@CONTRACT/types';
 import {
-    buildNetworkComponents,
     collectNetworkEdges,
     collectNetworkNodes,
     isNetworkEdgeFeature,
+    isLineFeature,
+    resolveNetworkNodeIdFromSnap,
     isSourceRole,
     type NetworkRole,
 } from './networkTopology';
@@ -39,6 +40,7 @@ export interface NetworkEdge {
     from: string;
     to: string;
     kind: 'signal' | 'relationship';
+    sourceType: 'map-polyline' | 'network-drawn';
     telemetryId?: string;
     feature?: FeatureState;
     directionMode: 'auto' | 'manual' | 'legacy';
@@ -76,6 +78,8 @@ export interface NetworkEvaluation extends NetworkGraph {
     nodeStates: Record<string, NetworkNodeState>;
 }
 
+type NetworkComponent = { nodeIds: string[]; edgeIds: string[]; originIds: string[] };
+
 const parseMetadata = (metadata: FeatureState['metadata']): FeatureMetadata => {
     if (!metadata) return {};
     if (typeof metadata === 'string') {
@@ -86,6 +90,11 @@ const parseMetadata = (metadata: FeatureState['metadata']): FeatureMetadata => {
         }
     }
     return metadata as FeatureMetadata;
+};
+
+const getEdgeSourceType = (feature: FeatureState, metadata: FeatureMetadata): NetworkEdge['sourceType'] => {
+    if (feature.geom_type === 'NetworkLink' || metadata.infrastructure?.type === 'NetworkLink') return 'network-drawn';
+    return 'map-polyline';
 };
 
 const getEntityStatus = (
@@ -145,6 +154,60 @@ const computeDistances = (originId: string, edgeMap: Map<string, NetworkEdge>): 
     return distances;
 };
 
+const buildComponentsFromGraph = (nodes: NetworkNode[], edges: NetworkEdge[]): NetworkComponent[] => {
+    const adjacency = new Map<string, Set<string>>();
+    const edgeIdsByNode = new Map<string, Set<string>>();
+
+    for (const node of nodes) {
+        adjacency.set(node.id, new Set());
+        edgeIdsByNode.set(node.id, new Set());
+    }
+
+    for (const edge of edges) {
+        adjacency.get(edge.from)?.add(edge.to);
+        adjacency.get(edge.to)?.add(edge.from);
+        edgeIdsByNode.get(edge.from)?.add(edge.id);
+        edgeIdsByNode.get(edge.to)?.add(edge.id);
+    }
+
+    const nodesById = new Map(nodes.map(node => [node.id, node]));
+    const visited = new Set<string>();
+    const components: NetworkComponent[] = [];
+
+    for (const node of nodes) {
+        if (visited.has(node.id)) continue;
+
+        const queue = [node.id];
+        const componentNodeIds: string[] = [];
+        const componentEdgeIds = new Set<string>();
+        visited.add(node.id);
+
+        while (queue.length > 0) {
+            const current = queue.shift();
+            if (!current) continue;
+            componentNodeIds.push(current);
+
+            for (const edgeId of edgeIdsByNode.get(current) || []) {
+                componentEdgeIds.add(edgeId);
+            }
+
+            for (const neighbor of adjacency.get(current) || []) {
+                if (visited.has(neighbor)) continue;
+                visited.add(neighbor);
+                queue.push(neighbor);
+            }
+        }
+
+        components.push({
+            nodeIds: componentNodeIds,
+            edgeIds: [...componentEdgeIds],
+            originIds: componentNodeIds.filter(nodeId => nodesById.get(nodeId)?.isOrigin),
+        });
+    }
+
+    return components;
+};
+
 const mapNodes = (featuresById: Record<string, FeatureState>): NetworkNode[] => {
     const nodes = collectNetworkNodes(featuresById);
 
@@ -173,7 +236,6 @@ export const NetworkGraphService = {
         const duplicateEdgeIds = new Set<string>();
         const rawEdges = collectNetworkEdges(featuresById, nodeIds);
         const edgeMap = new Map<string, NetworkEdge>();
-        const components = buildNetworkComponents(featuresById);
 
         for (const feature of Object.values(featuresById)) {
             const metadata = parseMetadata(feature.metadata);
@@ -233,12 +295,52 @@ export const NetworkGraphService = {
                 from: edge.from,
                 to: edge.to,
                 kind: 'signal',
+                sourceType: getEdgeSourceType(edge.feature, edge.metadata),
                 telemetryId: edge.metadata.network?.telemetry_id,
                 feature: edge.feature,
                 directionMode: edge.directionMode,
                 directionState: edge.directionMode === 'legacy' || edge.directionMode === 'manual' ? 'confirmed' : 'pending',
             });
         }
+
+        for (const feature of Object.values(featuresById)) {
+            if (edgeMap.has(feature.id) || !isLineFeature(feature)) continue;
+
+            const metadata = parseMetadata(feature.metadata);
+            const startSnapId = typeof metadata.start_node_id === 'string' ? metadata.start_node_id : null;
+            const endSnapId = typeof metadata.end_node_id === 'string' ? metadata.end_node_id : null;
+            if (!startSnapId || !endSnapId) continue;
+
+            const coordinates = Array.isArray(feature.coordinates) ? feature.coordinates : [];
+            const startCoordinate = Array.isArray(coordinates[0]) ? coordinates[0] as [number, number] : null;
+            const endCoordinate = Array.isArray(coordinates[coordinates.length - 1]) ? coordinates[coordinates.length - 1] as [number, number] : null;
+            const resolvedFrom = resolveNetworkNodeIdFromSnap(featuresById, startSnapId, startCoordinate);
+            const resolvedTo = resolveNetworkNodeIdFromSnap(featuresById, endSnapId, endCoordinate);
+
+            if (!resolvedFrom || !resolvedTo || resolvedFrom === resolvedTo) continue;
+            if (!nodeIds.has(resolvedFrom) || !nodeIds.has(resolvedTo)) continue;
+
+            const pairKey = `${resolvedFrom}->${resolvedTo}`;
+            const reversePairKey = `${resolvedTo}->${resolvedFrom}`;
+            if (edgePairs.has(pairKey) || edgePairs.has(reversePairKey)) continue;
+
+            edgePairs.set(pairKey, feature.id);
+            edgeMap.set(feature.id, {
+                id: feature.id,
+                label: feature.name || feature.id,
+                from: resolvedFrom,
+                to: resolvedTo,
+                kind: 'signal',
+                sourceType: 'map-polyline',
+                telemetryId: metadata.network?.telemetry_id,
+                feature,
+                directionMode: 'auto',
+                directionState: 'pending',
+            });
+        }
+
+        const builtEdges = [...edgeMap.values()];
+        const components = buildComponentsFromGraph(nodes, builtEdges);
 
         for (const component of components) {
             const componentEdges = component.edgeIds
@@ -303,15 +405,15 @@ export const NetworkGraphService = {
             }
         }
 
-        return { nodes, edges: [...edgeMap.values()], diagnostics };
+        return { nodes, edges: builtEdges, diagnostics };
     },
 
     evaluate(featuresById: Record<string, FeatureState>, statusSnapshot: NetworkStatusSnapshot = {}): NetworkEvaluation {
         const graph = NetworkGraphService.build(featuresById);
         const outgoing = new Map<string, NetworkEdge[]>();
         const signalEdges = graph.edges.filter(edge => edge.kind === 'signal' && edge.directionState === 'confirmed');
-        const componentByNode = new Map<string, ReturnType<typeof buildNetworkComponents>[number]>();
-        const components = buildNetworkComponents(featuresById);
+        const componentByNode = new Map<string, NetworkComponent>();
+        const components = buildComponentsFromGraph(graph.nodes, graph.edges);
 
         for (const component of components) {
             for (const nodeId of component.nodeIds) {

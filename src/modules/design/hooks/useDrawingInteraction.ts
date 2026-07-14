@@ -2,7 +2,7 @@ import { useCallback, useEffect } from "react";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import { getNextFeatureDisplayOrder, syncDisplayOrderAliases } from "@TOOL/utils/featureMapping";
 import { getParsedMetadata } from "@TOOL/utils/featureMetadata";
-import { buildSnapLinks, inferNetworkRole, isPointFeature, isSourceRole } from "@DESIGN/features/map/network/networkTopology";
+import { buildSnapLinks, inferNetworkRole, isSourceRole, resolveNetworkNodeIdFromSnap } from "@DESIGN/features/map/network/networkTopology";
 
 type OneClickDrawingMode = 'point' | 'image' | 'intersection';
 
@@ -91,11 +91,11 @@ export function useDrawingInteraction() {
         const group = selectedGroupId ? state?.feature_groups?.[selectedGroupId] : null;
         if (!group) return;
 
-        const startFeature = state.features[startSnapId];
-        const endFeature = state.features[endSnapId];
-        const startIsPoint = isPointFeature(startFeature);
-        const endIsPoint = isPointFeature(endFeature);
-        const shouldCreateNetworkEdge = startIsPoint && endIsPoint && startFeature.id !== endFeature.id;
+        const resolvedStartNetworkNodeId = resolveNetworkNodeIdFromSnap(state.features, startSnapId, currentDrawingPoints[0] || null);
+        const resolvedEndNetworkNodeId = resolveNetworkNodeIdFromSnap(state.features, endSnapId, currentDrawingPoints[currentDrawingPoints.length - 1] || null);
+        const shouldCreateNetworkEdge = !!resolvedStartNetworkNodeId &&
+            !!resolvedEndNetworkNodeId &&
+            resolvedStartNetworkNodeId !== resolvedEndNetworkNodeId;
 
         const finalMetadata: any = {
             ...metadata,
@@ -115,8 +115,8 @@ export function useDrawingInteraction() {
             };
             finalMetadata.network = {
                 ...(finalMetadata.network || {}),
-                from_feature_id: networkConnectionDraft?.fromFeatureId || startFeature.id,
-                to_feature_id: networkConnectionDraft?.toFeatureId || endFeature.id,
+                from_feature_id: networkConnectionDraft?.fromFeatureId || resolvedStartNetworkNodeId,
+                to_feature_id: networkConnectionDraft?.toFeatureId || resolvedEndNetworkNodeId,
                 direction_mode: 'auto',
             };
         }
@@ -124,16 +124,18 @@ export function useDrawingInteraction() {
         const events: any[] = [];
 
         if (shouldCreateNetworkEdge) {
-            const startMeta = getParsedMetadata(startFeature) as Record<string, any>;
-            const endMeta = getParsedMetadata(endFeature) as Record<string, any>;
-            const startRole = inferNetworkRole(startFeature, startMeta as any);
-            const endRole = inferNetworkRole(endFeature, endMeta as any);
+            const resolvedStartFeature = state.features[resolvedStartNetworkNodeId!];
+            const resolvedEndFeature = state.features[resolvedEndNetworkNodeId!];
+            const startMeta = getParsedMetadata(resolvedStartFeature) as Record<string, any>;
+            const endMeta = getParsedMetadata(resolvedEndFeature) as Record<string, any>;
+            const startRole = inferNetworkRole(resolvedStartFeature, startMeta as any);
+            const endRole = inferNetworkRole(resolvedEndFeature, endMeta as any);
             const sourceFeature = isSourceRole(startRole) && !isSourceRole(endRole)
-                ? startFeature
+                ? resolvedStartFeature
                 : isSourceRole(endRole) && !isSourceRole(startRole)
-                    ? endFeature
+                    ? resolvedEndFeature
                     : null;
-            const deviceFeature = sourceFeature?.id === startFeature.id ? endFeature : sourceFeature?.id === endFeature.id ? startFeature : null;
+            const deviceFeature = sourceFeature?.id === resolvedStartFeature.id ? resolvedEndFeature : sourceFeature?.id === resolvedEndFeature.id ? resolvedStartFeature : null;
 
             if (sourceFeature && deviceFeature) {
                 const deviceMeta = { ...(getParsedMetadata(deviceFeature) as Record<string, any>) };

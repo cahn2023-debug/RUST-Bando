@@ -1,4 +1,4 @@
-﻿import { StateCreator } from 'zustand';
+import { StateCreator } from 'zustand';
 import { InitializationSlice, DesignSyncStore } from './types';
 import { safeInvoke as invoke } from '../../../../implement/lib/tauri';
 import { emit, listen } from '@tauri-apps/api/event';
@@ -87,7 +87,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             return;
         }
 
-        // 1. Náº¿u Ä‘ang náº¡p chÃ­nh project nÃ y, bá» qua Ä‘á»ƒ trÃ¡nh loop
+        // 1. Nếu đang nạp chính project này, bỏ qua để tránh loop
         if (currentlyLoading && currentProjectId === projectId) {
             const now = Date.now();
             const isStaleLoading = !!loadingSinceTs && now - loadingSinceTs > 20000;
@@ -99,7 +99,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             set({ isLoading: false, isHydrating: false });
         }
 
-        // 2. Náº¿u Ä‘Ã£ náº¡p xong vÃ  khÃ´ng cÃ³ lá»—i, khÃ´ng cáº§n náº¡p láº¡i
+        // 2. Nếu đã nạp xong và không có lỗi, không cần nạp lại
         if (
             currentProjectId === projectId &&
             currentState &&
@@ -167,7 +167,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                     logger.sync(`[Sync] Loading project from: ${projectPath}`);
                     await withTimeout(invoke('load_pmp_file', { path: projectPath }), 15000, 'load_pmp_file');
                 } else if (activeProject) {
-                    throw new Error(`PhiÃªn lÃ m viá»‡c cho dá»± Ã¡n ${projectId} Ä‘Ã£ káº¿t thÃºc. Vui lÃ²ng má»Ÿ láº¡i tá»‡p.`);
+                    throw new Error(`Phiên làm việc cho dự án ${projectId} đã kết thúc. Vui lòng mở lại tệp.`);
                 }
             }
 
@@ -178,7 +178,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             const tStart = performance.now();
             let state;
             try {
-                // âœ… Sá»­ dá»¥ng utility loadDesignState (V2 Bridge) thay vÃ¬ invokeBincode
+                // ✅ Sử dụng utility loadDesignState (V2 Bridge) thay vì invokeBincode
                 state = await withTimeout(loadDesignState(projectId), 15000, 'loadDesignState');
 
                 if (initializeRequestId !== getLatestInitializeRequestId()) {
@@ -192,7 +192,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                 }
 
                 if (e?.toString().includes("Timeout")) {
-                    throw new Error(`KhÃ´ng thá»ƒ náº¡p dá»¯ liá»‡u: Pháº£n há»“i tá»« Backend quÃ¡ cháº­m hoáº·c Database bá»‹ khÃ³a (Locked). Vui lÃ²ng thá»­ láº¡i.`);
+                    throw new Error(`Không thể nạp dữ liệu: Phản hồi từ Backend quá chậm hoặc Database bị khóa (Locked). Vui lòng thử lại.`);
                 }
 
                 if (e?.toString().includes("Database Lock")) {
@@ -207,21 +207,21 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             if (initializeRequestId !== getLatestInitializeRequestId()) return;
 
             if (!state) {
-                throw new Error("KhÃ´ng thá»ƒ náº¡p dá»¯ liá»‡u báº£n váº½ tá»« backend.");
+                throw new Error("Không thể nạp dữ liệu bản vẽ từ backend.");
             }
 
             const tDone = performance.now();
-            logger.info(`[Store] âœ… Hydration completed in ${(tDone - tStart).toFixed(1)}ms for project ${projectId}`);
+            logger.info(`[Store] ✅ Hydration completed in ${(tDone - tStart).toFixed(1)}ms for project ${projectId}`);
 
-            // ðŸ”¥ [Giai Ä‘oáº¡n Fix Bá»c ThÃ©p 1.1]: "Sáº¿p báº£o vá»©t háº¿t reduce, cá»© map cho anh"
+            // 🔥 [Giai đoạn Fix Bọc Thép 1.1]: "Sếp bảo vứt hết reduce, cứ map cho anh"
             if (state && state.features) {
                 const featureArrayRaw = Array.isArray(state.features) ? state.features : Object.values(state.features);
 
-                // 1. Phá»ng váº¥n tá»a Ä‘á»™ cá»§a feature Ä‘áº§u tiÃªn Ä‘á»ƒ báº¯t thÃ³p CRS
+                // 1. Phỏng vấn tọa độ của feature đầu tiên để bắt thóp CRS
                 if (featureArrayRaw.length > 0) {
                     const first = featureArrayRaw[0];
-                    console.log("ðŸ“ [Hydration] 1st Feature Coords (Raw):", first.coordinates);
-                    console.log("ðŸ“ [Hydration] 1st Feature BBOX (Raw):", first.bbox);
+                    console.log("📌 [Hydration] 1st Feature Coords (Raw):", first.coordinates);
+                    console.log("📌 [Hydration] 1st Feature BBOX (Raw):", first.bbox);
                 }
 
                 // V4 Fix: Heavy lifting is now done by getParsedCoordinates in the layer components.
@@ -232,19 +232,19 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                     return c && c !== 'null' && c !== '""';
                 }).length;
 
-                console.log(`ðŸ”¥ [Hydration] Sáº¿p Æ¡i, Ä‘Ã£ náº¡p xong ${totalLoad} features tá»« Backend.`);
-                console.log(`ðŸ“¡ [Hydration] Trong Ä‘Ã³ cÃ³ ${validCoordsCount} features cÃ³ tá»a Ä‘á»™ há»£p lá»‡ (non-null).`);
+                console.log(`🔥 [Hydration] Sếp ơi, đã nạp xong ${totalLoad} features từ Backend.`);
+                console.log(`📡 [Hydration] Trong đó có ${validCoordsCount} features có tọa độ hợp lệ (non-null).`);
 
                 if (totalLoad > 0) {
-                    console.log("ðŸ›‘ [CHá»T Háº ] TOÃ€N Bá»˜ Ná»˜I DUNG 1 FEATURE Tá»ª RUST:", featureArrayRaw[0]);
-                    console.log(`ðŸ§ª [Hydration] Sample feature coordinate format:`, featureArrayRaw[0].coordinates);
+                    console.log("🛑 [CHỐT HẠ] TOÀN BỘ NỘI DUNG 1 FEATURE TỪ RUST:", featureArrayRaw[0]);
+                    console.log(`🧪 [Hydration] Sample feature coordinate format:`, featureArrayRaw[0].coordinates);
                 }
 
-                // 3. Náº¡p vÃ o Record (VÃ¬ UI vÃ  Hooks dÃ¹ng Record[id] Ä‘á»ƒ query cho cá»±c nhanh)
+                // 3. Nạp vào Record (Vì UI và Hooks dùng Record[id] để query cho cực nhanh)
                 const featureRecord = featureArrayRaw.reduce((acc: any, f: any, index: number) => {
                     const validId = f.id || f.feature_id || f.uuid;
                     if (validId) {
-                        // 1. Ã‰p properties vá» Object
+                        // 1. Ép properties về Object
                         let parsedProps = f.properties;
                         if (typeof parsedProps === 'string') {
                             try {
@@ -255,16 +255,16 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                         }
 
                         // ==========================================
-                        // ðŸš¨ 2. TRUY LÃ™NG Tá»ŒA Äá»˜ VÃ€ BBOX (Bá»ŒC THÃ‰P V4)
+                        // 🚨 2. TRUY LÙNG TỌA ĐỘ VÀ BBOX (BỌC THÉP V4)
                         // ==========================================
                         let finalCoords = f.coordinates;
 
-                        // Láº­t tung sample Ä‘á»ƒ soi key C# (chá»‰ log 1 láº§n cho feature Ä‘áº§u hoáº·c ID cá»¥ thá»ƒ)
+                        // Lật tung sample để soi key C# (chỉ log 1 lần cho feature đầu hoặc ID cụ thể)
                         if (index === 0) {
-                            console.log("ðŸ•µï¸ [Hydration] Láº¬T TUNG PROPERTIES TÃŒM Tá»ŒA Äá»˜:", parsedProps);
+                            console.log("🕵️ [Hydration] LẬT TUNG PROPERTIES TÌM TỌA ĐỘ:", parsedProps);
                         }
 
-                        // A. BÃ¬nh thÆ°á»ng hÃ³a tá»a Ä‘á»™
+                        // A. Bình thường hóa tọa độ
                         if (typeof finalCoords === 'string') {
                             try { finalCoords = JSON.parse(finalCoords); } catch (e) { }
                         }
@@ -272,15 +272,15 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                             finalCoords = null;
                         }
 
-                        // B. DÃ² tÃ¬m tá»a Ä‘á»™ tá»« properties (C# Legacy)
+                        // B. Dò tìm tọa độ từ properties (C# Legacy)
                         const rawLat = parsedProps?.Latitude || parsedProps?.latitude || parsedProps?.Lat || parsedProps?.lat || parsedProps?.Y || parsedProps?.y || parsedProps?.Location?.Latitude;
                         const rawLng = parsedProps?.Longitude || parsedProps?.longitude || parsedProps?.Lng || parsedProps?.lng || parsedProps?.X || parsedProps?.x || parsedProps?.Location?.Longitude;
 
                         if (rawLat !== undefined && rawLng !== undefined) {
-                            // Ã‰p má»‘c tá»a Ä‘á»™ vá» máº£ng chuáº©n cá»§a Leaflet/MapLibre [lng, lat]
+                            // Ép mốc tọa độ về mảng chuẩn của Leaflet/MapLibre [lng, lat]
                             finalCoords = [Number(rawLng), Number(rawLat)];
                         } else {
-                            // Luá»“ng backup tÃ¬m trong cÃ¡c key phá»• biáº¿n khÃ¡c
+                            // Luồng backup tìm trong các key phổ biến khác
                             finalCoords = finalCoords
                                 || parsedProps?.coordinates
                                 || parsedProps?.Coordinates
@@ -289,7 +289,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                                 || parsedProps?.Location?.coordinates;
                         }
 
-                        // C. Xá»­ lÃ½ BBOX
+                        // C. Xử lý BBOX
                         let finalBbox = f.bbox || parsedProps?.bbox || parsedProps?.BBox;
                         if (typeof finalBbox === 'string') {
                             try {
@@ -299,7 +299,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                             }
                         }
 
-                        // Tá»± sinh BBOX náº¿u tÃ¬m Ä‘Æ°á»£c máº£ng tá»a Ä‘á»™ [lng, lat] nhÆ°ng thiáº¿u BBOX
+                        // Tự sinh BBOX nếu tìm được mảng tọa độ [lng, lat] nhưng thiếu BBOX
                         if (!finalBbox && Array.isArray(finalCoords) && finalCoords.length >= 2) {
                             if (typeof finalCoords[0] === 'number') {
                                 finalBbox = {
@@ -311,7 +311,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                             }
                         }
 
-                        // 4. Ghi vÃ o Record
+                        // 4. Ghi vào Record
                         acc[validId] = {
                             ...f,
                             id: validId,
@@ -323,9 +323,9 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                     return acc;
                 }, {});
 
-                console.log(`ðŸ”¥ [Hydration] Sáº¿p Æ¡i, Ä‘Ã£ náº¡p xong ${featureArrayRaw.length} features vÃ o Store (Record format).`);
+                console.log(`🔥 [Hydration] Sếp ơi, đã nạp xong ${featureArrayRaw.length} features vào Store (Record format).`);
 
-                // Cáº­p nháº­t láº¡i state
+                // Cập nhật lại state
                 state.features = featureRecord;
             }
 
