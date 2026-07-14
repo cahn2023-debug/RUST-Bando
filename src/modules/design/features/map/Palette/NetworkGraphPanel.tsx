@@ -37,6 +37,7 @@ import {
     type NetworkEdge,
     type NetworkNode,
 } from '@DESIGN/features/map/network/NetworkGraphService';
+import { buildManualEdgeDirectionEvent, buildSetOriginEvents } from '@DESIGN/features/map/network/networkTopology';
 import { useNetworkStatusStore } from '@DESIGN/features/map/network/useNetworkStatusStore';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
 import { NetworkNodeWidget } from './NetworkNodeWidget';
@@ -193,6 +194,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
     const setSelectedGroup = useDesignSync(s => s.setSelectedGroup);
     const zoomTo = useDesignSync(s => s.zoomTo);
     const dispatchEvent = useDesignSync(s => s.dispatchEvent);
+    const dispatchEvents = useDesignSync(s => s.dispatchEvents);
     const setDrawingMode = useDesignSync(s => s.setDrawingMode);
     const setActiveParentFeature = useDesignSync(s => s.setActiveParentFeature);
     const networkConnectionDraft = useDesignSync(s => s.networkConnectionDraft);
@@ -228,7 +230,9 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
             return evaluation.edges.filter(edge => {
                 const fromNode = nodesById.get(edge.from);
                 const toNode = nodesById.get(edge.to);
-                return isSourceNode(fromNode) && isSourceNode(toNode);
+                const fromScope = getNodeScopeOwnerId(fromNode);
+                const toScope = getNodeScopeOwnerId(toNode);
+                return (isSourceNode(fromNode) && isSourceNode(toNode)) || (!!fromScope && !!toScope && fromScope !== toScope);
             });
         }
 
@@ -306,23 +310,39 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
 
         const edges: Edge[] = scopedEdges.map(edge => {
             const edgeStatus = edge.kind === 'relationship' ? 'online' : snapshot.edges?.[edge.telemetryId || edge.id] || 'unknown';
-            const color = edgeStatus === 'online' ? '#34d399' : edgeStatus === 'offline' ? '#f87171' : '#71717a';
+            const color = edge.directionState === 'conflict'
+                ? '#f59e0b'
+                : edge.directionState === 'pending'
+                    ? '#a1a1aa'
+                    : edgeStatus === 'online'
+                        ? '#34d399'
+                        : edgeStatus === 'offline'
+                            ? '#f87171'
+                            : '#71717a';
             const { lineStyle, iconType } = getNetworkLinkPresentation(edge);
-            const iconLabel = linkIconLabel[iconType];
+            const iconLabel = edge.directionState === 'confirmed' ? linkIconLabel[iconType] : undefined;
 
             return {
                 id: edge.id,
                 source: edge.from,
                 target: edge.to,
-                animated: edge.kind === 'signal' && edgeStatus === 'online',
+                animated: edge.kind === 'signal' && edgeStatus === 'online' && edge.directionState === 'confirmed',
                 selectable: edge.kind === 'signal',
                 interactionWidth: edge.kind === 'signal' ? 18 : 8,
-                data: { status: edgeStatus, label: edge.label, kind: edge.kind, iconType, lineStyle },
+                data: { status: edgeStatus, label: edge.label, kind: edge.kind, iconType, lineStyle, directionState: edge.directionState },
                 label: edge.kind === 'relationship' ? undefined : iconLabel || (edgeStatus === 'unknown' ? undefined : edgeStatus),
-                markerEnd: edge.kind === 'signal' && iconType !== 'none' ? { type: MarkerType.ArrowClosed, color } : undefined,
+                markerEnd: edge.kind === 'signal' && edge.directionState === 'confirmed' && iconType !== 'none'
+                    ? { type: MarkerType.ArrowClosed, color }
+                    : undefined,
                 style: {
                     stroke: edge.kind === 'relationship' ? '#64748b' : color,
-                    strokeDasharray: edge.kind === 'relationship' ? '5 5' : lineStyleDash[lineStyle],
+                    strokeDasharray: edge.kind === 'relationship'
+                        ? '5 5'
+                        : edge.directionState === 'pending'
+                            ? '8 6'
+                            : edge.directionState === 'conflict'
+                                ? '2 6'
+                                : lineStyleDash[lineStyle],
                     strokeWidth: selectedEntity?.id === edge.id ? 3 : edge.kind === 'relationship' ? 1.5 : 2,
                 },
             };
@@ -422,6 +442,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                     network: {
                         from_feature_id: connection.source,
                         to_feature_id: connection.target,
+                        direction_mode: 'manual',
                     },
                 }),
                 properties: {},
@@ -451,29 +472,18 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
 
     const handleReverseEdge = useCallback(async () => {
         if (!selectedEdge?.feature || selectedEdge.kind !== 'signal') return;
-        const metadata = parseMetadata(selectedEdge.feature.metadata);
-        const network = metadata.network && typeof metadata.network === 'object' ? metadata.network as Record<string, unknown> : {};
-        const startPoint = parsePointCoordinate(selectedEdge.feature.coordinates);
-        const endPoint = Array.isArray(selectedEdge.feature.coordinates) && selectedEdge.feature.coordinates.length > 1
-            ? parsePointCoordinate(selectedEdge.feature.coordinates[selectedEdge.feature.coordinates.length - 1])
-            : null;
-        const coordinates = startPoint && endPoint ? [endPoint, startPoint] : selectedEdge.feature.coordinates;
+        const reverseEvent = buildManualEdgeDirectionEvent(selectedEdge.feature, true);
+        if (reverseEvent) {
+            await dispatchEvent(reverseEvent);
+        }
+    }, [dispatchEvent, selectedEdge]);
 
-        await dispatchEvent({
-            type: 'FeatureUpdated',
-            payload: {
-                id: selectedEdge.id,
-                coordinates,
-                metadata: JSON.stringify({
-                    ...metadata,
-                    network: {
-                        ...network,
-                        from_feature_id: selectedEdge.to,
-                        to_feature_id: selectedEdge.from,
-                    },
-                }),
-            },
-        });
+    const handleConfirmEdgeDirection = useCallback(async () => {
+        if (!selectedEdge?.feature || selectedEdge.kind !== 'signal') return;
+        const confirmEvent = buildManualEdgeDirectionEvent(selectedEdge.feature, false);
+        if (confirmEvent) {
+            await dispatchEvent(confirmEvent);
+        }
     }, [dispatchEvent, selectedEdge]);
 
     const handleUpdateEdgePresentation = useCallback(async (updates: Partial<{ name: string; lineStyle: NetworkLineStyle; iconType: NetworkLinkIcon }>) => {
@@ -503,6 +513,12 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
         if (!featureId) return;
         selectAndZoomFeature(featureId);
     }, [selectAndZoomFeature]);
+
+    const handleSetOrigin = useCallback(async (nodeId: string) => {
+        const events = buildSetOriginEvents(features, nodeId);
+        if (events.length === 0) return;
+        await dispatchEvents(events);
+    }, [dispatchEvents, features]);
 
     const fromDraft = networkConnectionDraft ? evaluation.nodes.find(node => node.id === networkConnectionDraft.fromFeatureId) : null;
     const toDraft = networkConnectionDraft ? evaluation.nodes.find(node => node.id === networkConnectionDraft.toFeatureId) : null;
@@ -595,6 +611,14 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                     <div className="text-[11px] font-bold uppercase tracking-wide text-zinc-300">Inspector</div>
                     {selectedEdge && selectedEdge.kind === 'signal' && (
                         <div className="flex items-center gap-1">
+                            {selectedEdge.directionState !== 'confirmed' && (
+                                <button
+                                    onClick={handleConfirmEdgeDirection}
+                                    className="inline-flex items-center gap-1 rounded border border-emerald-400/30 px-2 py-1 text-[10px] font-bold text-emerald-300 hover:bg-emerald-500/10"
+                                >
+                                    Xác nhận
+                                </button>
+                            )}
                             <button
                                 onClick={handleReverseEdge}
                                 className="inline-flex items-center gap-1 rounded border border-cyan-400/30 px-2 py-1 text-[10px] font-bold text-cyan-300 hover:bg-cyan-500/10"
@@ -619,14 +643,28 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
 
                 {selectedNode && (
                     <div className="rounded border border-white/10 bg-black/20 p-3">
-                        <div className="mb-2 flex items-center gap-2">
-                            <span className={cn('h-2.5 w-2.5 rounded-full', statusColor[evaluation.nodeStates[selectedNode.id]?.status || 'unknown'])} />
-                            <div className="min-w-0">
-                                <div className="truncate text-xs font-bold text-zinc-100">{selectedNode.label}</div>
-                                <div className="text-[10px] uppercase text-zinc-500">{selectedNode.role}</div>
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                            <div className="flex min-w-0 items-center gap-2">
+                                <span className={cn('h-2.5 w-2.5 rounded-full', statusColor[evaluation.nodeStates[selectedNode.id]?.status || 'unknown'])} />
+                                <div className="min-w-0">
+                                    <div className="truncate text-xs font-bold text-zinc-100">{selectedNode.label}</div>
+                                    <div className="text-[10px] uppercase text-zinc-500">{selectedNode.role}</div>
+                                </div>
                             </div>
+                            <button
+                                onClick={() => handleSetOrigin(selectedNode.id)}
+                                className={cn(
+                                    'rounded border px-2 py-1 text-[10px] font-bold transition',
+                                    selectedNode.isOrigin
+                                        ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
+                                        : 'border-white/10 text-zinc-300 hover:bg-white/10'
+                                )}
+                            >
+                                {selectedNode.isOrigin ? 'Điểm gốc' : 'Đặt làm gốc'}
+                            </button>
                         </div>
                         <InspectorRow label="Trạng thái" value={statusLabel[evaluation.nodeStates[selectedNode.id]?.status || 'unknown']} />
+                        <InspectorRow label="Điểm gốc" value={selectedNode.isOrigin ? 'Đã chọn' : 'Chưa chọn'} />
                         <InspectorRow label="Telemetry" value={<span className="font-mono">{selectedNode.telemetryId || 'Chưa gán'}</span>} />
                         <InspectorRow label="Feature" value={<span className="font-mono">{selectedNode.id}</span>} />
                         <InspectorRow label="Lý do" value={evaluation.nodeStates[selectedNode.id]?.reason || 'Không có'} />
@@ -640,7 +678,15 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                             <GitBranch size={14} className="text-cyan-300" />
                             <div className="min-w-0">
                                 <div className="truncate text-xs font-bold text-zinc-100">{selectedEdge.label}</div>
-                                <div className="text-[10px] uppercase text-zinc-500">{selectedEdge.kind === 'relationship' ? 'Relationship' : 'NetworkLink simulated'}</div>
+                                <div className="text-[10px] uppercase text-zinc-500">
+                                    {selectedEdge.kind === 'relationship'
+                                        ? 'Relationship'
+                                        : selectedEdge.directionState === 'conflict'
+                                            ? 'SignalLine conflict'
+                                            : selectedEdge.directionState === 'pending'
+                                                ? 'SignalLine pending'
+                                                : 'SignalLine confirmed'}
+                                </div>
                             </div>
                         </div>
 
@@ -687,10 +733,16 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                         )}
 
                         <InspectorRow label="Trang thai" value={selectedEdge.kind === 'relationship' ? 'display-only' : snapshot.edges?.[selectedEdge.telemetryId || selectedEdge.id] || 'unknown'} />
+                        <InspectorRow label="Huong" value={selectedEdge.directionState} />
                         <InspectorRow label="Nguon" value={<span className="font-mono">{selectedEdge.from}</span>} />
                         <InspectorRow label="Dich" value={<span className="font-mono">{selectedEdge.to}</span>} />
                         <InspectorRow label="Telemetry" value={<span className="font-mono">{selectedEdge.telemetryId || 'Chua gan'}</span>} />
                         <InspectorRow label="Feature" value={<span className="font-mono">{selectedEdge.id}</span>} />
+                        {selectedEdge.directionState !== 'confirmed' && (
+                            <div className="mt-3 rounded border border-amber-400/30 bg-amber-500/10 p-2 text-[11px] leading-4 text-amber-100">
+                                Tuyến này chưa có hướng hợp lệ cho downstream. Hãy chọn lại điểm gốc hoặc xác nhận thủ công.
+                            </div>
+                        )}
                     </div>
                 )}
 

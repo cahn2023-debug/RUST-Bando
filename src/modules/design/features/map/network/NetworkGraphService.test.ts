@@ -13,6 +13,11 @@ const node = (id: string, role: 'cabinet' | 'intersection' | 'device'): FeatureS
     coordinates: [0, 0],
 });
 
+const originNode = (id: string, role: 'cabinet' | 'intersection' | 'device'): FeatureState => ({
+    ...node(id, role),
+    metadata: { network: { role, telemetry_id: `${id}-telemetry`, is_origin: true } },
+});
+
 const inferredNode = (id: string, metadata: Record<string, unknown> = {}): FeatureState => ({
     id,
     layer_id: 'layer',
@@ -32,7 +37,7 @@ const edge = (id: string, from?: string, to?: string): FeatureState => ({
     geom_type: 'LineString',
     metadata: {
         infrastructure: { type: 'SignalLine' },
-        network: { from_feature_id: from, to_feature_id: to, telemetry_id: `${id}-telemetry` },
+        network: { from_feature_id: from, to_feature_id: to, telemetry_id: `${id}-telemetry`, direction_mode: 'auto' },
     },
     properties: {},
     coordinates: [[0, 0], [1, 1]],
@@ -60,10 +65,10 @@ const allOnline = (ids: string[]): Record<string, NetworkEntityStatus> =>
 
 describe('NetworkGraphService.build', () => {
     it('normalizes valid network nodes and SignalLine edges', () => {
-        const graph = NetworkGraphService.build(byId(node('cabinet', 'cabinet'), node('a', 'device'), edge('line-a', 'cabinet', 'a')));
+        const graph = NetworkGraphService.build(byId(originNode('cabinet', 'cabinet'), node('a', 'device'), edge('line-a', 'cabinet', 'a')));
 
         expect(graph.nodes.map(item => item.id)).toEqual(['cabinet', 'a']);
-        expect(graph.edges).toMatchObject([{ id: 'line-a', from: 'cabinet', to: 'a', kind: 'signal' }]);
+        expect(graph.edges).toMatchObject([{ id: 'line-a', from: 'cabinet', to: 'a', kind: 'signal', directionState: 'confirmed' }]);
         expect(graph.diagnostics).toEqual([]);
     });
 
@@ -83,7 +88,7 @@ describe('NetworkGraphService.build', () => {
 
     it('treats simulated NetworkLink features as edges without creating map polylines', () => {
         const graph = NetworkGraphService.build(byId(
-            node('cabinet', 'cabinet'),
+            originNode('cabinet', 'cabinet'),
             node('camera-a', 'device'),
             networkLink('link-a', 'cabinet', 'camera-a'),
         ));
@@ -95,7 +100,7 @@ describe('NetworkGraphService.build', () => {
         expect(graph.diagnostics).toEqual([]);
     });
 
-    it('reports dangling endpoints, self-loops, unknown nodes, duplicate edges and missing cabinets', () => {
+    it('reports dangling endpoints, self-loops, unknown nodes and duplicate edges', () => {
         const graph = NetworkGraphService.build(byId(
             node('a', 'device'),
             node('b', 'device'),
@@ -112,8 +117,30 @@ describe('NetworkGraphService.build', () => {
             'self-loop',
             'unknown-node',
             'duplicate-edge',
-            'missing-cabinet',
+            'missing-origin',
         ]);
+    });
+
+    it('marks auto edges pending when a component has no origin', () => {
+        const graph = NetworkGraphService.build(byId(
+            node('a', 'intersection'),
+            node('b', 'device'),
+            edge('line-a', 'a', 'b'),
+        ));
+
+        expect(graph.edges[0]).toMatchObject({ directionState: 'pending' });
+        expect(graph.diagnostics.map(item => item.type)).toContain('missing-origin');
+    });
+
+    it('marks auto edges as conflict when a component has multiple origins', () => {
+        const graph = NetworkGraphService.build(byId(
+            originNode('a', 'intersection'),
+            originNode('b', 'cabinet'),
+            edge('line-a', 'a', 'b'),
+        ));
+
+        expect(graph.edges[0]).toMatchObject({ directionState: 'conflict' });
+        expect(graph.diagnostics.map(item => item.type)).toContain('multiple-origins');
     });
 });
 
@@ -121,7 +148,7 @@ describe('NetworkGraphService.evaluate', () => {
     it('propagates online status through chains and branches', () => {
         const evaluation = NetworkGraphService.evaluate(
             byId(
-                node('cabinet', 'cabinet'),
+                originNode('cabinet', 'cabinet'),
                 node('a', 'device'),
                 node('b', 'device'),
                 node('c', 'device'),
@@ -142,15 +169,23 @@ describe('NetworkGraphService.evaluate', () => {
     it('keeps a downstream node online when a redundant path remains active', () => {
         const evaluation = NetworkGraphService.evaluate(
             byId(
-                node('cabinet-a', 'cabinet'),
-                node('cabinet-b', 'cabinet'),
+                originNode('cabinet-a', 'cabinet'),
+                node('relay', 'device'),
+                node('backup', 'device'),
                 node('target', 'device'),
-                edge('line-a', 'cabinet-a', 'target'),
-                edge('line-b', 'cabinet-b', 'target'),
+                edge('line-a', 'cabinet-a', 'relay'),
+                edge('line-b', 'relay', 'target'),
+                edge('line-c', 'cabinet-a', 'backup'),
+                edge('line-d', 'backup', 'target'),
             ),
             {
-                nodes: allOnline(['cabinet-a', 'cabinet-b', 'target']),
-                edges: { 'line-a-telemetry': 'offline', 'line-b-telemetry': 'online' },
+                nodes: allOnline(['cabinet-a', 'relay', 'backup', 'target']),
+                edges: {
+                    'line-a-telemetry': 'offline',
+                    'line-b-telemetry': 'offline',
+                    'line-c-telemetry': 'online',
+                    'line-d-telemetry': 'online',
+                },
             },
         );
 
@@ -160,7 +195,7 @@ describe('NetworkGraphService.evaluate', () => {
     it('handles cycles without revisiting forever', () => {
         const evaluation = NetworkGraphService.evaluate(
             byId(
-                node('cabinet', 'cabinet'),
+                originNode('cabinet', 'cabinet'),
                 node('a', 'device'),
                 node('b', 'device'),
                 edge('line-a', 'cabinet', 'a'),
@@ -179,7 +214,7 @@ describe('NetworkGraphService.evaluate', () => {
     it('marks only directly offline nodes as direct-offline and descendants as upstream-offline when no path remains', () => {
         const evaluation = NetworkGraphService.evaluate(
             byId(
-                node('cabinet', 'cabinet'),
+                originNode('cabinet', 'cabinet'),
                 node('a', 'device'),
                 node('b', 'device'),
                 edge('line-a', 'cabinet', 'a'),
@@ -196,13 +231,40 @@ describe('NetworkGraphService.evaluate', () => {
         expect(evaluation.nodeStates.a.affectedDownstream).toEqual(['a', 'b']);
     });
 
-    it('uses intersections as source nodes when no explicit cabinet exists', () => {
+    it('uses the selected origin as the topology source', () => {
         const evaluation = NetworkGraphService.evaluate(
-            byId(node('a', 'intersection'), node('b', 'device'), edge('line-a', 'a', 'b')),
+            byId(originNode('a', 'intersection'), node('b', 'device'), edge('line-a', 'a', 'b')),
             { nodes: allOnline(['a', 'b']), edges: allOnline(['line-a']) },
         );
 
         expect(evaluation.nodeStates.a.status).toBe('online');
         expect(evaluation.nodeStates.b.status).toBe('online');
+    });
+
+    it('flags nodes as configuration-error when auto edges have no origin', () => {
+        const evaluation = NetworkGraphService.evaluate(
+            byId(node('a', 'intersection'), node('b', 'device'), edge('line-a', 'a', 'b')),
+            { nodes: allOnline(['a', 'b']), edges: allOnline(['line-a']) },
+        );
+
+        expect(evaluation.nodeStates.a.status).toBe('configuration-error');
+        expect(evaluation.nodeStates.b.status).toBe('configuration-error');
+    });
+
+    it('marks equal-depth auto edges as ambiguous and keeps them out of downstream propagation', () => {
+        const evaluation = NetworkGraphService.evaluate(
+            byId(
+                originNode('root', 'intersection'),
+                node('left', 'device'),
+                node('right', 'device'),
+                edge('line-left', 'root', 'left'),
+                edge('line-right', 'root', 'right'),
+                edge('line-cross', 'left', 'right'),
+            ),
+            { nodes: allOnline(['root', 'left', 'right']), edges: allOnline(['line-left', 'line-right', 'line-cross']) },
+        );
+
+        expect(evaluation.edges.find(edgeItem => edgeItem.id === 'line-cross')).toMatchObject({ directionState: 'pending' });
+        expect(evaluation.diagnostics.map(item => item.type)).toContain('ambiguous-direction');
     });
 });

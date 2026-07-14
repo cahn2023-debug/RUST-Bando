@@ -1,6 +1,13 @@
 import type { FeatureMetadata, FeatureState } from '@CONTRACT/types';
+import {
+    buildNetworkComponents,
+    collectNetworkEdges,
+    collectNetworkNodes,
+    isNetworkEdgeFeature,
+    isSourceRole,
+    type NetworkRole,
+} from './networkTopology';
 
-export type NetworkRole = 'cabinet' | 'intersection' | 'device';
 export type NetworkEntityStatus = 'online' | 'offline' | 'unknown';
 export type NetworkComputedStatus =
     | 'online'
@@ -22,6 +29,7 @@ export interface NetworkNode {
     isInferredRole: boolean;
     telemetryId?: string;
     parentFeatureId?: string;
+    isOrigin: boolean;
     feature: FeatureState;
 }
 
@@ -33,10 +41,19 @@ export interface NetworkEdge {
     kind: 'signal' | 'relationship';
     telemetryId?: string;
     feature?: FeatureState;
+    directionMode: 'auto' | 'manual' | 'legacy';
+    directionState: 'confirmed' | 'pending' | 'conflict';
 }
 
 export interface NetworkDiagnostic {
-    type: 'missing-endpoint' | 'self-loop' | 'unknown-node' | 'duplicate-edge' | 'missing-cabinet';
+    type:
+    | 'missing-endpoint'
+    | 'self-loop'
+    | 'unknown-node'
+    | 'duplicate-edge'
+    | 'missing-origin'
+    | 'multiple-origins'
+    | 'ambiguous-direction';
     edgeId?: string;
     featureId?: string;
     message: string;
@@ -71,45 +88,6 @@ const parseMetadata = (metadata: FeatureState['metadata']): FeatureMetadata => {
     return metadata as FeatureMetadata;
 };
 
-const isNetworkRole = (role: unknown): role is NetworkRole =>
-    role === 'cabinet' || role === 'intersection' || role === 'device';
-
-const normalizeText = (value: unknown): string =>
-    String(value || '')
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase();
-
-const isLineFeature = (feature: FeatureState): boolean => {
-    const geomType = (feature.geom_type || feature.geometry_type || '').toLowerCase();
-    return geomType.includes('line');
-};
-
-const isNetworkEdgeFeature = (feature: FeatureState, metadata: FeatureMetadata): boolean => {
-    const geomType = (feature.geom_type || feature.geometry_type || '').toLowerCase();
-    return (geomType.includes('line') && metadata.infrastructure?.type === 'SignalLine') ||
-        metadata.infrastructure?.type === 'NetworkLink';
-};
-
-const inferNetworkRole = (feature: FeatureState, metadata: FeatureMetadata): NetworkRole => {
-    const explicitRole = metadata.network?.role;
-    if (isNetworkRole(explicitRole)) return explicitRole;
-
-    const icon = normalizeText(metadata.icon);
-    const type = normalizeText((metadata as Record<string, unknown>).type);
-    const name = normalizeText(feature.name);
-
-    if (icon === 'intersection' || type.includes('intersection') || type.includes('nut giao') || name.includes('nut giao')) {
-        return 'intersection';
-    }
-
-    if (['cabinet', 'box', 'server'].includes(icon) || type.includes('cabinet') || type.includes('tu thiet bi') || name.includes('tu thiet bi') || name.includes('tu cap')) {
-        return 'cabinet';
-    }
-
-    return 'device';
-};
-
 const getEntityStatus = (
     entityId: string,
     telemetryId: string | undefined,
@@ -141,33 +119,61 @@ const collectDownstream = (
     return [...affected];
 };
 
+const computeDistances = (originId: string, edgeMap: Map<string, NetworkEdge>): Map<string, number> => {
+    const adjacency = new Map<string, Set<string>>();
+    for (const edge of edgeMap.values()) {
+        if (!adjacency.has(edge.from)) adjacency.set(edge.from, new Set());
+        if (!adjacency.has(edge.to)) adjacency.set(edge.to, new Set());
+        adjacency.get(edge.from)?.add(edge.to);
+        adjacency.get(edge.to)?.add(edge.from);
+    }
+
+    const distances = new Map<string, number>([[originId, 0]]);
+    const queue = [originId];
+
+    while (queue.length > 0) {
+        const current = queue.shift();
+        if (!current) continue;
+        const currentDistance = distances.get(current) ?? 0;
+        for (const neighbor of adjacency.get(current) || []) {
+            if (distances.has(neighbor)) continue;
+            distances.set(neighbor, currentDistance + 1);
+            queue.push(neighbor);
+        }
+    }
+
+    return distances;
+};
+
+const mapNodes = (featuresById: Record<string, FeatureState>): NetworkNode[] => {
+    const nodes = collectNetworkNodes(featuresById);
+
+    return [...nodes.values()].map(node => {
+        const explicitRole = node.metadata.network?.role;
+        return {
+            id: node.id,
+            label: node.feature.name || node.id,
+            role: node.role,
+            networkRole: node.role,
+            isInferredRole: explicitRole !== 'cabinet' && explicitRole !== 'intersection' && explicitRole !== 'device',
+            telemetryId: node.metadata.network?.telemetry_id,
+            parentFeatureId: node.parentFeatureId,
+            isOrigin: node.isOrigin,
+            feature: node.feature,
+        };
+    });
+};
+
 export const NetworkGraphService = {
     build(featuresById: Record<string, FeatureState>): NetworkGraph {
-        const nodes: NetworkNode[] = [];
-        const edges: NetworkEdge[] = [];
+        const nodes = mapNodes(featuresById);
         const diagnostics: NetworkDiagnostic[] = [];
-        const nodeIds = new Set<string>();
+        const nodeIds = new Set(nodes.map(node => node.id));
         const edgePairs = new Map<string, string>();
-
-        for (const feature of Object.values(featuresById)) {
-            const metadata = parseMetadata(feature.metadata);
-            if (isLineFeature(feature) || isNetworkEdgeFeature(feature, metadata)) continue;
-
-            const explicitRole = metadata.network?.role;
-            const role = inferNetworkRole(feature, metadata);
-
-            nodeIds.add(feature.id);
-            nodes.push({
-                id: feature.id,
-                label: feature.name || feature.id,
-                role,
-                networkRole: role,
-                isInferredRole: !isNetworkRole(explicitRole),
-                telemetryId: metadata.network?.telemetry_id,
-                parentFeatureId: typeof metadata.parent_feature_id === 'string' ? metadata.parent_feature_id : undefined,
-                feature,
-            });
-        }
+        const duplicateEdgeIds = new Set<string>();
+        const rawEdges = collectNetworkEdges(featuresById, nodeIds);
+        const edgeMap = new Map<string, NetworkEdge>();
+        const components = buildNetworkComponents(featuresById);
 
         for (const feature of Object.values(featuresById)) {
             const metadata = parseMetadata(feature.metadata);
@@ -180,7 +186,7 @@ export const NetworkGraphService = {
                 diagnostics.push({
                     type: 'missing-endpoint',
                     edgeId: feature.id,
-                message: `Network link ${feature.id} is missing from_feature_id or to_feature_id.`,
+                    message: `Network link ${feature.id} is missing from_feature_id or to_feature_id.`,
                 });
                 continue;
             }
@@ -189,7 +195,7 @@ export const NetworkGraphService = {
                 diagnostics.push({
                     type: 'self-loop',
                     edgeId: feature.id,
-                message: `Network link ${feature.id} points to itself.`,
+                    message: `Network link ${feature.id} points to itself.`,
                 });
                 continue;
             }
@@ -199,7 +205,7 @@ export const NetworkGraphService = {
                 diagnostics.push({
                     type: 'unknown-node',
                     edgeId: feature.id,
-                message: `Network link ${feature.id} references unknown node(s): ${missing.join(', ')}.`,
+                    message: `Network link ${feature.id} references unknown node(s): ${missing.join(', ')}.`,
                 });
                 continue;
             }
@@ -207,40 +213,111 @@ export const NetworkGraphService = {
             const pairKey = `${from}->${to}`;
             const previousEdgeId = edgePairs.get(pairKey);
             if (previousEdgeId) {
+                duplicateEdgeIds.add(feature.id);
                 diagnostics.push({
                     type: 'duplicate-edge',
                     edgeId: feature.id,
-                message: `Network link ${feature.id} duplicates ${previousEdgeId}.`,
+                    message: `Network link ${feature.id} duplicates ${previousEdgeId}.`,
                 });
                 continue;
             }
 
             edgePairs.set(pairKey, feature.id);
-            edges.push({
-                id: feature.id,
-                label: feature.name || feature.id,
-                from,
-                to,
+        }
+
+        for (const edge of rawEdges) {
+            if (duplicateEdgeIds.has(edge.id)) continue;
+            edgeMap.set(edge.id, {
+                id: edge.id,
+                label: edge.feature.name || edge.id,
+                from: edge.from,
+                to: edge.to,
                 kind: 'signal',
-                telemetryId: metadata.network?.telemetry_id,
-                feature,
+                telemetryId: edge.metadata.network?.telemetry_id,
+                feature: edge.feature,
+                directionMode: edge.directionMode,
+                directionState: edge.directionMode === 'legacy' || edge.directionMode === 'manual' ? 'confirmed' : 'pending',
             });
         }
 
-        if (!nodes.some(node => node.role === 'cabinet' || node.role === 'intersection')) {
-            diagnostics.push({
-                type: 'missing-cabinet',
-                message: 'Network graph has no cabinet or intersection source node.',
-            });
+        for (const component of components) {
+            const componentEdges = component.edgeIds
+                .map(edgeId => edgeMap.get(edgeId))
+                .filter((edge): edge is NetworkEdge => !!edge);
+
+            const hasAutoEdges = componentEdges.some(edge => edge.directionMode === 'auto');
+            if (component.originIds.length === 0 && hasAutoEdges) {
+                diagnostics.push({
+                    type: 'missing-origin',
+                    featureId: component.nodeIds[0],
+                    message: 'Connected network component is missing an origin node.',
+                });
+                for (const edge of componentEdges) {
+                    if (edge.directionMode === 'auto') edge.directionState = 'pending';
+                }
+                continue;
+            }
+
+            if (component.originIds.length > 1) {
+                diagnostics.push({
+                    type: 'multiple-origins',
+                    featureId: component.originIds[0],
+                    message: `Connected network component has multiple origins: ${component.originIds.join(', ')}.`,
+                });
+                for (const edge of componentEdges) {
+                    if (edge.directionMode === 'auto') edge.directionState = 'conflict';
+                }
+                continue;
+            }
+
+            if (component.originIds.length !== 1) continue;
+
+            const distances = computeDistances(component.originIds[0], new Map(componentEdges.map(edge => [edge.id, edge])));
+            for (const edge of componentEdges) {
+                if (edge.directionMode !== 'auto') continue;
+
+                const fromDistance = distances.get(edge.from);
+                const toDistance = distances.get(edge.to);
+
+                if (fromDistance === undefined || toDistance === undefined) {
+                    edge.directionState = 'pending';
+                    continue;
+                }
+
+                if (fromDistance === toDistance) {
+                    edge.directionState = 'pending';
+                    diagnostics.push({
+                        type: 'ambiguous-direction',
+                        edgeId: edge.id,
+                        message: `Network link ${edge.id} has equal topology distance on both endpoints and needs manual confirmation.`,
+                    });
+                    continue;
+                }
+
+                if (fromDistance > toDistance) {
+                    const currentFrom = edge.from;
+                    edge.from = edge.to;
+                    edge.to = currentFrom;
+                }
+                edge.directionState = 'confirmed';
+            }
         }
 
-        return { nodes, edges, diagnostics };
+        return { nodes, edges: [...edgeMap.values()], diagnostics };
     },
 
     evaluate(featuresById: Record<string, FeatureState>, statusSnapshot: NetworkStatusSnapshot = {}): NetworkEvaluation {
         const graph = NetworkGraphService.build(featuresById);
         const outgoing = new Map<string, NetworkEdge[]>();
-        const signalEdges = graph.edges.filter(edge => edge.kind === 'signal');
+        const signalEdges = graph.edges.filter(edge => edge.kind === 'signal' && edge.directionState === 'confirmed');
+        const componentByNode = new Map<string, ReturnType<typeof buildNetworkComponents>[number]>();
+        const components = buildNetworkComponents(featuresById);
+
+        for (const component of components) {
+            for (const nodeId of component.nodeIds) {
+                componentByNode.set(nodeId, component);
+            }
+        }
 
         for (const edge of signalEdges) {
             outgoing.set(edge.from, [...(outgoing.get(edge.from) || []), edge]);
@@ -248,13 +325,21 @@ export const NetworkGraphService = {
 
         const reachable = new Set<string>();
         const queue: string[] = [];
-        const cabinetNodes = graph.nodes.filter(node => node.role === 'cabinet');
-        const sourceNodes = cabinetNodes.length > 0 ? cabinetNodes : graph.nodes.filter(node => node.role === 'intersection');
+        const sourceNodes = graph.nodes.filter(node => node.isOrigin);
+        const fallbackSourceNodes = sourceNodes.length > 0
+            ? sourceNodes
+            : graph.nodes.filter(node => {
+                const component = componentByNode.get(node.id);
+                const componentHasAutoEdges = graph.edges.some(edge =>
+                    component?.edgeIds.includes(edge.id) && edge.directionMode === 'auto'
+                );
+                return !componentHasAutoEdges && isSourceRole(node.role);
+            });
 
-        for (const cabinet of sourceNodes) {
-            if (getEntityStatus(cabinet.id, cabinet.telemetryId, statusSnapshot.nodes) === 'online') {
-                reachable.add(cabinet.id);
-                queue.push(cabinet.id);
+        for (const source of fallbackSourceNodes) {
+            if (getEntityStatus(source.id, source.telemetryId, statusSnapshot.nodes) === 'online') {
+                reachable.add(source.id);
+                queue.push(source.id);
             }
         }
 
@@ -277,18 +362,25 @@ export const NetworkGraphService = {
             }
         }
 
-        const hasConfigurationError = graph.diagnostics.some(diagnostic => diagnostic.type === 'missing-cabinet');
         const nodeStates: Record<string, NetworkNodeState> = {};
 
         for (const node of graph.nodes) {
             const directStatus = getEntityStatus(node.id, node.telemetryId, statusSnapshot.nodes);
             const affectedDownstream = collectDownstream(node.id, outgoing);
+            const component = componentByNode.get(node.id);
+            const componentDiagnostics = graph.diagnostics.filter(diagnostic =>
+                (diagnostic.featureId && component?.nodeIds.includes(diagnostic.featureId)) ||
+                (diagnostic.edgeId && component?.edgeIds.includes(diagnostic.edgeId))
+            );
+            const hasTopologyBlocker = componentDiagnostics.some(diagnostic =>
+                diagnostic.type === 'missing-origin' || diagnostic.type === 'multiple-origins'
+            );
 
-            if (hasConfigurationError) {
+            if (hasTopologyBlocker) {
                 nodeStates[node.id] = {
                     nodeId: node.id,
                     status: 'configuration-error',
-                    reason: 'No cabinet source is configured for this graph.',
+                    reason: componentDiagnostics[0]?.message || 'Network component has unresolved origin configuration.',
                     affectedDownstream,
                 };
             } else if (directStatus === 'offline') {
@@ -309,14 +401,16 @@ export const NetworkGraphService = {
                 nodeStates[node.id] = {
                     nodeId: node.id,
                     status: 'online',
-                    reason: 'Node has an active path to an online cabinet.',
+                    reason: node.isOrigin
+                        ? 'Node is the selected origin for this network component.'
+                        : 'Node has an active path from the selected origin.',
                     affectedDownstream: [],
                 };
             } else {
                 nodeStates[node.id] = {
                     nodeId: node.id,
                     status: 'upstream-offline',
-                    reason: 'No active path remains to any online cabinet.',
+                    reason: 'No active confirmed path remains to the selected origin.',
                     affectedDownstream,
                 };
             }

@@ -25,6 +25,7 @@ import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { buildFeaturePropertiesForPersistence, getTypeForIcon } from '@TOOL/utils/featurePersistence';
 import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
 import { getDeclaredOrderFieldKey, isOrderAliasKey, syncDisplayOrderAliases } from '@TOOL/utils/featureMapping';
+import { buildSetOriginEvents } from '@DESIGN/features/map/network/networkTopology';
 
 interface SegmentItem {
   id?: string | number;
@@ -727,6 +728,7 @@ export const PropertyPanel: React.FC = () => {
     selectedFeatureId,
     selectFeature,
     dispatchEvent,
+    dispatchEvents,
     queueEvent,
     setDrawingMode,
     setSelectedGroup,
@@ -1237,6 +1239,13 @@ export const PropertyPanel: React.FC = () => {
     }
   };
 
+  const handleSetOrigin = async () => {
+    if (!selectedFeatureId || !state?.features) return;
+    const events = buildSetOriginEvents(state.features, selectedFeatureId);
+    if (events.length === 0) return;
+    await dispatchEvents(events);
+  };
+
   const handleFileUpload = async () => {
     if (!feature || !state) return;
     setIsImporting(true);
@@ -1490,6 +1499,20 @@ export const PropertyPanel: React.FC = () => {
                 placeholder="Enter code..."
               />
             </div>
+
+            {!isPolyline && feature.geom_type === 'Point' && (
+              <button
+                onClick={handleSetOrigin}
+                className={cn(
+                  'w-full rounded border px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all',
+                  localMeta.network?.is_origin
+                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                    : 'border-[#333] bg-[#111] text-white hover:border-emerald-500/40 hover:bg-emerald-500/10'
+                )}
+              >
+                {localMeta.network?.is_origin ? 'Đang là điểm gốc Network' : 'Đặt làm điểm gốc Network'}
+              </button>
+            )}
 
             {feature.geom_type === 'Point' && isIntersectionFeature && (
               <div className="pt-2 space-y-3">

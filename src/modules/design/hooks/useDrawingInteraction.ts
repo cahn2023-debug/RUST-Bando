@@ -1,6 +1,8 @@
 import { useCallback, useEffect } from "react";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import { getNextFeatureDisplayOrder, syncDisplayOrderAliases } from "@TOOL/utils/featureMapping";
+import { getParsedMetadata } from "@TOOL/utils/featureMetadata";
+import { buildSnapLinks, inferNetworkRole, isPointFeature, isSourceRole } from "@DESIGN/features/map/network/networkTopology";
 
 type OneClickDrawingMode = 'point' | 'image' | 'intersection';
 
@@ -45,7 +47,8 @@ export function useDrawingInteraction() {
         currentDrawingPoints,
         currentDrawingSnapIds,
         networkConnectionDraft,
-        clearNetworkConnectionDraft
+        clearNetworkConnectionDraft,
+        dispatchEvents,
     } = useDesignSync();
 
     const finalizePolyline = useCallback(async () => {
@@ -56,6 +59,19 @@ export function useDrawingInteraction() {
 
         if (!selectedGroupId) {
             alert("Vui lòng chọn một nhóm trước khi lưu.");
+            return;
+        }
+
+        const startSnapId = currentDrawingSnapIds[0] || null;
+        const endSnapId = currentDrawingSnapIds[currentDrawingSnapIds.length - 1] || null;
+
+        if (!startSnapId || !state?.features?.[startSnapId]) {
+            alert("Không thể lưu polyline vì đầu bắt đầu chưa kết nối vào đối tượng hợp lệ.");
+            return;
+        }
+
+        if (!endSnapId || !state?.features?.[endSnapId]) {
+            alert("Không thể lưu polyline vì đầu kết thúc chưa kết nối vào đối tượng hợp lệ.");
             return;
         }
 
@@ -75,32 +91,72 @@ export function useDrawingInteraction() {
         const group = selectedGroupId ? state?.feature_groups?.[selectedGroupId] : null;
         if (!group) return;
 
+        const startFeature = state.features[startSnapId];
+        const endFeature = state.features[endSnapId];
+        const startIsPoint = isPointFeature(startFeature);
+        const endIsPoint = isPointFeature(endFeature);
+        const shouldCreateNetworkEdge = startIsPoint && endIsPoint && startFeature.id !== endFeature.id;
 
         const finalMetadata: any = {
             ...metadata,
-            start_node_id: currentDrawingSnapIds[0] || null,
-            end_node_id: currentDrawingSnapIds[currentDrawingSnapIds.length - 1] || null
+            start_node_id: startSnapId,
+            end_node_id: endSnapId,
         };
 
-        if (networkConnectionDraft) {
+        const snapLinks = buildSnapLinks(currentDrawingSnapIds);
+        if (snapLinks) {
+            finalMetadata.snap_links = snapLinks;
+        }
+
+        if (shouldCreateNetworkEdge) {
             finalMetadata.infrastructure = {
                 ...(finalMetadata.infrastructure || {}),
                 type: 'SignalLine'
             };
             finalMetadata.network = {
                 ...(finalMetadata.network || {}),
-                from_feature_id: networkConnectionDraft.fromFeatureId,
-                to_feature_id: networkConnectionDraft.toFeatureId
+                from_feature_id: networkConnectionDraft?.fromFeatureId || startFeature.id,
+                to_feature_id: networkConnectionDraft?.toFeatureId || endFeature.id,
+                direction_mode: 'auto',
             };
         }
 
-        await dispatchEvent({
+        const events: any[] = [];
+
+        if (shouldCreateNetworkEdge) {
+            const startMeta = getParsedMetadata(startFeature) as Record<string, any>;
+            const endMeta = getParsedMetadata(endFeature) as Record<string, any>;
+            const startRole = inferNetworkRole(startFeature, startMeta as any);
+            const endRole = inferNetworkRole(endFeature, endMeta as any);
+            const sourceFeature = isSourceRole(startRole) && !isSourceRole(endRole)
+                ? startFeature
+                : isSourceRole(endRole) && !isSourceRole(startRole)
+                    ? endFeature
+                    : null;
+            const deviceFeature = sourceFeature?.id === startFeature.id ? endFeature : sourceFeature?.id === endFeature.id ? startFeature : null;
+
+            if (sourceFeature && deviceFeature) {
+                const deviceMeta = { ...(getParsedMetadata(deviceFeature) as Record<string, any>) };
+                if (deviceMeta.parent_feature_id !== sourceFeature.id) {
+                    deviceMeta.parent_feature_id = sourceFeature.id;
+                    events.push({
+                        type: 'FeatureUpdated',
+                        payload: {
+                            id: deviceFeature.id,
+                            metadata: JSON.stringify(deviceMeta),
+                        },
+                    });
+                }
+            }
+        }
+
+        events.push({
             type: 'FeatureCreated',
             payload: {
                 id,
                 layer_id: group.layer_id,
                 group_id: selectedGroupId,
-                name: networkConnectionDraft ? "Tuyến SignalLine Mới" : "Đường Khảo Sát Mới",
+                name: shouldCreateNetworkEdge ? "Tuyến SignalLine Mới" : "Đường Khảo Sát Mới",
                 geom_type: 'LineString',
                 coordinates: JSON.stringify(currentDrawingPoints),
                 metadata: JSON.stringify(finalMetadata),
@@ -108,9 +164,15 @@ export function useDrawingInteraction() {
             }
         } as any);
 
+        if (events.length > 1) {
+            await dispatchEvents(events);
+        } else {
+            await dispatchEvent(events[0]);
+        }
+
         setDrawingMode('none');
         clearNetworkConnectionDraft();
-    }, [currentDrawingPoints, selectedGroupId, state, activeParentFeatureId, currentDrawingSnapIds, dispatchEvent, setDrawingMode, networkConnectionDraft, clearNetworkConnectionDraft]);
+    }, [currentDrawingPoints, selectedGroupId, state, activeParentFeatureId, currentDrawingSnapIds, dispatchEvent, dispatchEvents, setDrawingMode, networkConnectionDraft, clearNetworkConnectionDraft]);
 
     const finishDrawingSession = useCallback(() => {
         setDrawingMode('none');

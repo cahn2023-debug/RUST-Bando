@@ -9,7 +9,38 @@ vi.mock('@tauri-apps/api/event', () => ({
 }));
 
 const makeState = () => ({
-    features: {},
+    features: {
+        'cabinet-1': {
+            id: 'cabinet-1',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Cabinet 1',
+            geom_type: 'Point',
+            coordinates: [20, 10],
+            metadata: JSON.stringify({ network: { role: 'cabinet' } }),
+            properties: {},
+        },
+        'intersection-1': {
+            id: 'intersection-1',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Intersection 1',
+            geom_type: 'Point',
+            coordinates: [21, 11],
+            metadata: JSON.stringify({ network: { role: 'intersection' } }),
+            properties: {},
+        },
+        'camera-1': {
+            id: 'camera-1',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Camera 1',
+            geom_type: 'Point',
+            coordinates: [22, 12],
+            metadata: JSON.stringify({ icon: 'cctv' }),
+            properties: {},
+        },
+    },
     feature_groups: {
         'group-1': {
             id: 'group-1',
@@ -39,6 +70,7 @@ describe('useDrawingInteraction', () => {
             currentDrawingPoints: [],
             currentDrawingSnapIds: [],
             dispatchEvent: dispatchEvent as any,
+            dispatchEvents: vi.fn().mockResolvedValue(undefined) as any,
         });
     });
 
@@ -66,7 +98,7 @@ describe('useDrawingInteraction', () => {
         expect(getMetadataFromCall(dispatchEvent, 0)).toMatchObject({
             icon: 'default',
             type: 'point',
-            display_order: '1',
+            display_order: '4',
             snap_to_id: 'snap-1',
         });
     });
@@ -245,12 +277,71 @@ describe('useDrawingInteraction', () => {
             network: {
                 from_feature_id: 'cabinet-1',
                 to_feature_id: 'intersection-1',
+                direction_mode: 'auto',
             },
             start_node_id: 'cabinet-1',
             end_node_id: 'intersection-1',
+            snap_links: {
+                v0: 'cabinet-1',
+                v1: 'intersection-1',
+            },
         });
         expect(useDesignSync.getState().networkConnectionDraft).toBeNull();
         expect(useDesignSync.getState().drawingMode).toBe('none');
+    });
+
+    it('blocks polyline finalization when one endpoint is not snapped and keeps drawing state', async () => {
+        const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+        useDesignSync.setState({
+            drawingMode: 'polyline',
+            currentDrawingPoints: [[20, 10], [21, 11]],
+            currentDrawingSnapIds: ['cabinet-1', null],
+        });
+        const { result } = renderHook(() => useDrawingInteraction());
+
+        await act(async () => {
+            await result.current.finalizePolyline();
+        });
+
+        expect(dispatchEvent).not.toHaveBeenCalled();
+        expect(useDesignSync.getState().drawingMode).toBe('polyline');
+        expect(useDesignSync.getState().currentDrawingPoints).toEqual([[20, 10], [21, 11]]);
+        expect(alertSpy).toHaveBeenCalledWith('Không thể lưu polyline vì đầu kết thúc chưa kết nối vào đối tượng hợp lệ.');
+        alertSpy.mockRestore();
+    });
+
+    it('updates device parent in the same batch when a device connects directly to a source node', async () => {
+        const dispatchEvents = vi.fn().mockResolvedValue(undefined);
+        useDesignSync.setState({
+            dispatchEvents: dispatchEvents as any,
+            drawingMode: 'polyline',
+            currentDrawingPoints: [[20, 10], [22, 12]],
+            currentDrawingSnapIds: ['cabinet-1', 'camera-1'],
+        });
+        const { result } = renderHook(() => useDrawingInteraction());
+
+        await act(async () => {
+            await result.current.finalizePolyline();
+        });
+
+        expect(dispatchEvents).toHaveBeenCalledTimes(1);
+        const events = dispatchEvents.mock.calls[0][0];
+        expect(events).toHaveLength(2);
+        expect(events[0]).toMatchObject({
+            type: 'FeatureUpdated',
+            payload: {
+                id: 'camera-1',
+            },
+        });
+        expect(JSON.parse(events[0].payload.metadata)).toMatchObject({
+            parent_feature_id: 'cabinet-1',
+        });
+        expect(events[1]).toMatchObject({
+            type: 'FeatureCreated',
+            payload: {
+                name: 'Tuyến SignalLine Mới',
+            },
+        });
     });
 
     it('keeps a network connection draft when polyline finalization is blocked by missing group', async () => {

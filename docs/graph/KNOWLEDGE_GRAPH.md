@@ -1197,46 +1197,38 @@ graph TD
   class node_74_sub ts
   node_65["📄 src/modules/design/features/map/index.ts"]:::ts
   node_100["📄 src/modules/design/features/map/network/NetworkGraphService.test.ts"]:::ts
-  subgraph node_101_sub ["src/modules/design/features/map/network/NetworkGraphService.ts"]
-    node_101_file("📄 src/modules/design/features/map/network/NetworkGraphService.ts")
-    node_101_s0["📋 NetworkRole (type)"]:::symbol
-    node_101_file --- node_101_s0
-    node_101_s1["📋 NetworkEntityStatus (type)"]:::symbol
-    node_101_file --- node_101_s1
-    node_101_s2["📋 NetworkComputedStatus (type)"]:::symbol
-    node_101_file --- node_101_s2
-    node_101_s3["📦 NetworkStatusSnapshot (interface)"]:::symbol
-    node_101_file --- node_101_s3
-    node_101_s4["📦 NetworkNode (interface)"]:::symbol
-    node_101_file --- node_101_s4
-    node_101_s5["📦 NetworkEdge (interface)"]:::symbol
-    node_101_file --- node_101_s5
-    node_101_s6["📦 NetworkDiagnostic (interface)"]:::symbol
-    node_101_file --- node_101_s6
-    node_101_s7["📦 NetworkNodeState (interface)"]:::symbol
-    node_101_file --- node_101_s7
-    node_101_s8["📦 NetworkGraph (interface)"]:::symbol
-    node_101_file --- node_101_s8
-    node_101_s9["📦 NetworkEvaluation (interface)"]:::symbol
-    node_101_file --- node_101_s9
+  node_101["📄 src/modules/design/features/map/network/NetworkStatusAdapter.test.ts"]:::ts
+  subgraph node_102_sub ["src/modules/design/features/map/network/NetworkStatusAdapter.ts"]
+    node_102_file("📄 src/modules/design/features/map/network/NetworkStatusAdapter.ts")
+    node_102_s0["📋 NetworkStatusMode (type)"]:::symbol
+    node_102_file --- node_102_s0
+    node_102_s1["📋 NetworkEntityType (type)"]:::symbol
+    node_102_file --- node_102_s1
+    node_102_s2["📦 NetworkStatusEvent (interface)"]:::symbol
+    node_102_file --- node_102_s2
+    node_102_s3["📦 NetworkStatusState (interface)"]:::symbol
+    node_102_file --- node_102_s3
+    node_102_s4["📦 NetworkStatusAdapter (class)"]:::symbol
+    node_102_file --- node_102_s4
   end
-  class node_101_sub ts
-  node_102["📄 src/modules/design/features/map/network/NetworkStatusAdapter.test.ts"]:::ts
-  subgraph node_103_sub ["src/modules/design/features/map/network/NetworkStatusAdapter.ts"]
-    node_103_file("📄 src/modules/design/features/map/network/NetworkStatusAdapter.ts")
-    node_103_s0["📋 NetworkStatusMode (type)"]:::symbol
+  class node_102_sub ts
+  node_106["📄 src/modules/design/features/map/network/__tests__/NetworkGraphService.test.ts"]:::ts
+  subgraph node_103_sub ["src/modules/design/features/map/network/networkTopology.ts"]
+    node_103_file("📄 src/modules/design/features/map/network/networkTopology.ts")
+    node_103_s0["📋 NetworkRole (type)"]:::symbol
     node_103_file --- node_103_s0
-    node_103_s1["📋 NetworkEntityType (type)"]:::symbol
+    node_103_s1["📋 StoredDirectionMode (type)"]:::symbol
     node_103_file --- node_103_s1
-    node_103_s2["📦 NetworkStatusEvent (interface)"]:::symbol
+    node_103_s2["📦 NetworkNodeDescriptor (interface)"]:::symbol
     node_103_file --- node_103_s2
-    node_103_s3["📦 NetworkStatusState (interface)"]:::symbol
+    node_103_s3["📦 NetworkEdgeDescriptor (interface)"]:::symbol
     node_103_file --- node_103_s3
-    node_103_s4["📦 NetworkStatusAdapter (class)"]:::symbol
+    node_103_s4["📦 NetworkComponentDescriptor (interface)"]:::symbol
     node_103_file --- node_103_s4
+    node_103_s5["📦 OrientedEdgeDescriptor (interface)"]:::symbol
+    node_103_file --- node_103_s5
   end
   class node_103_sub ts
-  node_106["📄 src/modules/design/features/map/network/__tests__/NetworkGraphService.test.ts"]:::ts
   node_104["📄 src/modules/design/features/map/network/useNetworkStatusStore.test.ts"]:::ts
   subgraph node_105_sub ["src/modules/design/features/map/network/useNetworkStatusStore.ts"]
     node_105_file("📄 src/modules/design/features/map/network/useNetworkStatusStore.ts")
@@ -2061,16 +2053,11 @@ graph TD
   node_81_file --> node_91_file
   node_84_file --> node_85_file
   node_93_file --> node_122_file
-  node_100_file --> node_101_file
-  node_102_file --> node_103_file
-  node_103_file --> node_101_file
+  node_101_file --> node_102_file
   node_104_file --> node_105_file
-  node_105_file --> node_101_file
-  node_106_file --> node_101_file
   node_108_file --> node_112_file
   node_108_file --> node_107_file
   node_113_file --> node_114_file
-  node_114_file --> node_101_file
   node_120_file --> node_107_file
   node_120_file --> node_121_file
   node_124_file --> node_129_file
@@ -2078,6 +2065,7 @@ graph TD
   node_124_file --> node_243_file
   node_125_file --> node_129_file
   node_125_file --> node_256_file
+  node_125_file --> node_103_file
   node_126_file --> node_129_file
   node_126_file --> node_211_file
   node_126_file --> node_260_file

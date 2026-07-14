@@ -89,6 +89,8 @@ export interface FeatureMetadata {
     telemetry_id?: string;
     from_feature_id?: string;
     to_feature_id?: string;
+    is_origin?: boolean;
+    direction_mode?: 'auto' | 'manual';
   };
   specs?: {
     install_height?: number;
