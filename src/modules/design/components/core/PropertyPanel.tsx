@@ -25,7 +25,7 @@ import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { buildFeaturePropertiesForPersistence, getTypeForIcon } from '@TOOL/utils/featurePersistence';
 import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
 import { getDeclaredOrderFieldKey, isOrderAliasKey, syncDisplayOrderAliases } from '@TOOL/utils/featureMapping';
-import { buildSetOriginEvents } from '@DESIGN/features/map/network/networkTopology';
+import { buildToggleOriginEvents } from '@DESIGN/features/map/network/networkTopology';
 
 interface SegmentItem {
   id?: string | number;
@@ -1239,9 +1239,9 @@ export const PropertyPanel: React.FC = () => {
     }
   };
 
-  const handleSetOrigin = async () => {
+  const handleToggleOrigin = async () => {
     if (!selectedFeatureId || !state?.features) return;
-    const events = buildSetOriginEvents(state.features, selectedFeatureId);
+    const events = buildToggleOriginEvents(state.features, selectedFeatureId);
     if (events.length === 0) return;
     await dispatchEvents(events);
   };
@@ -1502,7 +1502,7 @@ export const PropertyPanel: React.FC = () => {
 
             {!isPolyline && feature.geom_type === 'Point' && (
               <button
-                onClick={handleSetOrigin}
+                onClick={handleToggleOrigin}
                 className={cn(
                   'w-full rounded border px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all',
                   localMeta.network?.is_origin
@@ -1510,7 +1510,7 @@ export const PropertyPanel: React.FC = () => {
                     : 'border-[#333] bg-[#111] text-white hover:border-emerald-500/40 hover:bg-emerald-500/10'
                 )}
               >
-                {localMeta.network?.is_origin ? 'Đang là điểm gốc Network' : 'Đặt làm điểm gốc Network'}
+                {localMeta.network?.is_origin ? 'Bỏ điểm gốc Network' : 'Đặt điểm gốc Network'}
               </button>
             )}
 

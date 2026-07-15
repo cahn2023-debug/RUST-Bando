@@ -265,16 +265,21 @@ const computeTopologyDistance = (component: NetworkComponentDescriptor, edges: M
 };
 
 export const buildSetOriginEvents = (featuresById: Record<string, FeatureState>, originId: string): DesignEventType[] => {
+    return buildToggleOriginEvents(featuresById, originId);
+};
+
+export const buildToggleOriginEvents = (featuresById: Record<string, FeatureState>, nodeId: string): DesignEventType[] => {
     const nodes = collectNetworkNodes(featuresById);
-    const originNode = nodes.get(originId);
+    const originNode = nodes.get(nodeId);
     if (!originNode) return [];
 
-    const component = getComponentForNode(featuresById, originId);
+    const component = getComponentForNode(featuresById, nodeId);
     if (!component) return [];
 
-    const edges = new Map(collectNetworkEdges(featuresById, new Set(nodes.keys())).map(edge => [edge.id, edge]));
-    const distances = computeTopologyDistance(component, edges, originId);
     const events: DesignEventType[] = [];
+    const shouldClear = originNode.isOrigin;
+    const nextOriginId = shouldClear ? null : nodeId;
+    const edges = new Map(collectNetworkEdges(featuresById, new Set(nodes.keys())).map(edge => [edge.id, edge]));
 
     for (const nodeId of component.nodeIds) {
         const node = nodes.get(nodeId);
@@ -283,14 +288,17 @@ export const buildSetOriginEvents = (featuresById: Record<string, FeatureState>,
             ...node.metadata,
             network: {
                 ...(node.metadata.network || {}),
-                is_origin: nodeId === originId,
+                ...(shouldClear ? {} : { is_origin: nodeId === nextOriginId }),
             },
         };
 
-        if (node.metadata.network?.is_origin !== (nodeId === originId)) {
+        if ((shouldClear && node.metadata.network?.is_origin) || (!shouldClear && node.metadata.network?.is_origin !== (nodeId === nextOriginId))) {
             events.push(buildFeatureUpdateEvent(node.feature, nextMetadata));
         }
     }
+
+    if (shouldClear) return events;
+    const distances = computeTopologyDistance(component, edges, nodeId);
 
     for (const edgeId of component.edgeIds) {
         const edge = edges.get(edgeId);

@@ -21,6 +21,7 @@ import {
     GitBranch,
     Pin,
     PinOff,
+    Power,
     RefreshCcw,
     Router,
     Share2,
@@ -45,7 +46,7 @@ import { buildDisplayNetworkGraph } from '@DESIGN/features/map/network/NetworkGr
 import { prepareNetworkConnectionDraft } from '@DESIGN/features/map/network/NetworkConnectionDraft';
 import { getNetworkEndpointKey } from '@DESIGN/features/map/network/NetworkEndpoint';
 import { buildNetworkConnectionCreateEvents } from '@DESIGN/features/map/network/NetworkConnectionCreation';
-import { buildManualEdgeDirectionEvent, buildSetOriginEvents } from '@DESIGN/features/map/network/networkTopology';
+import { buildManualEdgeDirectionEvent, buildToggleOriginEvents } from '@DESIGN/features/map/network/networkTopology';
 import { useNetworkStatusStore } from '@DESIGN/features/map/network/useNetworkStatusStore';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
 import { NetworkNodeWidget } from './NetworkNodeWidget';
@@ -127,11 +128,8 @@ const getEdgeStrokeDasharray = (edge: NetworkEdge, lineStyle: NetworkLineStyle) 
     return lineStyleDash[lineStyle];
 };
 
-const nextStatus = (status: string | undefined) => {
-    if (status === 'online') return 'offline';
-    if (status === 'offline') return 'unknown';
-    return 'online';
-};
+const getEntityStatusKey = (telemetryId: string | undefined, entityId: string) =>
+    String(telemetryId || entityId);
 
 const rankNode = (node: NetworkNode) => {
     if (node.role === 'cabinet') return 0;
@@ -496,8 +494,10 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
 
     const mode = useNetworkStatusStore(s => s.mode);
     const isStale = useNetworkStatusStore(s => s.isStale);
-    const getSnapshot = useNetworkStatusStore(s => s.getSnapshot);
+    const realtimeData = useNetworkStatusStore(s => s.realtimeData);
+    const simulationData = useNetworkStatusStore(s => s.simulationData);
     const simulateEvent = useNetworkStatusStore(s => s.simulateEvent);
+    const setMode = useNetworkStatusStore(s => s.setMode);
 
     const [selectedEntity, setSelectedEntity] = useState<SelectedGraphEntity>(null);
     const [edgePendingDelete, setEdgePendingDelete] = useState<NetworkEdge | null>(null);
@@ -510,7 +510,20 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
     const [layoutPositions, setLayoutPositions] = useState<LayoutPositions>({});
 
     const features = state?.features || {};
-    const snapshot = getSnapshot();
+    const snapshot = useMemo(() => {
+        if (mode === 'simulation') {
+            return simulationData;
+        }
+
+        return {
+            nodes: Object.fromEntries(
+                Object.entries(realtimeData.nodes || {}).map(([id, data]) => [id, data.status])
+            ),
+            edges: Object.fromEntries(
+                Object.entries(realtimeData.edges || {}).map(([id, data]) => [id, data.status])
+            ),
+        };
+    }, [mode, realtimeData.edges, realtimeData.nodes, simulationData]);
     const hasTelemetry = Object.keys(snapshot.nodes || {}).length > 0 || Object.keys(snapshot.edges || {}).length > 0;
     const evaluation = useMemo(() => NetworkGraphService.evaluate(features, snapshot), [features, snapshot]);
     const selectedNodeInfo = evaluation.nodes.find(node => node.id === selectedFeatureId);
@@ -567,6 +580,14 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
     const selectedEdge = selectedEntity?.type === 'edge'
         ? evaluation.edges.find(edge => edge.id === selectedEntity.id)
         : null;
+    const selectedMemberNodes = useMemo(
+        () => selectedDisplayNode
+            ? selectedDisplayNode.memberIds
+                .map(memberId => evaluation.nodes.find(node => node.id === memberId))
+                .filter((node): node is NetworkNode => !!node)
+            : [],
+        [evaluation.nodes, selectedDisplayNode]
+    );
 
     const stats = useMemo(() => {
         const total = scopedNodes.length;
@@ -788,13 +809,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
         if (isSourceNode(representative)) {
             setDrilldownIntersectionId(representative.id);
         }
-
-        if (mode === 'simulation') {
-            const telemetryId = String(representative.telemetryId || representative.id);
-            const currentStatus = snapshot.nodes?.[telemetryId] || 'online';
-            simulateEvent(telemetryId, 'node', nextStatus(currentStatus));
-        }
-    }, [displayGraph.nodes, evaluation.nodes, mode, selectAndZoomFeature, simulateEvent, snapshot.nodes]);
+    }, [displayGraph.nodes, evaluation.nodes, selectAndZoomFeature]);
 
     const handleEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
         event.stopPropagation();
@@ -803,13 +818,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
 
         setSelectedEntity({ type: 'edge', id: graphEdge.id });
         setIsInspectorOpen(true);
-
-        if (mode === 'simulation') {
-            const telemetryId = graphEdge.telemetryId || graphEdge.id;
-            const currentStatus = snapshot.edges?.[telemetryId] || 'online';
-            simulateEvent(telemetryId, 'edge', nextStatus(currentStatus));
-        }
-    }, [evaluation.edges, mode, simulateEvent, snapshot.edges]);
+    }, [evaluation.edges]);
 
     const handleConnect = useCallback(async (connection: Connection) => {
         if (!connection.source || !connection.target || connection.source === connection.target) return;
@@ -932,10 +941,21 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
     }, [selectAndZoomFeature]);
 
     const handleSetOrigin = useCallback(async (nodeId: string) => {
-        const events = buildSetOriginEvents(features, nodeId);
+        const events = buildToggleOriginEvents(features, nodeId);
         if (events.length === 0) return;
         await dispatchEvents(events);
     }, [dispatchEvents, features]);
+
+    const handleToggleEntityStatus = useCallback((entityId: string, entityType: 'node' | 'edge') => {
+        const currentStatus = entityType === 'node'
+            ? snapshot.nodes?.[entityId]
+            : snapshot.edges?.[entityId];
+        const nextStatus = currentStatus === 'online' ? 'offline' : 'online';
+        if (mode !== 'simulation') {
+            setMode('simulation');
+        }
+        simulateEvent(entityId, entityType, nextStatus);
+    }, [mode, setMode, simulateEvent, snapshot.edges, snapshot.nodes]);
 
     const selectedEdgePresentation = getNetworkLinkPresentation(selectedEdge);
 
@@ -1163,8 +1183,22 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                                             : 'border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
                                     )}
                                 >
-                                    {selectedNode.isOrigin ? 'Điểm gốc' : 'Đặt làm gốc'}
+                                    {selectedNode.isOrigin ? 'Bỏ gốc' : 'Đặt gốc'}
                                 </button>
+                                {(!selectedDisplayNode || selectedDisplayNode.memberCount <= 1) && (
+                                    <button
+                                        onClick={() => handleToggleEntityStatus(getEntityStatusKey(selectedNode.telemetryId, selectedNode.id), 'node')}
+                                        className={cn(
+                                            'inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[9px] font-bold transition duration-200',
+                                            (snapshot.nodes?.[getEntityStatusKey(selectedNode.telemetryId, selectedNode.id)] || 'unknown') === 'online'
+                                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                                : 'border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                        )}
+                                    >
+                                        <Power size={10} />
+                                        {(snapshot.nodes?.[getEntityStatusKey(selectedNode.telemetryId, selectedNode.id)] || 'unknown') === 'online' ? 'Online' : 'Offline'}
+                                    </button>
+                                )}
                             </div>
                             <InspectorRow label="Trạng thái" value={<span className="font-semibold">{statusLabel[evaluation.nodeStates[selectedNode.id]?.status || 'unknown']}</span>} />
                             <InspectorRow label="Điểm gốc" value={selectedNode.isOrigin ? <span className="text-emerald-400 font-bold">Đã chọn</span> : 'Chưa chọn'} />
@@ -1172,6 +1206,46 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                             <InspectorRow label="Feature" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedNode.id}</span>} />
                             <InspectorRow label="Lý do" value={<span className="text-zinc-300">{evaluation.nodeStates[selectedNode.id]?.reason || 'Không có'}</span>} />
                             <InspectorRow label="Downstream" value={<span className="font-bold text-zinc-100">{evaluation.nodeStates[selectedNode.id]?.affectedDownstream.length || 0} node</span>} />
+                            {selectedDisplayNode && selectedDisplayNode.memberCount > 1 && (
+                                <div className="mt-3 rounded-lg border border-white/5 bg-black/20 p-2.5">
+                                    <div className="mb-2 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                                        Đối tượng trong node gom
+                                    </div>
+                                    <div className="space-y-2">
+                                        {selectedMemberNodes.map(memberNode => {
+                                            const memberStatusKey = getEntityStatusKey(memberNode.telemetryId, memberNode.id);
+                                            const memberStatus = snapshot.nodes?.[memberStatusKey] || 'unknown';
+                                            return (
+                                                <div
+                                                    key={memberNode.id}
+                                                    className="flex items-center justify-between gap-2 rounded border border-white/5 bg-black/25 px-2 py-1.5"
+                                                >
+                                                    <div className="min-w-0">
+                                                        <div className="truncate text-[10.5px] font-semibold text-zinc-100">
+                                                            {memberNode.label}
+                                                        </div>
+                                                        <div className="truncate text-[9px] text-zinc-500">
+                                                            {memberNode.telemetryId || memberNode.id}
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleToggleEntityStatus(memberStatusKey, 'node')}
+                                                        className={cn(
+                                                            'inline-flex shrink-0 items-center gap-1 rounded border px-2 py-0.5 text-[9px] font-bold transition duration-200',
+                                                            memberStatus === 'online'
+                                                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                                                : 'border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                                        )}
+                                                    >
+                                                        <Power size={10} />
+                                                        {memberStatus === 'online' ? 'Online' : 'Offline'}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -1187,6 +1261,20 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                                             : edgeSourceLabel[selectedEdge.sourceType]}
                                     </div>
                                 </div>
+                                {selectedEdge.kind === 'signal' && (
+                                    <button
+                                        onClick={() => handleToggleEntityStatus(getEntityStatusKey(selectedEdge.telemetryId, selectedEdge.id), 'edge')}
+                                        className={cn(
+                                            'ml-auto inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[9px] font-bold transition duration-200',
+                                            (snapshot.edges?.[getEntityStatusKey(selectedEdge.telemetryId, selectedEdge.id)] || 'unknown') === 'online'
+                                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                                : 'border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                        )}
+                                    >
+                                        <Power size={10} />
+                                        {(snapshot.edges?.[getEntityStatusKey(selectedEdge.telemetryId, selectedEdge.id)] || 'unknown') === 'online' ? 'Online' : 'Offline'}
+                                    </button>
+                                )}
                             </div>
 
                             {selectedEdge.kind === 'signal' && selectedEdge.feature && (
