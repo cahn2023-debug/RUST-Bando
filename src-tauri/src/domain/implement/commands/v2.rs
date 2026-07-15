@@ -946,7 +946,7 @@ fn load_app_state(app: &AppHandle) -> Result<(PathBuf, AppState), String> {
     Ok((app_data_dir, state))
 }
 
-fn persist_app_state(app_data_dir: &PathBuf, state: &AppState) -> Result<(), String> {
+fn persist_app_state(app_data_dir: &std::path::Path, state: &AppState) -> Result<(), String> {
     hydrator::save_state(app_data_dir, state)
 }
 
@@ -1038,7 +1038,7 @@ fn sanitize_recent_projects(mut projects: Vec<StoredRecentProject>) -> Vec<Store
 }
 
 fn write_recent_projects(
-    app_data_dir: &PathBuf,
+    app_data_dir: &std::path::Path,
     state: &mut AppState,
     projects: Vec<StoredRecentProject>,
 ) -> Result<Vec<StoredRecentProject>, String> {
