@@ -5,7 +5,6 @@ import { ContractAnalysisView } from '@IMPLEMENT/features/contract/ContractAnaly
 import { ContractManager } from '@IMPLEMENT/features/contract/ContractManager';
 import { MaterialManager } from '@IMPLEMENT/features/inventory/MaterialManager';
 import { DynamicContentManager } from '@IMPLEMENT/features/files/DynamicContentManager';
-import { GlobalContextMenu } from '@DESIGN/components/ui/GlobalContextMenu';
 import {
   Project,
   ContentType,
@@ -53,7 +52,6 @@ interface ProjectMainViewProps {
   handleDeleteContract: (id: string) => Promise<void>;
   handleFileSelect: (path: string, name: string, extension?: string) => void;
   contentTypes: ContentType[];
-  contextMenu: { x: number; y: number; text: string } | null;
 }
 
 export const ProjectMainView: React.FC<ProjectMainViewProps> = ({
@@ -75,7 +73,6 @@ export const ProjectMainView: React.FC<ProjectMainViewProps> = ({
   handleDeleteContract,
   handleFileSelect,
   contentTypes,
-  contextMenu,
 }) => {
   const { t } = useTranslation();
 
@@ -184,16 +181,6 @@ export const ProjectMainView: React.FC<ProjectMainViewProps> = ({
       />
 
       {renderContent()}
-
-      {contextMenu && (
-        <GlobalContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          text={contextMenu.text}
-          onAddTask={() => {}}
-          onAddNote={() => {}}
-        />
-      )}
     </div>
   );
 };

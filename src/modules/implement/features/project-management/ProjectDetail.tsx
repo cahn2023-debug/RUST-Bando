@@ -131,7 +131,6 @@ export function ProjectDetail({
           handleDeleteContract={handleDeleteContract}
           handleFileSelect={(path, name, ext) => handleFileSelect(path, name, ext, activeTab)}
           contentTypes={contentTypes}
-          contextMenu={null}
         />
       </div>
 

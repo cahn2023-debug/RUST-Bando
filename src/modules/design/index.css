@@ -70,6 +70,18 @@
     @apply h-full w-full m-0 p-0 text-cad-text-primary bg-cad-bg;
     font-family: var(--font-sans);
     overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"],
+  [contenteditable="true"] *,
+  .monaco-editor,
+  .monaco-editor * {
+    user-select: text;
+    -webkit-user-select: text;
   }
 
   html,
@@ -168,8 +180,12 @@
     @apply bg-zinc-500;
   }
 
-  /* Selection color */
-  ::selection {
+  input::selection,
+  textarea::selection,
+  [contenteditable="true"]::selection,
+  [contenteditable="true"] *::selection,
+  .monaco-editor::selection,
+  .monaco-editor *::selection {
     @apply bg-cad-accent/30 text-white;
   }
 }
