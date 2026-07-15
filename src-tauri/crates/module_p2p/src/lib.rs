@@ -112,14 +112,9 @@ impl P2PService {
                         message,
                         ..
                     })) => {
-                        if let Ok(sync_msg) = serde_json::from_slice::<SyncMessage>(&message.data) {
-                            match sync_msg {
-                                SyncMessage::LogHead { last_seq, .. } => {
-                                    log::info!("Peer {} is at seq {}", peer_id, last_seq);
-                                    // TODO: Emit event to trigger comparison and potential Pull
-                                }
-                                _ => {}
-                            }
+                        if let Ok(SyncMessage::LogHead { last_seq, .. }) = serde_json::from_slice::<SyncMessage>(&message.data) {
+                            log::info!("Peer {} is at seq {}", peer_id, last_seq);
+                            // TODO: Emit event to trigger comparison and potential Pull
                         }
                     }
                     _ => {}

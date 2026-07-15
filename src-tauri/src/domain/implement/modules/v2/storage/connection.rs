@@ -25,10 +25,10 @@ impl PmpDatabase {
                 | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )?;
 
-        conn.pragma_update(None, "journal_mode", &"WAL")?;
-        conn.pragma_update(None, "synchronous", &"NORMAL")?;
-        conn.pragma_update(None, "cache_size", &"-64000")?;
-        conn.pragma_update(None, "busy_timeout", &"5000")?;
+        conn.pragma_update(None, "journal_mode", "WAL")?;
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
+        conn.pragma_update(None, "cache_size", "-64000")?;
+        conn.pragma_update(None, "busy_timeout", "5000")?;
 
         let version: i32 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;
         if version > CURRENT_SCHEMA_VERSION {

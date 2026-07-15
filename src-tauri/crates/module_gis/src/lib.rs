@@ -61,17 +61,17 @@ impl GisService {
         radius: f64,
         segments: usize,
     ) -> Vec<Point> {
-        let mut points = vec![center.clone()];
+        let mut points = vec![center];
         let start_angle = heading_deg - (fov_deg / 2.0);
 
         for i in 0..=segments {
             let angle_deg = start_angle + (fov_deg * i as f64 / segments as f64);
-            let start = geo::Point::new(center.x as f64, center.y as f64);
+            let start = geo::Point::new(center.x, center.y);
             let dest = Geodesic::destination(start, angle_deg, radius);
 
             points.push(Point {
-                x: dest.x() as f64,
-                y: dest.y() as f64,
+                x: dest.x(),
+                y: dest.y(),
             });
         }
 

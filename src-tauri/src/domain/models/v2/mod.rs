@@ -569,26 +569,23 @@ impl AppEvent {
         };
         let event_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or_default();
 
-        match event_type {
-            "FeatureCreated" => {
-                obj.entry("id".to_string())
-                    .or_insert_with(|| serde_json::Value::String(Uuid::new_v4().to_string()));
-                obj.entry("group_id".to_string()).or_insert(serde_json::Value::Null);
-                obj.entry("task_id".to_string()).or_insert(serde_json::Value::Null);
-                obj.entry("style_id".to_string()).or_insert(serde_json::Value::Null);
-                obj.entry("note".to_string()).or_insert(serde_json::Value::Null);
-                obj.entry("bbox".to_string()).or_insert(serde_json::Value::Null);
-                if obj.get("geometry").map(|v| v.is_null()).unwrap_or(true) {
-                    obj.insert("geometry".to_string(), serde_json::json!([]));
-                }
-                if obj.get("properties").map(|v| v.is_null()).unwrap_or(true) {
-                    obj.insert("properties".to_string(), serde_json::json!({}));
-                }
-                if obj.get("metadata").map(|v| v.is_null()).unwrap_or(true) {
-                    obj.insert("metadata".to_string(), serde_json::json!({}));
-                }
+        if event_type == "FeatureCreated" {
+            obj.entry("id".to_string())
+                .or_insert_with(|| serde_json::Value::String(Uuid::new_v4().to_string()));
+            obj.entry("group_id".to_string()).or_insert(serde_json::Value::Null);
+            obj.entry("task_id".to_string()).or_insert(serde_json::Value::Null);
+            obj.entry("style_id".to_string()).or_insert(serde_json::Value::Null);
+            obj.entry("note".to_string()).or_insert(serde_json::Value::Null);
+            obj.entry("bbox".to_string()).or_insert(serde_json::Value::Null);
+            if obj.get("geometry").map(|v| v.is_null()).unwrap_or(true) {
+                obj.insert("geometry".to_string(), serde_json::json!([]));
             }
-            _ => {}
+            if obj.get("properties").map(|v| v.is_null()).unwrap_or(true) {
+                obj.insert("properties".to_string(), serde_json::json!({}));
+            }
+            if obj.get("metadata").map(|v| v.is_null()).unwrap_or(true) {
+                obj.insert("metadata".to_string(), serde_json::json!({}));
+            }
         }
 
         value

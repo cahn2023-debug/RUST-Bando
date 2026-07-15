@@ -216,7 +216,7 @@ pub fn copy_text_to_system_clipboard(text: String) -> Result<(), String> {
         }
 
         log::error!("[Clipboard] Windows clipboard write failed after exhausting retries");
-        return Err("Failed to write to Windows clipboard".to_string());
+        Err("Failed to write to Windows clipboard".to_string())
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -333,6 +333,7 @@ fn cell_to_string<T: ToString>(value: &T) -> String {
     value.to_string().trim().to_string()
 }
 
+#[allow(clippy::type_complexity)]
 fn read_excel_table(path: &Path) -> Result<(String, Vec<String>, Vec<Vec<String>>), String> {
     ensure_absolute_path(path)?;
     ensure_excel_extension(path)?;
@@ -1059,6 +1060,7 @@ fn upsert_recent_project(state: &mut AppState, project: StoredRecentProject) {
     state.recent_pmps = sanitize_recent_projects(next);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_project_value(
     id: String,
     name: String,

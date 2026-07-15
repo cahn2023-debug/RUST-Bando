@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
 
@@ -40,7 +40,7 @@ impl Default for AppState {
     }
 }
 
-pub fn load_state(app_data_dir: &PathBuf) -> AppState {
+pub fn load_state(app_data_dir: &Path) -> AppState {
     let cache_path = app_data_dir
         .join(CACHE_SUBDIR)
         .join(format!("app_state_{}.bin", STATE_VERSION));
@@ -72,7 +72,7 @@ pub fn load_state(app_data_dir: &PathBuf) -> AppState {
     }
 }
 
-pub fn save_state(app_data_dir: &PathBuf, state: &AppState) -> Result<(), String> {
+pub fn save_state(app_data_dir: &Path, state: &AppState) -> Result<(), String> {
     let cache_path = app_data_dir
         .join(CACHE_SUBDIR)
         .join(format!("app_state_{}.bin", STATE_VERSION));
