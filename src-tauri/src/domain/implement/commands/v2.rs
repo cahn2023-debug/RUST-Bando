@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use tauri::{AppHandle, Manager, State};
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
@@ -114,6 +115,171 @@ pub async fn save_binary_file(path: String, data: Vec<u8>) -> Result<(), String>
 #[tauri::command]
 pub async fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
     std::fs::read(PathBuf::from(path)).map_err(|error| format!("Failed to read file: {error}"))
+}
+
+#[tauri::command]
+pub fn copy_text_to_system_clipboard(text: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use windows_sys::Win32::Foundation::GlobalFree;
+        use windows_sys::Win32::System::DataExchange::{
+            CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData,
+        };
+        use windows_sys::Win32::System::Memory::{
+            GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE, GMEM_ZEROINIT,
+        };
+        use windows_sys::Win32::System::Ole::CF_UNICODETEXT;
+
+        log::info!(
+            "[Clipboard] copy_text_to_system_clipboard requested on Windows, len={}",
+            text.len()
+        );
+        let utf16: Vec<u16> = text.encode_utf16().chain(std::iter::once(0)).collect();
+        let bytes = utf16.len() * std::mem::size_of::<u16>();
+
+        for attempt in 0..30 {
+            log::info!("[Clipboard] Windows clipboard attempt {}", attempt + 1);
+            let opened = unsafe { OpenClipboard(std::ptr::null_mut()) };
+            if opened == 0 {
+                log::warn!(
+                    "[Clipboard] Windows OpenClipboard failed on attempt {}; retrying",
+                    attempt + 1
+                );
+                std::thread::sleep(Duration::from_millis(80 + (attempt as u64 * 20).min(220)));
+                continue;
+            }
+
+            let clipboard_opened = true;
+            let result = (|| {
+                let cleared = unsafe { EmptyClipboard() };
+                if cleared == 0 {
+                    return Err("EmptyClipboard failed".to_string());
+                }
+
+                let handle = unsafe { GlobalAlloc(GMEM_MOVEABLE | GMEM_ZEROINIT, bytes) };
+                if handle.is_null() {
+                    return Err("GlobalAlloc failed".to_string());
+                }
+
+                let lock = unsafe { GlobalLock(handle) as *mut u16 };
+                if lock.is_null() {
+                    unsafe {
+                        let _ = GlobalFree(handle);
+                    }
+                    return Err("GlobalLock failed".to_string());
+                }
+
+                unsafe {
+                    std::ptr::copy_nonoverlapping(utf16.as_ptr(), lock, utf16.len());
+                    let _ = GlobalUnlock(handle);
+                }
+
+                let set_result = unsafe { SetClipboardData(CF_UNICODETEXT as u32, handle) };
+                if set_result.is_null() {
+                    unsafe {
+                        let _ = GlobalFree(handle);
+                    }
+                    return Err("SetClipboardData failed".to_string());
+                }
+
+                Ok(())
+            })();
+
+            unsafe {
+                if clipboard_opened {
+                    let _ = CloseClipboard();
+                }
+            }
+
+            match result {
+                Ok(_) => {
+                    log::info!("[Clipboard] Windows clipboard write succeeded on attempt {}", attempt + 1);
+                    return Ok(());
+                }
+                Err(error) if attempt < 29 => {
+                    log::warn!(
+                        "[Clipboard] Windows clipboard attempt {} failed: {}; retrying",
+                        attempt + 1,
+                        error
+                    );
+                    std::thread::sleep(Duration::from_millis(120 + (attempt as u64 * 30).min(300)));
+                }
+                Err(error) => {
+                    log::error!(
+                        "[Clipboard] Windows clipboard write failed after {} attempts: {}",
+                        attempt + 1,
+                        error
+                    );
+                    return Err(format!("Failed to write to Windows clipboard: {error}"));
+                }
+            }
+        }
+
+        log::error!("[Clipboard] Windows clipboard write failed after exhausting retries");
+        return Err("Failed to write to Windows clipboard".to_string());
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        log::info!(
+            "[Clipboard] copy_text_to_system_clipboard requested on non-Windows, len={}",
+            text.len()
+        );
+        for attempt in 0..8 {
+            log::info!("[Clipboard] Browser clipboard attempt {}", attempt + 1);
+            let mut clipboard = match arboard::Clipboard::new() {
+                Ok(clipboard) => clipboard,
+                Err(error) if attempt < 7 => {
+                    log::warn!(
+                        "[Clipboard] Browser clipboard init failed on attempt {}: {}; retrying",
+                        attempt + 1,
+                        error
+                    );
+                    std::thread::sleep(Duration::from_millis(150));
+                    let _ = error;
+                    continue;
+                }
+                Err(error) => {
+                    log::error!(
+                        "[Clipboard] Browser clipboard init failed after {} attempts: {}",
+                        attempt + 1,
+                        error
+                    );
+                    return Err(format!("Failed to access clipboard: {error}"));
+                }
+            };
+
+            let _ = clipboard.clear();
+
+            match clipboard.set_text(text.clone()) {
+                Ok(_) => {
+                    log::info!(
+                        "[Clipboard] Browser clipboard write succeeded on attempt {}",
+                        attempt + 1
+                    );
+                    return Ok(());
+                }
+                Err(_error) if attempt < 7 => {
+                    log::warn!(
+                        "[Clipboard] Browser clipboard write failed on attempt {}; retrying",
+                        attempt + 1
+                    );
+                    std::thread::sleep(Duration::from_millis(150));
+                }
+                Err(error) => {
+                    log::error!(
+                        "[Clipboard] Browser clipboard write failed after {} attempts: {}",
+                        attempt + 1,
+                        error
+                    );
+                    return Err(format!("Failed to write to clipboard: {error}"));
+                }
+            }
+        }
+
+        log::error!("[Clipboard] Browser clipboard write failed after exhausting retries");
+        Err("Failed to write to clipboard".to_string())
+    }
 }
 
 #[tauri::command]

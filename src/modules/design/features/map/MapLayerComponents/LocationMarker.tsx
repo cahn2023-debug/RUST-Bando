@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import L from 'leaflet';
+import { invoke } from '@tauri-apps/api/core';
 import { useMapEvents } from 'react-leaflet';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { useSnap } from '@IMPLEMENT/hooks/useSnap';
@@ -19,6 +21,67 @@ type CoordinatePopupState = {
 } | null;
 
 const formatCoordinate = (value: number) => value.toFixed(7);
+const CLIPBOARD_RETRY_ATTEMPTS = 4;
+const CLIPBOARD_RETRY_DELAY_MS = 120;
+
+const wait = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms));
+
+const copyTextToClipboard = async (text: string): Promise<boolean> => {
+    try {
+        await invoke('copy_text_to_system_clipboard', { text });
+        return true;
+    } catch {
+        console.error('[Clipboard] copy_text_to_system_clipboard failed');
+        // Fall back to the browser clipboard path below.
+    }
+
+    const hasClipboardApi = typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function';
+
+    if (hasClipboardApi) {
+        for (let attempt = 0; attempt < CLIPBOARD_RETRY_ATTEMPTS; attempt += 1) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return true;
+            } catch {
+                // Retry briefly when the OS clipboard is temporarily busy with another payload.
+            }
+
+            if (attempt < CLIPBOARD_RETRY_ATTEMPTS - 1) {
+                await wait(CLIPBOARD_RETRY_DELAY_MS);
+            }
+        }
+    }
+
+    if (typeof document === 'undefined' || typeof document.execCommand !== 'function') {
+        return false;
+    }
+
+    for (let attempt = 0; attempt < CLIPBOARD_RETRY_ATTEMPTS; attempt += 1) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', 'true');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        textarea.style.pointerEvents = 'none';
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(0, textarea.value.length);
+
+        try {
+            if (document.execCommand('copy')) {
+                return true;
+            }
+        } finally {
+            document.body.removeChild(textarea);
+        }
+
+        if (attempt < CLIPBOARD_RETRY_ATTEMPTS - 1) {
+            await wait(CLIPBOARD_RETRY_DELAY_MS);
+        }
+    }
+
+    return false;
+};
 
 export function LocationMarker({
     onLocationChange,
@@ -30,11 +93,21 @@ export function LocationMarker({
     const editingFeatureId = useDesignSync(s => s.editingFeatureId);
     const [coordinatePopup, setCoordinatePopup] = useState<CoordinatePopupState>(null);
     const { performSnap, snapNow, clearSnap, snappedPointRef } = useSnap();
+    const popupRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const el = popupRef.current;
+        if (el) {
+            L.DomEvent.disableClickPropagation(el);
+            L.DomEvent.disableScrollPropagation(el);
+        }
+    }, [coordinatePopup]);
 
     const handleCopyCoordinates = async () => {
         if (!coordinatePopup) return;
         const text = `${formatCoordinate(coordinatePopup.lat)}, ${formatCoordinate(coordinatePopup.lng)}`;
-        await navigator.clipboard?.writeText(text);
+        const copied = await copyTextToClipboard(text);
+        if (!copied) return;
         setCoordinatePopup({ ...coordinatePopup, copied: true });
     };
 
@@ -91,6 +164,7 @@ export function LocationMarker({
 
     return (
         <div
+            ref={popupRef}
             className="absolute z-[1000] min-w-48 -translate-x-1/2 rounded-sm border border-cad-border bg-cad-elevated text-cad-text-primary font-mono shadow-2xl shadow-black/40 pointer-events-auto overflow-hidden"
             style={{
                 left: coordinatePopup.x,

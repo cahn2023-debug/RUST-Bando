@@ -30,8 +30,23 @@ vi.mock("@IMPLEMENT/stores/useDesignSync", () => {
     },
     selectedFeatureId: null,
     selectionSet: new Set<string>(),
+    activeParentFeatureId: null,
+    dispatchEvent: vi.fn(),
+    addDrawingPoint: vi.fn(),
+    currentDrawingPoints: [] as [number, number][],
+    currentDrawingSnapIds: [] as (string | null)[],
+    networkConnectionDraft: null,
+    clearNetworkConnectionDraft: vi.fn(),
+    dispatchEvents: vi.fn(),
+    queueEvent: vi.fn(),
+    queueEvents: vi.fn(),
   };
-  const useDesignSync = (selector: (state: typeof store) => unknown) => selector(store);
+  const useDesignSync = (selector?: (state: typeof store) => unknown) => {
+    if (typeof selector === "function") {
+      return selector(store);
+    }
+    return store;
+  };
   useDesignSync.getState = () => store;
   return { useDesignSync };
 });
