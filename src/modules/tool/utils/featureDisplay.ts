@@ -40,10 +40,10 @@ export const isCameraIcon = (icon?: string): boolean => {
 /**
  * Determines the display label for a feature based on its geometry and metadata
  */
-export const getFeatureDisplayType = (feature: any, groupType?: string, groupName?: string): string => {
+export const getFeatureDisplayType = (feature: any, groupType?: string, groupName?: string, providedMetadata?: any): string => {
     if (!feature) return "N/A";
 
-    const meta = getParsedMetadata(feature);
+    const meta = providedMetadata || getParsedMetadata(feature);
     const geomType = (feature.geom_type || '').toUpperCase();
     const icon = (meta.icon || '').toLowerCase();
     const metaType = safeString(meta.type || '').toUpperCase();
@@ -54,6 +54,13 @@ export const getFeatureDisplayType = (feature: any, groupType?: string, groupNam
     const isPoint = geomType === 'POINT' || geomType === '' || geomType === 'DEFAULT';
 
     if (isPoint) {
+        if (icon === INTERSECTION_ICON) return DISPLAY_TYPES.INTERSECTION;
+        if (isCameraIcon(icon)) {
+            if (icon === 'ptz') return DISPLAY_TYPES.PTZ;
+            if (icon === 'speed') return DISPLAY_TYPES.SPEED;
+            if (icon === 'lpr') return DISPLAY_TYPES.LPR;
+            return DISPLAY_TYPES.CCTV;
+        }
         if (metaType) {
             if (metaType === 'INTERSECTION' || metaType === 'NUT_GIAO' || metaType === 'NÚT GIAO') return DISPLAY_TYPES.INTERSECTION;
             if (metaType === 'CAMERA' || metaType === 'CCTV' || metaType === 'MẮT CAM') return DISPLAY_TYPES.CCTV;
@@ -65,13 +72,6 @@ export const getFeatureDisplayType = (feature: any, groupType?: string, groupNam
             return DISPLAY_TYPES[metaType as keyof typeof DISPLAY_TYPES];
         }
 
-        if (icon === INTERSECTION_ICON) return DISPLAY_TYPES.INTERSECTION;
-        if (isCameraIcon(icon)) {
-            if (icon === 'ptz') return DISPLAY_TYPES.PTZ;
-            if (icon === 'speed') return DISPLAY_TYPES.SPEED;
-            if (icon === 'lpr') return DISPLAY_TYPES.LPR;
-            return DISPLAY_TYPES.CCTV;
-        }
         if (['cabinet', 'box', 'server'].includes(icon)) return DISPLAY_TYPES.CABINET;
         if (['pillar', 'pole', 'tower'].includes(icon)) return DISPLAY_TYPES.PILLAR;
         if (['bridge', 'tunnel', 'gate'].includes(icon)) return DISPLAY_TYPES.BRIDGE;
@@ -107,7 +107,7 @@ export const getFeatureDisplayType = (feature: any, groupType?: string, groupNam
  */
 export const getFeatureDisplayInfo = (feature: any, groupType?: string, groupName?: string, providedMetadata?: any) => {
     const meta = providedMetadata || getParsedMetadata(feature);
-    const displayType = getFeatureDisplayType(feature, groupType, groupName);
+    const displayType = getFeatureDisplayType(feature, groupType, groupName, meta);
     const iconKey = (meta.icon || 'default').toLowerCase();
 
     let IconComponent: any = MapPin;

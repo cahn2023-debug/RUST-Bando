@@ -4,9 +4,9 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { Package, BarChart3, Users, Layers, Map } from 'lucide-react';
+import { Package, BarChart3, Users, Layers, Map as MapIcon } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { generateBOMSummary, BOMSummary, bomToExcelData } from '@IMPLEMENT/services/bomService';
+import { generateBOMSummary, bomToExcelData } from '@IMPLEMENT/services/bomService';
 import { cn } from '@TOOL/utils/cn';
 import * as XLSX from 'xlsx';
 import { save } from '@tauri-apps/plugin-dialog';
@@ -43,11 +43,24 @@ export const BOMSummaryPanel: React.FC<BOMSummaryProps> = ({ className }) => {
     return true;
   });
 
+  const groupedItems = Array.from(
+    filteredItems.reduce((acc, item) => {
+      const groupName = item.group || 'Không nhóm';
+      const current = acc.get(groupName) || { groupName, total: 0, items: [] as typeof filteredItems };
+      current.total += item.count;
+      current.items.push(item);
+      acc.set(groupName, current);
+      return acc;
+    }, new Map<string, { groupName: string; total: number; items: typeof filteredItems }>())
+  )
+    .map(([, value]) => value)
+    .sort((a, b) => a.groupName.localeCompare(b.groupName, undefined, { numeric: true }));
+
   const handleExportBOM = async () => {
     try {
       const filePath = await save({
         filters: [{ name: 'Excel', extensions: ['xlsx'] }],
-        defaultPath: `BOM_Summary_${new Date().toISOString().split('T')[0]}.xlsx`
+        defaultPath: `Tổng-hợp-BOM_${new Date().toISOString().split('T')[0]}.xlsx`
       });
 
       if (!filePath) return;
@@ -55,7 +68,7 @@ export const BOMSummaryPanel: React.FC<BOMSummaryProps> = ({ className }) => {
       const excelData = bomToExcelData(bomSummary);
       const worksheet = XLSX.utils.json_to_sheet(excelData);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'BOM Summary');
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Tổng hợp BOM');
 
       const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
       const { invoke } = await import('@tauri-apps/api/core');
@@ -101,7 +114,7 @@ export const BOMSummaryPanel: React.FC<BOMSummaryProps> = ({ className }) => {
 
         <div className="flex items-center gap-3 p-3 bg-cad-surface rounded-lg border border-cad-border">
           <div className="p-2 bg-purple-500/10 rounded-lg">
-            <Map size={18} className="text-purple-400" />
+            <MapIcon size={18} className="text-purple-400" />
           </div>
           <div>
             <div className="text-[10px] text-cad-text-muted uppercase font-bold">Vùng</div>
@@ -235,15 +248,27 @@ export const BOMSummaryPanel: React.FC<BOMSummaryProps> = ({ className }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-cad-border/30">
-                {filteredItems.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-cad-accent/5 transition-colors">
-                    <td className="px-4 py-2 text-xs text-cad-text-muted">{idx + 1}</td>
-                    <td className="px-4 py-2 text-xs font-bold text-cad-text-primary">{item.type}</td>
-                    <td className="px-4 py-2 text-xs text-cad-text-secondary">{item.category}</td>
-                    <td className="px-4 py-2 text-xs text-cad-text-secondary">{item.group}</td>
-                    <td className="px-4 py-2 text-sm font-black text-cad-accent text-right">{item.count}</td>
-                    <td className="px-4 py-2 text-xs text-cad-text-muted">{item.unit}</td>
-                  </tr>
+                {groupedItems.map((group, groupIndex) => (
+                  <React.Fragment key={group.groupName}>
+                    <tr className="bg-cad-surface/80 border-y border-cad-border/70">
+                      <td className="px-4 py-2 text-[10px] font-black text-cad-text-muted">{groupIndex + 1}</td>
+                      <td className="px-4 py-2 text-xs font-black text-cad-accent uppercase" colSpan={3}>
+                        {group.groupName}
+                      </td>
+                      <td className="px-4 py-2 text-sm font-black text-cad-accent text-right">{group.total}</td>
+                      <td className="px-4 py-2 text-[10px] font-bold text-cad-text-muted uppercase">Tổng</td>
+                    </tr>
+                    {group.items.map((item, itemIndex) => (
+                      <tr key={`${group.groupName}-${item.type}-${itemIndex}`} className="hover:bg-cad-accent/5 transition-colors">
+                        <td className="px-4 py-2 text-xs text-cad-text-muted">{`${groupIndex + 1}.${itemIndex + 1}`}</td>
+                        <td className="px-4 py-2 text-xs font-bold text-cad-text-primary">{item.type}</td>
+                        <td className="px-4 py-2 text-xs text-cad-text-secondary">{item.category}</td>
+                        <td className="px-4 py-2 text-xs text-cad-text-secondary">{item.group}</td>
+                        <td className="px-4 py-2 text-sm font-black text-cad-accent text-right">{item.count}</td>
+                        <td className="px-4 py-2 text-xs text-cad-text-muted">{item.unit}</td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

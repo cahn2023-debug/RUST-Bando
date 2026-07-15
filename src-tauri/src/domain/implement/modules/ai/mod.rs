@@ -13,3 +13,5 @@ pub use ai_engine::phi3::Phi3Engine;
 pub use ai_engine::yolo::YoloEngine;
 #[cfg(feature = "ai")]
 pub use ai_engine::AIManager;
+#[cfg(feature = "ai")]
+pub mod actor;

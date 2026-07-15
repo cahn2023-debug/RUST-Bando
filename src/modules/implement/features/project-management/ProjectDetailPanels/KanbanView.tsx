@@ -3,7 +3,7 @@ import { Task } from "@CONTRACT/types";
 
 interface KanbanViewProps {
   tasks: Task[];
-  onUpdateStatus: (id: number, s: string) => void;
+  onUpdateStatus: (id: string, s: string) => void;
   onClick: (path: string) => void;
 }
 
@@ -20,7 +20,7 @@ export function KanbanView({ tasks, onUpdateStatus, onClick }: KanbanViewProps) 
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               const id = e.dataTransfer.getData("taskId");
-              if (id) onUpdateStatus(parseInt(id), status);
+              if (id) onUpdateStatus(id, status);
             }}
           >
             <div className="p-3 border-b border-cad-border flex items-center justify-between bg-cad-bg/30">
@@ -34,7 +34,7 @@ export function KanbanView({ tasks, onUpdateStatus, onClick }: KanbanViewProps) 
                 <div
                   key={t.id}
                   draggable
-                  onDragStart={(e) => e.dataTransfer.setData("taskId", t.id.toString())}
+                  onDragStart={(e) => e.dataTransfer.setData("taskId", t.id)}
                   className="bg-cad-bg border border-cad-border p-3 hover:border-cad-accent transition-all cursor-grab active:cursor-grabbing group"
                   onClick={() => t.target_file_path && onClick(t.target_file_path)}
                 >

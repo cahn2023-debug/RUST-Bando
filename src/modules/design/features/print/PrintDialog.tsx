@@ -295,7 +295,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
   return (
     <div className={cn(
       "z-[200] flex items-center justify-center animate-in fade-in duration-200",
-      isStandalone ? "w-screen h-screen bg-transparent p-0" : "fixed inset-0 bg-black/60 backdrop-blur-sm p-8"
+      isStandalone ? "w-full h-full min-h-0 min-w-0 bg-transparent p-0" : "fixed inset-0 bg-black/60 backdrop-blur-sm p-8"
     )}>
       <div className={cn(
         "bg-[#1e1e1e] border border-[#333] shadow-2xl overflow-hidden flex flex-col",

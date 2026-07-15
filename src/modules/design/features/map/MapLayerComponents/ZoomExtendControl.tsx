@@ -4,10 +4,18 @@ import L from 'leaflet';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 
 export const isValidLatLng = (lat: number, lng: number) => {
-    // Tighter Vietnam bounds approx: Lat [8, 24], Lng [102, 110]
-    const isBasicValid = Math.abs(lat) > 0.0001 && Math.abs(lng) > 0.0001 && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
-    const isInRegion = (lat > 8 && lat < 24 && lng > 102 && lng < 110);
-    return isBasicValid && isInRegion;
+    // Only check basic mathematical validity and non-zero (near origin)
+    return Math.abs(lat) > 0.0001 && Math.abs(lng) > 0.0001 &&
+        lat >= -90 && lat <= 90 &&
+        lng >= -180 && lng <= 180;
+};
+
+const canFitBounds = (map: L.Map) => {
+    try {
+        return Boolean((map as any)?._loaded && map.getPane('mapPane'));
+    } catch {
+        return false;
+    }
 };
 
 export function ZoomExtendControl() {
@@ -73,6 +81,13 @@ export function ZoomExtendControl() {
             if (filteredPoints.length > 0) {
                 const bounds = L.latLngBounds(filteredPoints as L.LatLngExpression[]);
                 console.log("[ZoomExtend] Points collected:", allLatLngs.length, "Filtered:", filteredPoints.length);
+                if (!canFitBounds(map)) {
+                    map.whenReady(() => {
+                        if (!canFitBounds(map)) return;
+                        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+                    });
+                    return;
+                }
                 map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
             }
         } else {

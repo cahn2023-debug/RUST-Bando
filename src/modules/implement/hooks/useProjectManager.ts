@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { safeInvoke as invoke, safeOpenDialog } from "@IMPLEMENT/lib/tauri";
+import { safeInvoke as invoke, safeOpenDialog, IS_REAL_TAURI } from "@IMPLEMENT/lib/tauri";
 import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
 import { Project } from "@CONTRACT/types";
 import { useTabStore } from "@IMPLEMENT/TabInProgram/useTabStore";
+import { backfillProjectPath } from "./projectPathUtils";
 
 const normalizeProject = (project: Project | null | undefined): Project | null => {
     if (!project || !project.path) {
@@ -40,8 +41,14 @@ export function useProjectManager() {
 
     // Guard against stale hydration after F5. Any new open request invalidates older loaders.
     const requestIdRef = useRef(0);
+    const projectsRef = useRef<Project[]>([]);
     const selectedProjectRef = useRef<Project | null>(null);
     const indexingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const openingPathRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        projectsRef.current = projects;
+    }, [projects]);
 
     useEffect(() => {
         selectedProjectRef.current = selectedProject;
@@ -79,7 +86,7 @@ export function useProjectManager() {
             let currentProjects: Project[] = [];
             try {
                 const backendProjects = await invoke<Project[]>("get_recent_projects");
-                currentProjects = backendProjects
+                currentProjects = (Array.isArray(backendProjects) ? backendProjects : [])
                     .map(normalizeProject)
                     .filter((project): project is Project => project !== null);
                 console.info(`Loaded ${currentProjects.length} recent projects from backend`);
@@ -103,7 +110,7 @@ export function useProjectManager() {
                 const config = await invoke<{ recent_pmps: Project[]; last_opened_pmp?: string }>("get_app_config");
                 if (requestId !== requestIdRef.current) return;
 
-                if (config.recent_pmps && config.recent_pmps.length > 0) {
+                if (config && config.recent_pmps && Array.isArray(config.recent_pmps)) {
                     currentProjects = config.recent_pmps
                         .map(normalizeProject)
                         .filter((project): project is Project => project !== null);
@@ -117,6 +124,7 @@ export function useProjectManager() {
             }
 
             console.info("Final Hydrated Project:", hydratedProject?.name || "None");
+            hydratedProject = backfillProjectPath(hydratedProject, currentProjects);
             setProjects(currentProjects);
 
             if (isProjectLoadable(hydratedProject)) {
@@ -163,16 +171,62 @@ export function useProjectManager() {
         }
     };
 
+    const scheduleProjectIndexing = (projectId: string) => {
+        indexingTimeoutRef.current = setTimeout(() => {
+            invoke("index_project_files", { projectId }).catch(console.error);
+            indexingTimeoutRef.current = null;
+        }, 3000);
+    };
+
+    const applyOpenedProject = (project: Project, persistLastOpened: boolean) => {
+        selectedProjectRef.current = project;
+        setSelectedProject(project);
+
+        const nextRecent = [project, ...projectsRef.current.filter((x) => x.path !== project.path)]
+            .map(normalizeProject)
+            .filter((item): item is Project => item !== null)
+            .slice(0, 10);
+        projectsRef.current = nextRecent;
+        setProjects(nextRecent);
+
+        invoke("save_recent_projects", { projects: nextRecent }).catch((err) => {
+            console.warn("Failed to save recent projects to backend, using localStorage:", err);
+            localStorage.setItem("recent_pmps", JSON.stringify(nextRecent));
+        });
+
+        if (persistLastOpened) {
+            invoke("save_last_opened_project", { project }).catch(console.error);
+        }
+
+        useTabStore.getState().addTab({
+            id: project.id,
+            name: project.name,
+            path: project.path
+        });
+    };
+
+    const mergeProjectMetadata = (base: Project, update: Project): Project => ({
+        ...base,
+        ...update,
+        id: update.id || base.id,
+        name: update.name || base.name,
+        path: update.path || base.path,
+    });
+
     const handleOpenProject = async (pathToOpen?: string) => {
         const requestId = ++requestIdRef.current;
+        let selectedPathForCleanup: string | null = null;
+        console.group(`[useProjectManager] handleOpenProject Process #${requestId}`);
+        console.info("Path to open:", pathToOpen || "Manual selection");
 
         try {
             if (indexingTimeoutRef.current) {
+                console.info("Clearing existing indexing timeout...");
                 clearTimeout(indexingTimeoutRef.current);
                 indexingTimeoutRef.current = null;
             }
 
-            const isTauri = !!(window as any).__TAURI_IPC__;
+            const isTauri = IS_REAL_TAURI;
             const selectedPath = pathToOpen || await safeOpenDialog({
                 filters: [{ name: "PMP Database", extensions: ["pmp"] }],
                 multiple: false,
@@ -186,15 +240,70 @@ export function useProjectManager() {
                 return false;
             }
 
+            if (openingPathRef.current === selectedPath) {
+                console.warn("[useProjectManager] Skip duplicate open while same path is already loading:", selectedPath);
+                return false;
+            }
+            openingPathRef.current = selectedPath;
+            selectedPathForCleanup = selectedPath;
+
             // OPTIMISTIC RESET: Clear UI state immediately before backend starts heavy load
             const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
             useDesignSync.getState().reset();
-            // We DON'T set selectedProject to null here, so the Detail view stays visible 
-            // but shows the "isLoading" state from useDesignSync.
+
+            const optimisticProject = projectsRef.current.find((project) => project.path === selectedPath);
+            if (isProjectLoadable(optimisticProject)) {
+                console.info(`[useProjectManager] Optimistically opening project: ${optimisticProject.name}`);
+                applyOpenedProject(optimisticProject, false);
+                scheduleProjectIndexing(optimisticProject.id);
+
+                void (async () => {
+                    try {
+                        console.info(`[useProjectManager] Attaching PMP file in background: ${selectedPath}`);
+                        const migratedProject = normalizeProject(await invoke<Project>("load_pmp_file", { path: selectedPath }));
+                        console.info("load_pmp_file result:", migratedProject?.name || "Null");
+
+                        if (requestId !== requestIdRef.current) {
+                            console.warn("Request ID mismatch (Stale open request), skipping background finalization.");
+                            return;
+                        }
+
+                        let recoveredProject = migratedProject;
+                        if (!isProjectLoadable(recoveredProject)) {
+                            console.info("[useProjectManager] load_pmp_file returned null, attempting fallback to active project...");
+                            recoveredProject = normalizeProject(await invoke<Project | null>("get_active_project"));
+                        }
+
+                        if (requestId !== requestIdRef.current) {
+                            console.warn("Request ID mismatch after fallback, skipping background finalization.");
+                            return;
+                        }
+
+                        if (isProjectLoadable(recoveredProject)) {
+                            const project = mergeProjectMetadata(optimisticProject, recoveredProject);
+                            console.info(`[useProjectManager] Background attach resolved project: ${project.name} (ID: ${project.id})`);
+                            applyOpenedProject(project, true);
+                            return;
+                        }
+
+                        console.warn("[useProjectManager] Background attach did not return a loadable project. Keeping optimistic workspace open.");
+                    } catch (e) {
+                        console.error("Background PMP attach failed:", e);
+                    }
+                })();
+
+                return true;
+            }
 
             console.info(`[useProjectManager] Attempting to load PMP file: ${selectedPath}`);
             const migratedProject = normalizeProject(await invoke<Project>("load_pmp_file", { path: selectedPath }));
-            if (requestId !== requestIdRef.current) return false;
+            console.info("load_pmp_file result:", migratedProject?.name || "Null");
+
+            if (requestId !== requestIdRef.current) {
+                console.warn("Request ID mismatch (Stale open request), aborting.");
+                console.groupEnd();
+                return false;
+            }
 
             let recoveredProject = migratedProject;
             if (!isProjectLoadable(recoveredProject)) {
@@ -204,37 +313,10 @@ export function useProjectManager() {
 
             if (isProjectLoadable(recoveredProject)) {
                 const project = recoveredProject;
-                console.info(`[useProjectManager] Loaded project: ${project.name} (ID: ${project.id})`);
+                console.info(`[useProjectManager] Successfully resolved project: ${project.name} (ID: ${project.id})`);
 
-                selectedProjectRef.current = project;
-                setSelectedProject(project);
-
-                indexingTimeoutRef.current = setTimeout(() => {
-                    invoke("index_project_files", { projectId: project.id }).catch(console.error);
-                    indexingTimeoutRef.current = null;
-                }, 3000);
-
-                const nextRecent = [project, ...projects.filter((x) => x.path !== project.path)]
-                    .map(normalizeProject)
-                    .filter((item): item is Project => item !== null)
-                    .slice(0, 10);
-                setProjects(nextRecent);
-
-                // Save to backend first
-                invoke("save_recent_projects", { projects: nextRecent }).catch((err) => {
-                    console.warn("Failed to save recent projects to backend, using localStorage:", err);
-                    // Fallback to localStorage if backend fails
-                    localStorage.setItem("recent_pmps", JSON.stringify(nextRecent));
-                });
-
-                invoke("save_last_opened_project", { project }).catch(console.error);
-
-                // V4.1: Add to Tab Store
-                useTabStore.getState().addTab({
-                    id: project.id,
-                    name: project.name,
-                    path: project.path
-                });
+                applyOpenedProject(project, true);
+                scheduleProjectIndexing(project.id);
 
                 return true;
             }
@@ -243,12 +325,17 @@ export function useProjectManager() {
             alert("Không thể nạp tệp PMP. Tệp có thể đang trống hoặc đang được mở bởi một tiến trình khác.");
         } catch (e) {
             console.error("Error opening PMP:", e);
-            const isTauri = !!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__;
+            const isTauri = IS_REAL_TAURI;
             if (isTauri) {
                 alert("Lỗi hệ thống khi nạp tệp PMP. Vui lòng kiểm tra lại đường dẫn.");
             } else {
                 console.warn("[useProjectManager] Suppression of alert in browser environment.");
             }
+        } finally {
+            if (selectedPathForCleanup && openingPathRef.current === selectedPathForCleanup) {
+                openingPathRef.current = null;
+            }
+            console.groupEnd();
         }
 
         return false;
@@ -267,24 +354,20 @@ export function useProjectManager() {
             if (selectedProjectRef.current?.id === projectToDelete.id) {
                 selectedProjectRef.current = null;
                 setSelectedProject(null);
+                await invoke("close_active_project").catch((err) => {
+                    console.warn("Could not close active project while removing from recent:", err);
+                });
             }
 
             try {
-                await invoke("load_pmp_file", { path: projectToDelete.path });
                 await invoke("delete_project", { id: projectToDelete.id });
             } catch (err) {
-                console.warn("Could not delete from backend (might be already gone or locked):", err);
+                console.warn("Could not remove project metadata from backend:", err);
             }
 
             const updatedProjects = projects.filter((project) => project.path !== projectToDelete.path);
             setProjects(updatedProjects);
-
-            // Remove from backend first
-            invoke("remove_recent_project", { path: projectToDelete.path }).catch((err) => {
-                console.warn("Failed to remove from backend, using localStorage:", err);
-                // Fallback to localStorage if backend fails
-                localStorage.setItem("recent_pmps", JSON.stringify(updatedProjects));
-            });
+            localStorage.setItem("recent_pmps", JSON.stringify(updatedProjects));
 
             // V4.1: Remove from Tab Store
             useTabStore.getState().removeTab(projectToDelete.id);

@@ -23,12 +23,12 @@ PaletteRegistry.register('spec-panel', PropertyPanel);
 // Lazy registrations
 const DeviceConfigPanel = lazy(() => import('@DESIGN/features/map/Palette/DeviceConfigPanel').then(m => ({ default: m.DeviceConfigPanel })));
 const CameraViewPanel = lazy(() => import('@DESIGN/features/map/Palette/CameraViewPanel').then(m => ({ default: m.CameraViewPanel })));
-const BulkEditPanel = lazy(() => import('@DESIGN/features/map/Palette/BulkEditPanel').then(m => ({ default: m.BulkEditPanel })));
 const SystemConfigPanel = lazy(() => import('@DESIGN/features/map/Palette/SystemConfigPanel').then(m => ({ default: m.SystemConfigPanel })));
 const BoxSummary = lazy(() => import('@DESIGN/features/map/MapLayerComponents/BoxSummary').then(m => ({ default: m.BoxSummary })));
+const NetworkGraphPanel = lazy(() => import('@DESIGN/features/map/Palette/NetworkGraphPanel').then(m => ({ default: m.NetworkGraphPanel })));
 
 PaletteRegistry.register('device-config', DeviceConfigPanel);
 PaletteRegistry.register('camera-view', CameraViewPanel);
-PaletteRegistry.register('bulk-edit', BulkEditPanel);
 PaletteRegistry.register('system-config', SystemConfigPanel);
 PaletteRegistry.register('summary-panel', BoxSummary);
+PaletteRegistry.register('network-graph', NetworkGraphPanel);

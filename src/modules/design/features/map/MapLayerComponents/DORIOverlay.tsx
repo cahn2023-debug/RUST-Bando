@@ -1,7 +1,12 @@
 import React from 'react';
 import { Polygon } from 'react-leaflet';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { getParsedCoordinates, getEffectiveMountingHeight, getEffectiveCameraSpecs } from '@TOOL/utils/featureUtils';
+import {
+    getPointCoordinates,
+    getEffectiveMountingHeight,
+    getEffectiveCameraSpecs,
+    getFeatureMetadataValue
+} from '@TOOL/utils/featureUtils';
 import { calculateDORIRanges, calculateArcPoints, SENSOR_SIZES, calculateHFOV, mapRotationToHeading } from '@TOOL/utils/cameraMath';
 
 export const DORIOverlay: React.FC = () => {
@@ -22,23 +27,23 @@ export const DORIOverlay: React.FC = () => {
 
     const isCamera = (
         feature.properties?.iconKey === 'cctv' ||
-        metadata.type === 'camera' ||
-        metadata.focal_length ||
-        metadata.hfov ||
-        metadata['specs.resolution_x'] ||
-        metadata['specs.sensor_size']
+        getFeatureMetadataValue(feature, 'type', 'type', metadata) === 'camera' ||
+        getFeatureMetadataValue(feature, 'specs.focal_length', 'focal_length', metadata) ||
+        getFeatureMetadataValue(feature, 'specs.hfov', 'hfov', metadata) ||
+        getFeatureMetadataValue(feature, 'specs.resolution_x', 'resolution_x', metadata) ||
+        getFeatureMetadataValue(feature, 'specs.sensor_size', 'sensor_size', metadata)
     );
 
     if (!isCamera) return null;
 
-    const coords = getParsedCoordinates(feature);
+    const coords = getPointCoordinates(feature);
     if (!coords) return null;
 
     const lat = coords[1] as number;
     const lng = coords[0] as number;
 
     // Support both flattened and nested metadata paths
-    const rotationVal = parseFloat(metadata['gis.rotation'] ?? metadata.rotation ?? 0);
+    const rotationVal = parseFloat(String(getFeatureMetadataValue(feature, 'gis.rotation', 'rotation', metadata) ?? 0));
     const heading = mapRotationToHeading(rotationVal);
 
     const { focalLength, sensorSize, resolutionX } = getEffectiveCameraSpecs(feature, state?.settings, metadata);
@@ -47,8 +52,8 @@ export const DORIOverlay: React.FC = () => {
     // Calculate hfov from focalLength and sensorSize if not explicitly in metadata
     const sensor = SENSOR_SIZES[sensorSize as keyof typeof SENSOR_SIZES] || SENSOR_SIZES['1/2.8"'];
     const calculatedHfov = calculateHFOV(sensor.width, focalLength);
-    const hfov = parseFloat(metadata['specs.hfov'] ?? metadata.hfov ?? calculatedHfov);
-    const targetHeight = parseFloat(metadata['specs.target_height'] ?? metadata.targetHeight ?? 1.7);
+    const hfov = parseFloat(String(getFeatureMetadataValue(feature, 'specs.hfov', 'hfov', metadata) ?? calculatedHfov));
+    const targetHeight = parseFloat(String(getFeatureMetadataValue(feature, 'specs.target_height', 'targetHeight', metadata) ?? 1.7));
 
     const ranges = calculateDORIRanges(resolutionX, hfov, installHeight, targetHeight);
 
@@ -72,7 +77,7 @@ export const DORIOverlay: React.FC = () => {
 
                 return (
                     <Polygon
-                        key={range.label}
+                        key={`${range.label}-${heading}-${hfov}-${range.distance}-${nextDistance}`}
                         positions={polygonPoints}
                         pathOptions={{
                             fillColor: range.color,

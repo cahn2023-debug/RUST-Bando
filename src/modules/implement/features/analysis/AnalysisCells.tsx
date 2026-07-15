@@ -1,6 +1,6 @@
-import { useState, useEffect, memo } from 'react';
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { useState, useEffect, useRef, memo } from 'react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -16,18 +16,17 @@ export const EditableCell = memo(({
     row,
     column,
     onUpdate,
-    className,
-    onClick
+    className
 }: {
     value: any,
     row: any,
     column: any,
     onUpdate: (id: string, key: string, value: any) => void,
-    className?: string,
-    onClick?: () => void
+    className?: string
 }) => {
     const [value, setValue] = useState(initialValue);
     const [isEditing, setIsEditing] = useState(false);
+    const cancelEditRef = useRef(false);
 
     useEffect(() => {
         setValue(initialValue);
@@ -35,6 +34,11 @@ export const EditableCell = memo(({
 
     const onBlur = () => {
         setIsEditing(false);
+        if (cancelEditRef.current) {
+            cancelEditRef.current = false;
+            setValue(initialValue);
+            return;
+        }
         if (value !== initialValue) {
             onUpdate(row.original.id, column.id, value);
         }
@@ -46,6 +50,18 @@ export const EditableCell = memo(({
                 value={value as string || ''}
                 onChange={e => setValue(e.target.value)}
                 onBlur={onBlur}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.currentTarget.blur();
+                    }
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancelEditRef.current = true;
+                        setValue(initialValue);
+                        e.currentTarget.blur();
+                    }
+                }}
                 autoFocus
                 className="w-full bg-cad-elevated border-cad-accent border rounded px-1 py-0.5 outline-none font-medium text-cad-text-primary"
             />
@@ -54,21 +70,16 @@ export const EditableCell = memo(({
 
     return (
         <div
+            data-editable-cell
             className={cn(
-                "cursor-text hover:bg-cad-accent/10 rounded px-1 -mx-1 min-h-[1.5rem] flex items-start transition-colors",
+                'cursor-text hover:bg-cad-accent/10 rounded px-1 -mx-1 min-h-[1.5rem] flex items-center transition-colors',
                 className
             )}
-            onClick={() => {
-                if (onClick) {
-                    onClick();
-                } else {
-                    setIsEditing(true);
-                }
-            }}
+            onClick={() => setIsEditing(true)}
             onDoubleClick={() => setIsEditing(true)}
-            title={onClick ? "Nhấp chuột để xem trên bản đồ, nhấp đúp để sửa" : undefined}
+            title="Click để sửa"
         >
-            <span className="line-clamp-2 break-words whitespace-normal">{value || <span className="text-cad-text-muted italic opacity-30">N/A</span>}</span>
+            <span className="truncate">{value || <span className="text-cad-text-muted italic opacity-30">N/A</span>}</span>
         </div>
     );
 });

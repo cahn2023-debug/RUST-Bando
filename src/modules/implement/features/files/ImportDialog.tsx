@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X, FileSpreadsheet, Upload, CheckCircle2, Loader2, FileCode, ArrowRight, Settings2, AlertCircle } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { importService, DatasetMeta, ImportMapping } from "@IMPLEMENT/services/importService";
+import { importService, DatasetMeta, ImportMapping, applyImportedRecords } from "@IMPLEMENT/services/importService";
 
 interface Props {
   onClose: () => void;
@@ -79,44 +79,13 @@ export function ImportDialog({ onClose, onSuccess }: Props) {
 
     try {
       const records = await importService.startImport(filePath, mapping);
-
-      // Integrate with the real project sync store
-      const store = (await import('@IMPLEMENT/stores/useDesignSync')).useDesignSync.getState();
-      const targetGroupId = store.selectedGroupId || 'imported_group';
-
-      const group = store.state?.feature_groups[targetGroupId];
-      const layerId = group?.layer_id || 'default_layer';
-
-      const events = records.map(record => {
-        return {
-          type: 'FeatureCreated' as const,
-          payload: {
-            id: record.id,
-            layer_id: layerId,
-            group_id: targetGroupId,
-            name: record.properties.name || `${record.geom_type} Feature`,
-            geom_type: record.geom_type,
-            metadata: JSON.stringify(record.properties),
-            coordinates: record.geometry,
-            properties: record.properties
-          }
-        };
-      });
-
-      await store.dispatchEvents(events);
-
-      // Auto-zoom to the first valid coordinate if available
-      if (records.length > 0) {
-        store.zoomTo(records[0].id, 'location', [records[0].center_lat, records[0].center_lon]);
-      }
+      const importedCount = await applyImportedRecords(records);
 
       setStep("complete");
-      setTimeout(() => {
-        onSuccess("imported_data");
-        onClose();
-      }, 1500);
+      onSuccess(`imported_${importedCount}`);
+      onClose();
     } catch (err: any) {
-      setError(err.toString());
+      setError(err?.message || err?.toString() || "Import failed.");
       setStep("preview");
     } finally {
       setLoading(false);

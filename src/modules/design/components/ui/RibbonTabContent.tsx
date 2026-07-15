@@ -3,13 +3,14 @@ import {
     Save, FolderUp, RefreshCw, Layers, Settings, Zap, Cpu,
     Undo2, Redo2, Sliders, Camera, Video, Calculator,
     MousePointer2, Move, MapPin, Globe, BarChart2, Printer, FileDown,
-    Briefcase, Activity, FileText
+    Network, Briefcase, Activity, FileText
 } from "lucide-react";
 import { ToolGroup, ToolButton, RibbonSeparator } from "./RibbonComponents";
 import { VisibilityTool } from "@DESIGN/features/map/MapLayerComponents/VisibilityTool";
 import { SystemConfigPanel } from "@DESIGN/features/map/Palette/SystemConfigPanel";
 import { PaletteProvider } from "@DESIGN/features/map/Palette/PaletteContext";
 import { Intersection, PolylineIcon } from "@DESIGN/components/icons/MapIcons";
+import { useDrawingInteraction } from "@DESIGN/hooks/useDrawingInteraction";
 import { Portal } from "./Portal";
 
 interface CommonRibbonProps {
@@ -57,7 +58,7 @@ export const DesignRibbonTools = ({
     togglePalette, activePaletteId,
     drawingMode, setDrawingMode, selectedGroupId,
     toggleCoordinatePanel, isCoordinatePanelOpen,
-    onOpenStandalone, onExport
+    onOpenStandalone, onExport, onOpenReport
 }: CommonRibbonProps & {
     undo: () => void; redo: () => void;
     showSystemConfig: boolean; setShowSystemConfig: (v: boolean) => void; systemConfigRef: React.RefObject<HTMLDivElement | null>;
@@ -66,8 +67,23 @@ export const DesignRibbonTools = ({
     setDrawingMode: (m: 'none' | 'point' | 'polyline' | 'image' | 'intersection' | 'move' | 'print_area') => void;
     selectedGroupId: string | null;
     toggleCoordinatePanel: () => void; isCoordinatePanelOpen: boolean;
-    onOpenStandalone: (view: any) => void; onExport: () => void;
-}) => (
+    onOpenStandalone: (view: any) => void; onExport: () => void; onOpenReport: () => void;
+}) => {
+    const { finishDrawingSession } = useDrawingInteraction();
+
+    const handleToolModeChange = async (nextMode: 'none' | 'point' | 'polyline' | 'image' | 'intersection' | 'move' | 'print_area') => {
+        if (drawingMode === nextMode) return;
+
+        if (drawingMode === 'polyline' && nextMode !== 'polyline') {
+            await finishDrawingSession();
+        }
+
+        if (nextMode !== 'none') {
+            setDrawingMode(nextMode);
+        }
+    };
+
+    return (
     <>
         <ToolGroup label="HISTORY">
             <ToolButton onClick={undo} icon={Undo2} label="UNDO" />
@@ -108,16 +124,17 @@ export const DesignRibbonTools = ({
             <ToolButton onClick={() => togglePalette('spec-panel')} active={activePaletteId === 'spec-panel'} icon={Sliders} label="THÔNG SỐ" />
             <ToolButton onClick={() => togglePalette('device-config')} active={activePaletteId === 'device-config'} icon={Camera} label="THIẾT BỊ" />
             <ToolButton onClick={() => togglePalette('camera-view')} active={activePaletteId === 'camera-view'} icon={Video} label="GÓC NHÌN" />
+            <ToolButton onClick={() => togglePalette('network-graph')} active={activePaletteId === 'network-graph'} icon={Network} label="NETWORK" />
             <ToolButton onClick={() => togglePalette('summary-panel')} active={activePaletteId === 'summary-panel'} icon={Calculator} label="TỔNG HỢP" />
         </ToolGroup>
         <RibbonSeparator />
         <ToolGroup label="DRAWING TOOLS">
-            <ToolButton onClick={() => setDrawingMode('none')} active={drawingMode === 'none'} icon={MousePointer2} label="CHỌN" />
-            <ToolButton onClick={() => setDrawingMode('move')} active={drawingMode === 'move'} icon={Move} label="DI CHUYỂN" />
-            <ToolButton onClick={() => setDrawingMode('intersection')} active={drawingMode === 'intersection'} disabled={!selectedGroupId} icon={Intersection} label="NÚT GIAO" />
-            <ToolButton onClick={() => setDrawingMode('point')} active={drawingMode === 'point'} disabled={!selectedGroupId} icon={MapPin} label="ĐIỂM" />
-            <ToolButton onClick={() => setDrawingMode('polyline')} active={drawingMode === 'polyline'} disabled={!selectedGroupId} icon={PolylineIcon} label="POLYLINE" />
-            <ToolButton onClick={() => setDrawingMode('image')} active={drawingMode === 'image'} disabled={!selectedGroupId} icon={Camera} label="CAMERA" />
+            <ToolButton onClick={() => void handleToolModeChange('none')} active={drawingMode === 'none'} icon={MousePointer2} label="CHỌN" />
+            <ToolButton onClick={() => void handleToolModeChange('move')} active={drawingMode === 'move'} icon={Move} label="DI CHUYỂN" />
+            <ToolButton onClick={() => void handleToolModeChange('intersection')} active={drawingMode === 'intersection'} disabled={!selectedGroupId} icon={Intersection} label="NÚT GIAO" />
+            <ToolButton onClick={() => void handleToolModeChange('point')} active={drawingMode === 'point'} disabled={!selectedGroupId} icon={MapPin} label="ĐIỂM" />
+            <ToolButton onClick={() => void handleToolModeChange('polyline')} active={drawingMode === 'polyline'} disabled={!selectedGroupId} icon={PolylineIcon} label="POLYLINE" />
+            <ToolButton onClick={() => void handleToolModeChange('image')} active={drawingMode === 'image'} disabled={!selectedGroupId} icon={Camera} label="CAMERA" />
         </ToolGroup>
         <RibbonSeparator />
         <ToolGroup label="VISIBILITY">
@@ -129,6 +146,7 @@ export const DesignRibbonTools = ({
         </ToolGroup>
         <RibbonSeparator />
         <ToolGroup label="DATA">
+            <ToolButton onClick={onOpenReport} icon={FileText} label="BÁO CÁO" />
             <ToolButton onClick={() => onOpenStandalone('analysis')} icon={BarChart2} label="ANALYSIS" />
             <ToolButton onClick={() => onOpenStandalone('print')} icon={Printer} label="PRINT" />
             <ToolButton onClick={onExport} icon={FileDown} label="EXPORT" />
@@ -150,7 +168,8 @@ export const DesignRibbonTools = ({
             />
         </ToolGroup>
     </>
-);
+    );
+};
 
 export const ContractRibbonTools = ({
     enableAi, setEnableAi, onReleaseAiMemory,
@@ -221,3 +240,4 @@ export const GraphRibbonTools = ({
         </ToolGroup>
     </>
 );
+

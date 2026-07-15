@@ -1,4 +1,6 @@
 {
   "recommendations": [
-    "tauri-apps.tauri-vscode""]
-  }
+    "tauri-apps.tauri-vscode",
+    "bierner.markdown-mermaid"
+  ]
+}

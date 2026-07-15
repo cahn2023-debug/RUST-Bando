@@ -16,65 +16,69 @@ interface Props {
 
 export function FilePreview({ selectedFile, fileContent, onClose, onOpenExternally, onEditorMount }: Props) {
   return (
-    <div className="fixed inset-10 z-[100] bg-cad-surface border border-cad-accent shadow-[0_0_50px_rgba(34,197,94,0.2)] flex flex-col rounded-sm overflow-hidden">
-      <div className="h-10 bg-cad-bg flex items-center justify-between px-4 border-b border-cad-border">
-         <div className="flex items-center gap-2">
-            <FileIcon size={14} className="text-cad-accent" />
-            <span className="text-xs font-black text-white uppercase tracking-wider">{selectedFile.name}</span>
-         </div>
-         <div className="flex items-center gap-2">
-            <button onClick={onOpenExternally} className="p-2 hover:bg-cad-elevated text-cad-text-muted hover:text-cad-accent transition-all"><Maximize2 size={14}/></button>
-            <button onClick={onClose} className="p-2 hover:bg-red-500 text-cad-text-muted hover:text-white transition-all"><X size={16}/></button>
-         </div>
-      </div>
-      <div className="flex-1 bg-cad-bg relative overflow-hidden">
-        <div className="flex-1 flex items-center justify-center text-[#888888] text-sm overflow-hidden bg-[#1E1E1E] relative h-full">
-           {selectedFile.type === 'image' ? (
-              <div className="w-full h-full flex flex-col items-center justify-center p-4 bg-[#1E1E1E]">
-                <img 
-                  src={convertFileSrc(selectedFile.path || '')} 
-                  alt={selectedFile.name} 
-                  className="max-w-full max-h-[80%] object-contain drop-shadow-md rounded-md border border-[#333333]" 
-                />
-              </div>
-           ) : selectedFile.type === 'pdf' ? (
-              <div className="w-full h-full bg-[#1E1E1E]">
-                <iframe 
-                  src={convertFileSrc(selectedFile.path || '')} 
-                  className="w-full h-full border-none"
-                  title={selectedFile.name}
-                />
-              </div>
-           ) : ['code', 'doc', 'excel'].includes(selectedFile.type) ? (
-              <div className="w-full h-full text-left pt-2 px-1 relative">
-                <Editor
-                  height="100%"
-                  theme="vs-dark"
-                  path={selectedFile.name}
-                  value={fileContent || "Loading content..."}
-                  options={{
-                    readOnly: true,
-                    minimap: { enabled: false },
-                    scrollBeyondLastLine: false,
-                    fontSize: 12,
-                    wordWrap: "on"
-                  }}
-                  onMount={onEditorMount}
-                />
-              </div>
-           ) : (
-              <div className="flex flex-col items-center p-6 bg-[#252526] rounded-xl border border-[#333333] shadow-xl max-w-sm w-full text-center">
-                 <div className="w-12 h-12 rounded-lg bg-[#333333] flex items-center justify-center mb-4">
-                    <FileText size={24} className="text-[#CCCCCC]" />
-                 </div>
-                 <h3 className="text-white font-bold mb-1 truncate w-full px-4 text-sm">{selectedFile.name}</h3>
-                 <p className="text-[11px] text-[#888888] mb-6">Preview rendering is restricted.</p>
-                 <button onClick={onOpenExternally} className="px-4 py-2 bg-[#007ACC] hover:bg-[#005C99] text-white text-[11px] font-semibold rounded transition-colors w-full cursor-pointer">
-                    Open Externally
-                 </button>
-              </div>
-           )}
+    <div className="fixed inset-10 z-[100] overflow-hidden rounded-md border border-cad-border bg-cad-surface shadow-[0_0_50px_rgba(0,0,0,0.35)] flex flex-col">
+      <div className="cad-toolbar">
+        <div className="flex items-center gap-2">
+          <FileIcon size={14} className="text-cad-accent" />
+          <span className="max-w-[55vw] truncate text-xs font-black uppercase tracking-wider text-cad-text-primary">
+            {selectedFile.name}
+          </span>
         </div>
+        <div className="flex items-center gap-2">
+          <button onClick={onOpenExternally} className="cad-icon-button" title="Open externally">
+            <Maximize2 size={14} />
+          </button>
+          <button onClick={onClose} className="cad-icon-button" title="Close preview">
+            <X size={16} />
+          </button>
+        </div>
+      </div>
+      <div className="relative flex-1 overflow-hidden bg-cad-bg">
+        {selectedFile.type === 'image' ? (
+          <div className="flex h-full w-full items-center justify-center bg-cad-bg p-4">
+            <img
+              src={convertFileSrc(selectedFile.path || '')}
+              alt={selectedFile.name}
+              className="max-h-[80%] max-w-full rounded-md border border-cad-border object-contain shadow-md"
+            />
+          </div>
+        ) : selectedFile.type === 'pdf' ? (
+          <iframe
+            src={convertFileSrc(selectedFile.path || '')}
+            className="h-full w-full border-none"
+            title={selectedFile.name}
+          />
+        ) : ['code', 'doc', 'excel'].includes(selectedFile.type) ? (
+          <div className="h-full w-full p-2">
+            <Editor
+              height="100%"
+              theme="vs-dark"
+              path={selectedFile.name}
+              value={fileContent || "Loading content..."}
+              options={{
+                readOnly: true,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                fontSize: 12,
+                wordWrap: "on"
+              }}
+              onMount={onEditorMount}
+            />
+          </div>
+        ) : (
+          <div className="flex h-full items-center justify-center p-6">
+            <div className="cad-empty-state max-w-sm w-full">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-md border border-cad-border bg-cad-bg">
+                <FileText size={24} className="text-cad-text-muted" />
+              </div>
+              <h3 className="mb-1 truncate px-4 text-sm font-bold text-cad-text-primary">{selectedFile.name}</h3>
+              <p className="mb-6 text-[11px] text-cad-text-muted">Preview rendering is restricted.</p>
+              <button onClick={onOpenExternally} className="cad-button cad-button-primary w-full">
+                Open Externally
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

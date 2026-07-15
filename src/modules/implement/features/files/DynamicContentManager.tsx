@@ -6,7 +6,7 @@ import { CADInput } from "@IMPLEMENT/features/project-management/ProjectDetailPa
 import { logger } from "@TOOL/utils/logger";
 
 interface Props {
-    projectId: number;
+    projectId: string;
     contentType: ContentType;
 }
 
@@ -15,7 +15,7 @@ export function DynamicContentManager({ projectId, contentType }: Props) {
     const [items, setItems] = useState<ContentItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
-    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [formValues, setFormValues] = useState<Record<string, any>>({});
     const [itemName, setItemName] = useState("");
 
@@ -59,7 +59,7 @@ export function DynamicContentManager({ projectId, contentType }: Props) {
         }
     };
 
-    const handleDelete = async (id: number) => {
+    const handleDelete = async (id: string) => {
         if (!confirm("Xác nhận xóa bản ghi này?")) return;
         try {
             await invoke("delete_content_item", { itemId: id });
@@ -81,15 +81,15 @@ export function DynamicContentManager({ projectId, contentType }: Props) {
     }
 
     return (
-        <div className="flex-1 overflow-y-auto p-6 bg-cad-bg custom-scrollbar">
-            <div className="max-w-6xl mx-auto">
-                <div className="flex justify-between items-center mb-8">
+        <div className="flex-1 overflow-y-auto bg-cad-bg p-6 cad-scrollbar">
+            <div className="mx-auto max-w-6xl">
+                <div className="mb-8 flex items-center justify-between gap-4">
                     <div>
-                        <h2 className="text-xl font-display font-black text-white tracking-tight uppercase">
+                        <h2 className="text-xl font-display font-black uppercase tracking-tight text-cad-text-primary">
                             {contentType.name}
                         </h2>
                         {contentType.description && (
-                            <p className="text-xs text-cad-text-muted mt-1">{contentType.description}</p>
+                            <p className="mt-1 text-xs text-cad-text-muted">{contentType.description}</p>
                         )}
                     </div>
                     <button
@@ -99,31 +99,31 @@ export function DynamicContentManager({ projectId, contentType }: Props) {
                             setFormValues({});
                             setItemName("");
                         }}
-                        className="px-4 py-1.5 bg-cad-accent text-black text-xs font-black rounded-sm hover:bg-cad-accent/80 transition-colors flex items-center gap-2"
+                        className="cad-button cad-button-primary"
                     >
                         <Plus size={14} /> NEW RECORD
                     </button>
                 </div>
 
                 {isAdding && (
-                    <form onSubmit={handleSave} className="mb-8 bg-cad-surface border border-cad-accent p-6 rounded-sm shadow-2xl">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-sm font-black text-cad-accent uppercase">
+                    <form onSubmit={handleSave} className="cad-card mb-8 p-6">
+                        <div className="mb-6 flex items-center justify-between">
+                            <h3 className="text-sm font-black uppercase text-cad-accent">
                                 {editingId ? "Edit Record" : "Create New Record"}
                             </h3>
-                            <button type="button" onClick={() => setIsAdding(false)} className="text-cad-text-muted hover:text-white">
+                            <button type="button" onClick={() => setIsAdding(false)} className="cad-icon-button">
                                 <X size={16} />
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-2">
                             <CADInput
                                 label="Bản ghi / Đối tượng"
                                 value={itemName}
                                 onChange={setItemName}
                                 required
                             />
-                            {fields?.map(field => (
+                            {fields.map(field => (
                                 <CADInput
                                     key={field.id}
                                     label={field.label}
@@ -139,13 +139,13 @@ export function DynamicContentManager({ projectId, contentType }: Props) {
                             <button
                                 type="button"
                                 onClick={() => setIsAdding(false)}
-                                className="px-4 py-1.5 text-xs font-bold text-cad-text-muted hover:text-white uppercase"
+                                className="cad-button cad-button-secondary"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
-                                className="px-4 py-1.5 bg-cad-accent text-black text-xs font-black rounded-sm uppercase flex items-center gap-2"
+                                className="cad-button cad-button-primary"
                             >
                                 <Save size={14} /> {editingId ? "Update Record" : "Save Record"}
                             </button>
@@ -153,23 +153,23 @@ export function DynamicContentManager({ projectId, contentType }: Props) {
                     </form>
                 )}
 
-                <div className="bg-cad-surface border border-cad-border rounded-sm overflow-hidden">
-                    <table className="w-full text-left border-collapse">
+                <div className="cad-card overflow-hidden">
+                    <table className="w-full border-collapse text-left">
                         <thead>
-                            <tr className="bg-cad-header/50 border-b border-cad-border">
-                                <th className="p-4 text-[10px] font-black text-cad-text-muted uppercase tracking-wider">Item Name</th>
-                                {fields?.map(f => (
-                                    <th key={f.id} className="p-4 text-[10px] font-black text-cad-text-muted uppercase tracking-wider">
+                            <tr className="border-b border-cad-border bg-cad-header/50">
+                                <th className="p-4 text-[10px] font-black uppercase tracking-wider text-cad-text-muted">Item Name</th>
+                                {fields.map(f => (
+                                    <th key={f.id} className="p-4 text-[10px] font-black uppercase tracking-wider text-cad-text-muted">
                                         {f.label}
                                     </th>
                                 ))}
-                                <th className="p-4 text-[10px] font-black text-cad-text-muted uppercase tracking-wider w-24">Actions</th>
+                                <th className="w-24 p-4 text-[10px] font-black uppercase tracking-wider text-cad-text-muted">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-cad-border/30">
-                            {(!items || items.length === 0) ? (
+                            {items.length === 0 ? (
                                 <tr>
-                                    <td colSpan={(fields?.length || 0) + 2} className="p-8 text-center text-cad-text-muted text-xs italic">
+                                    <td colSpan={fields.length + 2} className="p-8 text-center text-xs italic text-cad-text-muted">
                                         No records found for this module.
                                     </td>
                                 </tr>
@@ -177,26 +177,26 @@ export function DynamicContentManager({ projectId, contentType }: Props) {
                                 items.map(item => {
                                     const data = JSON.parse(item.data_json);
                                     return (
-                                        <tr key={item.id} className="hover:bg-white/5 transition-colors group">
-                                            <td className="p-4 text-xs font-bold text-white">{item.name}</td>
-                                            {fields?.map(f => (
-                                                <td key={f.id} className="p-4 text-xs text-cad-text-muted font-mono">
+                                        <tr key={item.id} className="group transition-colors hover:bg-white/5">
+                                            <td className="p-4 text-xs font-bold text-cad-text-primary">{item.name}</td>
+                                            {fields.map(f => (
+                                                <td key={f.id} className="p-4 font-mono text-xs text-cad-text-muted">
                                                     {data[f.name] || "---"}
                                                 </td>
                                             ))}
                                             <td className="p-4">
-                                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
                                                     <button
                                                         onClick={() => startEdit(item)}
-                                                        className="p-1 text-cad-text-muted hover:text-cad-accent transition-colors"
+                                                        className="cad-icon-button h-7 w-7"
                                                     >
                                                         <Edit2 size={14} />
                                                     </button>
                                                     <button
                                                         onClick={() => handleDelete(item.id)}
-                                                        className="p-1 text-cad-text-muted hover:text-red-500 transition-colors"
+                                                        className="cad-icon-button h-7 w-7"
                                                     >
-                                                        <Trash2 size={14} />
+                                                        <Trash2 size={14} className="text-red-400" />
                                                     </button>
                                                 </div>
                                             </td>

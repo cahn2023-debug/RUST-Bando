@@ -15,8 +15,14 @@ export function useSyncV2() {
 
     const fetchStatus = useCallback(async () => {
         try {
-            const error = await invoke<string | null>('sync_v2_get_status');
-            setLastError(error);
+            const status = await invoke<{ status?: string; reason?: string }>('sync_v2_get_status');
+            if (status?.status === 'error') {
+                setLastError(status.reason || 'Sync service error');
+            } else if (status?.status === 'offline') {
+                setLastError(null);
+            } else {
+                setLastError(null);
+            }
 
             const online = await invoke<boolean>('sync_v2_is_online');
             setIsOnline(online);
@@ -35,7 +41,7 @@ export function useSyncV2() {
             const result = await invoke<SyncResult>('sync_v2_start');
             setLastResult(result);
         } catch (e: any) {
-            setLastError(e.toString());
+            setLastError(String(e));
         } finally {
             setIsSyncing(false);
         }

@@ -18,7 +18,7 @@ impl GisService {
             return 0.0;
         }
         
-        let hfov_rad = 2.0 * (specs.sensor_width as f64 / (2.0 * specs.focal_length as f64)).atan();
+        let hfov_rad: f64 = 2.0 * (specs.sensor_width as f64 / (2.0 * specs.focal_length as f64)).atan();
         let height_diff = (specs.install_height - specs.target_height).max(0.0) as f64;
         let slant_range = (distance.powi(2) + height_diff.powi(2)).sqrt();
         
@@ -31,7 +31,7 @@ impl GisService {
     }
 
     pub fn calculate_dori_distances(specs: &CameraSpecs) -> DoriDistances {
-        let hfov_rad = 2.0 * (specs.sensor_width as f64 / (2.0 * specs.focal_length as f64)).atan();
+        let hfov_rad: f64 = 2.0 * (specs.sensor_width as f64 / (2.0 * specs.focal_length as f64)).atan();
         let hfov_deg = hfov_rad.to_degrees();
 
         let base = (specs.resolution_width as f64 * specs.focal_length as f64) / specs.sensor_width as f64;
@@ -61,17 +61,17 @@ impl GisService {
         radius: f64,
         segments: usize,
     ) -> Vec<Point> {
-        let mut points = vec![center.clone()];
+        let mut points = vec![center];
         let start_angle = heading_deg - (fov_deg / 2.0);
 
         for i in 0..=segments {
             let angle_deg = start_angle + (fov_deg * i as f64 / segments as f64);
-            let start = geo::Point::new(center.x as f64, center.y as f64);
+            let start = geo::Point::new(center.x, center.y);
             let dest = Geodesic::destination(start, angle_deg, radius);
 
             points.push(Point {
-                x: dest.x() as f32,
-                y: dest.y() as f32,
+                x: dest.x(),
+                y: dest.y(),
             });
         }
 

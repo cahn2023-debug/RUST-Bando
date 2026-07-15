@@ -1,3 +1,4 @@
+import React from "react";
 import { Type, RefreshCw } from "lucide-react";
 import { cn } from "@TOOL/utils/cn";
 
@@ -10,14 +11,14 @@ interface ExplorerFilterBarProps {
     setReverseOrder: (reverse: boolean) => void;
 }
 
-export function ExplorerFilterBar({
+export const ExplorerFilterBar = React.memo(({
     filterType,
     setFilterType,
     sortField,
     setSortField,
     reverseOrder,
     setReverseOrder
-}: ExplorerFilterBarProps) {
+}: ExplorerFilterBarProps) => {
     return (
         <div className="flex items-center gap-1">
             <select
@@ -62,4 +63,4 @@ export function ExplorerFilterBar({
             </div>
         </div>
     );
-}
+});

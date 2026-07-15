@@ -5,12 +5,11 @@
   "windows": [
     "main",
     "street-view",
-    "analysis",
+    "analysis*",
     "print"
   ],
   "permissions": [
     "core:default",
-    "opener:default",
     "dialog:default",
     "core:window:allow-create",
     "core:webview:allow-create-webview",

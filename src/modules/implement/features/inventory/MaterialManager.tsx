@@ -5,7 +5,7 @@ import { Material } from "@CONTRACT/types";
 import { DeleteConfirmationModal } from "@DESIGN/components/ui/DeleteConfirmationModal";
 
 interface Props {
-  projectId: number;
+  projectId: string;
 }
 
 export function MaterialManager({ projectId }: Props) {
@@ -18,7 +18,7 @@ export function MaterialManager({ projectId }: Props) {
     unit_cost: 0,
     category: "General"
   });
-  const [deleteModalConfig, setDeleteModalConfig] = useState<{ isOpen: boolean; id: number | null; itemName: string }>({
+  const [deleteModalConfig, setDeleteModalConfig] = useState<{ isOpen: boolean; id: string | null; itemName: string }>({
     isOpen: false,
     id: null,
     itemName: ""
@@ -61,7 +61,7 @@ export function MaterialManager({ projectId }: Props) {
     }
   };
 
-  const handleDelete = (id: number, name: string) => {
+  const handleDelete = (id: string, name: string) => {
     setDeleteModalConfig({
       isOpen: true,
       id,

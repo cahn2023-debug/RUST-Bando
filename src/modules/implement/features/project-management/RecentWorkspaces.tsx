@@ -24,25 +24,19 @@ export const RecentWorkspaces: React.FC<RecentWorkspacesProps> = ({
     hideHeader = false,
 }) => {
     return (
-        <div className="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar">
-            <div className="max-w-5xl mx-auto w-full">
+        <div className={hideHeader ? "w-full" : "flex-1 flex flex-col p-8 overflow-y-auto cad-scrollbar"}>
+            <div className={hideHeader ? "w-full animate-fade-in" : "max-w-5xl mx-auto w-full"}>
                 {!hideHeader && (
-                    <div className="flex items-center justify-between border-b border-cad-border pb-4 mb-8">
+                    <div className="mb-8 flex items-center justify-between gap-4 border-b border-cad-border pb-4">
                         <div className="flex items-center gap-3">
                             <LayoutGrid className="text-cad-accent" size={24} />
-                            <h2 className="text-xl font-display font-bold tracking-tight">RECENT WORKSPACES</h2>
+                            <h2 className="text-xl font-display font-bold tracking-tight uppercase">RECENT WORKSPACES</h2>
                         </div>
                         <div className="flex gap-2">
-                            <button
-                                onClick={() => onOpenProject()}
-                                className="px-4 py-1.5 bg-cad-surface hover:bg-cad-elevated border border-cad-border text-xs font-bold rounded-sm transition-colors flex items-center gap-2"
-                            >
+                            <button onClick={() => onOpenProject()} className="cad-button cad-button-secondary">
                                 <FolderOpen size={14} /> OPEN PMP
                             </button>
-                            <button
-                                onClick={onShowCreate}
-                                className="px-4 py-1.5 bg-cad-accent hover:bg-cad-accent/80 text-black text-xs font-black rounded-sm transition-colors flex items-center gap-2"
-                            >
+                            <button onClick={onShowCreate} className="cad-button cad-button-primary">
                                 <Plus size={14} /> NEW PROJECT
                             </button>
                         </div>
@@ -50,66 +44,65 @@ export const RecentWorkspaces: React.FC<RecentWorkspacesProps> = ({
                 )}
 
                 {loadingProjects ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         {[...Array(4)].map((_, i) => (
-                            <div key={i} className="h-24 bg-cad-surface animate-pulse border border-cad-border rounded-sm"></div>
+                            <div key={i} className="h-24 cad-card animate-pulse" />
                         ))}
                     </div>
                 ) : projects.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 px-4 text-center border border-dashed border-cad-border/40 rounded-sm bg-cad-elevated/20">
-                        <div className="w-16 h-16 bg-cad-surface rounded-full flex items-center justify-center mb-6 border border-cad-border">
-                            <Briefcase className="text-cad-text-secondary w-8 h-8" />
+                    <div className="cad-empty-state py-16 px-4">
+                        <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-cad-border bg-cad-surface">
+                            <Briefcase className="h-8 w-8 text-cad-text-secondary" />
                         </div>
-                        <h3 className="text-cad-text font-display font-bold uppercase tracking-widest mb-3">WORKSPACES TRỐNG</h3>
-                        <p className="text-cad-text-secondary text-xs max-w-md leading-relaxed mb-8">
-                            Danh sách dự án gần đây đã được làm mới. Dữ liệu của bạn vẫn an toàn trong tệp <code className="text-cad-accent">.pmp</code> trên máy tính. Hãy nhấn nút bên dưới để mở lại.
+                        <h3 className="mb-3 font-display font-bold uppercase tracking-widest text-cad-text-primary">WORKSPACES TRỐNG</h3>
+                        <p className="mb-8 max-w-md text-xs leading-relaxed text-cad-text-secondary">
+                            Danh sách dự án gần đây đã được làm mới. Dữ liệu của bạn vẫn an toàn trong tệp{" "}
+                            <code className="text-cad-accent">.pmp</code> trên máy tính. Hãy nhấn nút bên dưới để mở lại.
                         </p>
 
                         <div className="flex gap-4">
-                            <button
-                                onClick={() => onOpenProject()}
-                                className="px-6 py-2 bg-cad-accent text-black text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all flex items-center gap-2"
-                            >
+                            <button onClick={() => onOpenProject()} className="cad-button cad-button-primary px-6 py-2">
                                 <FileIcon size={12} />
-                                Mở tệp .PMP đã có
+                                MỞ TỆP .PMP ĐÃ CÓ
                             </button>
 
-                            <button
-                                onClick={onRestoreFromConfig}
-                                className="px-6 py-2 bg-cad-surface border border-cad-border text-cad-text-primary text-[10px] font-black uppercase tracking-widest hover:bg-cad-elevated transition-all flex items-center gap-2"
-                            >
+                            <button onClick={onRestoreFromConfig} className="cad-button cad-button-secondary px-6 py-2">
                                 <Loader2 size={12} className="text-cad-accent" />
-                                Khôi phục từ System Config
+                                KHÔI PHỤC TỪ SYSTEM CONFIG
                             </button>
                         </div>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         {projects.map((p) => (
                             <div
                                 key={`${p.id}-${p.path}`}
-                                className="group bg-cad-surface border border-cad-border hover:border-cad-accent p-5 flex items-start gap-4 cursor-pointer transition-all hover:bg-cad-elevated"
+                                className="group cad-card flex cursor-pointer items-start gap-4 p-5 transition-all hover:border-cad-accent/50 hover:bg-cad-elevated"
                                 onClick={() => onSelectProject(p)}
                             >
-                                <div className="p-3 bg-cad-bg rounded-sm text-cad-accent group-hover:scale-110 transition-transform border border-cad-border">
+                                <div className="flex h-11 w-11 items-center justify-center rounded-md border border-cad-border bg-cad-bg text-cad-accent transition-transform group-hover:scale-105">
                                     <HardDrive size={24} />
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex justify-between items-start">
-                                        <h4 className="font-display font-black text-sm group-hover:text-cad-accent transition-colors truncate uppercase">{p.name}</h4>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <h4 className="truncate font-display text-sm font-black uppercase transition-colors group-hover:text-cad-accent">{p.name}</h4>
                                         <button
                                             onClick={(e) => onDeleteProject(e, p)}
-                                            className="p-1 text-cad-text-muted hover:text-red-500 hover:bg-red-500/10 rounded transition-all"
+                                            className="cad-icon-button h-7 w-7"
                                             title="Xóa dự án khỏi danh sách"
                                         >
                                             <Trash2 size={14} />
                                         </button>
                                     </div>
-                                    <p className="text-[10px] font-mono text-cad-text-muted mt-1 truncate" title={p.path}>{p.path}</p>
-                                    <div className="mt-3 h-[1px] bg-cad-border w-full group-hover:bg-cad-accent/30 transition-colors" />
-                                    <div className="mt-3 flex justify-between items-center">
-                                        <span className="text-[9px] font-mono text-cad-text-muted uppercase">Status: OK</span>
-                                        <span className="text-[9px] font-mono text-cad-accent opacity-0 group-hover:opacity-100 transition-opacity font-bold underline">OPEN PROJECT</span>
+                                    <p className="mt-1 truncate font-mono text-[10px] text-cad-text-muted" title={p.path}>
+                                        {p.path}
+                                    </p>
+                                    <div className="mt-3 h-px w-full bg-cad-border transition-colors group-hover:bg-cad-accent/30" />
+                                    <div className="mt-3 flex items-center justify-between">
+                                        <span className="text-[9px] font-mono uppercase text-cad-text-muted">Status: OK</span>
+                                        <span className="text-[9px] font-mono font-bold uppercase text-cad-accent opacity-0 transition-opacity group-hover:opacity-100">
+                                            OPEN PROJECT
+                                        </span>
                                     </div>
                                 </div>
                             </div>

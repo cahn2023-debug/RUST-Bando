@@ -9,31 +9,37 @@ glob: "**/*.{js,jsx,ts,tsx,css,scss,html,vue,svelte,dart,swift,kt,xml}"
 
 ---
 
-## 🎨 1. PREMIUM UX/UI
+## 🎨 1. PREMIUM UX/UI & AESTHETICS
 
-1. **Aesthetics**: Màu sắc HSL tinh chỉnh, Typography chuẩn (Inter/Roboto).
-2. **Spacing**: Hệ thống lưới 4px/8px. Whitespace là sang trọng.
-3. **Feedback**: Mọi tương tác (Click, Tap) đều phải có phản hồi thị giác ngay lập tức.
-
----
-
-## 📱 2. MOBILE & RESPONSIVE
-
-1. **Touch Targets**: Button tối thiểu 44x44px (Chuẩn ngón tay cái).
-2. **Safe Areas**: Tôn trọng tai thỏ (Notch) và Home Indicator trên iOS/Android.
-3. **Mobile-First**: Code CSS cho mobile trước, override cho PC sau.
+1. **Rich Aesthetics**: 
+   - Sử dụng màu sắc sống động (Vibrant colors), Sleeek dark modes.
+   - Áp dụng **Glassmorphism**: Backdrop blur, subtle borders, translucent backgrounds.
+   - **Modern Typography**: Ưu tiên Google Fonts (Inter, Roboto, Outfit). KHÔNG dùng font mặc định.
+2. **Dynamic Spacing**: Hệ thống 4px/8px. Tỷ lệ vàng cho padding/margin.
+3. **Interactive Excellence**: 
+   - Hover effects, Micro-animations (subtle scale, opacity transforms).
+   - Phản hồi thị giác ngay lập tức cho mọi tương tác.
 
 ---
 
-## ⚡ 3. PERFORMANCE DOMAIN
+## 📱 2. MOBILE & RESPONSIVE CONVENTION
 
-1. **Core Web Vitals**: LCP < 2.5s, CLS < 0.1, FID < 100ms.
-2. **Optimistic UI**: Cập nhật giao diện TRƯỚC khi API trả về (Zalo/Facebook style).
-3. **Asset Optimization**: Ảnh WebP, Video lazy-load.
+1. **Mobile-First Strategy**: Viết style cho mobile/tablet trước, sau đó dùng media query cho Desktop.
+2. **Touch Optimization**: Button tối thiểu 44x44px. Tôn trọng Safe Areas (Notch, Home Bar).
+3. **Adaptive Layouts**: Bento grid, fluid layouts.
 
 ---
 
-## 🛡️ 4. STATE & COMPONENT
+## ⚡ 3. PERFORMANCE & VITALS
 
-1. **Atomic Design**: Component nhỏ, tái sử dụng cao (`<Button />`, `<INPUT />`).
-2. **State**: Server State (TanStack Query) !== Client State (Zustand/Context). Tách biệt rõ ràng.
+1. **Standard**: LCP < 2.5s, CLS < 0.1, FID < 100ms.
+2. **Optimistic Updates**: Cập nhật trạng thái UI ngay lập tức bằng data giả (Zustand/TanStack Query) trong khi chờ API.
+3. **Asset Discipline**: Ưu tiên WebP, SVG. Lazy-load video và ảnh lớn.
+
+---
+
+## 🛡️ 4. ARCHITECTURE & STATE
+
+1. **Atomic Design**: Component nguyên tử, tính tái sử dụng cao.
+2. **State Separation**: Tách biệt Server State (cần cache) và Client State (tạm thời).
+3. **Accessibility**: Tuân thủ WCAG (Aria labels, Keyboard navigation).

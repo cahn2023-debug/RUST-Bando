@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bando Project Index - V2 Architecture</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --panel: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-dim: #8b949e;
+            --accent: #58a6ff;
+            --success: #238636;
+            --warning: #d29922;
+            --error: #f85149;
+            --glass: rgba(22, 27, 34, 0.8);
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            display: flex;
+        }
+
+        /* Sidebar Navigation */
+        nav {
+            width: 280px;
+            height: 100vh;
+            background: var(--panel);
+            border-right: 1px solid var(--border);
+            position: fixed;
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .nav-header {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-item {
+            text-decoration: none;
+            color: var(--text-dim);
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        /* Main Content */
+        main {
+            margin-left: 280px;
+            padding: 3rem;
+            width: calc(100% - 280px);
+            max-width: 1200px;
+        }
+
+        section {
+            margin-bottom: 5rem;
+            scroll-margin-top: 2rem;
+        }
+
+        h1, h2, h3 { color: var(--accent); }
+        h1 { font-size: 2.5rem; border-bottom: 2px solid var(--border); padding-bottom: 1rem; }
+        h2 { font-size: 1.8rem; margin-top: 3rem; }
+
+        /* Glass Cards */
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        /* Tree Explorer */
+        .tree-container {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            background: #010409;
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        .tree-line { color: var(--text-dim); }
+        .tree-folder { color: var(--accent); font-weight: bold; }
+        .tree-file { color: var(--text); }
+        .tree-desc { color: #7ee787; font-style: italic; margin-left: 1rem; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        th { background: var(--panel); color: var(--accent); }
+        tr:hover { background: rgba(88, 166, 255, 0.05); }
+
+        /* Badges */
+        .badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .badge-fixed { background: var(--success); color: white; }
+        .badge-critical { background: var(--error); color: white; }
+
+        /* Mermaid Styles */
+        .mermaid {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        /* Protocol Box */
+        .protocol-box {
+            background: linear-gradient(135deg, #1f2937, #111827);
+            border-left: 4px solid var(--warning);
+            padding: 2rem;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-header">🚀 BANDO V2</div>
+        <a href="#structure" class="nav-item">Thư mục Dự án</a>
+        <a href="#flow" class="nav-item">Luồng Dữ liệu</a>
+        <a href="#graph" class="nav-item">Knowledge Graph</a>
+        <a href="#troubleshooting" class="nav-item">Lỗi & Khắc phục</a>
+        <a href="#protocol" class="nav-item">Giao thức Review</a>
+    </nav>
+
+    <main>
+        <h1>Project Index & Technical Blueprint</h1>
+        <p>Bản đồ kỹ thuật SSOT cho hệ thống Antigravity RUST (Bando). Cập nhật lần cuối: 10/05/2026 02:30 PM.</p>
+
+        <!-- Structure Section -->
+        <section id="structure">
+            <h2>1. Cấu trúc Thư mục (Code Hierarchy)</h2>
+            <div class="card">
+                <div class="tree-container">
+                    <div><span class="tree-folder">src-tauri/</span> <span class="tree-desc">// Backend (Rust)</span></div>
+                    <div>  ├── <span class="tree-folder">crates/</span></div>
+                    <div>  │   ├── <span class="tree-folder">app_domain/</span> <span class="tree-desc">// Model core & Interface PMP V2</span></div>
+                    <div>  │   ├── <span class="tree-folder">gis_engine/</span> <span class="tree-desc">// Xử lý topology hình học (GEOS wrapper)</span></div>
+                    <div>  │   └── <span class="tree-folder">module_gis/</span> <span class="tree-desc">// Tính toán VN2000, DORI, Camera</span></div>
+                    <div>  ├── <span class="tree-folder">src/</span></div>
+                    <div>  │   ├── <span class="tree-folder">domain/implement/</span></div>
+                    <div>  │   │   ├── <span class="tree-folder">commands/</span> <span class="tree-desc">// Handlers cho Tauri IPC (v2.rs, ai.rs)</span></div>
+                    <div>  │   │   └── <span class="tree-folder">modules/v2/</span></div>
+                    <div>  │   │       ├── <span class="tree-folder">pipeline/</span> <span class="tree-desc">// EventBus & Storage Worker (Actor System)</span></div>
+                    <div>  │   │       ├── <span class="tree-folder">projections/</span> <span class="tree-desc">// Read models & Ingestion logic</span></div>
+                    <div>  │   │       └── <span class="tree-folder">storage/</span> <span class="tree-desc">// SQLite Connection & Schema V2</span></div>
+                    <div>  │   └── <span class="tree-file">main.rs</span> <span class="tree-desc">// Entry point & Command Registration</span></div>
+                    <div style="margin-top: 1rem;"><span class="tree-folder">src/</span> <span class="tree-desc">// Frontend (React + TS)</span></div>
+                    <div>  ├── <span class="tree-folder">modules/design/</span> <span class="tree-desc">// Logic thiết kế core</span></div>
+                    <div>  │   ├── <span class="tree-folder">components/core/</span> <span class="tree-desc">// Panels (Property, CAD, Layers)</span></div>
+                    <div>  │   └── <span class="tree-folder">features/map/</span> <span class="tree-desc">// Map Context & Layer management</span></div>
+                    <div>  ├── <span class="tree-folder">modules/tool/utils/</span> <span class="tree-desc">// IPC Bridges (designIpc.ts)</span></div>
+                    <div>  └── <span class="tree-file">App.tsx</span> <span class="tree-desc">// Main entry UI</span></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Flow Section -->
+        <section id="flow">
+            <h2>2. Luồng Database & Metadata</h2>
+            <div class="card">
+                <h3>V2 Storage Engine (Event Sourcing)</h3>
+                <p>Toàn bộ dữ liệu được đóng gói trong 1 file <code>.pmp</code> (SQLite). Logic ghi thông qua Actor để tránh lock.</p>
+                <div class="mermaid">
+                    graph LR
+                        UI[React UI] -- "Invoke(update_metadata)" --> DBNC[Debounce/Batch]
+                        DBNC -- "Tauri IPC" --> IPC[Tauri v2.rs]
+                        IPC -- "Bounded Message (1024)" --> EB[EventBus Actor]
+                        EB -- "Sequential Write" --> SW[StorageWorker]
+                        SW -- "Commit (WAL Mode)" --> DB[(".pmp SQLite")]
+                        DB -- "Trigger" --> FTS[FTS5 Search Index]
+                        SW -- "Notify" --> PW[ProjectionWorker]
+                        PW -- "Update" --> RM[Read Models / UI State]
+                </div>
+                <div style="margin-top: 1rem;">
+                    <strong>Quy trình Metadata:</strong>
+                    <ul>
+                        <li>Lưu trữ: Cột <code>metadata_json</code> (Type: JSON).</li>
+                        <li>Chỉnh sửa: Dùng <code>json_patch</code> của SQLite để update atomic.</li>
+                        <li>Hiệu năng Backend: Đã bật <strong>WAL mode</strong>, <strong>Synchronous=NORMAL</strong>, và tích hợp <strong>Rayon</strong> cho tính toán GIS song song.</li>
+                        <li>Hiệu năng Frontend: Tối ưu <strong>Granular Selectors</strong> và <strong>Memoization</strong> cho Virtual Tree (Virtuoso).</li>
+                        <li>Tìm kiếm: Tích hợp FTS5 Virtual Table hỗ trợ Search toàn văn.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Knowledge Graph -->
+        <section id="graph">
+            <h2>3. Knowledge Graph (Actor Topology)</h2>
+            <div class="card">
+                <div class="mermaid">
+                    classDiagram
+                        class DomainActor {
+                            +validate_command()
+                            +produce_event()
+                        }
+                        class EventBus {
+                            +dispatch(Envelope)
+                        }
+                        class StorageWorker {
+                            +append_event_store()
+                            +flush_pmp()
+                        }
+                        class ProjectionEngine {
+                            +apply_v2_events()
+                            +sync_state()
+                        }
+                        DomainActor --> EventBus : Send Envelope
+                        EventBus --> StorageWorker : Write
+                        EventBus --> ProjectionEngine : Replay
+                        StorageWorker ..> PmpFile : SQLite Persistence
+                </div>
+            </div>
+        </section>
+
+        <!-- Troubleshooting -->
+        <section id="troubleshooting">
+            <h2>4. Lịch sử Lỗi & Giải pháp</h2>
+            <div class="card">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Vấn đề</th>
+                            <th>Nguyên nhân</th>
+                            <th>Giải pháp</th>
+                            <th>Trạng thái</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Command not found</strong></td>
+                            <td>Thiếu đăng ký trong <code>main.rs</code></td>
+                            <td>Thêm vào <code>tauri::generate_handler!</code></td>
+                            <td><span class="badge badge-fixed">Đã giải quyết</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>E0382 (Ownership)</strong></td>
+                            <td>Borrow moved value trong loop</td>
+                            <td>Dùng <code>.clone()</code> hoặc ref <code>&</code></td>
+                            <td><span class="badge badge-fixed">Đã giải quyết</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>IPC Mismatch</strong></td>
+                            <td>CamelCase (TS) vs snake_case (Rust)</td>
+                            <td><code>#[serde(rename_all = "camelCase")]</code></td>
+                            <td><span class="badge badge-fixed">Đã giải quyết</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Database Locked</strong></td>
+                            <td>Ghi đa luồng trực tiếp vào SQLite</td>
+                            <td>Đưa qua StorageWorker Actor</td>
+                            <td><span class="badge badge-fixed">Đã giải quyết</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Missing libclang</strong></td>
+                            <td>Thiếu LLVM cho bindgen</td>
+                            <td>Cài LLVM & Set <code>LIBCLANG_PATH</code></td>
+                            <td><span class="badge badge-fixed">Đã giải quyết</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>UI Freeze / IPC Lag</strong></td>
+                            <td>Spam call update metadata liên tục</td>
+                            <td>Debounce frontend & Bounded channels backend</td>
+                            <td><span class="badge badge-fixed">Đã tối ưu</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Slow UI Tree Rendering</strong></td>
+                            <td>Re-render toàn bộ sidebar khi metadata thay đổi</td>
+                            <td>Granular selectors & Memoization (FeatureItem/TreeItem)</td>
+                            <td><span class="badge badge-fixed">Đã tối ưu</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>GIS Calculation Bottleneck</strong></td>
+                            <td>Xử lý VN2000 & Overlap tuần tự</td>
+                            <td>Parallel processing với Rayon (GIS Engine V2)</td>
+                            <td><span class="badge badge-fixed">Đã nâng cấp</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Frontend Type Errors</strong></td>
+                            <td>Null/Undefined groupId & Cords mapping</td>
+                            <td>Strict null checks & Type casting in mapping.ts</td>
+                            <td><span class="badge badge-fixed">Đã fix</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Database Corruption</strong></td>
+                            <td>Rủi ro ghi file khi crash</td>
+                            <td>PRAGMA integrity_check & rebuild_fts_v2</td>
+                            <td><span class="badge badge-fixed">Đã bảo vệ</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>ReferenceError: state is not defined</strong></td>
+                            <td>Biến <code>state</code> bị truy cập ngoài scope hoặc do cache build cũ</td>
+                            <td>Rewrite component với scope sạch & Explicit guards (isReady)</td>
+                            <td><span class="badge badge-fixed">Đã giải quyết</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>IPC Contract Mismatch</strong></td>
+                            <td>Thiếu key <code>args</code> hoặc signature Rust không khớp frontend</td>
+                            <td>Flatten Rust command signature & Đồng bộ camelCase (projectId)</td>
+                            <td><span class="badge badge-fixed">Đã chuẩn hóa</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>TypeError: Cannot read properties of undefined</strong></td>
+                            <td>Truy cập nested state (regions/layers) khi chưa hydration xong</td>
+                            <td>Thêm guard <code>isHydrating</code> & Defensive mutation trong optimistic logic</td>
+                            <td><span class="badge badge-fixed">Đã fix</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Invalid UUID / Null ID Deserialize</strong></td>
+                            <td>Frontend gửi <code>id: null</code> trong envelope hoặc format không phải UUID</td>
+                            <td>Frontend sinh <code>crypto.randomUUID()</code>; Backend inject fallback UUID & validation</td>
+                            <td><span class="badge badge-fixed">Đã giải quyết</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Command Not Found (Save/Snap)</strong></td>
+                            <td><code>save_project</code> và <code>find_nearest_snap_point</code> chưa đăng ký</td>
+                            <td>Triển khai handler Actor-based & Đăng ký trong <code>lib.rs</code></td>
+                            <td><span class="badge badge-fixed">Đã giải quyết</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Silent Fail của PatchMetadata</strong></td>
+                            <td><code>save_project_bom_table</code> truyền <code>projectId</code> vào <code>PatchMetadata</code> (chỉ update bảng <code>files</code>), làm mất dữ liệu</td>
+                            <td>Thay bằng <code>PatchProjectMetadata</code> để cập nhật đúng bảng <code>projects</code></td>
+                            <td><span class="badge badge-fixed">Đã giải quyết</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Mất dữ liệu Point sau khi Load</strong></td>
+                            <td>Frontend không lưu <code>state.features</code> vào <code>projects.metadata_json</code> trước khi gọi `save_project`</td>
+                            <td>Thêm lệnh IPC <code>update_project_state_v2</code> để Schemaless JSON Dump toàn bộ state trước khi flush WAL</td>
+                            <td><span class="badge badge-fixed">Đã giải quyết</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Reopen khÃ´ng hiá»ƒn thá»‹ state má»›i nháº¥t</strong></td>
+                            <td><code>load_pmp_file</code> tráº£ project id giáº£ lÃ m lá»‡ch save/load state; <code>load_design_state_v2</code> tráº£ wrapper thay vÃ¬ object metadata</td>
+                            <td>Tráº£ project id tháº­t tá»« DB; tráº£ trá»±c tiáº¿p object <code>metadata_json</code>; thÃªm auto-persist khi sync idle vÃ  trÆ°á»›c khi Ä‘Ã³ng project</td>
+                            <td><span class="badge badge-fixed">ÄÃ£ giáº£i quyáº¿t</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Roadmap Section -->
+        <section id="roadmap">
+            <h2>5. Lộ trình Hoàn thiện (6 Phases)</h2>
+            <div class="card">
+                <ul>
+                    <li>Phase 1: DB Optimization & Config - <strong>Hoàn tất</strong> (WAL, Sync Normal, Busy Timeout).</li>
+                    <li>Phase 2: Pipeline & Storage Worker - <strong>Hoàn tất</strong> (Batching, Bounded Channel).</li>
+                    <li>Phase 3: Frontend Performance - <strong>Hoàn tất</strong> (Granular Selectors, Memoization).</li>
+                    <li>Phase 4: GIS/Geometry Engine - <strong>Hoàn tất</strong> (Rayon Parallelism).</li>
+                    <li>Phase 5: Self-Healing & Integrity - <strong>Hoàn tất</strong> (Integrity check, FTS rebuild).</li>
+                    <li>Phase 6: Final Audit - <strong>Hoàn tất</strong> (Code consistency, IPC audit).</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Protocol Section -->
+        <section id="protocol">
+            <h2>5. Giao thức Phát triển Bắt buộc</h2>
+            <div class="protocol-box">
+                <h3 style="color: var(--warning); margin-top: 0;">⚠️ QUY TẮC CỨNG (STRICT PROTOCOL)</h3>
+                <p>Mọi thay đổi mã nguồn hoặc tính năng mới **PHẢI** tuân thủ quy trình sau:</p>
+                <ol>
+                    <li><strong>Duyệt (Review):</strong> Mở file này (<code>docs/project_index.html</code>) để đối chiếu kiến trúc hiện tại, đảm bảo không phá vỡ Actor Flow hoặc Metadata Schema.</li>
+                    <li><strong>Code:</strong> Thực thi code theo đúng layer (Domain -> Implementation -> Command).</li>
+                    <li><strong>Cập nhật (Sync):</strong> Ngay sau khi code chạy thành công, **PHẢI** cập nhật các thay đổi mới nhất vào file HTML này (Thư mục mới, Command mới, hoặc Lỗi mới phát sinh).</li>
+                </ol>
+                <p><em>Việc không cập nhật SSOT này được coi là nợ kỹ thuật (Technical Debt) nghiêm trọng.</em></p>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+        
+        // Active link highlighting
+        window.addEventListener('scroll', () => {
+            let current = "";
+            const sections = document.querySelectorAll("section");
+            sections.forEach((section) => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 100) {
+                    current = section.getAttribute("id");
+                }
+            });
+
+            document.querySelectorAll(".nav-item").forEach((a) => {
+                a.classList.remove("active");
+                if (a.getAttribute("href").includes(current)) {
+                    a.classList.add("active");
+                }
+            });
+        });
+    </script>
+</body>
+</html>

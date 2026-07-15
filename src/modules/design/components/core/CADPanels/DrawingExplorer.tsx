@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Database, FolderPlus, Trash2, FileUp, Palette } from "lucide-react";
-import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+import { Virtuoso, type ListRange, type VirtuosoHandle } from "react-virtuoso";
 import { open } from "@tauri-apps/plugin-dialog";
 
 import { cn } from "@TOOL/utils/cn";
 import { TreeItem } from "@DESIGN/components/core/CADPanels/TreeItem";
 import { FeatureItem } from "@DESIGN/components/core/CADPanels/FeatureItem";
 import { useDesignSync, EMPTY_OBJ } from "@IMPLEMENT/stores/useDesignSync";
-import type { DesignEventType } from "@DESIGN/features/map/stores/types";
-import { importFromExcel, importFromKML, getExcelHeaders, type ImportMapping } from "@IMPLEMENT/services/importService";
+import { importFromExcel, importFromKML, getExcelHeaders, applyImportedRecords, type ImportMapping } from "@IMPLEMENT/services/importService";
 import {
   ExplorerHeader,
   ExplorerFilterBar,
@@ -17,6 +16,7 @@ import {
   useVirtualDrag
 } from "./Explorer";
 import { GroupIcon } from "@DESIGN/components/core/CADPanels/GroupIcon";
+import { getFeatureDisplayInfo } from "@TOOL/utils/featureUtils";
 import type { RegionState, LayerState, FeatureGroupState, FeatureState } from "@CONTRACT/types";
 import type { FlatTreeItem } from "@DESIGN/components/core/CADPanels/Explorer/useFlattenedTree";
 
@@ -29,7 +29,7 @@ interface MappingData {
 
 interface DeleteModalState {
   isOpen: boolean;
-  type: 'region' | 'group' | 'layer' | 'feature' | null;
+  type: 'region' | 'group' | 'layer' | 'feature' | 'featureChildren' | null;
   id: string;
   name: string;
 }
@@ -42,29 +42,98 @@ interface ContextMenuState {
   data: FlatTreeItem['data'];
 }
 
-export function DrawingExplorer() {
-  const state = useDesignSync(s => s.state);
-  const regionsMap = state?.regions || (EMPTY_OBJ as Record<string, RegionState>);
-  const layersMap = state?.layers || (EMPTY_OBJ as Record<string, LayerState>);
-  const groupsMap = state?.feature_groups || (EMPTY_OBJ as Record<string, FeatureGroupState>);
-  const featuresMap = state?.features || (EMPTY_OBJ as Record<string, FeatureState>);
+type SortField = 'name' | 'stt';
 
-  const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
-  const selectedGroupId = useDesignSync(s => s.selectedGroupId);
-  const selectFeature = useDesignSync(s => s.selectFeature);
-  const setSelectedGroup = useDesignSync(s => s.setSelectedGroup);
-  const dispatchEvent = useDesignSync(s => s.dispatchEvent);
-  const dispatchEvents = useDesignSync(s => s.dispatchEvents);
-  const zoomTo = useDesignSync(s => s.zoomTo);
-  const selectionSet = useDesignSync(s => s.selectionSet);
-  const deleteSelectedFeatures = useDesignSync(s => s.deleteSelectedFeatures);
-  const projectId = useDesignSync(s => s.projectId);
-  const isLoading = useDesignSync(s => s.isLoading);
-  const error = useDesignSync(s => s.error);
-  const mapHiddenIds = useDesignSync(s => s.mapHiddenIds);
-  const toggleMapHidden = useDesignSync(s => s.toggleMapHidden);
+interface ExplorerViewState {
+  expanded: Record<string, boolean>;
+  treeSearchQuery: string;
+  filterType: string | null;
+  reverseOrder: boolean;
+  sortField: SortField;
+  topItemId: string | null;
+  topItemIndex: number;
+  selectedGroupId: string | null;
+}
+
+const defaultExplorerViewState: ExplorerViewState = {
+  expanded: {},
+  treeSearchQuery: "",
+  filterType: null,
+  reverseOrder: false,
+  sortField: 'name',
+  topItemId: null,
+  topItemIndex: 0,
+  selectedGroupId: null,
+};
+
+const getExplorerViewStateKey = (projectId: string | null | undefined) =>
+  projectId ? `drawing-explorer-view-${projectId}` : null;
+
+const hasSavedExplorerViewState = (projectId: string | null | undefined): boolean => {
+  const viewStateKey = getExplorerViewStateKey(projectId);
+  if (!viewStateKey || !projectId) return false;
+
+  try {
+    return localStorage.getItem(viewStateKey) !== null ||
+      localStorage.getItem(`drawing-explorer-expanded-${projectId}`) !== null;
+  } catch {
+    return false;
+  }
+};
+
+const readExplorerViewState = (projectId: string | null | undefined): ExplorerViewState => {
+  const viewStateKey = getExplorerViewStateKey(projectId);
+  if (!viewStateKey) return defaultExplorerViewState;
+
+  try {
+    const saved = localStorage.getItem(viewStateKey);
+    if (saved) {
+      const parsed = JSON.parse(saved) as Partial<ExplorerViewState>;
+      return {
+        ...defaultExplorerViewState,
+        ...parsed,
+        expanded: parsed.expanded && typeof parsed.expanded === 'object' ? parsed.expanded : {},
+        sortField: parsed.sortField === 'stt' ? 'stt' : 'name',
+        topItemIndex: typeof parsed.topItemIndex === 'number' ? parsed.topItemIndex : 0,
+      };
+    }
+
+    const legacyExpanded = localStorage.getItem(`drawing-explorer-expanded-${projectId}`);
+    return legacyExpanded
+      ? { ...defaultExplorerViewState, expanded: JSON.parse(legacyExpanded) }
+      : defaultExplorerViewState;
+  } catch {
+    return defaultExplorerViewState;
+  }
+};
+
+export function DrawingExplorer() {
+  const regionsMap = useDesignSync(st => st.state?.regions) || (EMPTY_OBJ as Record<string, RegionState>);
+  const layersMap = useDesignSync(st => st.state?.layers) || (EMPTY_OBJ as Record<string, LayerState>);
+  const groupsMap = useDesignSync(st => st.state?.feature_groups) || (EMPTY_OBJ as Record<string, FeatureGroupState>);
+  const featuresMap = useDesignSync(st => st.state?.features) || (EMPTY_OBJ as Record<string, FeatureState>);
+
+  const selectedFeatureId = useDesignSync(st => st.selectedFeatureId);
+  const selectedGroupId = useDesignSync(st => st.selectedGroupId);
+  const selectFeature = useDesignSync(st => st.selectFeature);
+  const setSelectedGroup = useDesignSync(st => st.setSelectedGroup);
+  const dispatchEvent = useDesignSync(st => st.dispatchEvent);
+  const dispatchEvents = useDesignSync(st => st.dispatchEvents);
+  const zoomTo = useDesignSync(st => st.zoomTo);
+  const selectionSet = useDesignSync(st => st.selectionSet);
+  const toggleSelection = useDesignSync(st => st.toggleSelection);
+  const selectAll = useDesignSync(st => st.selectAll);
+  const deleteSelectedFeatures = useDesignSync(st => st.deleteSelectedFeatures);
+  const projectId = useDesignSync(st => st.projectId);
+  const isLoading = useDesignSync(st => st.isLoading);
+  const error = useDesignSync(st => st.error);
+  const mapHiddenIds = useDesignSync(st => st.mapHiddenIds);
+  const toggleMapHidden = useDesignSync(st => st.toggleMapHidden);
+  const clearSelection = useDesignSync(st => st.clearSelection);
+  const isReady = useDesignSync(st => !!st.state);
 
   const virtuosoRef = useRef<VirtuosoHandle>(null);
+  
   const featuresRef = useRef(featuresMap);
   const groupsRef = useRef(groupsMap);
   const regionsRef = useRef(regionsMap);
@@ -73,40 +142,73 @@ export function DrawingExplorer() {
   useEffect(() => { groupsRef.current = groupsMap; }, [groupsMap]);
   useEffect(() => { regionsRef.current = regionsMap; }, [regionsMap]);
 
-  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem(`drawing-explorer-expanded-${projectId}`);
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-
-  useEffect(() => {
-    if (projectId) localStorage.setItem(`drawing-explorer-expanded-${projectId}`, JSON.stringify(expanded));
-  }, [expanded, projectId]);
-
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [treeSearchQuery, setTreeSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<string | null>(null);
   const [reverseOrder, setReverseOrder] = useState(false);
-  const [sortField, setSortField] = useState<'name' | 'stt'>('name');
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [topItem, setTopItem] = useState<{ id: string | null; index: number }>({ id: null, index: 0 });
+  const restoredProjectRef = useRef<string | null>(null);
+  const isRestoringViewStateRef = useRef(false);
+  const pendingScrollRestoreRef = useRef<{ id: string | null; index: number } | null>(null);
+  const hasAutoExpanded = useRef(false);
+  const lastSelectedFeatureIdRef = useRef<string | null>(null);
 
-  const { flattenedItems, filteredRegions, featureNumbers } = useFlattenedTree({
+  useEffect(() => {
+    if (!projectId || restoredProjectRef.current === projectId) return;
+
+    hasAutoExpanded.current = hasSavedExplorerViewState(projectId);
+    const savedViewState = readExplorerViewState(projectId);
+    isRestoringViewStateRef.current = true;
+    setExpanded(savedViewState.expanded);
+    setTreeSearchQuery(savedViewState.treeSearchQuery);
+    setFilterType(savedViewState.filterType);
+    setReverseOrder(savedViewState.reverseOrder);
+    setSortField(savedViewState.sortField);
+    setTopItem({ id: savedViewState.topItemId, index: savedViewState.topItemIndex });
+    pendingScrollRestoreRef.current = { id: savedViewState.topItemId, index: savedViewState.topItemIndex };
+    if (savedViewState.selectedGroupId) setSelectedGroup(savedViewState.selectedGroupId);
+    restoredProjectRef.current = projectId;
+  }, [projectId, setSelectedGroup]);
+
+  useEffect(() => {
+    const viewStateKey = getExplorerViewStateKey(projectId);
+    if (!viewStateKey || restoredProjectRef.current !== projectId) return;
+    if (isRestoringViewStateRef.current) {
+      isRestoringViewStateRef.current = false;
+      return;
+    }
+
+    const viewState: ExplorerViewState = {
+      expanded,
+      treeSearchQuery,
+      filterType,
+      reverseOrder,
+      sortField,
+      topItemId: topItem.id,
+      topItemIndex: topItem.index,
+      selectedGroupId,
+    };
+
+    localStorage.setItem(viewStateKey, JSON.stringify(viewState));
+    localStorage.setItem(`drawing-explorer-expanded-${projectId}`, JSON.stringify(expanded));
+  }, [expanded, filterType, projectId, reverseOrder, selectedGroupId, sortField, topItem, treeSearchQuery]);
+
+  const { flattenedItems, filteredRegions, featureNumbers, featureChildrenMap } = useFlattenedTree({
     regionsMap, layersMap, groupsMap, featuresMap, expanded,
     treeSearchQuery, filterType, reverseOrder, sortField
   });
 
   const { isVirtualDragging: _isVirtualDragging, handleVirtualDragStart } = useVirtualDrag({
-    featuresRef, groupsRef, regionsRef: regionsRef as any, dispatchEvents, selectionSet, clearSelection: useDesignSync(s => s.clearSelection)
+    featuresRef, groupsRef, regionsRef: regionsRef as any, dispatchEvents, selectionSet, clearSelection
   });
 
-  const [, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [themeGroupId, setThemeGroupId] = useState<string | null>(null);
+  const [themeTargetFeatureIds, setThemeTargetFeatureIds] = useState<string[] | undefined>(undefined);
   const [mappingData, setMappingData] = useState<MappingData | null>(null);
   const [deleteModal, setDeleteModal] = useState<DeleteModalState>({ isOpen: false, type: null, id: '', name: '' });
 
-  // Auto-expand logic (keep core orchestration here)
-  const hasAutoExpanded = useRef(false);
   useEffect(() => {
     if (!hasAutoExpanded.current && filteredRegions.length > 0 && !isLoading && !error) {
       setExpanded(prev => {
@@ -118,7 +220,6 @@ export function DrawingExplorer() {
     }
   }, [filteredRegions, isLoading, error]);
 
-  // Virtualization Scroll
   useEffect(() => {
     if (selectedFeatureId && flattenedItems.length > 0 && virtuosoRef.current) {
       const idx = flattenedItems.findIndex(item => item.type === 'feature' && item.id === selectedFeatureId);
@@ -128,101 +229,148 @@ export function DrawingExplorer() {
     }
   }, [selectedFeatureId, flattenedItems]);
 
+  useEffect(() => {
+    const pendingRestore = pendingScrollRestoreRef.current;
+    if (!pendingRestore || flattenedItems.length === 0 || selectedFeatureId) return;
+
+    const restoredIndex = pendingRestore.id
+      ? flattenedItems.findIndex(item => item.id === pendingRestore.id)
+      : pendingRestore.index;
+    const index = restoredIndex >= 0
+      ? Math.min(restoredIndex, flattenedItems.length - 1)
+      : Math.min(pendingRestore.index, flattenedItems.length - 1);
+
+    pendingScrollRestoreRef.current = null;
+    setTimeout(() => virtuosoRef.current?.scrollToIndex({ index, align: 'start' }), 150);
+  }, [flattenedItems, selectedFeatureId]);
+
+  const handleRangeChanged = (range: ListRange) => {
+    const item = flattenedItems[range.startIndex];
+    const nextTopItem = { id: item?.id ?? null, index: range.startIndex };
+    setTopItem(prev => (
+      prev.id === nextTopItem.id && prev.index === nextTopItem.index ? prev : nextTopItem
+    ));
+  };
+
   const handleCreateRegion = (e: React.MouseEvent) => {
+    if (!isReady) return;
     e.stopPropagation();
     const name = prompt("Tên dự án mới:");
     if (!name) return;
     const regionId = crypto.randomUUID();
     const layerId = crypto.randomUUID();
+    const groupId = crypto.randomUUID();
     dispatchEvents([
       { type: 'RegionCreated', payload: { id: regionId, parent_id: null, name } },
-      { type: 'LayerCreated', payload: { id: layerId, region_id: regionId, name: 'Lớp mặc định' } }
+      { type: 'LayerCreated', payload: { id: layerId, region_id: regionId, name: 'Lớp mặc định' } },
+      { type: 'FeatureGroupCreated', payload: { id: groupId, layer_id: layerId, parent_id: null, name: 'Nhóm mặc định', group_type: 'FOLDER' } }
     ]);
-    setExpanded(prev => ({ ...prev, [regionId]: true }));
+    setExpanded(prev => ({ ...prev, [regionId]: true, [groupId]: true }));
   };
 
-  const handleCreateGroup = (regionId: string, e: React.MouseEvent, parentGroupId?: string) => {
+  const handleCreateGroup = (regionId: string, e: React.MouseEvent, _parentGroupId?: string) => {
+    if (!isReady) return;
     e.stopPropagation();
-    const layer = Object.values(layersMap).find(l => l.region_id === regionId);
-    if (!layer) return;
-
-    const typeChoice = prompt("Chọn loại nhóm (1-8): Intersection, Polyline, CCTV, PTZ, Speed, LPR, Folder, Default", "1");
-    const group_type = (['INTERSECTION', 'POLYLINE', 'CCTV', 'PTZ', 'SPEED', 'LPR', 'FOLDER', 'default'] as const)[parseInt(typeChoice || '8') - 1];
-    const name = prompt("Tên nhóm mới:", group_type === 'INTERSECTION' ? 'Nút giao mới' : 'Nhóm mới');
+    const name = prompt("Tên nhóm mới:");
     if (!name) return;
-
-    const id = crypto.randomUUID();
-    dispatchEvent({
-      type: 'FeatureGroupCreated',
-      payload: {
-        id,
-        layer_id: layer.id,
-        parent_id: parentGroupId || null,
-        name,
-        group_type
-      }
-    });
-    setExpanded(prev => ({ ...prev, [id]: true }));
+    const layer = Object.values(layersMap).find((l: LayerState) => l.region_id === regionId);
+    if (!layer) return;
+    const groupId = crypto.randomUUID();
+    dispatchEvent({ type: 'FeatureGroupCreated', payload: { id: groupId, layer_id: layer.id, parent_id: null, name, group_type: 'FOLDER' } });
+    setExpanded(prev => ({ ...prev, [regionId]: true, [groupId]: true }));
   };
 
   const handleImportToGroup = async (groupId: string) => {
-    const selected = await open({ multiple: false, filters: [{ name: 'GIS Data', extensions: ['xlsx', 'xls', 'kml', 'kmz'] }] });
-    if (!selected || typeof selected !== 'string') return;
-    const fileName = selected.split(/[\\/]/).pop() || "";
+    const file = await open({ multiple: false, filters: [{ name: 'Data', extensions: ['xlsx', 'xls', 'xlsm', 'xlsb', 'kml', 'kmz'] }] });
+    if (!file) return;
+    const filePath = typeof file === 'string' ? file : ((file as { path?: string }).path ?? '');
+    if (!filePath) return;
+    const fileName = filePath.split(/[\\/]/).pop() || filePath;
     const ext = fileName.split('.').pop()?.toLowerCase();
-
-    if (ext === 'xlsx' || ext === 'xls') {
-      const headers = await getExcelHeaders(selected);
-      setMappingData({ headers, filename: fileName, groupId, filePath: selected });
-    } else {
-      const records = await importFromKML(selected);
-      const events: DesignEventType[] = records.map(r => ({
-        type: 'FeatureCreated',
-        payload: {
-          id: r.id,
-          layer_id: groupsMap[groupId]?.layer_id || "",
-          group_id: groupId,
-          name: r.properties.name || "KML Feature",
-          geom_type: r.geom_type,
-          coordinates: r.geometry,
-          properties: r.properties,
-          metadata: JSON.stringify({})
-        }
-      }));
-      await dispatchEvents(events);
+    if (['xlsx', 'xls', 'xlsm', 'xlsb'].includes(ext!)) {
+      const headers = await getExcelHeaders(filePath);
+      setMappingData({ headers, filename: fileName, groupId, filePath });
+    } else if (['kml', 'kmz'].includes(ext!)) {
+      await importFromKML(filePath);
+      setSelectedGroup(groupId);
     }
   };
 
   const handleMappingConfirm = async (mapping: ImportMapping) => {
     if (!mappingData) return;
     const records = await importFromExcel(mappingData.filePath, mapping);
-    const events: DesignEventType[] = records.map(r => ({
-      type: 'FeatureCreated',
-      payload: {
-        id: r.id,
-        layer_id: groupsMap[mappingData.groupId]?.layer_id || "",
-        group_id: mappingData.groupId,
-        name: r.properties.name || "Imported",
-        geom_type: r.geom_type,
-        coordinates: r.geometry?.coordinates ?? r.geometry,
-        properties: r.properties,
-        metadata: JSON.stringify({})
-      }
-    }));
-    await dispatchEvents(events);
+    await applyImportedRecords(records, mappingData.groupId);
+    setSelectedGroup(mappingData.groupId);
     setMappingData(null);
   };
 
-  const handleToggleVisible = (type: string, id: string, _data: FlatTreeItem['data'], e: React.MouseEvent) => {
+  const handleToggleVisible = (type: 'region' | 'group' | 'feature', id: string, _data: any, e: React.MouseEvent) => {
     e.stopPropagation();
     if (type === 'region') {
       const layer = Object.values(layersMap).find((l: LayerState) => l.region_id === id);
       if (layer) toggleMapHidden(layer.id);
-    } else if (type === 'group') {
-      toggleMapHidden(id);
-    } else if (type === 'feature') {
+    } else if (type === 'group' || type === 'feature') {
       toggleMapHidden(id);
     }
+  };
+
+  const collectChildFeatureIds = (featureId: string): string[] => {
+    const children = featureChildrenMap[featureId] || [];
+    return children.flatMap(child => [child.id, ...collectChildFeatureIds(child.id)]);
+  };
+
+  const handleOpenFeatureChildrenTheme = (feature: FeatureState, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const childIds = collectChildFeatureIds(feature.id);
+    if (!childIds.length) return;
+    setThemeTargetFeatureIds(childIds);
+    setThemeGroupId(feature.id);
+  };
+
+  const handleToggleFeatureChildrenVisible = (featureId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const childIds = collectChildFeatureIds(featureId);
+    if (!childIds.length) return;
+
+    const shouldHide = childIds.some(id => !mapHiddenIds.has(id));
+    childIds.forEach(id => {
+      if (mapHiddenIds.has(id) !== shouldHide) {
+        toggleMapHidden(id);
+      }
+    });
+  };
+
+  const handleSelectFeatureFromPanel = (feature: FeatureState, itemIndex: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (e.shiftKey && lastSelectedFeatureIdRef.current) {
+      const featureItems = flattenedItems.filter(item => item.type === 'feature');
+      const startIndex = featureItems.findIndex(item => item.id === lastSelectedFeatureIdRef.current);
+      const endIndex = featureItems.findIndex(item => item.id === feature.id);
+
+      if (startIndex !== -1 && endIndex !== -1) {
+        const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+        clearSelection();
+        selectAll(featureItems.slice(from, to + 1).map(item => item.id));
+        selectFeature(feature.id, true);
+      } else {
+        selectFeature(feature.id);
+      }
+    } else if (e.ctrlKey || e.metaKey) {
+      const wasSelected = selectionSet.has(feature.id);
+      toggleSelection(feature.id);
+      if (wasSelected && selectedFeatureId === feature.id) {
+        selectFeature(null, true);
+      } else if (!wasSelected) {
+        selectFeature(feature.id, true);
+      }
+    } else {
+      selectFeature(feature.id);
+    }
+
+    if (feature.group_id) setSelectedGroup(feature.group_id);
+    lastSelectedFeatureIdRef.current = feature.id;
+    setTopItem({ id: feature.id, index: itemIndex });
   };
 
   const confirmDelete = async () => {
@@ -230,24 +378,40 @@ export function DrawingExplorer() {
     const { type, id } = deleteModal;
     if (type === 'region') dispatchEvent({ type: 'RegionDeleted', payload: { id } });
     else if (type === 'group') dispatchEvent({ type: 'FeatureGroupDeleted', payload: { id } });
+    else if (type === 'featureChildren') {
+      const childIds = collectChildFeatureIds(id);
+      await dispatchEvents(childIds.map(childId => ({ type: 'FeatureDeleted', payload: { id: childId } })));
+    }
     else if (type === 'feature') id === 'selected' ? deleteSelectedFeatures() : dispatchEvent({ type: 'FeatureDeleted', payload: { id } });
     setDeleteModal({ isOpen: false, type: null, id: '', name: '' });
   };
 
   if (error) return <div className="p-6 text-center text-red-400">{error}</div>;
-  if (isLoading || !state) return <div className="p-6 text-center text-cad-accent animate-pulse">Syncing...</div>;
+  if (isLoading) return <div className="p-6 text-center text-cad-accent animate-pulse">Syncing...</div>;
+  if (!isReady) return <div className="p-6 text-center text-cad-text-muted">No design state loaded</div>;
 
   return (
     <div className="text-cad-text-primary px-3 py-2 text-[10px] font-mono flex flex-col h-full overflow-hidden">
-      <ExplorerHeader treeSearchQuery={treeSearchQuery} setTreeSearchQuery={setTreeSearchQuery} onCreateRegion={handleCreateRegion} />
+      <ExplorerHeader 
+        treeSearchQuery={treeSearchQuery} 
+        setTreeSearchQuery={setTreeSearchQuery} 
+        onCreateRegion={handleCreateRegion} 
+        disabled={isLoading}
+      />
       <ExplorerFilterBar filterType={filterType} setFilterType={setFilterType} sortField={sortField} setSortField={setSortField} reverseOrder={reverseOrder} setReverseOrder={setReverseOrder} />
 
       <div className="flex-1 min-h-0 mt-2">
         <Virtuoso
           ref={virtuosoRef}
           data={flattenedItems}
+          rangeChanged={handleRangeChanged}
           itemContent={(index: number, item: FlatTreeItem) => (
-            <div key={item.id} onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: item.type, id: item.id, data: item.data }); }}>
+            <div
+              key={item.id}
+              data-drag-id={item.type === 'region' || item.type === 'group' || item.type === 'feature' ? item.id : undefined}
+              data-drag-type={item.type === 'region' || item.type === 'group' || item.type === 'feature' ? item.type : undefined}
+              onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: item.type, id: item.id, data: item.data }); }}
+            >
               {item.type === 'region' && (
                 <TreeItem
                   name={item.data.name}
@@ -261,8 +425,20 @@ export function DrawingExplorer() {
                   visible={!mapHiddenIds.has((Object.values(layersMap).find((l: LayerState) => l.region_id === item.id) as LayerState | undefined)?.id ?? item.id)}
                   customAction={
                     <div className="flex items-center gap-0.5">
-                      <button onClick={(e) => handleCreateGroup(item.id, e)} className="p-0.5 hover:bg-cad-accent rounded"><FolderPlus size={10} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); setDeleteModal({ isOpen: true, type: 'region', id: item.id, name: item.data.name }); }} className="p-0.5 hover:bg-red-500 rounded"><Trash2 size={10} /></button>
+                      <button 
+                        onClick={isLoading ? undefined : (e) => handleCreateGroup(item.id, e)} 
+                        className={cn("p-0.5 hover:bg-cad-accent rounded", isLoading && "opacity-20 cursor-not-allowed")}
+                        disabled={isLoading}
+                      >
+                        <FolderPlus size={10} />
+                      </button>
+                      <button 
+                        onClick={isLoading ? undefined : (e) => { e.stopPropagation(); setDeleteModal({ isOpen: true, type: 'region', id: item.id, name: item.data.name }); }} 
+                        className={cn("p-0.5 hover:bg-red-500 rounded", isLoading && "opacity-20 cursor-not-allowed")}
+                        disabled={isLoading}
+                      >
+                        <Trash2 size={10} />
+                      </button>
                     </div>
                   }
                 />
@@ -285,23 +461,23 @@ export function DrawingExplorer() {
                   customAction={
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setThemeGroupId(item.id); }}
+                        onClick={(e) => { e.stopPropagation(); setThemeTargetFeatureIds(undefined); setThemeGroupId(item.id); }}
                         className="p-1 hover:bg-emerald-500/20 rounded text-emerald-400 hover:text-emerald-300 transition-colors"
-                        title="Khai báo đồng bộ (Theme)"
+                        title="Theme"
                       >
                         <Palette size={12} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleImportToGroup(item.id); }}
                         className="p-1 hover:bg-emerald-500/20 rounded text-emerald-400 hover:text-emerald-300 transition-colors"
-                        title="Import dữ liệu"
+                        title="Import"
                       >
                         <FileUp size={12} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setDeleteModal({ isOpen: true, type: 'group', id: item.id, name: item.data.name }); }}
                         className="p-1 hover:bg-red-500/20 rounded text-red-500/60 hover:text-red-500 transition-colors"
-                        title="Xóa nhóm"
+                        title="Delete Group"
                       >
                         <Trash2 size={12} />
                       </button>
@@ -310,19 +486,45 @@ export function DrawingExplorer() {
                 />
               )}
               {item.type === 'feature' && (
-                <FeatureItem
-                  feature={item.data as FeatureState} level={item.level} levelOffset={item.levelOffset}
-                  selected={selectedFeatureId === item.id}
-                  onSelect={() => { selectFeature(item.id); setSelectedGroup((item.data as FeatureState).group_id!); }}
-                  onZoomTo={() => zoomTo(item.id, 'feature')}
-                  onMouseDown={(e) => handleVirtualDragStart(e, 'feature', item.id)}
-                  onDelete={() => setDeleteModal({ isOpen: true, type: 'feature', id: item.id, name: item.data.name })}
-                  index={featureNumbers[item.id] ?? (index + 1)}
-                  expanded={!!expanded[item.id]}
-                  hasChildren={false}
-                  onToggleExpand={() => { }}
-                  onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'feature', id: item.id, data: item.data }); }}
-                />
+                (() => {
+                  const feature = item.data as FeatureState;
+                  const childIds = collectChildFeatureIds(feature.id);
+                  const hasChildren = childIds.length > 0;
+                  const isIntersectionWithChildren = hasChildren && getFeatureDisplayInfo(feature).isIntersection;
+                  const childrenVisible = childIds.some(id => !mapHiddenIds.has(id));
+
+                  return (
+                    <FeatureItem
+                      feature={feature} level={item.level} levelOffset={item.levelOffset}
+                      selected={selectionSet.has(item.id) || selectedFeatureId === item.id}
+                      onSelect={(e) => handleSelectFeatureFromPanel(feature, index, e)}
+                      onZoomTo={() => zoomTo(item.id, 'feature')}
+                      onMouseDown={(e) => handleVirtualDragStart(e, 'feature', item.id)}
+                      onDelete={() => setDeleteModal({
+                        isOpen: true,
+                        type: isIntersectionWithChildren ? 'featureChildren' : 'feature',
+                        id: item.id,
+                        name: feature.name
+                      })}
+                      index={featureNumbers[item.id] ?? (index + 1)}
+                      expanded={!!expanded[`feature-${item.id}`]}
+                      hasChildren={hasChildren}
+                      onToggleExpand={() => setExpanded(p => ({ ...p, [`feature-${item.id}`]: !p[`feature-${item.id}`] }))}
+                      onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, type: 'feature', id: item.id, data: item.data }); }}
+                      visible={isIntersectionWithChildren ? childrenVisible : !mapHiddenIds.has(item.id)}
+                      onToggleVisible={isIntersectionWithChildren ? (e) => handleToggleFeatureChildrenVisible(item.id, e) : (e) => handleToggleVisible('feature', item.id, item.data, e)}
+                      customAction={isIntersectionWithChildren ? (
+                        <button
+                          onClick={(e) => handleOpenFeatureChildrenTheme(feature, e)}
+                          className="p-0.5 hover:bg-emerald-500/20 rounded text-emerald-400 hover:text-emerald-300 transition-colors"
+                          title="Chỉnh giao diện đối tượng trong nút giao"
+                        >
+                          <Palette size={10} />
+                        </button>
+                      ) : null}
+                    />
+                  );
+                })()
               )}
             </div>
           )}
@@ -330,12 +532,36 @@ export function DrawingExplorer() {
       </div>
 
       <ExplorerModals
-        themeGroupId={themeGroupId} setThemeGroupId={setThemeGroupId}
-        groupName={groupsMap[themeGroupId!]?.name}
+        themeGroupId={themeGroupId}
+        setThemeGroupId={(id) => {
+          if (!id) setThemeTargetFeatureIds(undefined);
+          setThemeGroupId(id);
+        }}
+        groupName={groupsMap[themeGroupId!]?.name || featuresMap[themeGroupId!]?.name}
+        themeTargetFeatureIds={themeTargetFeatureIds}
         mappingData={mappingData} setMappingData={setMappingData}
         handleMappingConfirm={handleMappingConfirm}
-        deleteModal={deleteModal} setDeleteModal={setDeleteModal} confirmDelete={confirmDelete}
+        deleteModal={deleteModal}
+        setDeleteModal={setDeleteModal}
+        confirmDelete={confirmDelete}
       />
+      
+      {/* Context Menu Overlay */}
+      {contextMenu && (
+        <div 
+          className="fixed z-[9999] bg-[#1a1a1a] border border-white/10 rounded-md shadow-2xl py-1 min-w-[120px]"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={() => setContextMenu(null)}
+        >
+          <button className="w-full text-left px-3 py-1.5 text-[9px] hover:bg-white/5 transition-colors uppercase tracking-wider font-bold">Properties</button>
+          <button 
+            className="w-full text-left px-3 py-1.5 text-[9px] hover:bg-red-500/10 text-red-400 transition-colors uppercase tracking-wider font-bold" 
+            onClick={() => setDeleteModal({ isOpen: true, type: contextMenu.type as any, id: contextMenu.id, name: contextMenu.data.name })}
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 }

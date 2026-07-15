@@ -45,7 +45,7 @@ describe('Google Maps Polyline Editing: Data Integrity', () => {
                 settings: {}
             },
             editingFeatureId: 'line1',
-            projectId: 1,
+            projectId: '1',
             dispatchEvent: mockDispatch
         });
     });

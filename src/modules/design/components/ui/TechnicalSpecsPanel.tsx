@@ -8,6 +8,7 @@ import { Wrench, Ruler, Camera, MapPin, Eye, Zap } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getParsedMetadata } from '@TOOL/utils/featureMetadata';
 import { cn } from '@TOOL/utils/cn';
+import type { FeatureMetadata } from '@CONTRACT/types';
 
 interface TechnicalSpecsPanelProps {
   className?: string;
@@ -20,6 +21,11 @@ interface SpecField {
   unit?: string;
 }
 
+const toSpecValue = (value: unknown): string | number | undefined => {
+  if (typeof value === 'string' || typeof value === 'number') return value;
+  return undefined;
+};
+
 export const TechnicalSpecsPanel: React.FC<TechnicalSpecsPanelProps> = ({ className }) => {
   const { state, selectedFeatureId } = useDesignSync();
 
@@ -31,7 +37,7 @@ export const TechnicalSpecsPanel: React.FC<TechnicalSpecsPanelProps> = ({ classN
   const specs = useMemo<SpecField[]>(() => {
     if (!selectedFeature) return [];
 
-    const metadata = getParsedMetadata(selectedFeature);
+    const metadata = getParsedMetadata(selectedFeature) as FeatureMetadata;
     const fields: SpecField[] = [];
 
     // Basic Info
@@ -43,7 +49,7 @@ export const TechnicalSpecsPanel: React.FC<TechnicalSpecsPanelProps> = ({ classN
 
     fields.push({
       label: 'Mã hiệu (STT)',
-      value: metadata.display_order || metadata.stt || 'N/A',
+      value: toSpecValue(metadata.display_order ?? metadata.stt) ?? 'N/A',
       icon: <Wrench size={14} />
     });
 

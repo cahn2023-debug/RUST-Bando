@@ -4,7 +4,9 @@ import L from 'leaflet';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import {
     getFeatureDisplayInfo,
-    getParsedCoordinates
+    getParsedCoordinates,
+    getRepresentativePoint,
+    safeString
 } from '@TOOL/utils/featureUtils';
 import { getParsedMetadata } from '@DESIGN/features/map/MapLayerComponents/SharedMapComponents';
 import { handleFeatureSelection, stopFeatureEventPropagation } from '@DESIGN/features/map';
@@ -13,15 +15,45 @@ export const VectorLayer = React.memo(({
     features,
     allFeatures = {},
     parentChildMap,
+    featureHierarchy,
     feature_groups,
     selectedFeatureId,
     previewMetadata,
+    currentZoom,
     zoomTo
 }: any) => {
     const drawingMode = useDesignSync(s => s.drawingMode);
     const editingFeatureId = useDesignSync(s => s.editingFeatureId);
     const groupThemePreview = useDesignSync(s => s.groupThemePreview);
     const isClickThrough = drawingMode !== 'none' && drawingMode !== 'move';
+
+    const getVectorEventHandlers = React.useCallback((featureId: string, groupId: string, isEditingFeature = false) => ({
+        click: (e: any) => {
+            const mode = useDesignSync.getState().drawingMode;
+            if (mode === 'none' || mode === 'move') {
+                stopFeatureEventPropagation(e);
+                handleFeatureSelection(featureId, groupId, e);
+            }
+        },
+        mouseover: () => {
+            const mode = useDesignSync.getState().drawingMode;
+            if (mode === 'none' || mode === 'move') {
+                useDesignSync.getState().setHoverId(featureId);
+            }
+        },
+        mouseout: () => {
+            useDesignSync.getState().setHoverId(null);
+        },
+        dblclick: (e: any) => {
+            if (!isEditingFeature) {
+                const mode = useDesignSync.getState().drawingMode;
+                if (mode === 'none' || mode === 'move') {
+                    L.DomEvent.stopPropagation((e as any).originalEvent || e);
+                    zoomTo(featureId, 'feature');
+                }
+            }
+        }
+    }), [zoomTo]);
 
     // Debug logging for vector features
     React.useEffect(() => {
@@ -68,6 +100,17 @@ export const VectorLayer = React.memo(({
 
                 const isLine = geomType === 'linestring' || geomType === 'polyline' || geomType === 'line';
                 const isPolygon = geomType === 'polygon';
+                const isSelected = f.id === selectedFeatureId;
+
+                if (isLine || isPolygon) {
+                    const depth = featureHierarchy?.depthMap?.[f.id] ?? (metadata.parent_feature_id ? 1 : 0);
+                    const expansionZoom = 19 + (depth * 2);
+                    const parentExpansionZoom = depth > 0 ? 19 + ((depth - 1) * 2) : 0;
+                    const isInsideIntersectionGroup = String(group?.type || '').toUpperCase() === 'INTERSECTION';
+
+                    if (depth > 0 && Number(currentZoom) < parentExpansionZoom && !isSelected) return null;
+                    if (depth === 0 && isInsideIntersectionGroup && Number(currentZoom) < expansionZoom && !isSelected) return null;
+                }
 
                 // V4 Fix: Coordinate Aggregation for Parents
                 // If a Polyline/Polygon has no internal coordinates, try to build them from children
@@ -87,7 +130,7 @@ export const VectorLayer = React.memo(({
 
                     if (children.length > 0) {
                         coords = children
-                            .map((child: any) => getParsedCoordinates(child))
+                            .map((child: any) => getRepresentativePoint(child))
                             .filter((c: any) => Array.isArray(c) && c.length >= 2) as any;
                         console.log(`[VectorLayer] Aggregated ${coords?.length || 0} points for parent ${f.name || f.id}`);
                     }
@@ -96,7 +139,6 @@ export const VectorLayer = React.memo(({
                 if (!coords || !Array.isArray(coords)) return null;
 
                 const displayInfo = getFeatureDisplayInfo(f, group?.type, group?.name, metadata);
-                const isSelected = f.id === selectedFeatureId;
                 const isEditing = f.id === editingFeatureId;
 
                 if (isLine) {
@@ -104,11 +146,9 @@ export const VectorLayer = React.memo(({
                     if (coords && Array.isArray(coords)) {
                         if (Array.isArray(coords[0])) {
                             // Standard Multi-point [[lng, lat], ...]
-                            latLngs = coords.map((c: any) => {
-                                if (Array.isArray(c)) return [c[1], c[0]];
-                                if (typeof c === 'object' && c !== null) return [c.lat || c.y, c.lng || c.x];
-                                return null;
-                            }).filter((c: any) => c !== null) as [number, number][];
+                            latLngs = coords
+                                .map((c: any) => Array.isArray(c) && c.length >= 2 ? [Number(c[1]), Number(c[0])] as [number, number] : null)
+                                .filter((c: [number, number] | null): c is [number, number] => c !== null);
                         } else if (coords.length >= 2) {
                             // V4 Fix: Handle Flat Array [x1, y1, x2, y2, ...]
                             if (coords.length > 2 && coords.every(c => typeof c === 'number')) {
@@ -120,7 +160,7 @@ export const VectorLayer = React.memo(({
                                 console.warn(`[VectorLayer] Detected FLAT coordinate array for ${f.name}. Normalized into ${latLngs.length} points.`);
                             } else {
                                 // Single segment polyline from direct coords [lng, lat]
-                                latLngs = [[coords[1], coords[0]]];
+                                latLngs = [[Number(coords[1]), Number(coords[0])]];
                             }
                         }
                     }
@@ -131,6 +171,7 @@ export const VectorLayer = React.memo(({
                     }
 
                     const baseWeight = Number(metadata.weight || metadata.size || metadata.stroke || 0);
+                    const lineColor = safeString(metadata.color) || '#10b981';
                     const weight = isSelected
                         ? (baseWeight ? baseWeight + 4 : 8)
                         : (baseWeight ? baseWeight : 5); // Increased default from 2 to 5
@@ -157,10 +198,10 @@ export const VectorLayer = React.memo(({
                                 center={latLngs[0]}
                                 radius={Math.max(4, weight)}
                                 pathOptions={{
-                                    fillColor: isSelected ? '#00f2ff' : (metadata.color || '#10b981'),
-                                    fillOpacity: 0.8,
-                                    color: (f.id === selectedFeatureId) ? '#ffffff' : (metadata.color || '#10b981'),
-                                    weight: (f.id === selectedFeatureId) ? 3 : 1,
+                                    fillColor: isSelected ? '#22d3ee' : lineColor,
+                                    fillOpacity: isSelected ? 0.72 : 0.58,
+                                    color: (f.id === selectedFeatureId) ? '#c7f9ff' : lineColor,
+                                    weight: (f.id === selectedFeatureId) ? 2 : 1,
                                     className: isClickThrough ? 'pointer-events-none' : 'cursor-pointer'
                                 }}
                                 interactive={drawingMode === 'none' || drawingMode === 'move'}
@@ -199,23 +240,7 @@ export const VectorLayer = React.memo(({
                                     className: isClickThrough ? 'pointer-events-none' : 'cursor-pointer'
                                 }}
                                 interactive={drawingMode === 'none' || drawingMode === 'move'}
-                                eventHandlers={{
-                                    click: (e) => {
-                                        const mode = useDesignSync.getState().drawingMode;
-                                        if (mode === 'none' || mode === 'move') {
-                                            stopFeatureEventPropagation(e);
-                                            handleFeatureSelection(f.id, f.group_id, e);
-                                        }
-                                    },
-                                    mouseover: () => {
-                                        if (drawingMode === 'none' || drawingMode === 'move') {
-                                            useDesignSync.getState().setHoverId(f.id);
-                                        }
-                                    },
-                                    mouseout: () => {
-                                        useDesignSync.getState().setHoverId(null);
-                                    }
-                                }}
+                                eventHandlers={getVectorEventHandlers(f.id, f.group_id, isEditing)}
                             />
                             {/* Visible Polyline */}
                             <Polyline
@@ -223,58 +248,37 @@ export const VectorLayer = React.memo(({
                                 pathOptions={{
                                     color: isSelected ? '#22d3ee' : (displayInfo.color || '#EF4444'),
                                     weight: weight,
-                                    opacity: 0.9, // Increased opacity for better visibility
+                                    opacity: isSelected ? 0.82 : 0.72,
                                     lineCap: 'round',
                                     lineJoin: 'round',
-                                    dashArray: isSelected ? '12, 12' : undefined,
-                                    className: `${isClickThrough ? 'pointer-events-none' : ''} ${isSelected ? 'polyline-selected' : ''}`
+                                    dashArray: isSelected ? '10, 10' : undefined,
+                                    className: `${isClickThrough ? 'pointer-events-none' : 'cursor-pointer'} ${isSelected ? 'polyline-selected' : ''}`
                                 }}
-                                interactive={false}
+                                interactive={drawingMode === 'none' || drawingMode === 'move'}
+                                eventHandlers={getVectorEventHandlers(f.id, f.group_id, isEditing)}
                             />
                         </React.Fragment>
                     );
                 }
                 else if (geomType === 'polygon') {
-                    const latLngs = (Array.isArray(coords[0]) ? coords : [coords]).map((r: any) => r.map((c: any) => [c[1], c[0]]));
+                    const latLngs = (Array.isArray(coords[0]) ? coords : [coords]).map((r: any) =>
+                        (r as any[]).map((c: any) => [Number(c[1]), Number(c[0])] as [number, number])
+                    );
                     return (
                         <Polygon
                             key={f.id}
                             positions={latLngs}
                             pathOptions={{
                                 color: displayInfo.color || '#EF4444',
-                                weight: isSelected ? 4 : 2,
-                                fillOpacity: isSelected ? 0.4 : 0.1,
+                                weight: isSelected ? 3 : 2,
+                                fillOpacity: isSelected ? 0.22 : 0.08,
                                 fillColor: displayInfo.color || '#EF4444',
-                                dashArray: isSelected ? '8, 8' : undefined,
+                                opacity: isSelected ? 0.82 : 0.68,
+                                dashArray: isSelected ? '6, 6' : undefined,
                                 className: isClickThrough ? 'pointer-events-none' : ''
                             }}
                             interactive={drawingMode === 'none' || drawingMode === 'move'}
-                            eventHandlers={{
-                                click: (e) => {
-                                    if (drawingMode === 'none' || drawingMode === 'move') {
-                                        // Stop event propagation to prevent map background click
-                                        stopFeatureEventPropagation(e);
-
-                                        // Use centralized selection handler
-                                        // Pass the full Leaflet event 'e' which contains latlng
-                                        handleFeatureSelection(f.id, f.group_id, e);
-                                    }
-                                },
-                                mouseover: () => {
-                                    if (drawingMode === 'none' || drawingMode === 'move') {
-                                        useDesignSync.getState().setHoverId(f.id);
-                                    }
-                                },
-                                mouseout: () => {
-                                    useDesignSync.getState().setHoverId(null);
-                                },
-                                dblclick: (e) => {
-                                    if (!isEditing && (drawingMode === 'none' || drawingMode === 'move')) {
-                                        L.DomEvent.stopPropagation((e as any).originalEvent || e);
-                                        zoomTo(f.id, 'feature');
-                                    }
-                                }
-                            }}
+                            eventHandlers={getVectorEventHandlers(f.id, f.group_id, isEditing)}
                         />
                     );
                 }

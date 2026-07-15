@@ -26,6 +26,7 @@ pub struct AIEngine {
     ocr_rec_session: OnceLock<Arc<Mutex<Session>>>,
     embedding_session: OnceLock<Arc<Mutex<Session>>>,
     phi3_session: OnceLock<Arc<Mutex<Session>>>,
+    qwen_session: OnceLock<Arc<Mutex<Session>>>,
 }
 
 impl AIEngine {
@@ -195,13 +196,58 @@ impl AIEngine {
         let _ = self.embedding_session.set(arc_session.clone());
         Ok(arc_session)
     }
+
+    pub fn get_qwen_session(&self) -> Result<Arc<Mutex<Session>>> {
+        if let Some(s) = self.qwen_session.get() {
+            return Ok(s.clone());
+        }
+        // Thử tìm model Qwen 2.5 INT4 (Cực nhẹ cho máy 2GB RAM)
+        let path = self.resolve_model_path("qwen2.5_0.5b_int4.onnx");
+        let path = if path.exists() {
+            path
+        } else {
+            self.resolve_model_path("qwen.onnx")
+        };
+
+        let session_res = Session::builder()
+            .map_err(|e| anyhow!("Failed to create Qwen builder: {e}"))?
+            .with_execution_providers([self.get_best_ep()])
+            .map_err(|e| anyhow!("Failed to set EP: {e}"))?
+            .commit_from_file(&path);
+
+        let session = match session_res {
+            Ok(s) => s,
+            Err(e) => {
+                log::warn!("GPU Qwen load failed, falling back to CPU: {}", e);
+                Session::builder()
+                    .map_err(|e| anyhow!("Failed to create CPU Qwen builder: {e}"))?
+                    .with_execution_providers([
+                        ort::execution_providers::CPUExecutionProvider::default().build(),
+                    ])
+                    .map_err(|e| anyhow!("Failed to set CPU EP: {e}"))?
+                    .commit_from_file(&path)
+                    .map_err(|e| anyhow!("AI Engine: Thất bại hoàn toàn khi nạp Qwen: {e}"))?
+            }
+        };
+
+        let arc_session = Arc::new(Mutex::new(session));
+        let _ = self.qwen_session.set(arc_session.clone());
+        Ok(arc_session)
+    }
 }
 
-// Thread-safe wrapper for dynamic singleton access
 static AI_ENGINE: OnceLock<RwLock<Option<Arc<AIEngine>>>> = OnceLock::new();
+static LAST_ACCESS: OnceLock<Mutex<std::time::Instant>> = OnceLock::new();
 
 fn get_ai_engine_lock() -> &'static RwLock<Option<Arc<AIEngine>>> {
     AI_ENGINE.get_or_init(|| RwLock::new(None))
+}
+
+fn update_last_access() {
+    let m = LAST_ACCESS.get_or_init(|| Mutex::new(std::time::Instant::now()));
+    if let Ok(mut guard) = m.lock() {
+        *guard = std::time::Instant::now();
+    }
 }
 
 pub struct AIManager;
@@ -232,12 +278,29 @@ impl AIManager {
     }
 
     pub fn get_ai_engine() -> Result<Arc<AIEngine>> {
+        update_last_access();
         let lock = get_ai_engine_lock();
         let engine_opt = lock.read().unwrap();
         engine_opt
             .as_ref()
             .cloned()
             .ok_or_else(|| anyhow!("AI Engine not initialized or disabled"))
+    }
+
+    /// Kiểm tra và giải phóng RAM nếu AI không được sử dụng trong một khoảng thời gian (DEFAULT: 5 phút)
+    pub fn auto_cleanup(&self, idle_timeout_secs: u64) -> bool {
+        let last_access = LAST_ACCESS.get().map(|m| *m.lock().unwrap());
+        if let Some(last) = last_access {
+            if last.elapsed().as_secs() > idle_timeout_secs {
+                println!(
+                    "[AI Manager] Idle timeout reached ({}s). Unloading models...",
+                    last.elapsed().as_secs()
+                );
+                self.shutdown();
+                return true;
+            }
+        }
+        false
     }
 
     pub fn get_embedding_engine(&self) -> Result<embedding::EmbeddingEngine> {
@@ -256,6 +319,15 @@ impl AIManager {
         let tokenizer = tokenizers::Tokenizer::from_file(&tokenizer_path)
             .map_err(|e| anyhow!(e.to_string()))?;
         Ok(phi3::Phi3Engine::new(session, tokenizer))
+    }
+
+    pub fn get_qwen_engine(&self) -> Result<qwen::QwenEngine> {
+        let engine = Self::get_ai_engine()?;
+        let session = engine.get_qwen_session()?;
+        let tokenizer_path = engine.resolve_model_path("tokenizer.json");
+        let tokenizer = tokenizers::Tokenizer::from_file(&tokenizer_path)
+            .map_err(|e| anyhow!(e.to_string()))?;
+        Ok(qwen::QwenEngine::new(session, tokenizer))
     }
 
     pub fn get_self_heal_engine(&self) -> Result<self_heal::SelfHEAL> {
@@ -303,6 +375,8 @@ pub mod embedding;
 pub mod ocr;
 #[cfg(feature = "ai")]
 pub mod phi3;
+#[cfg(feature = "ai")]
+pub mod qwen;
 #[cfg(feature = "ai")]
 pub mod self_heal;
 // pub mod trainer;

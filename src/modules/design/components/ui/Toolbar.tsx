@@ -11,10 +11,12 @@ function cn(...inputs: ClassValue[]) {
 
 interface ToolbarProps {
   activeTab: string;
-  viewMode: 'tasks' | 'kanban' | 'calendar';
-  setViewMode: (v: 'tasks' | 'kanban' | 'calendar') => void;
+  viewMode: ViewToggleMode;
+  setViewMode: (v: ViewToggleMode) => void;
   onAddTask?: () => void;
 }
+
+type ViewToggleMode = 'tasks' | 'kanban' | 'calendar';
 
 export const Toolbar: React.FC<ToolbarProps> = ({ activeTab, viewMode, setViewMode, onAddTask }) => {
   const togglePalette = useLayoutStore((state: { togglePalette: (id: string) => void }) => state.togglePalette);
@@ -109,8 +111,8 @@ function DesignToolbarTools({ togglePalette }: { togglePalette: (id: string) => 
   );
 }
 
-function ViewToggle({ current, onChange }: { current: string, onChange: (v: string) => void }) {
-  const modes = [
+function ViewToggle({ current, onChange }: { current: ViewToggleMode, onChange: (v: ViewToggleMode) => void }) {
+  const modes: Array<{ id: ViewToggleMode; label: string; icon: React.ReactNode }> = [
     { id: 'tasks', label: 'Timeline', icon: <ListTodo size={12} /> },
     { id: 'kanban', label: 'Board', icon: <Columns size={12} /> },
     { id: 'calendar', label: 'Calendar', icon: <CalendarDays size={12} /> }

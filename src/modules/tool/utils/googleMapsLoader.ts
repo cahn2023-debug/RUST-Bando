@@ -46,7 +46,7 @@ export const initGoogleMaps = (apiKey?: string): boolean => {
 
     const script = document.createElement('script');
     // StreetView is part of maps core. Removing unknown library param to fix console warning.
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${finalKey}&language=vi&v=weekly&callback=${GOOGLE_MAPS_CALLBACK}`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${finalKey}&language=vi&v=weekly&loading=async&callback=${GOOGLE_MAPS_CALLBACK}`;
     script.async = true;
     script.defer = true;
 
@@ -66,8 +66,13 @@ export const initGoogleMaps = (apiKey?: string): boolean => {
  * Checks if Street View metadata is available for a location
  */
 export const checkStreetViewMetadata = async (lat: number, lng: number, apiKey: string): Promise<{ ok: boolean, status: string, panoId?: string }> => {
+    const trimmedKey = apiKey.trim();
+    if (!trimmedKey || trimmedKey === 'undefined') {
+        return { ok: false, status: 'API_KEY_MISSING' };
+    }
+
     try {
-        const response = await fetch(`https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${apiKey}`);
+        const response = await fetch(`https://maps.googleapis.com/maps/api/streetview/metadata?location=${lat},${lng}&key=${trimmedKey}`);
         const data = await response.json();
 
         if (data.status === 'OK') {

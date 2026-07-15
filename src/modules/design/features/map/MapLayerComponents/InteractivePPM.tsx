@@ -1,7 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import { useMapEvents } from 'react-leaflet';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { getParsedCoordinates, getEffectiveMountingHeight, getEffectiveCameraSpecs } from '@TOOL/utils/featureUtils';
+import {
+    getPointCoordinates,
+    getEffectiveMountingHeight,
+    getEffectiveCameraSpecs,
+    getFeatureMetadataValue
+} from '@TOOL/utils/featureUtils';
 import { calculatePPMAtPoint, SENSOR_SIZES, calculateHFOV, getDORICategory } from '@TOOL/utils/cameraMath';
 import { createPortal } from 'react-dom';
 
@@ -25,23 +30,23 @@ export const InteractivePPM: React.FC = () => {
 
         const isCamera = (
             feature.properties?.iconKey === 'cctv' ||
-            metadata.type === 'camera' ||
-            metadata.focal_length ||
-            metadata.hfov ||
-            metadata['specs.resolution_x']
+            getFeatureMetadataValue(feature, 'type', 'type', metadata) === 'camera' ||
+            getFeatureMetadataValue(feature, 'specs.focal_length', 'focal_length', metadata) ||
+            getFeatureMetadataValue(feature, 'specs.hfov', 'hfov', metadata) ||
+            getFeatureMetadataValue(feature, 'specs.resolution_x', 'resolution_x', metadata)
         );
 
         if (!isCamera) return null;
 
-        const coords = getParsedCoordinates(feature) as [number, number] | null;
+        const coords = getPointCoordinates(feature);
         if (!coords) return null;
 
         const { focalLength, sensorSize, resolutionX } = getEffectiveCameraSpecs(feature, state.settings, metadata);
         const installHeight = getEffectiveMountingHeight(feature, state.settings, metadata);
         const sensor = SENSOR_SIZES[sensorSize as keyof typeof SENSOR_SIZES] || SENSOR_SIZES['1/2.8"'];
         const calculatedHfov = calculateHFOV(sensor.width, focalLength);
-        const hfov = parseFloat(String(metadata['specs.hfov'] ?? metadata.hfov ?? calculatedHfov));
-        const targetHeight = parseFloat(String(metadata['specs.target_height'] ?? metadata.targetHeight ?? 1.7));
+        const hfov = parseFloat(String(getFeatureMetadataValue(feature, 'specs.hfov', 'hfov', metadata) ?? calculatedHfov));
+        const targetHeight = parseFloat(String(getFeatureMetadataValue(feature, 'specs.target_height', 'targetHeight', metadata) ?? 1.7));
 
         return {
             lat: coords[1] as number,

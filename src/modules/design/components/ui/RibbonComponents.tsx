@@ -35,10 +35,10 @@ export function ToolButton({ icon: Icon, label, active, onClick, disabled, opaci
             disabled={disabled}
         >
             <div className={cn(
-                "p-2 rounded group-hover:bg-cad-surface transition-colors",
-                active && "bg-cad-surface border border-cad-border text-cad-accent shadow-sm"
+                "flex h-9 w-9 items-center justify-center rounded-md border border-transparent transition-colors group-hover:bg-cad-surface group-hover:text-cad-text-primary",
+                active && "cad-icon-button-active shadow-sm"
             )}>
-                <Icon size={20} strokeWidth={1.5} aria-hidden="true" />
+                <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
             </div>
             <span className="text-[9px] font-mono font-bold leading-none uppercase" aria-hidden="true">{label}</span>
         </button>

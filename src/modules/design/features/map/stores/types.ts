@@ -5,6 +5,7 @@ import type {
     DesignBulkActionResponse,
     SelectionSummary
 } from '@CONTRACT/designTypes';
+import type { NetworkConnectionDraft } from '../network/NetworkEndpoint';
 
 export type {
     DesignEventType,
@@ -17,7 +18,7 @@ export const EMPTY_OBJ = {};
 
 export type MapStateSlice = {
     state: MapState | null;
-    projectId: number | null;
+    projectId: string | null;
     projectPath: string | null;
     projectKey: string | null;
     isLoading: boolean;
@@ -67,6 +68,7 @@ export type DrawingSlice = {
     currentDrawingSnapIds: (string | null)[];
     snappedPoint: { x: number, y: number, id?: string } | null;
     activeParentFeatureId: string | null;
+    networkConnectionDraft: NetworkConnectionDraft | null;
 
     setDrawingMode: (mode: DrawingSlice['drawingMode']) => void;
     setEditingFeatureId: (id: string | null) => void;
@@ -74,6 +76,8 @@ export type DrawingSlice = {
     addDrawingPoint: (lat: number, lng: number, snapId?: string | null) => void;
     clearDrawingPoints: () => void;
     setSnappedPoint: (point: DrawingSlice['snappedPoint']) => void;
+    setNetworkConnectionDraft: (draft: NetworkConnectionDraft | null) => void;
+    clearNetworkConnectionDraft: () => void;
 
     // High-level drawing actions
     setDrawingPoint: (index: number, lat: number, lng: number, snapId?: string | null) => Promise<void>;
@@ -97,7 +101,7 @@ export type UIControlSlice = {
         location?: [number, number],
         timestamp: number
     } | null;
-    previewMetadata: { id: string, metadata: any } | null;
+    previewMetadata: { id: string, metadata: any, name?: string } | null;
     groupThemePreview: { groupId: string, config: any } | null;
     searchResultMarker: { lat: number, lng: number, name: string } | null;
     printArea: [number, number, number, number] | null;
@@ -116,16 +120,16 @@ export type UIControlSlice = {
     zoomTo: (id: string, type: 'feature' | 'group' | 'layer' | 'region' | 'location', location?: [number, number]) => void;
     /** Toggle map visibility for a layer/group (only affects map, not Explorer tree) */
     toggleMapHidden: (id: string) => void;
-    setPreview: (id: string | null, metadata: any | null) => void;
+    setPreview: (id: string | null, metadata: any | null, name?: string) => void;
     setGroupThemePreview: (groupId: string | null, config: any | null) => void;
     setSearchResultMarker: (marker: UIControlSlice['searchResultMarker']) => void;
     setPrintArea: (bounds: [number, number, number, number] | null) => void;
 };
 
 export type InitializationSlice = {
-    initialize: (projectId: number, projectPath?: string) => Promise<void>;
+    initialize: (projectId: string, projectPath?: string) => Promise<void>;
     reset: () => void;
-    setMockState: (state: MapState, projectId: number, projectKey?: string) => void;
+    setMockState: (state: MapState, projectId: string, projectKey?: string) => void;
     unsubscribeFirestore: (() => void) | null;
 
     // Pegman status
@@ -134,8 +138,36 @@ export type InitializationSlice = {
         location: [number, number] | null;
         heading: number;
         fov: number;
+        windowOpen?: boolean;
+        source?: 'map' | 'streetview';
+        lastSyncAt?: number;
+        featureId?: string | null;
     };
     setPegmanState: (state: Partial<InitializationSlice['pegmanState']>) => void;
+};
+
+export type UISyncSlice = {
+    isOnline: boolean;
+    pendingSync: boolean;
+    isMigrating: boolean;
+    isSaving: boolean;
+    lastSync: number | null;
+    syncStatus: number;
+    error: string | null;
+    unsubscribeFirestore: (() => void) | null;
+
+    setIsSaving: (isSaving: boolean) => void;
+    setPendingSync: (pending: boolean) => void;
+    setError: (error: string | null) => void;
+    setupSyncListeners: () => Promise<void>;
+    syncWithBackend: (projectId: string, events: DesignEventType[]) => Promise<DesignBulkActionResponse | DesignActionResponse>;
+    _internalBufferedSyncEvent: (event: DesignEventType) => Promise<unknown>;
+    _internalBufferedSyncEvents: (events: DesignEventType[]) => Promise<unknown>;
+    flushPendingPersists: () => Promise<void>;
+    _undo: (projectId: string) => Promise<void>;
+    _redo: (projectId: string) => Promise<void>;
+    _deduplicate: (projectId: string) => Promise<void>;
+    syncWithFirestore: (projectId: string, data: unknown) => Promise<void>;
 };
 
 export type DesignActionSlice = {
@@ -158,4 +190,5 @@ export type DesignSyncStore =
     DrawingSlice &
     UIControlSlice &
     InitializationSlice &
-    DesignActionSlice;
+    DesignActionSlice &
+    UISyncSlice;

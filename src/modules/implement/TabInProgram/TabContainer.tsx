@@ -24,7 +24,7 @@ export const TabContainer: React.FC<TabContainerProps> = ({ onTabSwitch, onTabCl
     if (tabs.length === 0) return null;
 
     return (
-        <div className="tab-container pointer-events-auto">
+        <div className="tab-container cad-scrollbar pointer-events-auto">
             {tabs.map((tab) => (
                 <div
                     key={tab.id}
@@ -33,9 +33,14 @@ export const TabContainer: React.FC<TabContainerProps> = ({ onTabSwitch, onTabCl
                     title={tab.path}
                 >
                     <span className="tab-name">{tab.name}</span>
-                    <div className="tab-close" onClick={(e) => handleClose(e, tab.id)}>
-                        ✕
-                    </div>
+                    <button
+                        type="button"
+                        className="tab-close"
+                        onClick={(e) => handleClose(e, tab.id)}
+                        aria-label={`Close ${tab.name}`}
+                    >
+                        ×
+                    </button>
                 </div>
             ))}
         </div>

@@ -6,19 +6,24 @@ import type { FeatureState } from "@CONTRACT/types";
 
 export const FeatureIcon = React.memo(({ feature, selected, groupType, groupName }: { feature: FeatureState, selected: boolean, groupType?: string, groupName?: string }) => {
   const { icon: Icon, color, gType } = getFeatureDisplayInfo(feature, groupType, groupName);
+  const iconProps = {
+    size: 14,
+    style: { color },
+    className: "shrink-0",
+  } as const;
 
   if (Icon) {
-    return <Icon size={15} style={{ color }} className="shrink-0" />;
+    return <Icon {...iconProps} strokeWidth={1.85} />;
   }
 
   // Geometry based icons for non-special types
   if (gType === 'LINESTRING' || gType === 'POLYLINE') {
-    return <PolylineIcon size={15} style={{ color }} className="shrink-0" />;
+    return <PolylineIcon {...iconProps} />;
   }
 
   if (gType === 'POLYGON') {
-    return <Square size={15} style={{ color }} className="shrink-0" />;
+    return <Square {...iconProps} strokeWidth={1.85} />;
   }
 
-  return <MapPin size={15} fill={selected ? color : "none"} className="shrink-0" style={{ color }} />;
+  return <MapPin {...iconProps} fill={selected ? color : "none"} strokeWidth={1.85} />;
 });

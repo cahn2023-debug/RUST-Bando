@@ -11,6 +11,8 @@ export function useAppBootstrap(handleOpenProject: (path: string) => Promise<boo
     const { lowPowerMode } = useSettingsStore();
     const { initialized: authInitialized } = useAuthStore();
     const hasShownWindowRef = useRef(false);
+    const handledPendingPathRef = useRef<string | null>(null);
+    const lastOpenEventRef = useRef<{ path: string; ts: number } | null>(null);
 
     // Handle Low Power Mode visual flag
     useEffect(() => {
@@ -73,11 +75,26 @@ export function useAppBootstrap(handleOpenProject: (path: string) => Promise<boo
     // Listen for 'open-pmp' events (file association)
     useEffect(() => {
         let unlisten: (() => void) | undefined;
+        let cancelled = false;
+
+        const shouldSkipDuplicateOpen = (path: string) => {
+            const now = Date.now();
+            const last = lastOpenEventRef.current;
+            if (last && last.path === path && now - last.ts < 3000) {
+                return true;
+            }
+            lastOpenEventRef.current = { path, ts: now };
+            return false;
+        };
 
         const setupListener = async () => {
             try {
                 unlisten = await safeListen<string>("open-pmp", async (event) => {
-                    const success = await handleOpenProject(event.payload);
+                    const path = event.payload;
+                    if (!path || shouldSkipDuplicateOpen(path)) {
+                        return;
+                    }
+                    const success = await handleOpenProject(path);
                     if (success) {
                         onProjectOpened();
                     }
@@ -92,8 +109,13 @@ export function useAppBootstrap(handleOpenProject: (path: string) => Promise<boo
         // Check for pending PMP file association from startup
         const checkPendingPath = async () => {
             try {
+                if (cancelled) return;
                 const pendingPath = await invoke<string | null>("get_pending_pmp_path");
                 if (pendingPath) {
+                    if (handledPendingPathRef.current === pendingPath) {
+                        return;
+                    }
+                    handledPendingPathRef.current = pendingPath;
                     console.info("[AppBootstrap] Handling pending PMP path from startup:", pendingPath);
                     const success = await handleOpenProject(pendingPath);
                     if (success) {
@@ -106,6 +128,7 @@ export function useAppBootstrap(handleOpenProject: (path: string) => Promise<boo
         };
         checkPendingPath();
         return () => {
+            cancelled = true;
             if (unlisten) unlisten();
         };
     }, [handleOpenProject, onProjectOpened]);

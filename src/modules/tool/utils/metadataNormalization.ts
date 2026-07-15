@@ -132,6 +132,24 @@ export const normalizeMetadataObject = (metadata: any): FeatureMetadata => {
     if (!pruneEmpty(v)) raw[key] = v;
   }
 
+  const mediaRaw = isPlainObject(raw.media) ? raw.media : {};
+  const imageAssetIds = Array.isArray(mediaRaw.imageAssetIds)
+    ? mediaRaw.imageAssetIds.filter((id: unknown): id is string => typeof id === 'string' && id.trim() !== '')
+    : Array.isArray(raw.imageAssetIds)
+      ? raw.imageAssetIds.filter((id: unknown): id is string => typeof id === 'string' && id.trim() !== '')
+      : undefined;
+  const externalUrls = Array.isArray(mediaRaw.externalUrls)
+    ? mediaRaw.externalUrls.filter((url: unknown): url is string => typeof url === 'string' && url.trim() !== '')
+    : Array.isArray(raw.externalUrls)
+      ? raw.externalUrls.filter((url: unknown): url is string => typeof url === 'string' && url.trim() !== '')
+      : undefined;
+  const primaryImageAssetId =
+    typeof mediaRaw.primaryImageAssetId === 'string'
+      ? mediaRaw.primaryImageAssetId
+      : typeof raw.primaryImageAssetId === 'string'
+        ? raw.primaryImageAssetId
+        : undefined;
+
   const result: FeatureMetadata = {
     // Top-level properties
     description: raw.description || raw.note || raw.notes || raw.ghi_chu || raw.gis?.description,
@@ -144,8 +162,11 @@ export const normalizeMetadataObject = (metadata: any): FeatureMetadata => {
 
     // Media grouping
     media: {
-      imageUrl: raw.imageUrl || raw.media?.imageUrl,
-      imageUrls: raw.imageUrls || raw.media?.imageUrls,
+      imageUrl: raw.imageUrl || mediaRaw.imageUrl,
+      imageUrls: raw.imageUrls || mediaRaw.imageUrls,
+      imageAssetIds: imageAssetIds && imageAssetIds.length > 0 ? imageAssetIds : undefined,
+      primaryImageAssetId,
+      externalUrls: externalUrls && externalUrls.length > 0 ? externalUrls : undefined,
     },
 
     // GIS grouping
@@ -222,7 +243,8 @@ export const normalizeMetadataObject = (metadata: any): FeatureMetadata => {
   for (const [k, v] of Object.entries(raw)) {
     const knownKeys = [
       'description', 'note', 'notes', 'ghi_chu', 'type', 'icon', 'color', 'size', 'label',
-      'imageUrl', 'imageUrls', 'vn2000_x', 'vn2000_y', 'lengthKm', 'length_km',
+      'imageUrl', 'imageUrls', 'imageAssetIds', 'primaryImageAssetId', 'externalUrls',
+      'vn2000_x', 'vn2000_y', 'lengthKm', 'length_km',
       'rotation', 'fov_angle', 'fov_radius', 'fov_visible',
       'contractor', 'phoneNumber', 'vertexMetadata', 'ai',
       'gis', 'media', 'business', 'specs', 'weight', 'stroke'

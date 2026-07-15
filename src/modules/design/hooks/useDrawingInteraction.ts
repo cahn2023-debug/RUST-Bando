@@ -1,5 +1,40 @@
 import { useCallback, useEffect } from "react";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
+import { getNextFeatureDisplayOrder, syncDisplayOrderAliases } from "@TOOL/utils/featureMapping";
+import { getParsedMetadata } from "@TOOL/utils/featureMetadata";
+import { getNetworkEndpointCoordinate, getRepresentativeFeatureIdForEndpoint } from "@DESIGN/features/map/network/NetworkEndpoint";
+import { buildSnapLinks, inferNetworkRole, isSourceRole, resolveNetworkNodeIdFromSnap } from "@DESIGN/features/map/network/networkTopology";
+
+type OneClickDrawingMode = 'point' | 'image' | 'intersection';
+
+const ONE_CLICK_DRAWING_MODES = new Set<string>(['point', 'image', 'intersection']);
+
+const getOneClickDefaults = (mode: OneClickDrawingMode) => {
+    switch (mode) {
+        case 'image':
+            return {
+                name: "Ảnh Hiện Trường Mới",
+                icon: 'cctv',
+                type: 'cctv',
+                color: '#3B82F6'
+            };
+        case 'intersection':
+            return {
+                name: "Nút Giao Mới",
+                icon: 'intersection',
+                type: 'intersection',
+                color: '#6366F1'
+            };
+        case 'point':
+        default:
+            return {
+                name: "Điểm Khảo Sát Mới",
+                icon: 'default',
+                type: 'point',
+                color: '#3B82F6'
+            };
+    }
+};
 
 export function useDrawingInteraction() {
     const {
@@ -11,11 +46,37 @@ export function useDrawingInteraction() {
         setDrawingMode,
         addDrawingPoint,
         currentDrawingPoints,
-        currentDrawingSnapIds
+        currentDrawingSnapIds,
+        networkConnectionDraft,
+        clearNetworkConnectionDraft,
+        dispatchEvents,
+        queueEvent,
+        queueEvents,
     } = useDesignSync();
 
     const finalizePolyline = useCallback(async () => {
-        if (currentDrawingPoints.length < 2) {
+        const featuresById = state?.features || {};
+        const workingPoints = [...currentDrawingPoints];
+        const workingSnapIds = [...currentDrawingSnapIds];
+
+        if (networkConnectionDraft) {
+            const startCoordinate = getNetworkEndpointCoordinate(networkConnectionDraft.fromEndpoint, featuresById);
+            const endCoordinate = getNetworkEndpointCoordinate(networkConnectionDraft.toEndpoint, featuresById);
+            const startSnapId = getRepresentativeFeatureIdForEndpoint(networkConnectionDraft.fromEndpoint, featuresById);
+            const endSnapId = getRepresentativeFeatureIdForEndpoint(networkConnectionDraft.toEndpoint, featuresById);
+
+            if (startCoordinate && startSnapId && (workingSnapIds[0] || null) !== startSnapId) {
+                workingPoints.unshift(startCoordinate);
+                workingSnapIds.unshift(startSnapId);
+            }
+
+            if (endCoordinate && endSnapId && (workingSnapIds[workingSnapIds.length - 1] || null) !== endSnapId) {
+                workingPoints.push(endCoordinate);
+                workingSnapIds.push(endSnapId);
+            }
+        }
+
+        if (workingPoints.length < 2) {
             alert("Cần ít nhất 2 điểm để tạo đường.");
             return;
         }
@@ -25,10 +86,27 @@ export function useDrawingInteraction() {
             return;
         }
 
+        const startSnapId = workingSnapIds[0] || null;
+        const endSnapId = workingSnapIds[workingSnapIds.length - 1] || null;
+
+        if (!startSnapId || !featuresById[startSnapId]) {
+            alert("Không thể lưu polyline vì đầu bắt đầu chưa kết nối vào đối tượng hợp lệ.");
+            return;
+        }
+
+        if (!endSnapId || !featuresById[endSnapId]) {
+            alert("Không thể lưu polyline vì đầu kết thúc chưa kết nối vào đối tượng hợp lệ.");
+            return;
+        }
+
         const id = crypto.randomUUID();
-        const metadata: any = {
-            color: '#EF4444'
-        };
+        const metadata: any = syncDisplayOrderAliases({
+            color: '#EF4444',
+        }, getNextFeatureDisplayOrder(
+            featuresById,
+            selectedGroupId,
+            activeParentFeatureId
+        ));
 
         if (activeParentFeatureId) {
             metadata.parent_feature_id = activeParentFeatureId;
@@ -37,46 +115,144 @@ export function useDrawingInteraction() {
         const group = selectedGroupId ? state?.feature_groups?.[selectedGroupId] : null;
         if (!group) return;
 
-        await dispatchEvent({
+        const resolvedStartNetworkNodeId = resolveNetworkNodeIdFromSnap(featuresById, startSnapId, workingPoints[0] || null);
+        const resolvedEndNetworkNodeId = resolveNetworkNodeIdFromSnap(featuresById, endSnapId, workingPoints[workingPoints.length - 1] || null);
+        const shouldCreateNetworkEdge = !!resolvedStartNetworkNodeId &&
+            !!resolvedEndNetworkNodeId &&
+            resolvedStartNetworkNodeId !== resolvedEndNetworkNodeId;
+
+        const finalMetadata: any = {
+            ...metadata,
+            start_node_id: startSnapId,
+            end_node_id: endSnapId,
+        };
+
+        const snapLinks = buildSnapLinks(workingSnapIds);
+        if (snapLinks) {
+            finalMetadata.snap_links = snapLinks;
+        }
+
+        if (shouldCreateNetworkEdge) {
+            const fromEndpoint = networkConnectionDraft?.fromEndpoint || null;
+            const toEndpoint = networkConnectionDraft?.toEndpoint || null;
+            const fromRepresentativeId = fromEndpoint
+                ? getRepresentativeFeatureIdForEndpoint(fromEndpoint, featuresById)
+                : null;
+            const toRepresentativeId = toEndpoint
+                ? getRepresentativeFeatureIdForEndpoint(toEndpoint, featuresById)
+                : null;
+            finalMetadata.infrastructure = {
+                ...(finalMetadata.infrastructure || {}),
+                type: 'SignalLine'
+            };
+            finalMetadata.network = {
+                ...(finalMetadata.network || {}),
+                from_feature_id: fromEndpoint?.type === 'feature'
+                    ? fromEndpoint.id
+                    : (resolvedStartNetworkNodeId || fromRepresentativeId),
+                to_feature_id: toEndpoint?.type === 'feature'
+                    ? toEndpoint.id
+                    : (resolvedEndNetworkNodeId || toRepresentativeId),
+                ...(fromEndpoint ? { from_endpoint: fromEndpoint } : {}),
+                ...(toEndpoint ? { to_endpoint: toEndpoint } : {}),
+                direction_mode: 'auto',
+            };
+        }
+
+        const events: any[] = [];
+
+        if (shouldCreateNetworkEdge) {
+            const resolvedStartFeature = featuresById[resolvedStartNetworkNodeId!];
+            const resolvedEndFeature = featuresById[resolvedEndNetworkNodeId!];
+            const startMeta = getParsedMetadata(resolvedStartFeature) as Record<string, any>;
+            const endMeta = getParsedMetadata(resolvedEndFeature) as Record<string, any>;
+            const startRole = inferNetworkRole(resolvedStartFeature, startMeta as any);
+            const endRole = inferNetworkRole(resolvedEndFeature, endMeta as any);
+            const sourceFeature = isSourceRole(startRole) && !isSourceRole(endRole)
+                ? resolvedStartFeature
+                : isSourceRole(endRole) && !isSourceRole(startRole)
+                    ? resolvedEndFeature
+                    : null;
+            const deviceFeature = sourceFeature?.id === resolvedStartFeature.id ? resolvedEndFeature : sourceFeature?.id === resolvedEndFeature.id ? resolvedStartFeature : null;
+
+            if (sourceFeature && deviceFeature) {
+                const deviceMeta = { ...(getParsedMetadata(deviceFeature) as Record<string, any>) };
+                if (deviceMeta.parent_feature_id !== sourceFeature.id) {
+                    deviceMeta.parent_feature_id = sourceFeature.id;
+                    events.push({
+                        type: 'FeatureUpdated',
+                        payload: {
+                            id: deviceFeature.id,
+                            metadata: JSON.stringify(deviceMeta),
+                        },
+                    });
+                }
+            }
+        }
+
+        events.push({
             type: 'FeatureCreated',
             payload: {
                 id,
                 layer_id: group.layer_id,
                 group_id: selectedGroupId,
-                name: "Đường Khảo Sát Mới",
+                name: shouldCreateNetworkEdge ? "Tuyến SignalLine Mới" : "Đường Khảo Sát Mới",
                 geom_type: 'LineString',
-                coordinates: JSON.stringify(currentDrawingPoints),
-                metadata: JSON.stringify({
-                    ...metadata,
-                    start_node_id: currentDrawingSnapIds[0] || null,
-                    end_node_id: currentDrawingSnapIds[currentDrawingSnapIds.length - 1] || null
-                }),
+                coordinates: JSON.stringify(workingPoints),
+                metadata: JSON.stringify(finalMetadata),
                 properties: JSON.stringify({})
             }
-        });
+        } as any);
+
+        if (shouldCreateNetworkEdge) {
+            if (events.length > 1) {
+                await queueEvents(events);
+            } else {
+                await queueEvent(events[0]);
+            }
+        } else if (events.length > 1) {
+            await dispatchEvents(events);
+        } else {
+            await dispatchEvent(events[0]);
+        }
 
         setDrawingMode('none');
-    }, [currentDrawingPoints, selectedGroupId, state, activeParentFeatureId, currentDrawingSnapIds, dispatchEvent, setDrawingMode]);
+        clearNetworkConnectionDraft();
+    }, [currentDrawingPoints, selectedGroupId, state, activeParentFeatureId, currentDrawingSnapIds, dispatchEvent, dispatchEvents, queueEvent, queueEvents, setDrawingMode, networkConnectionDraft, clearNetworkConnectionDraft]);
+
+    const finishDrawingSession = useCallback(() => {
+        if (drawingMode === 'polyline' && (networkConnectionDraft || currentDrawingPoints.length >= 2)) {
+            void finalizePolyline();
+            return;
+        }
+        setDrawingMode('none');
+        clearNetworkConnectionDraft();
+    }, [clearNetworkConnectionDraft, currentDrawingPoints.length, drawingMode, finalizePolyline, networkConnectionDraft, setDrawingMode]);
 
     const handleLocationChange = useCallback(async (lat: number, lng: number, _unused: number, snapId?: string | null) => {
         if (drawingMode === 'none') return;
 
-        if (drawingMode === 'point' || drawingMode === 'image') {
+        if (ONE_CLICK_DRAWING_MODES.has(drawingMode)) {
             if (!selectedGroupId) {
                 alert("Vui lòng chọn một nhóm trước khi thêm đối tượng.");
                 setDrawingMode('none');
                 return;
             }
 
-            const id = crypto.randomUUID();
-            const name = drawingMode === 'point' ? "Điểm Khảo Sát Mới" : "Ảnh Hiện Trường Mới";
+            const mode = drawingMode as OneClickDrawingMode;
+            const defaults = getOneClickDefaults(mode);
 
-            const metadata: any = {
-                icon: drawingMode === 'image' ? 'camera' : 'default',
-                color: '#3B82F6',
+            const metadata: any = syncDisplayOrderAliases({
+                icon: defaults.icon,
+                type: defaults.type,
+                color: defaults.color,
                 // V2 Fix: Use snap_to_id (read by topology.rs) instead of snapped_object_id (dead data)
                 snap_to_id: snapId || undefined,
-            };
+            }, getNextFeatureDisplayOrder(
+                state?.features || {},
+                selectedGroupId,
+                activeParentFeatureId
+            ));
 
             if (activeParentFeatureId) {
                 metadata.parent_feature_id = activeParentFeatureId;
@@ -88,18 +264,16 @@ export function useDrawingInteraction() {
             await dispatchEvent({
                 type: 'FeatureCreated',
                 payload: {
-                    id,
+                    id: crypto.randomUUID(),
                     layer_id: group.layer_id,
                     group_id: selectedGroupId,
-                    name,
+                    name: defaults.name,
                     geom_type: 'Point',
                     coordinates: JSON.stringify([lng, lat]),
                     metadata: JSON.stringify(metadata),
                     properties: JSON.stringify({})
                 }
-            });
-
-            setDrawingMode('none');
+            } as any);
         } else if (drawingMode === 'polyline') {
             addDrawingPoint(lat, lng, snapId);
         }
@@ -117,6 +291,7 @@ export function useDrawingInteraction() {
 
     return {
         handleLocationChange,
-        finalizePolyline
+        finalizePolyline,
+        finishDrawingSession
     };
 }

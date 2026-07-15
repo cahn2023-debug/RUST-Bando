@@ -4,32 +4,32 @@ import { useState } from "react";
 import { DeleteConfirmationModal } from "@DESIGN/components/ui/DeleteConfirmationModal";
 
 interface TaskItem {
-  id: number | string;
-  name: string;
-  status: string;
-  parent_id?: number | string | null;
-  target_file_path?: string;
-  is_completed?: boolean;
+   id: string;
+   name: string;
+   status: string;
+   parent_id?: string | null;
+   target_file_path?: string;
+   is_completed?: boolean;
 }
 
 interface ProjectTasksSidebarProps {
-  tasks: TaskItem[];
-  onAdd: (showInput: boolean) => void;
-  onAddGroup: () => void;
-  onDrop: (e: React.DragEvent, groupId: number | string | null) => void;
-  onSelect: (path: string) => void;
-  onDeleteTask: (id: number | string) => Promise<void>;
-  adding: boolean;
-  newName: string;
-  setNewName: (name: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+   tasks: TaskItem[];
+   onAdd: (showInput: boolean) => void;
+   onAddGroup: () => void;
+   onDrop: (e: React.DragEvent, groupId: string | null) => void;
+   onSelect: (path: string) => void;
+   onDeleteTask: (id: string) => Promise<void>;
+   adding: boolean;
+   newName: string;
+   setNewName: (name: string) => void;
+   onSubmit: (e: React.FormEvent) => void;
 }
 
 export function ProjectTasksSidebar({
-  tasks, onAdd, onAddGroup, onDrop, onSelect, onDeleteTask,
-  adding, newName, setNewName, onSubmit
+   tasks, onAdd, onAddGroup, onDrop, onSelect, onDeleteTask,
+   adding, newName, setNewName, onSubmit
 }: ProjectTasksSidebarProps) {
-   const [deleteModalConfig, setDeleteModalConfig] = useState<{ isOpen: boolean; id: number | string | null; itemName: string; message: string }>({
+   const [deleteModalConfig, setDeleteModalConfig] = useState<{ isOpen: boolean; id: string | null; itemName: string; message: string }>({
       isOpen: false,
       id: null,
       itemName: "",
@@ -46,8 +46,8 @@ export function ProjectTasksSidebar({
          </div>
 
          <div className="flex flex-col gap-3">
-            {[...groups, { id: 0, name: "Unassigned", status: "folder" } as TaskItem].map((g: TaskItem) => {
-               const isUnassigned = g.id === 0;
+            {[...groups, { id: "unassigned", name: "Unassigned", status: "folder" } as TaskItem].map((g: TaskItem) => {
+               const isUnassigned = g.id === "unassigned";
                const groupTasks = isUnassigned ? unassigned : tasks.filter((t: TaskItem) => t.parent_id === g.id);
                return (
                   <div
@@ -82,7 +82,7 @@ export function ProjectTasksSidebar({
                            <div
                               key={t.id}
                               draggable
-                              onDragStart={(e) => e.dataTransfer.setData("taskId", t.id.toString())}
+                              onDragStart={(e) => e.dataTransfer.setData("taskId", t.id)}
                               onClick={() => t.target_file_path && onSelect(t.target_file_path)}
                               className="bg-cad-surface px-2 py-1.5 border border-cad-border hover:border-cad-accent cursor-pointer flex items-center justify-between"
                            >

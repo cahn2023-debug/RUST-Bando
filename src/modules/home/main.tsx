@@ -1,10 +1,10 @@
-// 🛡️ Polyfill Tauri internals for browser development is now centralized in @IMPLEMENT/lib/tauri
+// Browser/Tauri runtime polyfill
 import "@IMPLEMENT/lib/tauri";
 
 import { lazy, Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import "@DESIGN/index.css";
-import "@TOOL/../i18n"; // Initialize i18n
+import "@/modules/i18n"; // Initialize i18n
 import { ErrorBoundary } from "@DESIGN/components/ui/ErrorBoundary";
 
 // Lazy load components to optimize per-window bundle usage
@@ -27,12 +27,22 @@ if (pathname.includes('/@')) {
 window.addEventListener('contextmenu', (e) => e.preventDefault(), false);
 
 import { I18nextProvider, useTranslation } from "react-i18next";
-import i18n from "@TOOL/../i18n";
+import i18n from "@/modules/i18n";
+
+const syncViewportSize = () => {
+  const root = document.documentElement;
+  root.style.setProperty("--app-vw", `${window.innerWidth}px`);
+  root.style.setProperty("--app-vh", `${window.innerHeight}px`);
+};
+
+syncViewportSize();
+window.addEventListener("resize", syncViewportSize);
+window.visualViewport?.addEventListener("resize", syncViewportSize);
 
 const LoadingFallback = () => {
   const { t } = useTranslation();
   return (
-    <div className="h-screen w-screen flex items-center justify-center bg-[#16171B] text-cad-text-muted font-mono text-[10px] uppercase tracking-widest animate-pulse">
+    <div className="cad-shell-window items-center justify-center text-cad-text-muted font-mono text-[10px] uppercase tracking-[0.2em] animate-pulse">
       {t("common.loading")}
     </div>
   );

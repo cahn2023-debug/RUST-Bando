@@ -70,5 +70,38 @@ describe('metadataNormalization', () => {
       expect(result.gis?.vn2000_x).toBe(123456.789);
       expect(result.gis?.vn2000_y).toBe(987654.321);
     });
+
+    it('should preserve media asset references', () => {
+      const metadata = {
+        media: {
+          imageAssetIds: ['asset-1', 'asset-2'],
+          primaryImageAssetId: 'asset-1',
+          externalUrls: ['https://example.com/photo.jpg'],
+        },
+      };
+
+      const result = normalizeMetadataObject(metadata);
+
+      expect(result.media?.imageAssetIds).toEqual(['asset-1', 'asset-2']);
+      expect(result.media?.primaryImageAssetId).toBe('asset-1');
+      expect(result.media?.externalUrls).toEqual(['https://example.com/photo.jpg']);
+    });
+
+    it('should preserve asset references alongside legacy image urls', () => {
+      const metadata = {
+        imageUrls: ['data:image/png;base64,legacy'],
+        media: {
+          imageAssetIds: ['asset-1'],
+          primaryImageAssetId: 'asset-1',
+          imageUrls: ['data:image/png;base64,nested'],
+        },
+      };
+
+      const result = normalizeMetadataObject(metadata);
+
+      expect(result.media?.imageAssetIds).toEqual(['asset-1']);
+      expect(result.media?.primaryImageAssetId).toBe('asset-1');
+      expect(result.media?.imageUrls).toEqual(['data:image/png;base64,legacy']);
+    });
   });
 });

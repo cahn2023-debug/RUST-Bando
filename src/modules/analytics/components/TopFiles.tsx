@@ -29,36 +29,38 @@ const TopFiles: React.FC<TopFilesProps> = ({ files }) => {
     const maxSize = (files && files.length > 0) ? Math.max(...files.map(f => f.size)) : 0;
 
     return (
-        <div className="p-6 rounded-2xl border border-white/10 backdrop-blur-xl bg-white/5 h-full">
-            <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-semibold text-white/60 uppercase tracking-wider">Top Largest Files</h3>
-                <FileWarning size={16} className="text-orange-400 opacity-50" />
+        <div className="cad-card h-full p-6">
+            <div className="mb-6 flex items-center justify-between">
+                <h3 className="text-sm font-semibold uppercase tracking-wider text-cad-text-secondary">Top Largest Files</h3>
+                <FileWarning size={16} className="text-amber-400/70" />
             </div>
 
             <div className="space-y-5">
                 {files.length === 0 ? (
-                    <div className="py-10 text-center text-white/20 italic text-sm">No data available</div>
+                    <div className="py-10 text-center text-cad-text-muted/60 italic text-sm">No data available</div>
                 ) : (
                     files.map((file, index) => {
                         const Icon = getFileIcon(file.name);
-                        const percentage = (file.size / maxSize) * 100;
+                        const percentage = maxSize > 0 ? (file.size / maxSize) * 100 : 0;
 
                         return (
                             <div key={index} className="group flex flex-col gap-2">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                        <div className="flex-shrink-0 p-1.5 rounded-lg bg-white/5 text-white/60 group-hover:bg-white/10 group-hover:text-white transition-colors">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border border-cad-border bg-cad-bg text-cad-text-muted transition-colors group-hover:text-cad-text-primary">
                                             <Icon size={16} />
                                         </div>
-                                        <span className="text-sm text-white/80 truncate font-medium group-hover:text-white transition-colors">
+                                        <span className="truncate text-sm font-medium text-cad-text-primary transition-colors group-hover:text-white">
                                             {file.name}
                                         </span>
                                     </div>
-                                    <span className="text-xs font-mono text-white/40 tabular-nums">{formatSize(file.size)}</span>
+                                    <span className="font-mono text-xs tabular-nums text-cad-text-muted">
+                                        {formatSize(file.size)}
+                                    </span>
                                 </div>
-                                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-cad-bg">
                                     <div
-                                        className="h-full bg-gradient-to-r from-blue-500/50 to-blue-400 rounded-full transition-all duration-1000 ease-out"
+                                        className="h-full rounded-full bg-gradient-to-r from-cad-accent/45 to-cad-active transition-all duration-1000 ease-out"
                                         style={{ width: `${percentage}%` }}
                                     />
                                 </div>

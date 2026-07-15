@@ -6,4 +6,3 @@ export * from './useProjectData';
 export * from './useProjectManager';
 export * from './useResizablePanels';
 export * from './useSnap';
-export * from './useWasmRenderer';

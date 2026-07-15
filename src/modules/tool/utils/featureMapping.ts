@@ -1,5 +1,5 @@
 import { getParsedMetadata, safeString, getFeatureNote } from "./featureMetadata";
-import { FeatureCoordinates, FeatureState } from "../../contract/types";
+import { FeatureCoordinates, FeatureState, PointCoordinates, LineStringCoordinates, PolygonCoordinates } from "../../contract/types";
 
 // Cache for parsed coordinates to avoid repeated JSON.parse in render cycles
 const _coordsCache = new WeakMap<object, FeatureCoordinates>();
@@ -44,8 +44,10 @@ export const getParsedCoordinates = (feature: FeatureState | { coordinates: unkn
 
             if (_coordsStringCache.has(trimmed)) {
                 const cached = _coordsStringCache.get(trimmed);
-                _coordsCache.set(feature as object, cached);
-                return cached;
+                if (cached !== undefined) {
+                    _coordsCache.set(feature as object, cached);
+                    return cached;
+                }
             }
 
             try {
@@ -88,6 +90,58 @@ export const getParsedCoordinates = (feature: FeatureState | { coordinates: unkn
     };
 
     return parseAndCache(coords);
+};
+
+const isNumber = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isFinite(value);
+
+const isPointTuple = (value: unknown): value is PointCoordinates =>
+    Array.isArray(value) && value.length >= 2 && isNumber(value[0]) && isNumber(value[1]);
+
+const toPointTuple = (value: unknown): PointCoordinates | null => {
+    if (isPointTuple(value)) return [value[0], value[1]];
+    if (value && typeof value === 'object') {
+        const point = value as Record<string, unknown>;
+        if (isNumber(point.lng) && isNumber(point.lat)) return [point.lng, point.lat];
+        if (isNumber(point.x) && isNumber(point.y)) return [point.x, point.y];
+    }
+    return null;
+};
+
+export const getPointCoordinates = (feature: FeatureState | { coordinates: unknown } | null | undefined): PointCoordinates | null => {
+    if (!feature) return null;
+    const coords = getParsedCoordinates(feature);
+    return toPointTuple(coords);
+};
+
+export const getLineCoordinates = (feature: FeatureState | { coordinates: unknown } | null | undefined): LineStringCoordinates | null => {
+    if (!feature) return null;
+    const coords = getParsedCoordinates(feature);
+    if (!Array.isArray(coords)) return null;
+    if (coords.every((item) => isPointTuple(item))) {
+        return coords as LineStringCoordinates;
+    }
+    return null;
+};
+
+export const getPolygonCoordinates = (feature: FeatureState | { coordinates: unknown } | null | undefined): PolygonCoordinates | null => {
+    if (!feature) return null;
+    const coords = getParsedCoordinates(feature);
+    if (!Array.isArray(coords)) return null;
+    if (coords.every((ring) => Array.isArray(ring) && ring.every((point) => isPointTuple(point)))) {
+        return coords as PolygonCoordinates;
+    }
+    return null;
+};
+
+export const getRepresentativePoint = (feature: FeatureState | { coordinates: unknown } | null | undefined): PointCoordinates | null => {
+    if (!feature) return null;
+    return (
+        getPointCoordinates(feature) ||
+        getLineCoordinates(feature)?.[0] ||
+        getPolygonCoordinates(feature)?.[0]?.[0] ||
+        null
+    );
 };
 
 /**
@@ -181,6 +235,74 @@ export const removeVietnameseTones = (str: string): string => {
  * Calculates display sequence numbers for features
  */
 type FeaturesMapType = Record<string, FeatureState | { metadata: unknown; group_id?: string | null }>;
+type OrderMetadata = Record<string, unknown>;
+
+const normalizeOrderKey = (key: string): string =>
+    key
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '');
+
+const ORDER_FIELD_KEYS = new Set([
+    'stt',
+    'mahieu',
+    'mahieustt',
+    'sohieu',
+    'ma',
+    'matuyenduong',
+    'mahieudoituong',
+    'index',
+    'order',
+    'code',
+]);
+
+export const isOrderAliasKey = (key: string): boolean => {
+    if (key === 'display_order') return false;
+    return ORDER_FIELD_KEYS.has(normalizeOrderKey(key));
+};
+
+const asObject = (value: unknown): OrderMetadata | null =>
+    value && typeof value === 'object' && !Array.isArray(value) ? value as OrderMetadata : null;
+
+export const getDeclaredOrderFieldKey = (
+    metadata?: OrderMetadata | null,
+    properties?: OrderMetadata | null
+): string | undefined => {
+    const meta = asObject(metadata);
+    const props = asObject(properties);
+    const sourceProperties = asObject(meta?.source_properties);
+    const candidates = [meta, sourceProperties, props];
+
+    for (const candidate of candidates) {
+        if (!candidate) continue;
+        const key = Object.keys(candidate).find(isOrderAliasKey);
+        if (key) return key;
+    }
+
+    return undefined;
+};
+
+export const syncDisplayOrderAliases = (
+    metadata: OrderMetadata,
+    displayOrder?: unknown,
+    properties?: OrderMetadata | null
+): OrderMetadata => {
+    const next = { ...(metadata || {}) };
+    const orderValue = formatToIntegerString(
+        displayOrder ?? next.display_order ?? next.stt ?? next.STT ?? next.order ?? ''
+    );
+
+    if (!orderValue) return next;
+
+    next.display_order = orderValue;
+    const declaredKey = getDeclaredOrderFieldKey(next, properties);
+    if (declaredKey && declaredKey !== 'display_order') {
+        next[declaredKey] = orderValue;
+    }
+
+    return next;
+};
 
 export const calculateFeatureNumbers = (features: FeatureState[], featuresMap: FeaturesMapType): Record<string, string> => {
     const sortedFeatures = [...features].sort((a: FeatureState, b: FeatureState) => {
@@ -211,7 +333,7 @@ export const calculateFeatureNumbers = (features: FeatureState[], featuresMap: F
         }
 
         // Fallback: Check parent hierarchy
-        const parentId = meta.parent_feature_id;
+        const parentId = meta.parent_feature_id as string | undefined;
         if (parentId && featuresMap[parentId]) {
             const parentSTT = getOrResolveSTT(parentId);
 
@@ -223,7 +345,7 @@ export const calculateFeatureNumbers = (features: FeatureState[], featuresMap: F
             return result;
         } else {
             // Default: Root level sequencing by group
-            const groupId = f.group_id;
+            const groupId = (f.group_id as string) || "default";
             if (!groupSequenceMap[groupId]) groupSequenceMap[groupId] = 0;
             groupSequenceMap[groupId]++;
 
@@ -239,11 +361,53 @@ export const calculateFeatureNumbers = (features: FeatureState[], featuresMap: F
     return featureNumberMap;
 };
 
+export const getNextFeatureDisplayOrder = (
+    featuresMap: FeaturesMapType,
+    groupId: string | null | undefined,
+    parentFeatureId?: string | null
+): string => {
+    const features = Object.entries(featuresMap)
+        .map(([id, feature]) => ({ id, ...feature } as FeatureState))
+        .sort((a, b) => String(a.id || '').localeCompare(String(b.id || ''), undefined, { numeric: true, sensitivity: 'base' }));
+    const currentNumbers = calculateFeatureNumbers(features, featuresMap);
+
+    if (parentFeatureId && featuresMap[parentFeatureId]) {
+        const parentNumber = currentNumbers[parentFeatureId] || "1";
+        const prefix = `${parentNumber}_`;
+        const maxChildNumber = features.reduce((max, feature) => {
+            const meta = getParsedMetadata(feature);
+            if (meta.parent_feature_id !== parentFeatureId) return max;
+
+            const displayNumber = currentNumbers[feature.id] || "";
+            if (!displayNumber.startsWith(prefix)) return max;
+
+            const childNumber = Number.parseInt(displayNumber.slice(prefix.length), 10);
+            return Number.isFinite(childNumber) ? Math.max(max, childNumber) : max;
+        }, 0);
+
+        return `${parentNumber}_${maxChildNumber + 1}`;
+    }
+
+    const maxRootNumber = features.reduce((max, feature) => {
+        if ((feature.group_id || null) !== (groupId || null)) return max;
+
+        const meta = getParsedMetadata(feature);
+        if (meta.parent_feature_id) return max;
+
+        const displayNumber = currentNumbers[feature.id] || "";
+        if (!/^\d+$/.test(displayNumber)) return max;
+
+        return Math.max(max, Number.parseInt(displayNumber, 10));
+    }, 0);
+
+    return `${maxRootNumber + 1}`;
+};
+
 /**
  * Checks if a feature matches the search query
  */
 export const isMatchSearch = (
-    feature: FeatureState | { name: unknown; id: string; metadata: unknown },
+    feature: { name: unknown; id: string; metadata?: unknown },
     query: string,
     featureNumbers?: Record<string, string>
 ): boolean => {
@@ -347,8 +511,13 @@ export const calculateNearestRoadAngle = (point: [number, number], features: Fea
         if (!coords || !Array.isArray(coords) || coords.length < 2) continue;
 
         for (let i = 0; i < coords.length - 1; i++) {
-            const [x1, y1] = coords[i];
-            const [x2, y2] = coords[i + 1];
+            const p1 = coords[i];
+            const p2 = coords[i + 1];
+            
+            if (!Array.isArray(p1) || !Array.isArray(p2)) continue;
+            
+            const [x1, y1] = p1 as [number, number];
+            const [x2, y2] = p2 as [number, number];
 
             // Convert everything to local Cartesian meters relative to point
             const dx1 = (x1 - pLng) * lngScale;

@@ -1,5 +1,5 @@
 import React from "react";
-import { Trash2, Eye, EyeOff } from "lucide-react";
+import { ChevronDown, ChevronRight, Eye, EyeOff, Trash2 } from "lucide-react";
 import { cn } from "@TOOL/utils/cn";
 import { FeatureIcon } from "@DESIGN/components/core/CADPanels/FeatureIcon";
 import { getCleanName, getParsedMetadata } from "@TOOL/utils/featureUtils";
@@ -13,7 +13,7 @@ export interface FeatureItemProps {
   selected: boolean;
   expanded: boolean;
   hasChildren: boolean;
-  onSelect: () => void;
+  onSelect: (e: React.MouseEvent) => void;
   onToggleExpand: () => void;
   onZoomTo: () => void;
   onDragStart?: (e: React.DragEvent) => void;
@@ -28,8 +28,8 @@ export interface FeatureItemProps {
   onToggleCheck?: () => void;
   visible?: boolean;
   onToggleVisible?: (e: React.MouseEvent) => void;
+  customAction?: React.ReactNode;
   hovered?: boolean;
-  // Drag & Drop Target
   onDragOver?: (e: React.DragEvent) => void;
   onDragLeave?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
@@ -63,6 +63,7 @@ export const FeatureItem = React.memo(({
   onToggleCheck,
   visible = true,
   onToggleVisible,
+  customAction,
   hovered,
   onDragOver: _onDragOver,
   onDragLeave: _onDragLeave,
@@ -73,19 +74,15 @@ export const FeatureItem = React.memo(({
   dragType,
   showNotes = true,
   showQr = true,
-  showCode = true
+  showCode = true,
 }: FeatureItemProps) => {
   return (
-    <div
-      className="flex flex-col"
-      data-drag-id={dragId}
-      data-drag-type={dragType}
-    >
+    <div className="flex flex-col" data-drag-id={dragId} data-drag-type={dragType}>
       <div
         id={`sidebar-feature-${feature.id}`}
         onClick={(e) => {
           e.stopPropagation();
-          onSelect();
+          onSelect(e);
           if (hasChildren) {
             onToggleExpand();
           }
@@ -95,73 +92,69 @@ export const FeatureItem = React.memo(({
           onZoomTo();
         }}
         className={cn(
-          "group/feat flex items-center justify-between py-1 px-1 relative transition-all cursor-pointer rounded-sm select-none",
-          selected && "bg-emerald-500/10 border-r-2 border-r-emerald-500",
+          "group/feat relative flex cursor-pointer select-none items-center justify-between rounded-sm px-1 py-1 transition-all",
+          selected && "border-r-2 border-r-cad-accent bg-cad-accent/10",
           hovered && !selected && "bg-white/5 ring-1 ring-white/5",
-          isDropTarget && "ring-1 ring-emerald-500 bg-emerald-500/10"
+          isDropTarget && "bg-cad-accent/10 ring-1 ring-cad-accent/70"
         )}
         onContextMenu={onContextMenu}
         onMouseDown={onMouseDown}
       >
+        <div className="relative z-10 flex flex-1 items-center gap-0 overflow-hidden">
+          <div className="w-3 shrink-0" />
 
-        <div className="flex items-center gap-0 overflow-hidden relative z-10 flex-1">
-          <div className="w-3 shrink-0">
-            {/* Grip placeholder or empty space to match TreeItem */}
-          </div>
-
-          <div className="flex-1 flex items-center gap-0.5 min-w-0" style={{ paddingLeft: (level + 1 + levelOffset) * 16 }}>
-            <span className="w-3 shrink-0 flex items-center justify-center -ml-1">
-              {hasChildren && (
-                <span className="text-white text-[9px] font-bold text-center">
-                  {expanded ? '▼' : '▶'}
-                </span>
-              )}
+          <div className="flex min-w-0 flex-1 items-center gap-0.5" style={{ paddingLeft: (level + 1 + levelOffset) * 16 }}>
+            <span className="-ml-1 flex w-3 shrink-0 items-center justify-center">
+              {hasChildren ? (
+                expanded ? <ChevronDown size={12} className="cad-icon-secondary" /> : <ChevronRight size={12} className="cad-icon-secondary" />
+              ) : null}
             </span>
 
             {onToggleCheck && (
               <input
                 type="checkbox"
                 checked={checked}
-                onChange={() => { }} // Controlled by onClick
-                onClick={(e) => { e.stopPropagation(); onToggleCheck(); }}
-                className="rounded border-cad-border bg-cad-bg text-cad-accent focus:ring-cad-accent cursor-pointer shrink-0 w-3 h-3"
+                onChange={() => {}}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleCheck();
+                }}
+                className="h-3 w-3 shrink-0 cursor-pointer rounded border-cad-border bg-cad-bg text-cad-accent focus:ring-cad-accent"
               />
             )}
 
-            <div className="flex-1 flex items-center gap-0.5">
-
+            <div className="flex flex-1 items-center gap-0.5">
               {showCode && (
-                <div className="w-5 shrink-0 flex items-center justify-center">
-                  <span className={cn(
-                    "text-[8px] font-bold shrink-0 min-w-[12px] h-3.5 flex items-center justify-center rounded px-0.5 transition-all",
-                    selected ? "bg-emerald-500 text-black" : "bg-white/5 text-white/40 group-hover/feat:text-white/60"
-                  )}>
-                    {typeof index === 'number' ? index + 1 : index}
+                <div className="flex w-5 shrink-0 items-center justify-center">
+                  <span
+                    className={cn(
+                      "flex h-3.5 min-w-[12px] shrink-0 items-center justify-center rounded px-0.5 text-[8px] font-bold transition-all",
+                      selected ? "bg-cad-accent text-black" : "bg-white/5 text-white/40 group-hover/feat:text-white/60"
+                    )}
+                  >
+                    {typeof index === "number" ? index + 1 : index}
                   </span>
                 </div>
               )}
 
-              <div className="w-5 shrink-0 flex items-center justify-center">
-                <FeatureIcon
-                  feature={feature}
-                  selected={selected}
-                  groupType={groupType}
-                  groupName={groupName}
-                />
+              <div className="flex w-5 shrink-0 items-center justify-center">
+                <FeatureIcon feature={feature} selected={selected} groupType={groupType} groupName={groupName} />
               </div>
 
-              <span className={cn(
-                "truncate flex items-center gap-1 transition-colors",
-                selected ? "text-emerald-400 font-bold" : "text-white/70 group-hover/feat:text-white/90"
-              )}>
+              <span
+                className={cn(
+                  "flex items-center gap-1 truncate transition-colors",
+                  selected ? "font-bold text-cad-active" : "text-white/70 group-hover/feat:text-white/90"
+                )}
+              >
                 <span className="text-[9px]">{getCleanName(feature, String(index))}</span>
                 {showNotes && feature.note && (
-                  <span className="text-[8px] opacity-40 italic truncate max-w-[80px]">
+                  <span className="max-w-[80px] truncate text-[8px] italic opacity-40">
                     - {feature.note}
                   </span>
                 )}
-                {showQr && (getParsedMetadata(feature).qr || getParsedMetadata(feature).ma_qr) && (
-                  <span className="text-[7px] bg-emerald-500/20 px-1 rounded text-emerald-400 font-mono uppercase">
+                {showQr && Boolean(getParsedMetadata(feature).qr || getParsedMetadata(feature).ma_qr) && (
+                  <span className="rounded bg-cad-accent/20 px-1 font-mono text-[7px] uppercase text-cad-active">
                     QR
                   </span>
                 )}
@@ -170,28 +163,37 @@ export const FeatureItem = React.memo(({
           </div>
         </div>
 
-        <div className={cn(
-          "flex items-center gap-1 transition-opacity",
-          !visible ? "opacity-100" : "opacity-0 group-hover/feat:opacity-100"
-        )}>
+        <div
+          className={cn(
+            "flex items-center gap-1 transition-opacity",
+            !visible ? "opacity-100" : "opacity-0 group-hover/feat:opacity-100"
+          )}
+        >
+          {customAction}
           {onToggleVisible && (
             <button
-              onClick={(e) => { e.stopPropagation(); onToggleVisible(e); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleVisible(e);
+              }}
               className={cn(
-                "p-0.5 rounded transition-colors",
-                visible ? "hover:bg-cad-accent hover:text-black" : "text-cad-accent hover:bg-cad-accent/20"
+                "rounded p-1 transition-colors",
+                visible ? "text-cad-text-secondary hover:bg-cad-accent hover:text-black" : "text-cad-accent hover:bg-cad-accent/20"
               )}
-              title={visible ? "Ẩn trên bản đồ" : "Hiện trên bản đồ"}
+              title={visible ? "Hide on map" : "Show on map"}
             >
-              {visible ? <Eye size={10} /> : <EyeOff size={10} className="opacity-80" />}
+              {visible ? <Eye size={12} /> : <EyeOff size={12} className="opacity-80" />}
             </button>
           )}
           <button
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="p-0.5 hover:bg-red-500 hover:text-white rounded transition-colors"
-            title="Xóa Feature"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="rounded p-1 text-cad-text-secondary transition-colors hover:bg-red-500 hover:text-white"
+            title="Delete feature"
           >
-            <Trash2 size={10} />
+            <Trash2 size={12} />
           </button>
         </div>
       </div>

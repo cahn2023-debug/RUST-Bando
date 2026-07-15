@@ -1,0 +1,12 @@
+[package]
+name = "gis_engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+geo = "0.29"
+geozero = { version = "0.13", features = ["with-mvt", "with-wkb", "with-geojson"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rayon = "1.10"
+shared_kernel = { path = "../shared_kernel" }

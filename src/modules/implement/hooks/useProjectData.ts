@@ -51,9 +51,10 @@ export function useProjectData(project: Project) {
     }
     try {
       const data = await safeInvoke<Contract[]>("get_contracts", { projectId });
-      setContracts(data);
+      setContracts(data || []);
     } catch (err) {
       logger.error("Error loading contracts:", err);
+      setContracts([]);
     }
   };
 
@@ -84,11 +85,6 @@ export function useProjectData(project: Project) {
     loadNotes();
     loadContracts();
     loadDependencies();
-
-    // Trigger background indexing
-    safeInvoke("index_project_files", { projectId }).catch((err: any) => {
-      logger.warn("Background indexing failed:", err);
-    });
   }, [projectId, hasValidProject]);
 
   const handleCreateTask = async (name: string) => {

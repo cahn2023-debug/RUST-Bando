@@ -4,7 +4,7 @@ import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore';
 import {
     getFeatureDisplayInfo,
-    getParsedCoordinates,
+    getPointCoordinates,
     calculateFOVPoints,
     getFeatureMetadataValue
 } from '@TOOL/utils/featureUtils';
@@ -18,7 +18,8 @@ export const FOVLayer = React.memo(({
     features,
     feature_groups,
     previewMetadata,
-    currentZoom
+    currentZoom,
+    renderedPointIds
 }: any) => {
     const drawingMode = useDesignSync(s => s.drawingMode);
     const showFovTypes = useSettingsStore(s => s.showFovTypes);
@@ -29,7 +30,9 @@ export const FOVLayer = React.memo(({
         <>
             {features.map((f: any) => {
                 // Only process points (cameras are always points)
-                if (f.geom_type !== 'Point' && f.geom_type !== undefined) return null;
+                const geomType = String(f.geom_type || '').toLowerCase();
+                if (geomType && geomType !== 'point') return null;
+                if (renderedPointIds && !renderedPointIds.has(f.id)) return null;
 
                 const group = feature_groups[f.group_id];
                 if (!group) return null;
@@ -73,22 +76,22 @@ export const FOVLayer = React.memo(({
                     return null;
                 }
 
-                const coords = getParsedCoordinates(f);
-                if (!coords || !Array.isArray(coords) || coords.length < 2) return null;
+                const coords = getPointCoordinates(f);
+                if (!coords) return null;
 
                 // Extract FOV parameters from metadata
-                const rotation = parseFloat(getFeatureMetadataValue(f, 'gis.rotation', 'rotation', metadata) || 0);
-                const fovAngle = parseFloat(getFeatureMetadataValue(f, 'gis.fov_angle', 'fov_angle', metadata) || 60);
-                const fovRadius = parseFloat(getFeatureMetadataValue(f, 'gis.fov_radius', 'fov_radius', metadata) || 50);
+                const rotation = parseFloat(String(getFeatureMetadataValue(f, 'gis.rotation', 'rotation', metadata) ?? 0));
+                const fovAngle = parseFloat(String(getFeatureMetadataValue(f, 'gis.fov_angle', 'fov_angle', metadata) ?? 60));
+                const fovRadius = parseFloat(String(getFeatureMetadataValue(f, 'gis.fov_radius', 'fov_radius', metadata) ?? 50));
 
                 // Calculate polygon points (Offsets are now handled in calculateFOVPoints)
-                const fovPoints = calculateFOVPoints(coords as [number, number], fovRadius, rotation, fovAngle);
+                const fovPoints = calculateFOVPoints(coords, fovRadius, rotation, fovAngle);
 
                 if (fovPoints.length === 0) return null;
 
                 return (
                     <Polygon
-                        key={`fov-${f.id}`}
+                        key={`fov-${f.id}-${rotation}-${fovAngle}-${fovRadius}`}
                         positions={fovPoints}
                         pathOptions={{
                             color: displayInfo.color || '#3b82f6',

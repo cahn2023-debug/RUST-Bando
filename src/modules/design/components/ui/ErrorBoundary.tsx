@@ -1,6 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle, RefreshCcw, ShieldAlert } from "lucide-react";
-import i18n from "@TOOL/../i18n";
+import i18n from "@/modules/i18n";
 
 interface Props {
   children: ReactNode;
@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="h-screen w-screen bg-[#0A0A0B] flex items-center justify-center p-6 font-sans">
+        <div className="h-full w-full min-h-0 min-w-0 bg-[#0A0A0B] flex items-center justify-center p-6 font-sans">
           <div className="max-w-2xl w-full bg-cad-surface border-2 border-red-500/50 rounded-sm shadow-[0_0_50px_rgba(239,68,68,0.15)] overflow-hidden">
             <div className="bg-red-500/10 border-b border-red-500/20 p-4 flex items-center gap-3">
               <ShieldAlert className="text-red-500" size={24} />

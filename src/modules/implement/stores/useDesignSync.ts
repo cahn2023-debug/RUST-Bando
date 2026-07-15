@@ -6,6 +6,7 @@ import { createDrawingSlice } from '../../design/features/map/stores/drawingSlic
 import { createUIControlSlice } from '../../design/features/map/stores/uiControlSlice';
 import { createInitializationSlice } from '../../design/features/map/stores/initializationSlice';
 import { createDesignActionSlice } from '../../design/features/map/stores/designActionSlice';
+import { createUISyncSlice } from '../../design/features/map/stores/uiSyncSlice';
 
 /**
  * useDesignSync - The central store for Map/Design data and interaction.
@@ -24,6 +25,7 @@ export const useDesignSync = create<DesignSyncStore>()((...a) => ({
   ...createDrawingSlice(...a),
   ...createUIControlSlice(...a),
   ...createInitializationSlice(...a),
+  ...createUISyncSlice(...a),
   ...createDesignActionSlice(...a),
 }));
 

@@ -38,7 +38,7 @@ Master code reviewer focused on ensuring code quality, security, performance, an
 
 ### 1. [AI-Powered Code Analysis](./sub-skills/ai-powered-code-analysis.md)
 ### 2. [Modern Static Analysis Tools](./sub-skills/modern-static-analysis-tools.md)
-### 3. [Security Code Review](./sub-skills/security-code-review.md)
+### 3. [Security Code Review](./sub-skills/security-code-review.md)![alt text](image.png)
 ### 4. [Performance & Scalability Analysis](./sub-skills/performance-scalability-analysis.md)
 ### 5. [Configuration & Infrastructure Review](./sub-skills/configuration-infrastructure-review.md)
 ### 6. [Modern Development Practices](./sub-skills/modern-development-practices.md)

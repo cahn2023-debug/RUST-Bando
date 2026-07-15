@@ -1,21 +1,12 @@
 import { useEffect, useRef } from "react";
-import mermaid from "mermaid";
 import { Network, ZoomIn, RefreshCw, Share2 } from "lucide-react";
 
-mermaid.initialize({
-    startOnLoad: true,
-    theme: "dark",
-    securityLevel: "loose",
-    fontFamily: "Inter, var(--font-sans)",
-});
-
 interface GraphManagementProps {
-    projectId: number;
+    projectId: string | number;
 }
 
 export function GraphManagement({ projectId: _projectId }: GraphManagementProps) {
-    // const { t } = useTranslation();
-    const graphContentRef = useRef<HTMLDivElement>(null);
+    const graphContentRef = useRef<HTMLPreElement>(null);
 
     const mermaidDefinition = `
 graph TD
@@ -35,56 +26,54 @@ graph TD
   `;
 
     useEffect(() => {
-        if (graphContentRef.current) {
-            graphContentRef.current.removeAttribute('data-processed');
-            mermaid.contentLoaded();
-        }
+        graphContentRef.current?.scrollTo({ top: 0, left: 0 });
     }, [mermaidDefinition]);
 
     return (
-        <div className="flex-1 flex flex-col overflow-hidden bg-cad-bg font-sans">
-            <div className="h-10 border-b border-cad-border bg-cad-surface flex items-center justify-between px-4 shrink-0">
+        <div className="flex h-full flex-col overflow-hidden bg-cad-bg font-sans">
+            <div className="cad-toolbar">
                 <div className="flex items-center gap-2">
                     <Network size={14} className="text-cad-accent" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-cad-text-primary">
                         Project Architecture Graph
                     </span>
-                    <span className="px-1.5 py-0.5 rounded bg-cad-accent/10 border border-cad-accent/20 text-[8px] font-bold text-cad-accent uppercase">
-                        Live Analysis
-                    </span>
+                    <span className="cad-badge cad-badge-accent">Live Analysis</span>
                 </div>
 
                 <div className="flex items-center gap-1">
-                    <button className="p-1.5 hover:bg-cad-elevated rounded transition-colors text-cad-text-muted hover:text-cad-text-primary">
+                    <button className="cad-icon-button">
                         <RefreshCw size={12} />
                     </button>
-                    <button className="p-1.5 hover:bg-cad-elevated rounded transition-colors text-cad-text-muted hover:text-cad-text-primary">
+                    <button className="cad-icon-button">
                         <ZoomIn size={12} />
                     </button>
-                    <button className="p-1.5 hover:bg-cad-elevated rounded transition-colors text-cad-text-muted hover:text-cad-text-primary">
+                    <button className="cad-icon-button">
                         <Share2 size={12} />
                     </button>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-8 flex items-center justify-center bg-[#0d1117]">
-                <div ref={graphContentRef} className="mermaid w-full max-w-4xl text-center">
+            <div className="flex flex-1 items-center justify-center overflow-auto bg-cad-bg p-8">
+                <pre
+                    ref={graphContentRef}
+                    className="cad-card w-full max-w-4xl overflow-auto p-6 text-left text-xs text-cad-text-primary"
+                >
                     {mermaidDefinition}
-                </div>
+                </pre>
             </div>
 
-            <div className="h-8 border-t border-cad-border bg-cad-surface/50 px-4 flex items-center justify-between shrink-0">
+            <div className="cad-statusbar">
                 <div className="flex gap-4">
                     <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-blue-500" />
-                        <span className="text-[9px] font-bold text-cad-text-muted uppercase">Modules</span>
+                        <div className="h-2 w-2 rounded-full bg-cad-accent" />
+                        <span className="text-[9px] font-bold uppercase text-cad-text-muted">Modules</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-purple-500" />
-                        <span className="text-[9px] font-bold text-cad-text-muted uppercase">Relations</span>
+                        <div className="h-2 w-2 rounded-full bg-purple-500" />
+                        <span className="text-[9px] font-bold uppercase text-cad-text-muted">Relations</span>
                     </div>
                 </div>
-                <span className="text-[9px] font-mono text-cad-text-muted/60 uppercase">
+                <span className="text-[9px] font-mono uppercase text-cad-text-muted/60">
                     Grapuco Sync: a10fa941-54e0-489a-89bd-87411333c0a5
                 </span>
             </div>

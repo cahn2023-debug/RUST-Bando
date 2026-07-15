@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useMap, useMapEvents, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
@@ -7,6 +7,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useDesignSync, EMPTY_OBJ } from '@IMPLEMENT/stores/useDesignSync';
 import { FeatureState } from '@CONTRACT/types';
 import { useFeatureHierarchy, useFeatureNumbering, useVisibleFeatures } from '@IMPLEMENT/hooks/useDesignFeatures';
+
 
 // Layer Components
 import { PointLayer, SelectedFeaturePopupManager } from '@DESIGN/features/map/MapLayerComponents/PointLayer';
@@ -19,16 +20,24 @@ import { getFeatureDisplayInfo } from '@TOOL/utils/featureUtils';
 
 const ZOOM_THRESHOLD = 19;
 const BOUNDS_DEBOUNCE_MS = 150;
+const REPORT_CAPTURE_EVENT = 'design-report-map-capture';
+
+const canReadMapBounds = (map: L.Map) => {
+    try {
+        return Boolean((map as any)?._loaded && map.getPane('mapPane'));
+    } catch {
+        return false;
+    }
+};
 
 /**
  * Orchestrator component for Map Design Features.
  * Manages the high-level rendering of different map layers and their interactions.
  */
 export const DesignFeatures = () => {
-    // 1. Data Subscriptions
-    const features = useDesignSync(state => state.state?.features || (EMPTY_OBJ as Record<string, FeatureState>));
+    // 1. Data Subscriptions (Individual selectors for stability and performance)
+    const rawFeatures = useDesignSync(state => state.state?.features || (EMPTY_OBJ as Record<string, FeatureState>));
     const feature_groups = useDesignSync(state => state.state?.feature_groups || (EMPTY_OBJ as Record<string, any>));
-
     const selectedFeatureId = useDesignSync(state => state.selectedFeatureId);
     const mapHiddenIds = useDesignSync(state => state.mapHiddenIds);
     const selectFeature = useDesignSync(state => state.selectFeature);
@@ -41,16 +50,43 @@ export const DesignFeatures = () => {
     const showFeatureGroups = useDesignSync(state => state.showFeatureGroups);
     const dispatchEvent = useDesignSync(state => state.dispatchEvent);
 
+
+
+
+    // V65: [ARMORED] Harmonize features data. 
+    // We keep 'features' as a Record for hooks that need ID-based lookup,
+    // but ensured it's actually an Object if it was somehow an Array.
+    const features = React.useMemo(() => {
+        if (Array.isArray(rawFeatures)) {
+            const record: Record<string, FeatureState> = {};
+            rawFeatures.forEach(f => { if (f?.id) record[f.id] = f; });
+            return record;
+        }
+        return rawFeatures;
+    }, [rawFeatures]);
+
+    console.log(`🛠️ [DesignFeatures] Syncing ${Object.keys(features).length} features (Source: ${Array.isArray(rawFeatures) ? 'Array' : 'Record'})`);
+
     const map = useMap();
     const clusterGroupRef = React.useRef<any>(null);
     const moveGroupRef = React.useRef<any>(null);
-    const [currentZoom, setCurrentZoom] = useState(map.getZoom());
-    const [bounds, setBounds] = useState<L.LatLngBounds>(map.getBounds());
+    const [currentZoom, setCurrentZoom] = useState(() => (canReadMapBounds(map) ? map.getZoom() : 0));
+    const [bounds, setBounds] = useState<L.LatLngBounds | null>(() => (canReadMapBounds(map) ? map.getBounds() : null));
+    const [isReportCaptureActive, setIsReportCaptureActive] = useState(false);
     const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        const handler = (event: Event) => {
+            setIsReportCaptureActive(Boolean((event as CustomEvent<{ active?: boolean }>).detail?.active));
+        };
+        window.addEventListener(REPORT_CAPTURE_EVENT, handler);
+        return () => window.removeEventListener(REPORT_CAPTURE_EVENT, handler);
+    }, []);
 
     const debouncedSetBounds = useCallback(() => {
         if (boundsTimerRef.current) clearTimeout(boundsTimerRef.current);
         boundsTimerRef.current = setTimeout(() => {
+            if (!canReadMapBounds(map)) return;
             const nextZoom = map.getZoom();
             const nextBounds = map.getBounds();
 
@@ -70,12 +106,27 @@ export const DesignFeatures = () => {
         const now = Date.now();
         if (now - lastMoveTimeRef.current > THROTTLE_MS) {
             lastMoveTimeRef.current = now;
+            if (!canReadMapBounds(map)) return;
             const nextBounds = map.getBounds();
             setBounds(prev => {
                 if (prev && prev.equals(nextBounds)) return prev;
                 return nextBounds;
             });
         }
+    }, [map]);
+
+    useEffect(() => {
+        if (canReadMapBounds(map)) {
+            setCurrentZoom(map.getZoom());
+            setBounds(map.getBounds());
+            return;
+        }
+
+        map.whenReady(() => {
+            if (!canReadMapBounds(map)) return;
+            setCurrentZoom(map.getZoom());
+            setBounds(map.getBounds());
+        });
     }, [map]);
 
     useMapEvents({
@@ -150,24 +201,29 @@ export const DesignFeatures = () => {
             const expansionZoom = ZOOM_THRESHOLD + (depth * 2);
             const parentExpansionZoom = depth > 0 ? ZOOM_THRESHOLD + ((depth - 1) * 2) : 0;
 
-            if (depth > 0 && currentZoom < parentExpansionZoom) return false;
+            if (!isReportCaptureActive && depth > 0 && currentZoom < parentExpansionZoom) return false;
 
-            const { isIntersection, iconKey } = getFeatureDisplayInfo({ ...f, metadata }, group?.type, group?.name);
+            const { isIntersection, iconKey } = getFeatureDisplayInfo(f, group?.type, group?.name, metadata);
             const isJunctionIcon = isIntersection && iconKey === 'intersection';
             const isSelected = f.id === selectedFeatureId;
             const hasContent = metadata.has_data || isParent;
 
             // Hide aggregate when zoomed in deep, unless selected
-            if ((isJunctionIcon || isParent) && currentZoom >= expansionZoom && hasContent && !isSelected) return false;
+            if (!isReportCaptureActive && (isJunctionIcon || isParent) && currentZoom >= expansionZoom && hasContent && !isSelected) return false;
 
             // Hide details in Intersection groups when zoomed out, unless selected
-            if (!isJunctionIcon && group?.type === 'INTERSECTION' && currentZoom < expansionZoom && !isSelected) return false;
+            if (!isReportCaptureActive && !isJunctionIcon && group?.type === 'INTERSECTION' && currentZoom < expansionZoom && !isSelected) return false;
 
             return true;
         });
         console.log(`[DesignFeatures] Points filter: ${beforeFilter} visible → ${result.length} points to render (zoom: ${currentZoom})`);
         return result;
-    }, [visibleFeatures, feature_groups, previewMetadata, featureHierarchy, currentZoom, selectedFeatureId]);
+    }, [visibleFeatures, feature_groups, previewMetadata, featureHierarchy, currentZoom, selectedFeatureId, isReportCaptureActive]);
+
+    const renderedPointIds = React.useMemo(
+        () => new Set(pointsToRender.map(f => f.id)),
+        [pointsToRender]
+    );
 
     return (
         <>
@@ -210,7 +266,7 @@ export const DesignFeatures = () => {
                 featureNumberMap={featureNumberMap}
                 clusterGroupRef={clusterGroupRef}
                 moveGroupRef={moveGroupRef}
-                showFeatureGroups={showFeatureGroups}
+                showFeatureGroups={showFeatureGroups && !isReportCaptureActive}
                 dispatchEvent={dispatchEvent}
             />
 
@@ -219,7 +275,8 @@ export const DesignFeatures = () => {
                 features={visibleFeatures}
                 feature_groups={feature_groups}
                 previewMetadata={previewMetadata}
-                currentZoom={currentZoom}
+                currentZoom={isReportCaptureActive ? Math.max(currentZoom, 23) : currentZoom}
+                renderedPointIds={renderedPointIds}
             />
 
             {/* Floating Popup Manager (Cluster-aware) */}
@@ -238,11 +295,13 @@ export const DesignFeatures = () => {
                 features={visibleFeatures}
                 allFeatures={features}
                 parentChildMap={parentChildMap}
+                featureHierarchy={featureHierarchy}
                 feature_groups={feature_groups}
                 selectedFeatureId={selectedFeatureId}
                 selectFeature={selectFeature}
                 setSelectedGroup={setSelectedGroup}
                 previewMetadata={previewMetadata}
+                currentZoom={isReportCaptureActive ? Math.max(currentZoom, 23) : currentZoom}
                 zoomTo={zoomTo}
             />
 

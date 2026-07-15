@@ -5,69 +5,70 @@
       "command": "dir",
       "added_at": "2026-03-15T08:29:45.182166",
       "last_status": "pass",
-      "last_run": "2026-04-26T17:10:57.433832"
+      "last_run": "2026-05-01T22:25:58.011045"
     },
     {
       "feature": "Auth Initialization Fix",
       "command": "echo 'Verify via console log: [Auth] Initialization timed out'",
       "added_at": "2026-03-15T13:18:53.807738",
       "last_status": "pass",
-      "last_run": "2026-04-26T17:10:57.438651"
+      "last_run": "2026-05-01T22:25:58.018858"
     },
     {
       "feature": "Street View Coverage",
       "command": "echo 'Verify via UI: Street View coverage in src/modules/implement/features/map/MapLayerComponents/StreetViewControl.tsx'",
       "added_at": "2026-03-15T13:49:59.480498",
       "last_status": "pass",
-      "last_run": "2026-04-26T17:10:57.442866"
+      "last_run": "2026-05-01T22:25:58.026227"
     },
     {
       "feature": "Line Clamp 2 Rows",
       "command": "echo 'Verify via UI: Check if rows in BoxSummary are limited to 2 lines'",
       "added_at": "2026-03-15T20:18:53.800611",
       "last_status": "pass",
-      "last_run": "2026-04-26T17:10:57.447422"
+      "last_run": "2026-05-01T22:25:58.032602"
     },
     {
       "feature": "Modular GIS Optimization",
       "command": "npx vitest run src/modules/implement/stores/goog_maps_polyline.test.ts src/modules/tool/utils/cameraMath.test.ts",
       "added_at": "2026-03-18T23:39:38.491708",
       "last_status": "pass",
-      "last_run": "2026-04-26T17:11:00.185310"
+      "last_run": "2026-05-01T22:26:00.183248"
     },
     {
       "feature": "Polyline Drawing Continuity",
       "command": "echo 'Verify via UI: Polyline drawing should continue when clicking on markers/lines'",
       "added_at": "2026-03-19T07:08:46.984506",
       "last_status": "pass",
-      "last_run": "2026-04-26T17:11:00.190638"
+      "last_run": "2026-05-01T22:26:00.188910"
     },
     {
       "feature": "Vertex Coordinate Parsing",
       "command": "npx vitest run src/modules/implement/stores/vertex_fix.test.ts",
       "added_at": "2026-03-19T08:35:46.822084",
       "last_status": "pass",
-      "last_run": "2026-04-26T17:11:02.046438"
+      "last_run": "2026-05-01T22:26:02.309089"
     },
     {
       "feature": "Map Selection Logic",
       "command": "npx vitest run src/modules/implement/stores/useDesignSync.test.ts",
       "added_at": "2026-04-07T15:05:06.076242",
       "last_status": "pass",
-      "last_run": "2026-04-26T17:11:03.922957"
+      "last_run": "2026-05-01T22:26:04.924780"
     },
     {
       "feature": "Leaflet Point Crash Fix",
       "command": "echo 'Verify via UI: Click on a Point and ensure app does not crash with Invalid LatLng'",
       "added_at": "2026-04-15T13:50:44.217566",
       "last_status": "pass",
-      "last_run": "2026-04-26T17:11:03.927769"
+      "last_run": "2026-05-01T22:26:04.930929"
     },
     {
       "feature": "Project Persistence",
       "command": "echo 'Verified via Browser Subagent: Move, Edit, Save, F5'",
       "added_at": "2026-04-26T17:19:16.212519",
-      "last_status": "unknown"
+      "last_status": "pass",
+      "last_run": "2026-05-01T22:26:04.937332"
     }
   ]
 }

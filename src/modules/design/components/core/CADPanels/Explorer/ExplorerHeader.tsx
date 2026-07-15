@@ -5,13 +5,15 @@ interface ExplorerHeaderProps {
     treeSearchQuery: string;
     setTreeSearchQuery: (query: string) => void;
     onCreateRegion: (e: React.MouseEvent) => void;
+    disabled?: boolean;
 }
 
-export function ExplorerHeader({
+export const ExplorerHeader = React.memo(({
     treeSearchQuery,
     setTreeSearchQuery,
-    onCreateRegion
-}: ExplorerHeaderProps) {
+    onCreateRegion,
+    disabled
+}: ExplorerHeaderProps) => {
     return (
         <div className="flex items-center gap-1.5">
             <div className="relative group/search flex items-center flex-1 bg-cad-bg border border-cad-border focus-within:border-cad-accent transition-all rounded-sm overflow-hidden">
@@ -36,12 +38,13 @@ export function ExplorerHeader({
             </div>
 
             <button
-                onClick={onCreateRegion}
-                className="h-[22px] px-1.5 flex items-center justify-center bg-cad-bg border border-cad-border hover:border-cad-accent hover:text-cad-accent transition-all rounded-sm text-cad-text-muted"
-                title="Thêm dự án mới (+)"
+                onClick={disabled ? undefined : onCreateRegion}
+                className={`h-[22px] px-1.5 flex items-center justify-center bg-cad-bg border border-cad-border hover:border-cad-accent hover:text-cad-accent transition-all rounded-sm text-cad-text-muted ${disabled ? 'opacity-20 cursor-not-allowed' : ''}`}
+                title={disabled ? "Đang đồng bộ..." : "Thêm dự án mới (+)"}
+                disabled={disabled}
             >
                 <PlusCircle size={12} />
             </button>
         </div>
     );
-}
+});
