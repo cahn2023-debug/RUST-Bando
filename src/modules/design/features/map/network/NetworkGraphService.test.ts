@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FeatureState } from '@CONTRACT/types';
 import { NetworkGraphService, type NetworkEntityStatus } from './NetworkGraphService';
+import { createFeatureEndpointRef } from './NetworkEndpoint';
 
 const node = (id: string, role: 'cabinet' | 'intersection' | 'device'): FeatureState => ({
     id,
@@ -37,7 +38,14 @@ const edge = (id: string, from?: string, to?: string): FeatureState => ({
     geom_type: 'LineString',
     metadata: {
         infrastructure: { type: 'SignalLine' },
-        network: { from_feature_id: from, to_feature_id: to, telemetry_id: `${id}-telemetry`, direction_mode: 'auto' },
+        network: {
+            from_feature_id: from,
+            to_feature_id: to,
+            ...(from ? { from_endpoint: createFeatureEndpointRef(from) } : {}),
+            ...(to ? { to_endpoint: createFeatureEndpointRef(to) } : {}),
+            telemetry_id: `${id}-telemetry`,
+            direction_mode: 'auto',
+        },
     },
     properties: {},
     coordinates: [[0, 0], [1, 1]],
@@ -51,7 +59,13 @@ const networkLink = (id: string, from?: string, to?: string): FeatureState => ({
     geom_type: 'NetworkLink',
     metadata: {
         infrastructure: { type: 'NetworkLink' },
-        network: { from_feature_id: from, to_feature_id: to, telemetry_id: `${id}-telemetry` },
+        network: {
+            from_feature_id: from,
+            to_feature_id: to,
+            ...(from ? { from_endpoint: createFeatureEndpointRef(from) } : {}),
+            ...(to ? { to_endpoint: createFeatureEndpointRef(to) } : {}),
+            telemetry_id: `${id}-telemetry`,
+        },
     },
     properties: {},
     coordinates: null,
@@ -98,6 +112,71 @@ describe('NetworkGraphService.build', () => {
         expect(graph.edges[0].feature?.geom_type).toBe('NetworkLink');
         expect(graph.edges[0].feature?.coordinates).toBeNull();
         expect(graph.diagnostics).toEqual([]);
+    });
+
+    it('prefers a real SignalLine over a duplicate NetworkLink for the same direction', () => {
+        const graph = NetworkGraphService.build(byId(
+            originNode('cabinet', 'cabinet'),
+            node('camera-a', 'device'),
+            networkLink('draft-link', 'cabinet', 'camera-a'),
+            edge('map-line', 'cabinet', 'camera-a'),
+        ));
+
+        expect(graph.edges).toHaveLength(1);
+        expect(graph.edges[0]).toMatchObject({
+            id: 'map-line',
+            sourceType: 'map-polyline',
+            from: 'cabinet',
+            to: 'camera-a',
+        });
+        expect(graph.diagnostics).toContainEqual(expect.objectContaining({
+            type: 'duplicate-edge',
+            edgeId: 'draft-link',
+        }));
+    });
+
+    it('reads shared-point endpoints while still resolving a representative feature node', () => {
+        const graph = NetworkGraphService.build(byId(
+            originNode('cabinet', 'cabinet'),
+            {
+                ...node('camera-a', 'device'),
+                metadata: { parent_feature_id: 'cabinet' },
+                coordinates: [105.001, 21.001],
+            },
+            {
+                ...node('camera-b', 'device'),
+                metadata: { parent_feature_id: 'cabinet' },
+                coordinates: [105.001004, 21.001],
+            },
+            {
+                ...edge('shared-line'),
+                metadata: {
+                    infrastructure: { type: 'SignalLine' },
+                    network: {
+                        from_feature_id: 'cabinet',
+                        to_feature_id: 'camera-a',
+                        from_endpoint: createFeatureEndpointRef('cabinet'),
+                        to_endpoint: {
+                            type: 'shared-point',
+                            id: 'intersection:cabinet:distance:camera-a',
+                            intersection_id: 'cabinet',
+                            member_ids: ['camera-a', 'camera-b'],
+                            coordinate: [105.001002, 21.001],
+                        },
+                        direction_mode: 'auto',
+                    },
+                },
+            },
+        ));
+
+        expect(graph.edges[0]).toMatchObject({
+            from: 'cabinet',
+            to: 'camera-a',
+            toEndpoint: {
+                type: 'shared-point',
+                id: 'intersection:cabinet:distance:camera-a',
+            },
+        });
     });
 
     it('reports dangling endpoints, self-loops, unknown nodes and duplicate edges', () => {

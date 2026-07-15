@@ -28,6 +28,10 @@ import {
     TriangleAlert,
     WifiOff,
     X,
+    PanelRightClose,
+    PanelRightOpen,
+    Search,
+    Filter,
 } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
@@ -37,28 +41,37 @@ import {
     type NetworkEdge,
     type NetworkNode,
 } from '@DESIGN/features/map/network/NetworkGraphService';
+import { buildDisplayNetworkGraph } from '@DESIGN/features/map/network/NetworkGraphAggregation';
+import { prepareNetworkConnectionDraft } from '@DESIGN/features/map/network/NetworkConnectionDraft';
+import { getNetworkEndpointKey } from '@DESIGN/features/map/network/NetworkEndpoint';
+import { buildNetworkConnectionCreateEvents } from '@DESIGN/features/map/network/NetworkConnectionCreation';
 import { buildManualEdgeDirectionEvent, buildSetOriginEvents } from '@DESIGN/features/map/network/networkTopology';
 import { useNetworkStatusStore } from '@DESIGN/features/map/network/useNetworkStatusStore';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
 import { NetworkNodeWidget } from './NetworkNodeWidget';
 import { cn } from '@TOOL/utils/cn';
+import { getPointCoordinates } from '@TOOL/utils/featureMapping';
 
 type NetworkTab = 'intersection' | 'route';
 type LayoutMode = 'graph' | 'tree';
 type SelectedGraphEntity = { type: 'node' | 'edge'; id: string } | null;
 type NetworkLineStyle = 'solid' | 'dashed' | 'dotted';
 type NetworkLinkIcon = 'arrow' | 'signal' | 'wireless' | 'fiber' | 'none';
+type LayoutPosition = { x: number; y: number };
+type LayoutPositions = Record<string, LayoutPosition>;
 
 const nodeTypes = {
     networkNode: NetworkNodeWidget,
 };
 
+const NETWORK_GRAPH_LAYOUT_STORAGE_PREFIX = 'network-graph-layout-v1';
+
 const statusLabel: Record<NetworkComputedStatus, string> = {
     online: 'Online',
-    'direct-offline': 'Lỗi trực tiếp',
-    'upstream-offline': 'Mất upstream',
+    'direct-offline': 'Loi truc tiep',
+    'upstream-offline': 'Mat upstream',
     unknown: 'Unknown',
-    'configuration-error': 'Chưa cấu hình',
+    'configuration-error': 'Chua cau hinh',
 };
 
 const statusColor: Record<NetworkComputedStatus, string> = {
@@ -84,8 +97,8 @@ const linkIconLabel: Record<NetworkLinkIcon, string | undefined> = {
 };
 
 const edgeSourceLabel: Record<NetworkEdge['sourceType'], string> = {
-    'map-polyline': 'Từ polyline bản đồ',
-    'network-drawn': 'Vẽ trực tiếp trong Network',
+    'map-polyline': 'Tu polyline ban do',
+    'network-drawn': 'Ve truc tiep trong Network',
 };
 
 const isNetworkLineStyle = (value: unknown): value is NetworkLineStyle =>
@@ -107,6 +120,7 @@ const getNetworkLinkPresentation = (edge: NetworkEdge | null | undefined) => {
 
 const getEdgeStrokeDasharray = (edge: NetworkEdge, lineStyle: NetworkLineStyle) => {
     if (edge.kind === 'relationship') return '5 5';
+    if (edge.sourceType === 'map-polyline') return undefined;
     if (edge.directionState === 'pending') return '8 6';
     if (edge.directionState === 'conflict') return '2 6';
     if (edge.sourceType === 'network-drawn') return '10 4';
@@ -133,20 +147,6 @@ const getNodeScopeOwnerId = (node: NetworkNode | undefined): string | undefined 
     return node.parentFeatureId;
 };
 
-const parsePointCoordinate = (value: unknown): [number, number] | null => {
-    let parsed = value;
-    if (typeof value === 'string') {
-        try {
-            parsed = JSON.parse(value || 'null');
-        } catch {
-            return null;
-        }
-    }
-    if (Array.isArray(parsed) && typeof parsed[0] === 'number' && typeof parsed[1] === 'number') return [parsed[0], parsed[1]];
-    if (Array.isArray(parsed) && Array.isArray(parsed[0])) return parsePointCoordinate(parsed[0]);
-    return null;
-};
-
 const parseMetadata = (metadata: unknown): Record<string, unknown> => {
     if (!metadata) return {};
     if (typeof metadata !== 'string') return metadata as Record<string, unknown>;
@@ -157,33 +157,314 @@ const parseMetadata = (metadata: unknown): Record<string, unknown> => {
     }
 };
 
-const layoutGraphNodes = (nodes: NetworkNode[], layoutMode: LayoutMode, rootId?: string): Record<string, { x: number; y: number }> => {
+const getLayoutStorageKey = (projectScope: string | null, scope: string) =>
+    projectScope ? `${NETWORK_GRAPH_LAYOUT_STORAGE_PREFIX}:${projectScope}:${scope}` : null;
+
+const readLayoutPositions = (storageKey: string | null): LayoutPositions => {
+    if (!storageKey) return {};
+
+    try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return {};
+
+        const parsed = JSON.parse(raw) as Record<string, LayoutPosition>;
+        if (!parsed || typeof parsed !== 'object') return {};
+
+        return Object.fromEntries(
+            Object.entries(parsed).filter(([, value]) =>
+                !!value &&
+                typeof value.x === 'number' &&
+                Number.isFinite(value.x) &&
+                typeof value.y === 'number' &&
+                Number.isFinite(value.y)
+            )
+        );
+    } catch {
+        return {};
+    }
+};
+
+const writeLayoutPositions = (storageKey: string | null, positions: LayoutPositions) => {
+    if (!storageKey) return;
+
+    try {
+        localStorage.setItem(storageKey, JSON.stringify(positions));
+    } catch {
+        // Keep the panel usable even if local storage is unavailable.
+    }
+};
+
+const getSignalEdgeColor = (edge: NetworkEdge, fallbackColor: string) => {
+    if (edge.sourceType !== 'map-polyline') return fallbackColor;
+
+    const metadata = parseMetadata(edge.feature?.metadata);
+    const color = metadata.color;
+    return typeof color === 'string' && color.trim() ? color.trim() : '#ef4444';
+};
+
+const layoutGraphNodes = (
+    nodes: NetworkNode[],
+    edges: NetworkEdge[],
+    layoutMode: LayoutMode,
+    tab: NetworkTab,
+    rootId?: string
+): Record<string, { x: number; y: number }> => {
     const positions: Record<string, { x: number; y: number }> = {};
+    if (nodes.length === 0) return positions;
+
+    const nodeIds = new Set(nodes.map(n => n.id));
     const sortedNodes = [...nodes].sort((a, b) => rankNode(a) - rankNode(b) || a.label.localeCompare(b.label) || a.id.localeCompare(b.id));
 
-    if (layoutMode === 'tree') {
-        const root = sortedNodes.find(node => node.id === rootId) || sortedNodes.find(isSourceNode) || sortedNodes[0];
-        if (!root) return positions;
+    // If tab is 'route' (Toan tuyen), use geographic-based layout
+    if (tab === 'route') {
+        let nodeCoords: { id: string; lng: number; lat: number }[] = [];
+        const nodesWithoutCoords: NetworkNode[] = [];
 
-        positions[root.id] = { x: 40, y: 40 };
-        sortedNodes.filter(node => node.id !== root.id).forEach((node, index) => {
-            const column = Math.floor(index / 8);
-            const row = index % 8;
-            positions[node.id] = { x: 260 + column * 220, y: 40 + row * 82 };
+        nodes.forEach(n => {
+            const pt = getPointCoordinates(n.feature);
+            if (pt) {
+                nodeCoords.push({ id: n.id, lng: pt[0], lat: pt[1] });
+            } else {
+                nodesWithoutCoords.push(n);
+            }
+        });
+
+        // Filter out zero coordinates [0, 0] if there are other valid coordinates,
+        // and adjust nodesWithoutCoords accordingly
+        const validCoords = nodeCoords.filter(c => Math.abs(c.lng) > 0.001 || Math.abs(c.lat) > 0.001);
+        if (validCoords.length > 0 && validCoords.length < nodeCoords.length) {
+            const invalidIds = new Set(nodeCoords.filter(c => Math.abs(c.lng) <= 0.001 && Math.abs(c.lat) <= 0.001).map(c => c.id));
+            nodeCoords = validCoords;
+            nodes.forEach(n => {
+                if (invalidIds.has(n.id) && !nodesWithoutCoords.some(item => item.id === n.id)) {
+                    nodesWithoutCoords.push(n);
+                }
+            });
+        }
+
+        // 1. Position nodes with coordinates
+        if (nodeCoords.length > 0) {
+            let minLng = Number.POSITIVE_INFINITY, maxLng = Number.NEGATIVE_INFINITY;
+            let minLat = Number.POSITIVE_INFINITY, maxLat = Number.NEGATIVE_INFINITY;
+
+            nodeCoords.forEach(c => {
+                if (c.lng < minLng) minLng = c.lng;
+                if (c.lng > maxLng) maxLng = c.lng;
+                if (c.lat < minLat) minLat = c.lat;
+                if (c.lat > maxLat) maxLat = c.lat;
+            });
+
+            const xSpan = maxLng - minLng;
+            const ySpan = maxLat - minLat;
+
+            // Compute layout bounds proportional to number of nodes to ensure enough spacing
+            const areaFactor = Math.sqrt(nodes.length);
+            const graphWidth = Math.max(1600, areaFactor * 180);
+            const graphHeight = Math.max(1200, areaFactor * 140);
+
+            // Group nodes by their coordinates to handle overlaps
+            const coordGroups = new Map<string, string[]>();
+            nodeCoords.forEach(c => {
+                const key = `${c.lng.toFixed(6)},${c.lat.toFixed(6)}`;
+                if (!coordGroups.has(key)) coordGroups.set(key, []);
+                coordGroups.get(key)!.push(c.id);
+            });
+
+            nodeCoords.forEach(c => {
+                const pctX = xSpan > 0 ? (c.lng - minLng) / xSpan : 0.5;
+                const pctY = ySpan > 0 ? (c.lat - minLat) / ySpan : 0.5;
+
+                positions[c.id] = {
+                    x: pctX * graphWidth + 60,
+                    y: (1 - pctY) * graphHeight + 60
+                };
+            });
+
+            // Disperse nodes at the same coordinates in a small circle to avoid overlapping
+            coordGroups.forEach(ids => {
+                if (ids.length > 1) {
+                    const angleStep = (2 * Math.PI) / ids.length;
+                    const radius = 65; // offset in pixels
+                    ids.forEach((id, idx) => {
+                        const angle = idx * angleStep;
+                        positions[id].x += Math.cos(angle) * radius;
+                        positions[id].y += Math.sin(angle) * radius;
+                    });
+                }
+            });
+        }
+
+        // 2. Position nodes without coordinates (place near parent/references or in a side grid)
+        let sideGridIndex = 0;
+        const sideGridCols = 5;
+        const sideGridCellWidth = 180;
+        const sideGridCellHeight = 100;
+
+        nodesWithoutCoords.forEach(n => {
+            const parentId = n.parentFeatureId;
+            if (parentId && positions[parentId]) {
+                const parentPos = positions[parentId];
+                const angle = Math.random() * 2 * Math.PI;
+                const radius = 80;
+                positions[n.id] = {
+                    x: parentPos.x + Math.cos(angle) * radius,
+                    y: parentPos.y + Math.sin(angle) * radius
+                };
+            } else {
+                const col = sideGridIndex % sideGridCols;
+                const row = Math.floor(sideGridIndex / sideGridCols);
+                positions[n.id] = {
+                    x: col * sideGridCellWidth + 100,
+                    y: row * sideGridCellHeight + 2200
+                };
+                sideGridIndex++;
+            }
         });
 
         return positions;
     }
 
-    const rankCounts = new Map<number, number>();
-    for (const node of sortedNodes) {
-        const level = rankNode(node);
-        const index = rankCounts.get(level) || 0;
-        rankCounts.set(level, index + 1);
-        positions[node.id] = { x: level * 240 + 40, y: index * 84 + 40 };
+    // Build adjacency list for signal connections
+    const adj = new Map<string, string[]>();
+    const inDegree = new Map<string, number>();
+
+    nodes.forEach(n => {
+        adj.set(n.id, []);
+        inDegree.set(n.id, 0);
+    });
+
+    edges.forEach(e => {
+        if (nodeIds.has(e.from) && nodeIds.has(e.to)) {
+            adj.get(e.from)!.push(e.to);
+            inDegree.set(e.to, (inDegree.get(e.to) || 0) + 1);
+        }
+    });
+
+    // Find root nodes
+    let roots: string[] = [];
+    if (rootId && nodeIds.has(rootId)) {
+        roots.push(rootId);
+    } else {
+        // First find cabinet/intersection nodes with 0 in-degree
+        roots = sortedNodes
+            .filter(n => isSourceNode(n) && (inDegree.get(n.id) || 0) === 0)
+            .map(n => n.id);
+
+        // If none, find any source nodes
+        if (roots.length === 0) {
+            roots = sortedNodes.filter(isSourceNode).map(n => n.id);
+        }
+
+        // If still none, find any node with 0 in-degree
+        if (roots.length === 0) {
+            roots = sortedNodes.filter(n => (inDegree.get(n.id) || 0) === 0).map(n => n.id);
+        }
+
+        // Fallback to first node
+        if (roots.length === 0 && sortedNodes.length > 0) {
+            roots.push(sortedNodes[0].id);
+        }
     }
 
-    return positions;
+    // BFS to assign hierarchy levels (ranks)
+    const levels = new Map<string, number>();
+    const visited = new Set<string>();
+    const queue: { id: string; level: number }[] = [];
+
+    roots.forEach(r => {
+        queue.push({ id: r, level: 0 });
+        visited.add(r);
+    });
+
+    while (queue.length > 0) {
+        const { id, level } = queue.shift()!;
+        levels.set(id, level);
+
+        const children = adj.get(id) || [];
+        children.forEach(child => {
+            if (!visited.has(child)) {
+                visited.add(child);
+                queue.push({ id: child, level: level + 1 });
+            }
+        });
+    }
+
+    // Assign level 0 to unvisited nodes
+    sortedNodes.forEach(n => {
+        if (!levels.has(n.id)) {
+            levels.set(n.id, 0);
+        }
+    });
+
+    const levelWidth = 260;
+    const rowHeight = 90;
+
+    if (layoutMode === 'tree') {
+        // Elegant tree layout positioning
+        const nextYForColumn = new Map<number, number>();
+
+        const layoutSubtree = (nodeId: string, currentLevel: number): number => {
+            const children = (adj.get(nodeId) || []).filter(c => levels.get(c) === currentLevel + 1);
+            const x = currentLevel * levelWidth + 40;
+
+            if (children.length === 0) {
+                const yStart = nextYForColumn.get(currentLevel) || 40;
+                positions[nodeId] = { x, y: yStart };
+                nextYForColumn.set(currentLevel, yStart + rowHeight);
+                return yStart;
+            }
+
+            const childYPositions: number[] = [];
+            children.forEach(childId => {
+                const childY = layoutSubtree(childId, currentLevel + 1);
+                childYPositions.push(childY);
+            });
+
+            const avgChildY = childYPositions.reduce((a, b) => a + b, 0) / childYPositions.length;
+            const currentYLimit = nextYForColumn.get(currentLevel) || 40;
+            const parentY = Math.max(avgChildY, currentYLimit);
+
+            positions[nodeId] = { x, y: parentY };
+            nextYForColumn.set(currentLevel, parentY + rowHeight);
+            return parentY;
+        };
+
+        roots.forEach(r => {
+            layoutSubtree(r, 0);
+        });
+
+        sortedNodes.forEach(n => {
+            if (!positions[n.id]) {
+                const level = levels.get(n.id) || 0;
+                const x = level * levelWidth + 40;
+                const yLimit = nextYForColumn.get(level) || 40;
+                positions[n.id] = { x, y: yLimit };
+                nextYForColumn.set(level, yLimit + rowHeight);
+            }
+        });
+
+        return positions;
+    } else {
+        // Graph Mode: Lay out nodes grouped by levels (rank columns)
+        const rankNodesMap = new Map<number, string[]>();
+
+        sortedNodes.forEach(n => {
+            const lvl = levels.get(n.id) || 0;
+            if (!rankNodesMap.has(lvl)) {
+                rankNodesMap.set(lvl, []);
+            }
+            rankNodesMap.get(lvl)!.push(n.id);
+        });
+
+        rankNodesMap.forEach((nodeIdsInRank, lvl) => {
+            const x = lvl * levelWidth + 40;
+            nodeIdsInRank.forEach((nodeId, index) => {
+                positions[nodeId] = { x, y: index * rowHeight + 40 };
+            });
+        });
+
+        return positions;
+    }
 };
 
 const InspectorRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
@@ -202,16 +483,16 @@ interface NetworkGraphFlowProps {
 const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps) => {
     const reactFlow = useReactFlow();
     const state = useDesignSync(s => s.state);
+    const projectId = useDesignSync(s => s.projectId);
+    const projectPath = useDesignSync(s => s.projectPath);
+    const projectKey = useDesignSync(s => s.projectKey);
     const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
     const selectFeature = useDesignSync(s => s.selectFeature);
     const setSelectedGroup = useDesignSync(s => s.setSelectedGroup);
     const zoomTo = useDesignSync(s => s.zoomTo);
     const dispatchEvent = useDesignSync(s => s.dispatchEvent);
     const dispatchEvents = useDesignSync(s => s.dispatchEvents);
-    const setDrawingMode = useDesignSync(s => s.setDrawingMode);
     const setActiveParentFeature = useDesignSync(s => s.setActiveParentFeature);
-    const networkConnectionDraft = useDesignSync(s => s.networkConnectionDraft);
-    const clearNetworkConnectionDraft = useDesignSync(s => s.clearNetworkConnectionDraft);
 
     const mode = useNetworkStatusStore(s => s.mode);
     const isStale = useNetworkStatusStore(s => s.isStale);
@@ -223,6 +504,11 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
     const [drilldownIntersectionId, setDrilldownIntersectionId] = useState<string | null>(null);
     const lastSyncedFeatureIdRef = useRef<string | null>(null);
 
+    const [isInspectorOpen, setIsInspectorOpen] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState<NetworkComputedStatus | 'all'>('all');
+    const [layoutPositions, setLayoutPositions] = useState<LayoutPositions>({});
+
     const features = state?.features || {};
     const snapshot = getSnapshot();
     const hasTelemetry = Object.keys(snapshot.nodes || {}).length > 0 || Object.keys(snapshot.edges || {}).length > 0;
@@ -230,6 +516,9 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
     const selectedNodeInfo = evaluation.nodes.find(node => node.id === selectedFeatureId);
     const selectedIntersectionId = drilldownIntersectionId || (isSourceNode(selectedNodeInfo) ? selectedNodeInfo?.id : selectedNodeInfo?.parentFeatureId);
     const selectedIntersection = selectedIntersectionId ? evaluation.nodes.find(node => node.id === selectedIntersectionId) : null;
+    const projectScope = projectKey || projectPath || (projectId ? `id:${projectId}` : null);
+    const layoutScope = `${tab}:${layoutMode}:${tab === 'intersection' ? (selectedIntersectionId || 'root') : 'all'}`;
+    const layoutStorageKey = useMemo(() => getLayoutStorageKey(projectScope, layoutScope), [layoutScope, projectScope]);
 
     const scopedNodes = useMemo(() => {
         if (tab === 'route' || !selectedIntersectionId) return evaluation.nodes;
@@ -260,12 +549,68 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
         });
     }, [evaluation.edges, nodesById, scopedNodeIds, selectedIntersectionId, tab]);
 
+    const displayGraph = useMemo(
+        () => buildDisplayNetworkGraph(scopedNodes, scopedEdges, tab === 'intersection' ? selectedIntersectionId || null : null),
+        [scopedEdges, scopedNodes, selectedIntersectionId, tab]
+    );
+    const displayNodesById = useMemo(
+        () => new Map(displayGraph.nodes.map(node => [node.id, node])),
+        [displayGraph.nodes]
+    );
+
     const selectedNode = selectedEntity?.type === 'node'
         ? evaluation.nodes.find(node => node.id === selectedEntity.id)
+        : null;
+    const selectedDisplayNode = selectedNode
+        ? displayGraph.nodes.find(node => node.memberIds.includes(selectedNode.id)) || null
         : null;
     const selectedEdge = selectedEntity?.type === 'edge'
         ? evaluation.edges.find(edge => edge.id === selectedEntity.id)
         : null;
+
+    const stats = useMemo(() => {
+        const total = scopedNodes.length;
+        let online = 0;
+        let directOffline = 0;
+        let upstreamOffline = 0;
+        let configError = 0;
+        let unknown = 0;
+
+        scopedNodes.forEach(n => {
+            const status = evaluation.nodeStates[n.id]?.status;
+            if (status === 'online') online++;
+            else if (status === 'direct-offline') directOffline++;
+            else if (status === 'upstream-offline') upstreamOffline++;
+            else if (status === 'configuration-error') configError++;
+            else unknown++;
+        });
+
+        return { total, online, directOffline, upstreamOffline, configError, unknown };
+    }, [scopedNodes, evaluation.nodeStates]);
+
+    const hasSearchOrFilter = searchQuery.trim() !== '' || statusFilter !== 'all';
+    const dimmedNodeIds = useMemo(() => {
+        const ids = new Set<string>();
+        if (!hasSearchOrFilter) return ids;
+
+        displayGraph.nodes.forEach(displayNode => {
+            const representative = displayNode.representative;
+            const searchHaystack = [
+                representative.label,
+                representative.telemetryId || '',
+                ...displayNode.memberLabels,
+            ].join(' ').toLowerCase();
+            const matchesSearch = searchHaystack.includes(searchQuery.toLowerCase());
+            const nodeState = evaluation.nodeStates[representative.id];
+            const status = nodeState?.status || 'unknown';
+            const matchesStatus = statusFilter === 'all' || status === statusFilter;
+
+            if (!(matchesSearch && matchesStatus)) {
+                ids.add(displayNode.id);
+            }
+        });
+        return ids;
+    }, [displayGraph.nodes, evaluation.nodeStates, searchQuery, statusFilter, hasSearchOrFilter]);
 
     useEffect(() => {
         if (!selectedFeatureId) {
@@ -276,6 +621,9 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
         lastSyncedFeatureIdRef.current = selectedFeatureId;
         const isNode = evaluation.nodes.some(node => node.id === selectedFeatureId);
         const isEdge = evaluation.edges.some(edge => edge.id === selectedFeatureId);
+        if (isNode || isEdge) {
+            setIsInspectorOpen(true);
+        }
         setSelectedEntity(current => {
             if (current?.type === 'edge' && !selectedFeatureChanged) return current;
             if (isNode) {
@@ -299,49 +647,86 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
         window.requestAnimationFrame(() => reactFlow.fitView({ padding: 0.2, duration: 250 }));
     }, [layoutMode, reactFlow, scopedEdges.length, scopedNodes.length, selectedIntersectionId]);
 
-    const { reactFlowNodes, reactFlowEdges } = useMemo(() => {
-        const positions = layoutGraphNodes(scopedNodes, layoutMode, selectedIntersectionId);
+    useEffect(() => {
+        setLayoutPositions(readLayoutPositions(layoutStorageKey));
+    }, [layoutStorageKey]);
 
-        const nodes: Node[] = scopedNodes.map(node => {
+    useEffect(() => {
+        writeLayoutPositions(layoutStorageKey, layoutPositions);
+    }, [layoutPositions, layoutStorageKey]);
+
+    const { reactFlowNodes, reactFlowEdges } = useMemo(() => {
+        const positions = layoutGraphNodes(scopedNodes, scopedEdges, layoutMode, tab, selectedIntersectionId);
+        const pairEdgeIndexes = new Map<string, number>();
+        const pairEdgeCounts = new Map<string, number>();
+
+        displayGraph.edges.forEach(edge => {
+            const pairKey = [edge.from, edge.to].sort().join('::');
+            pairEdgeCounts.set(pairKey, (pairEdgeCounts.get(pairKey) || 0) + 1);
+        });
+
+        const nodes: Node[] = displayGraph.nodes.map(displayNode => {
+            const node = displayNode.representative;
             const nodeState = evaluation.nodeStates[node.id];
+            const isDimmed = dimmedNodeIds.has(displayNode.id);
+            const isSelected = selectedFeatureId !== null
+                ? displayNode.memberIds.includes(selectedFeatureId) || selectedEntity?.id === node.id
+                : selectedEntity?.id === node.id;
 
             return {
-                id: node.id,
+                id: displayNode.id,
                 type: 'networkNode',
-                position: positions[node.id] || { x: 40, y: 40 },
+                position: layoutPositions[displayNode.id] || positions[node.id] || { x: 40, y: 40 },
+                style: {
+                    opacity: isDimmed ? 0.35 : 1,
+                    transition: 'opacity 300ms ease-out',
+                },
                 data: {
-                    label: node.label,
+                    label: displayNode.memberCount > 1 ? `${node.label} +${displayNode.memberCount - 1}` : node.label,
                     role: node.role === 'intersection' ? 'cabinet' : node.role,
                     status: nodeState?.status || 'unknown',
                     telemetryId: node.telemetryId || node.id,
                     isInferredRole: node.isInferredRole,
-                    isSelected: selectedFeatureId === node.id || selectedEntity?.id === node.id,
+                    isSelected,
                     affectedDownstreamCount: nodeState?.affectedDownstream.length || 0,
+                    memberCount: displayNode.memberCount,
                 },
             };
         });
 
-        const edges: Edge[] = scopedEdges.map(edge => {
+        const edges: any[] = displayGraph.edges.map(displayEdge => {
+            const edge = displayEdge.representative;
             const edgeStatus = edge.kind === 'relationship' ? 'online' : snapshot.edges?.[edge.telemetryId || edge.id] || 'unknown';
-            const color = edge.directionState === 'conflict'
+            const isDimmed = dimmedNodeIds.has(displayEdge.from) || dimmedNodeIds.has(displayEdge.to);
+            const fallbackColor = edge.directionState === 'conflict'
                 ? '#f59e0b'
                 : edge.directionState === 'pending'
                     ? '#a1a1aa'
                     : edgeStatus === 'online'
-                        ? '#34d399'
+                        ? '#10b981'
                         : edgeStatus === 'offline'
-                            ? '#f87171'
+                            ? '#ef4444'
                             : '#71717a';
+            const color = edge.kind === 'relationship' ? '#475569' : getSignalEdgeColor(edge, fallbackColor);
             const { lineStyle, iconType } = getNetworkLinkPresentation(edge);
             const iconLabel = edge.directionState === 'confirmed' ? linkIconLabel[iconType] : undefined;
+            const pairKey = [displayEdge.from, displayEdge.to].sort().join('::');
+            const pairIndex = pairEdgeIndexes.get(pairKey) || 0;
+            const pairCount = pairEdgeCounts.get(pairKey) || 1;
+            pairEdgeIndexes.set(pairKey, pairIndex + 1);
 
             return {
                 id: edge.id,
-                source: edge.from,
-                target: edge.to,
-                animated: edge.kind === 'signal' && edgeStatus === 'online' && edge.directionState === 'confirmed',
+                source: displayEdge.from,
+                target: displayEdge.to,
+                type: 'smoothstep',
+                animated: edge.kind === 'signal' && edgeStatus === 'online' && edge.directionState === 'confirmed' && !isDimmed,
                 selectable: edge.kind === 'signal',
                 interactionWidth: edge.kind === 'signal' ? 18 : 8,
+                pathOptions: {
+                    borderRadius: 14,
+                    offset: pairCount > 1 ? 24 + pairIndex * 18 : 24,
+                },
                 data: {
                     status: edgeStatus,
                     label: edge.label,
@@ -356,19 +741,25 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                     ? { type: MarkerType.ArrowClosed, color }
                     : undefined,
                 style: {
-                    stroke: edge.kind === 'relationship' ? '#64748b' : color,
+                    stroke: color,
                     strokeDasharray: getEdgeStrokeDasharray(edge, lineStyle),
-                    strokeWidth: selectedEntity?.id === edge.id ? 3 : edge.kind === 'relationship' ? 1.5 : 2,
+                    strokeWidth: selectedEntity?.id === edge.id ? 3.5 : edge.kind === 'relationship' ? 1.5 : 2.5,
+                    opacity: isDimmed ? 0.15 : 1,
+                    transition: 'opacity 300ms ease-out',
+                    filter: selectedEntity?.id === edge.id || (edgeStatus === 'online' && edge.kind === 'signal' && !isDimmed)
+                        ? `drop-shadow(0 0 4px ${color})`
+                        : undefined,
                 },
             };
         });
 
         return { reactFlowNodes: nodes, reactFlowEdges: edges };
-    }, [evaluation.nodeStates, layoutMode, scopedEdges, scopedNodes, selectedEntity?.id, selectedFeatureId, selectedIntersectionId, snapshot.edges]);
+    }, [dimmedNodeIds, displayGraph.edges, displayGraph.nodes, evaluation.nodeStates, layoutMode, tab, layoutPositions, scopedEdges, scopedNodes, selectedEntity?.id, selectedFeatureId, selectedIntersectionId, snapshot.edges]);
 
     useEffect(() => {
         if (!selectedFeatureId) return;
-        const selectedFlowNode = reactFlowNodes.find(node => node.id === selectedFeatureId);
+        const selectedDisplayNodeId = displayGraph.displayNodeIdByRawNodeId[selectedFeatureId] || selectedFeatureId;
+        const selectedFlowNode = reactFlowNodes.find(node => node.id === selectedDisplayNodeId);
         if (!selectedFlowNode) return;
 
         window.requestAnimationFrame(() => {
@@ -378,7 +769,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                 { zoom: 1.15, duration: 250 }
             );
         });
-    }, [reactFlow, reactFlowNodes, selectedFeatureId]);
+    }, [displayGraph.displayNodeIdByRawNodeId, reactFlow, reactFlowNodes, selectedFeatureId]);
 
     const selectAndZoomFeature = useCallback((id: string) => {
         selectFeature(id);
@@ -386,20 +777,24 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
     }, [selectFeature, zoomTo]);
 
     const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-        setSelectedEntity({ type: 'node', id: node.id });
-        selectAndZoomFeature(node.id);
+        const displayNode = displayGraph.nodes.find(item => item.id === node.id);
+        const representative = displayNode?.representative || evaluation.nodes.find(item => item.id === node.id);
+        if (!representative) return;
 
-        const graphNode = evaluation.nodes.find(item => item.id === node.id);
-        if (graphNode && isSourceNode(graphNode)) {
-            setDrilldownIntersectionId(graphNode.id);
+        setSelectedEntity({ type: 'node', id: representative.id });
+        setIsInspectorOpen(true);
+        selectAndZoomFeature(representative.id);
+
+        if (isSourceNode(representative)) {
+            setDrilldownIntersectionId(representative.id);
         }
 
         if (mode === 'simulation') {
-            const telemetryId = String(node.data.telemetryId || node.id);
+            const telemetryId = String(representative.telemetryId || representative.id);
             const currentStatus = snapshot.nodes?.[telemetryId] || 'online';
             simulateEvent(telemetryId, 'node', nextStatus(currentStatus));
         }
-    }, [evaluation.nodes, mode, selectAndZoomFeature, simulateEvent, snapshot.nodes]);
+    }, [displayGraph.nodes, evaluation.nodes, mode, selectAndZoomFeature, simulateEvent, snapshot.nodes]);
 
     const handleEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
         event.stopPropagation();
@@ -407,6 +802,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
         if (!graphEdge || graphEdge.kind !== 'signal') return;
 
         setSelectedEntity({ type: 'edge', id: graphEdge.id });
+        setIsInspectorOpen(true);
 
         if (mode === 'simulation') {
             const telemetryId = graphEdge.telemetryId || graphEdge.id;
@@ -417,58 +813,64 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
 
     const handleConnect = useCallback(async (connection: Connection) => {
         if (!connection.source || !connection.target || connection.source === connection.target) return;
+        const sourceDisplayNode = displayNodesById.get(connection.source);
+        const targetDisplayNode = displayNodesById.get(connection.target);
+        const preparedDraft = prepareNetworkConnectionDraft(sourceDisplayNode, targetDisplayNode, tab);
+        if (!sourceDisplayNode || !targetDisplayNode || !preparedDraft) {
+            alert('Khong the bat dau ve ket noi tu node hien tai.');
+            return;
+        }
+
+        const fromEndpointKey = getNetworkEndpointKey(preparedDraft.draft.fromEndpoint);
+        const toEndpointKey = getNetworkEndpointKey(preparedDraft.draft.toEndpoint);
         const duplicateSignal = evaluation.edges.some(edge =>
             edge.kind === 'signal' &&
-            ((edge.from === connection.source && edge.to === connection.target) ||
-                (edge.from === connection.target && edge.to === connection.source))
+            ((edge.fromEndpointKey === fromEndpointKey && edge.toEndpointKey === toEndpointKey) ||
+                (edge.fromEndpointKey === toEndpointKey && edge.toEndpointKey === fromEndpointKey))
         );
         if (duplicateSignal) {
-            alert('Tuyến SignalLine giữa hai đối tượng này đã tồn tại.');
+            alert('Tuyen ket noi giua hai doi tuong nay da ton tai.');
             return;
         }
 
-        const sourceNode = evaluation.nodes.find(node => node.id === connection.source);
-        const targetNode = evaluation.nodes.find(node => node.id === connection.target);
-        const groupId = sourceNode?.feature.group_id || targetNode?.feature.group_id || null;
-        if (groupId) setSelectedGroup(groupId);
-
-        const parentFeatureId = sourceNode?.parentFeatureId || targetNode?.parentFeatureId || (isSourceNode(targetNode) ? targetNode?.id : null) || (isSourceNode(sourceNode) ? sourceNode?.id : null);
-        setActiveParentFeature(parentFeatureId || null);
-
-        if (!sourceNode || !targetNode || !groupId) {
-            alert('Không thể lưu kết nối vì thiếu nhóm của đối tượng.');
+        const groupId = preparedDraft.groupId;
+        if (!groupId) {
+            alert('Khong the luu ket noi vi thieu nhom cua doi tuong.');
             return;
         }
 
-        clearNetworkConnectionDraft();
-        setDrawingMode('none');
+        const group = state?.feature_groups?.[groupId];
+        if (!group) {
+            alert('Khong the luu ket noi vi thieu nhom cua doi tuong.');
+            return;
+        }
 
-        await dispatchEvent({
-            type: 'FeatureCreated',
-            payload: {
-                id: crypto.randomUUID(),
-                layer_id: sourceNode.feature.layer_id || targetNode.feature.layer_id,
-                group_id: groupId,
-                name: `NetworkLink ${sourceNode.label} → ${targetNode.label}`,
-                geom_type: 'NetworkLink',
-                coordinates: null,
-                metadata: JSON.stringify({
-                    infrastructure: { type: 'NetworkLink', status: 'simulated', line_style: 'solid', icon_type: 'arrow' },
-                    network: {
-                        from_feature_id: connection.source,
-                        to_feature_id: connection.target,
-                        direction_mode: 'manual',
-                    },
-                }),
-                properties: {},
-            },
+        setSelectedGroup(groupId);
+        setActiveParentFeature(preparedDraft.activeParentFeatureId || null);
+
+        const { events } = buildNetworkConnectionCreateEvents({
+            sourceNode: sourceDisplayNode,
+            targetNode: targetDisplayNode,
+            draft: preparedDraft.draft,
+            group,
+            selectedGroupId: groupId,
+            activeParentFeatureId: preparedDraft.activeParentFeatureId || null,
+            featuresById: features,
+            createId: () => crypto.randomUUID(),
         });
-    }, [clearNetworkConnectionDraft, dispatchEvent, evaluation.edges, evaluation.nodes, setActiveParentFeature, setDrawingMode, setSelectedGroup]);
 
-    const handleCancelDraft = useCallback(() => {
-        setDrawingMode('none');
-        clearNetworkConnectionDraft();
-    }, [clearNetworkConnectionDraft, setDrawingMode]);
+        await dispatchEvents(events);
+    }, [dispatchEvents, displayNodesById, evaluation.edges, features, setActiveParentFeature, setSelectedGroup, state?.feature_groups, tab]);
+
+    const handleNodeDragStop = useCallback((_: MouseEvent | TouchEvent, node: Node) => {
+        setLayoutPositions(current => ({
+            ...current,
+            [node.id]: {
+                x: node.position.x,
+                y: node.position.y,
+            },
+        }));
+    }, []);
 
     const handleEdgesDelete = useCallback((edges: Edge[]) => {
         const edge = evaluation.edges.find(item => item.id === edges[0]?.id && item.kind === 'signal');
@@ -506,8 +908,8 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
         const { metadata, infrastructure } = getNetworkLinkPresentation(selectedEdge);
         const nextInfrastructure = {
             ...infrastructure,
-            type: infrastructure.type || 'NetworkLink',
-            ...(updates.lineStyle ? { line_style: updates.lineStyle } : {}),
+            type: infrastructure.type || (selectedEdge.sourceType === 'map-polyline' ? 'SignalLine' : 'NetworkLink'),
+            ...((updates.lineStyle && selectedEdge.sourceType !== 'map-polyline') ? { line_style: updates.lineStyle } : {}),
             ...(updates.iconType ? { icon_type: updates.iconType } : {}),
         };
 
@@ -535,58 +937,126 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
         await dispatchEvents(events);
     }, [dispatchEvents, features]);
 
-    const fromDraft = networkConnectionDraft ? evaluation.nodes.find(node => node.id === networkConnectionDraft.fromFeatureId) : null;
-    const toDraft = networkConnectionDraft ? evaluation.nodes.find(node => node.id === networkConnectionDraft.toFeatureId) : null;
     const selectedEdgePresentation = getNetworkLinkPresentation(selectedEdge);
 
     return (
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_320px] overflow-hidden">
-            <div className="relative min-h-0">
+        <div className="relative flex min-h-0 flex-1 overflow-hidden bg-[#070b0e]">
+            <div className="relative min-h-0 flex-1">
                 {tab === 'intersection' && selectedIntersection && (
-                    <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded border border-white/10 bg-zinc-950/90 px-3 py-2 text-[11px] font-semibold text-zinc-200 shadow-lg">
+                    <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/80 px-3 py-2 text-[11px] font-semibold text-zinc-200 shadow-xl backdrop-blur-md">
                         <button
                             onClick={() => setDrilldownIntersectionId(null)}
-                            className="rounded border border-white/10 px-2 py-1 text-zinc-300 hover:bg-white/10"
+                            className="rounded border border-white/10 px-2.5 py-1 text-zinc-300 hover:bg-white/10 hover:text-white transition"
                         >
                             Back
                         </button>
-                        <span className="max-w-[320px] truncate">{selectedIntersection.label}</span>
+                        <span className="max-w-[200px] truncate">{selectedIntersection.label}</span>
                     </div>
                 )}
+
+                <div className="absolute left-4 right-4 top-4 z-10 pointer-events-none flex flex-wrap justify-between gap-3 md:left-4">
+                    {tab === 'intersection' && selectedIntersection ? <div className="w-40" /> : <div />}
+
+                    <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/75 px-3 py-1.5 shadow-xl backdrop-blur-md text-[10.5px]">
+                        <span className="text-zinc-500 font-bold uppercase tracking-wider mr-1">HUD:</span>
+                        <span className="flex items-center gap-1 text-zinc-300 font-medium">
+                            Tong: <strong className="text-zinc-100">{stats.total}</strong>
+                        </span>
+                        <span className="h-3 w-px bg-white/10 mx-1" />
+                        <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                            Online: <strong className="text-emerald-300">{stats.online}</strong>
+                        </span>
+                        <span className="h-3 w-px bg-white/10 mx-1" />
+                        <span className="flex items-center gap-1 text-red-400 font-medium">
+                            <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+                            Direct: <strong className="text-red-300">{stats.directOffline}</strong>
+                        </span>
+                        <span className="h-3 w-px bg-white/10 mx-1" />
+                        <span className="flex items-center gap-1 text-orange-400 font-medium">
+                            <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
+                            Upstream: <strong className="text-orange-300">{stats.upstreamOffline}</strong>
+                        </span>
+                        <span className="h-3 w-px bg-white/10 mx-1" />
+                        <span className="flex items-center gap-1 text-purple-400 font-medium">
+                            <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
+                            Config: <strong className="text-purple-300">{stats.configError}</strong>
+                        </span>
+                    </div>
+
+                    <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/75 p-1 shadow-xl backdrop-blur-md">
+                        <div className="relative flex items-center">
+                            <Search size={12} className="absolute left-2.5 text-zinc-500" />
+                            <input
+                                type="text"
+                                placeholder="Tim nut, telemetry..."
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                className="w-[140px] rounded border border-white/5 bg-black/40 py-1 pl-7 pr-2.5 text-[10.5px] text-zinc-100 placeholder-zinc-500 outline-none focus:border-cyan-400/40 focus:bg-black/60 transition-all duration-200"
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-2 text-zinc-500 hover:text-zinc-300"
+                                >
+                                    <X size={10} />
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="relative flex items-center">
+                            <Filter size={11} className="absolute left-2 text-zinc-500" />
+                            <select
+                                value={statusFilter}
+                                onChange={e => setStatusFilter(e.target.value as any)}
+                                className="rounded border border-white/5 bg-black/40 py-1 pl-6 pr-2 text-[10.5px] text-zinc-300 outline-none hover:bg-black/50 focus:border-cyan-400/40 transition"
+                            >
+                                <option value="all">Tat ca trang thai</option>
+                                <option value="online">Online</option>
+                                <option value="direct-offline">Loi truc tiep</option>
+                                <option value="upstream-offline">Mat upstream</option>
+                                <option value="configuration-error">Chua cau hinh</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <ReactFlow
                     nodes={reactFlowNodes}
                     edges={reactFlowEdges}
                     nodeTypes={nodeTypes}
+                    nodesDraggable
                     onNodeClick={handleNodeClick}
+                    onNodeDragStop={handleNodeDragStop}
                     onEdgeClick={handleEdgeClick}
                     onConnect={handleConnect}
                     onEdgesDelete={handleEdgesDelete}
                     connectionMode={ConnectionMode.Loose}
                     fitView
                     deleteKeyCode={['Backspace', 'Delete']}
-                    className="bg-black/40"
+                    className="bg-[#080c0f]"
                 >
-                    <Background color="#ffffff" gap={16} size={1} variant={BackgroundVariant.Dots} className="opacity-5" />
-                    <Controls className="!border-white/10 !bg-black/60 !fill-white !text-white" />
+                    <Background color="#38bdf8" gap={16} size={1.2} variant={BackgroundVariant.Dots} className="opacity-[0.03]" />
+                    <Controls className="!border-white/10 !bg-zinc-950/80 !fill-zinc-300 !text-zinc-300 !shadow-lg backdrop-blur-md rounded-lg overflow-hidden [&_button]:hover:!bg-white/10" />
                     <MiniMap
                         nodeColor={node => {
                             const status = node.data?.status as NetworkComputedStatus | undefined;
-                            if (status === 'online') return '#34d399';
-                            if (status === 'direct-offline') return '#f87171';
-                            if (status === 'upstream-offline') return '#fb923c';
-                            if (status === 'configuration-error') return '#c084fc';
+                            if (status === 'online') return '#10b981';
+                            if (status === 'direct-offline') return '#ef4444';
+                            if (status === 'upstream-offline') return '#f97316';
+                            if (status === 'configuration-error') return '#a855f7';
                             return '#71717a';
                         }}
-                        className="!border-white/10 !bg-black/80"
-                        maskColor="rgba(0,0,0,0.5)"
+                        className="!border-white/10 !bg-zinc-950/80 !shadow-lg backdrop-blur-md rounded-lg overflow-hidden"
+                        maskColor="rgba(0,0,0,0.6)"
                     />
                 </ReactFlow>
 
                 {scopedNodes.length === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center p-6">
-                        <div className="max-w-md rounded border border-white/10 bg-zinc-950/90 p-5 text-center shadow-2xl">
-                            <Router className="mx-auto mb-3 text-zinc-500" size={28} />
-                            <div className="text-sm font-bold text-zinc-100">Chưa có topology Network</div>
+                    <div className="absolute inset-0 flex items-center justify-center p-6 bg-black/20 backdrop-blur-[1px]">
+                        <div className="max-w-md rounded-xl border border-white/10 bg-zinc-950/80 p-6 text-center shadow-2xl backdrop-blur-md">
+                            <Router className="mx-auto mb-3 text-zinc-500 animate-pulse" size={32} />
+                            <div className="text-sm font-bold text-zinc-100">Chua co topology Network</div>
                             <div className="mt-2 text-xs leading-5 text-zinc-500">
                                 Chua co doi tuong khong phai line/polyline de hien thi trong Network.
                             </div>
@@ -595,193 +1065,213 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                 )}
 
                 {mode === 'realtime' && (isStale || !hasTelemetry) && (
-                    <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded border border-orange-400/30 bg-orange-950/90 px-3 py-2 text-[11px] font-semibold text-orange-100 shadow-lg">
-                        <WifiOff size={14} />
-                        Chưa kết nối telemetry
+                    <div className="absolute left-4 bottom-4 z-10 flex items-center gap-2 rounded-lg border border-orange-500/20 bg-orange-950/85 px-3 py-2 text-[10.5px] font-semibold text-orange-200 shadow-xl backdrop-blur-md">
+                        <WifiOff size={14} className="text-orange-400 animate-pulse" />
+                        Chua ket noi telemetry
                     </div>
                 )}
 
-                {networkConnectionDraft && (
-                    <div className="absolute bottom-6 left-1/2 z-10 -translate-x-1/2">
-                        <div className="flex items-center gap-3 rounded-full border border-cyan-400/30 bg-cyan-950/90 px-4 py-2 text-xs font-medium text-cyan-100 shadow-xl backdrop-blur-md">
-                            <span className="relative flex h-2 w-2">
-                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
-                                <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-500" />
-                            </span>
-                            Đang vẽ tuyến SignalLine từ {fromDraft?.label || networkConnectionDraft.fromFeatureId} đến {toDraft?.label || networkConnectionDraft.toFeatureId}
-                            <button
-                                onClick={handleCancelDraft}
-                                className="ml-1 rounded p-1 transition hover:bg-white/10"
-                                title="Hủy vẽ tuyến"
-                            >
-                                <X size={14} />
-                            </button>
-                        </div>
-                    </div>
+                {/* TOGGLE FLOATING INSPECTOR TRIGGER BUTTON */}
+                {!isInspectorOpen && (
+                    <button
+                        onClick={() => setIsInspectorOpen(true)}
+                        className="absolute right-4 top-4 z-20 flex items-center justify-center rounded-lg border border-white/10 bg-zinc-950/80 p-2.5 text-zinc-300 hover:bg-white/10 hover:text-white shadow-xl backdrop-blur-md transition-all duration-200"
+                        title="Mo Inspector"
+                    >
+                        <PanelRightOpen size={16} />
+                    </button>
                 )}
             </div>
 
-            <aside className="min-h-0 overflow-auto border-l border-white/10 bg-zinc-950/80 p-3">
-                <div className="mb-3 flex items-center justify-between">
-                    <div className="text-[11px] font-bold uppercase tracking-wide text-zinc-300">Inspector</div>
-                    {selectedEdge && selectedEdge.kind === 'signal' && (
-                        <div className="flex items-center gap-1">
-                            {selectedEdge.directionState !== 'confirmed' && (
+            {/* FLOATING COLLAPSIBLE INSPECTOR PANEL */}
+            <aside
+                className={cn(
+                    "absolute right-4 top-4 bottom-4 z-20 w-[320px] flex flex-col min-h-0 rounded-xl border border-white/10 bg-zinc-950/90 shadow-2xl backdrop-blur-lg transition-all duration-300 ease-out",
+                    isInspectorOpen ? "translate-x-0 opacity-100 pointer-events-auto" : "translate-x-[340px] opacity-0 pointer-events-none"
+                )}
+            >
+                {/* Header */}
+                <div className="flex shrink-0 items-center justify-between border-b border-white/5 p-3">
+                    <div className="flex items-center gap-1.5">
+                        <GitBranch size={14} className="text-cyan-400" />
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-300">Inspector</div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        {selectedEdge && selectedEdge.kind === 'signal' && (
+                            <div className="flex items-center gap-1">
+                                {selectedEdge.directionState !== 'confirmed' && (
+                                    <button
+                                        onClick={handleConfirmEdgeDirection}
+                                        className="inline-flex items-center gap-1 rounded bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[9px] font-bold text-emerald-300 hover:bg-emerald-500/20"
+                                    >
+                                        Xac nhan
+                                    </button>
+                                )}
                                 <button
-                                    onClick={handleConfirmEdgeDirection}
-                                    className="inline-flex items-center gap-1 rounded border border-emerald-400/30 px-2 py-1 text-[10px] font-bold text-emerald-300 hover:bg-emerald-500/10"
+                                    onClick={handleReverseEdge}
+                                    className="inline-flex items-center gap-1 rounded bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-[9px] font-bold text-cyan-300 hover:bg-cyan-500/20"
                                 >
-                                    Xác nhận
+                                    Dao chieu
                                 </button>
-                            )}
-                            <button
-                                onClick={handleReverseEdge}
-                                className="inline-flex items-center gap-1 rounded border border-cyan-400/30 px-2 py-1 text-[10px] font-bold text-cyan-300 hover:bg-cyan-500/10"
-                            >
-                                Đảo chiều
-                            </button>
-                            <button
-                                onClick={() => setEdgePendingDelete(selectedEdge)}
-                                className="inline-flex items-center gap-1 rounded border border-red-400/30 px-2 py-1 text-[10px] font-bold text-red-300 hover:bg-red-500/10"
-                            >
-                                <Trash2 size={12} /> Xóa tuyến
-                            </button>
-                        </div>
-                    )}
+                                <button
+                                    onClick={() => setEdgePendingDelete(selectedEdge)}
+                                    className="inline-flex items-center gap-1 rounded bg-red-500/10 border border-red-500/30 p-1 text-[9px] font-bold text-red-300 hover:bg-red-500/20"
+                                    title="Xoa tuyen"
+                                >
+                                    <Trash2 size={11} />
+                                </button>
+                            </div>
+                        )}
+                        <button
+                            onClick={() => setIsInspectorOpen(false)}
+                            className="rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-white transition"
+                            title="Thu gon"
+                        >
+                            <PanelRightClose size={14} />
+                        </button>
+                    </div>
                 </div>
 
-                {!selectedNode && !selectedEdge && (
-                    <div className="rounded border border-white/10 bg-black/20 p-3 text-[11px] leading-5 text-zinc-500">
-                        Chọn một node hoặc tuyến trên graph để xem chi tiết. Kéo từ handle bên phải của node sang handle bên trái của node khác để bắt đầu vẽ SignalLine trên bản đồ.
-                    </div>
-                )}
-
-                {selectedNode && (
-                    <div className="rounded border border-white/10 bg-black/20 p-3">
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                            <div className="flex min-w-0 items-center gap-2">
-                                <span className={cn('h-2.5 w-2.5 rounded-full', statusColor[evaluation.nodeStates[selectedNode.id]?.status || 'unknown'])} />
-                                <div className="min-w-0">
-                                    <div className="truncate text-xs font-bold text-zinc-100">{selectedNode.label}</div>
-                                    <div className="text-[10px] uppercase text-zinc-500">{selectedNode.role}</div>
-                                </div>
-                            </div>
-                            <button
-                                onClick={() => handleSetOrigin(selectedNode.id)}
-                                className={cn(
-                                    'rounded border px-2 py-1 text-[10px] font-bold transition',
-                                    selectedNode.isOrigin
-                                        ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-200'
-                                        : 'border-white/10 text-zinc-300 hover:bg-white/10'
-                                )}
-                            >
-                                {selectedNode.isOrigin ? 'Điểm gốc' : 'Đặt làm gốc'}
-                            </button>
-                        </div>
-                        <InspectorRow label="Trạng thái" value={statusLabel[evaluation.nodeStates[selectedNode.id]?.status || 'unknown']} />
-                        <InspectorRow label="Điểm gốc" value={selectedNode.isOrigin ? 'Đã chọn' : 'Chưa chọn'} />
-                        <InspectorRow label="Telemetry" value={<span className="font-mono">{selectedNode.telemetryId || 'Chưa gán'}</span>} />
-                        <InspectorRow label="Feature" value={<span className="font-mono">{selectedNode.id}</span>} />
-                        <InspectorRow label="Lý do" value={evaluation.nodeStates[selectedNode.id]?.reason || 'Không có'} />
-                        <InspectorRow label="Downstream" value={`${evaluation.nodeStates[selectedNode.id]?.affectedDownstream.length || 0} node`} />
-                    </div>
-                )}
-
-                {selectedEdge && (
-                    <div className="rounded border border-white/10 bg-black/20 p-3">
-                        <div className="mb-3 flex items-center gap-2">
-                            <GitBranch size={14} className="text-cyan-300" />
-                            <div className="min-w-0">
-                                <div className="truncate text-xs font-bold text-zinc-100">{selectedEdge.label}</div>
-                                <div className="text-[10px] uppercase text-zinc-500">
-                                    {selectedEdge.kind === 'relationship'
-                                        ? 'Relationship'
-                                        : edgeSourceLabel[selectedEdge.sourceType]}
-                                </div>
-                            </div>
-                        </div>
-
-                        {selectedEdge.kind === 'signal' && selectedEdge.feature && (
-                            <div className="mb-3 space-y-3 rounded border border-cyan-400/10 bg-cyan-400/5 p-3">
-                                <div>
-                                    <label className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-zinc-400">Ten ket noi</label>
-                                    <input
-                                        key={selectedEdge.id}
-                                        defaultValue={selectedEdge.feature.name || selectedEdge.label}
-                                        onBlur={event => handleUpdateEdgePresentation({ name: event.target.value })}
-                                        className="w-full rounded border border-white/10 bg-black/40 px-2 py-1.5 text-[11px] text-zinc-100 outline-none focus:border-cyan-400/60"
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <label className="block text-[10px] font-bold uppercase tracking-wide text-zinc-400">
-                                        Bieu tuong
-                                        <select
-                                            value={selectedEdgePresentation.iconType}
-                                            onChange={event => handleUpdateEdgePresentation({ iconType: event.target.value as NetworkLinkIcon })}
-                                            className="mt-1 w-full rounded border border-white/10 bg-black/40 px-2 py-1.5 text-[11px] normal-case text-zinc-100 outline-none focus:border-cyan-400/60"
-                                        >
-                                            <option value="arrow">Arrow</option>
-                                            <option value="signal">Signal</option>
-                                            <option value="wireless">Wireless</option>
-                                            <option value="fiber">Fiber</option>
-                                            <option value="none">None</option>
-                                        </select>
-                                    </label>
-                                    <label className="block text-[10px] font-bold uppercase tracking-wide text-zinc-400">
-                                        Loai net
-                                        <select
-                                            value={selectedEdgePresentation.lineStyle}
-                                            onChange={event => handleUpdateEdgePresentation({ lineStyle: event.target.value as NetworkLineStyle })}
-                                            className="mt-1 w-full rounded border border-white/10 bg-black/40 px-2 py-1.5 text-[11px] normal-case text-zinc-100 outline-none focus:border-cyan-400/60"
-                                        >
-                                            <option value="solid">Lien</option>
-                                            <option value="dashed">Net dut</option>
-                                            <option value="dotted">Cham</option>
-                                        </select>
-                                    </label>
-                                </div>
-                            </div>
-                        )}
-
-                        <InspectorRow label="Trang thai" value={selectedEdge.kind === 'relationship' ? 'display-only' : snapshot.edges?.[selectedEdge.telemetryId || selectedEdge.id] || 'unknown'} />
-                        <InspectorRow label="Nguon ket noi" value={edgeSourceLabel[selectedEdge.sourceType]} />
-                        <InspectorRow label="Huong" value={selectedEdge.directionState} />
-                        <InspectorRow label="Nguon" value={<span className="font-mono">{selectedEdge.from}</span>} />
-                        <InspectorRow label="Dich" value={<span className="font-mono">{selectedEdge.to}</span>} />
-                        <InspectorRow label="Telemetry" value={<span className="font-mono">{selectedEdge.telemetryId || 'Chua gan'}</span>} />
-                        <InspectorRow label="Feature" value={<span className="font-mono">{selectedEdge.id}</span>} />
-                        {selectedEdge.directionState !== 'confirmed' && (
-                            <div className="mt-3 rounded border border-amber-400/30 bg-amber-500/10 p-2 text-[11px] leading-4 text-amber-100">
-                                Tuyến này chưa có hướng hợp lệ cho downstream. Hãy chọn lại điểm gốc hoặc xác nhận thủ công.
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                <div className="mt-3 rounded border border-white/10 bg-black/20 p-3">
-                    <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-zinc-300">
-                        <TriangleAlert size={13} /> Cấu hình
-                    </div>
-                    {evaluation.diagnostics.length === 0 ? (
-                        <div className="flex items-center gap-2 text-[11px] text-emerald-300">
-                            <CheckCircle2 size={13} /> Không phát hiện lỗi topology.
-                        </div>
-                    ) : (
-                        <div className="space-y-2">
-                            {evaluation.diagnostics.map((diagnostic, index) => (
-                                <button
-                                    key={`${diagnostic.type}-${diagnostic.edgeId || diagnostic.featureId || index}`}
-                                    onClick={() => handleDiagnosticSelect(diagnostic.edgeId || diagnostic.featureId)}
-                                    className="w-full rounded border border-purple-400/30 bg-purple-500/10 p-2 text-left text-[11px] leading-4 text-purple-100 hover:bg-purple-500/20"
-                                >
-                                    <div className="mb-1 flex items-center gap-1 font-bold">
-                                        <AlertTriangle size={12} /> {diagnostic.type}
-                                    </div>
-                                    {diagnostic.message}
-                                </button>
-                            ))}
+                {/* Content Area */}
+                <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 scrollbar-thin">
+                    {!selectedNode && !selectedEdge && (
+                        <div className="rounded-lg border border-white/5 bg-black/25 p-3 text-[10.5px] leading-relaxed text-zinc-500">
+                            Chon mot node hoac tuyen tren graph de xem chi tiet. Keo tu handle ben phai cua node sang handle ben trai cua node khac de tao ket noi trong Network.
                         </div>
                     )}
+
+                    {selectedNode && (
+                        <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2 shadow-inner">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <span className={cn('h-2.5 w-2.5 rounded-full shadow-[0_0_8px_currentColor]', statusColor[evaluation.nodeStates[selectedNode.id]?.status || 'unknown'])} />
+                                    <div className="min-w-0">
+                                        <div className="truncate text-xs font-bold text-zinc-100">
+                                            {selectedDisplayNode && selectedDisplayNode.memberCount > 1
+                                                ? `${selectedNode.label} +${selectedDisplayNode.memberCount - 1}`
+                                                : selectedNode.label}
+                                        </div>
+                                        <div className="text-[9px] uppercase tracking-wider font-bold text-zinc-500">{selectedNode.role}</div>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => handleSetOrigin(selectedNode.id)}
+                                    className={cn(
+                                        'rounded border px-2 py-0.5 text-[9px] font-bold transition duration-200',
+                                        selectedNode.isOrigin
+                                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                                            : 'border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                    )}
+                                >
+                                    {selectedNode.isOrigin ? 'Diem goc' : 'Dat lam goc'}
+                                </button>
+                            </div>
+                            <InspectorRow label="Trang thai" value={<span className="font-semibold">{statusLabel[evaluation.nodeStates[selectedNode.id]?.status || 'unknown']}</span>} />
+                            <InspectorRow label="Diem goc" value={selectedNode.isOrigin ? <span className="text-emerald-400 font-bold">Da chon</span> : 'Chua chon'} />
+                            <InspectorRow label="Telemetry" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedNode.telemetryId || 'Chua gan'}</span>} />
+                            <InspectorRow label="Feature" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedNode.id}</span>} />
+                            <InspectorRow label="Ly do" value={<span className="text-zinc-300">{evaluation.nodeStates[selectedNode.id]?.reason || 'Khong co'}</span>} />
+                            <InspectorRow label="Downstream" value={<span className="font-bold text-zinc-100">{evaluation.nodeStates[selectedNode.id]?.affectedDownstream.length || 0} node</span>} />
+                        </div>
+                    )}
+
+                    {selectedEdge && (
+                        <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2 shadow-inner">
+                            <div className="mb-3 flex items-center gap-2">
+                                <GitBranch size={14} className="text-cyan-400" />
+                                <div className="min-w-0">
+                                    <div className="truncate text-xs font-bold text-zinc-100">{selectedEdge.label}</div>
+                                    <div className="text-[9px] uppercase tracking-wider font-bold text-zinc-500">
+                                        {selectedEdge.kind === 'relationship'
+                                            ? 'Relationship'
+                                            : edgeSourceLabel[selectedEdge.sourceType]}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {selectedEdge.kind === 'signal' && selectedEdge.feature && (
+                                <div className="mb-3 space-y-3 rounded-lg border border-cyan-500/10 bg-cyan-500/5 p-3">
+                                    <div>
+                                        <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-zinc-500">Ten ket noi</label>
+                                        <input
+                                            key={selectedEdge.id}
+                                            defaultValue={selectedEdge.feature.name || selectedEdge.label}
+                                            onBlur={event => handleUpdateEdgePresentation({ name: event.target.value })}
+                                            className="w-full rounded border border-white/15 bg-black/45 px-2.5 py-1.5 text-[11px] text-zinc-100 outline-none focus:border-cyan-400/40 focus:bg-black/60 transition"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                                            Bieu tuong
+                                            <select
+                                                value={selectedEdgePresentation.iconType}
+                                                onChange={event => handleUpdateEdgePresentation({ iconType: event.target.value as NetworkLinkIcon })}
+                                                className="mt-1 w-full rounded border border-white/15 bg-black/45 px-2 py-1 text-[11px] normal-case text-zinc-100 outline-none focus:border-cyan-400/40 focus:bg-black/60 transition"
+                                            >
+                                                <option value="arrow">Arrow</option>
+                                                <option value="signal">Signal</option>
+                                                <option value="wireless">Wireless</option>
+                                                <option value="fiber">Fiber</option>
+                                                <option value="none">None</option>
+                                            </select>
+                                        </label>
+                                        <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                                            Loai net
+                                            <select
+                                                value={selectedEdge.sourceType === 'map-polyline' ? 'solid' : selectedEdgePresentation.lineStyle}
+                                                onChange={event => handleUpdateEdgePresentation({ lineStyle: event.target.value as NetworkLineStyle })}
+                                                disabled={selectedEdge.sourceType === 'map-polyline'}
+                                                className="mt-1 w-full rounded border border-white/15 bg-black/45 px-2 py-1 text-[11px] normal-case text-zinc-100 outline-none focus:border-cyan-400/40 focus:bg-black/60 transition"
+                                            >
+                                                <option value="solid">Lien</option>
+                                                <option value="dashed">Net dut</option>
+                                                <option value="dotted">Cham</option>
+                                            </select>
+                                        </label>
+                                    </div>
+                                </div>
+                            )}
+
+                            <InspectorRow label="Trang thai" value={<span className="font-semibold">{selectedEdge.kind === 'relationship' ? 'display-only' : snapshot.edges?.[selectedEdge.telemetryId || selectedEdge.id] || 'unknown'}</span>} />
+                            <InspectorRow label="Nguon ket noi" value={edgeSourceLabel[selectedEdge.sourceType]} />
+                            <InspectorRow label="Huong" value={<span className="capitalize">{selectedEdge.directionState}</span>} />
+                            <InspectorRow label="Nguon" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.from}</span>} />
+                            <InspectorRow label="Dich" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.to}</span>} />
+                            <InspectorRow label="Telemetry" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.telemetryId || 'Chua gan'}</span>} />
+                            <InspectorRow label="Feature" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.id}</span>} />
+                            {selectedEdge.directionState !== 'confirmed' && (
+                                <div className="mt-3 rounded border border-amber-500/20 bg-amber-500/10 p-2.5 text-[10px] leading-relaxed text-amber-200 shadow-inner">
+                                    Tuyen nay chua co huong hop le cho downstream. Hay chon lai diem goc hoac xac nhan thu cong.
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2">
+                        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-300">
+                            <TriangleAlert size={13} className="text-zinc-500" /> Cau hinh
+                        </div>
+                        {evaluation.diagnostics.length === 0 ? (
+                            <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-400 font-semibold bg-emerald-500/5 border border-emerald-500/15 p-2 rounded-lg">
+                                <CheckCircle2 size={13} /> Khong phat hien loi topology.
+                            </div>
+                        ) : (
+                            <div className="space-y-1.5">
+                                {evaluation.diagnostics.map((diagnostic, index) => (
+                                    <button
+                                        key={`${diagnostic.type}-${diagnostic.edgeId || diagnostic.featureId || index}`}
+                                        onClick={() => handleDiagnosticSelect(diagnostic.edgeId || diagnostic.featureId)}
+                                        className="w-full rounded-lg border border-purple-500/20 bg-purple-500/5 p-2.5 text-left text-[10.5px] leading-relaxed text-purple-200 hover:bg-purple-500/15 hover:border-purple-500/35 transition duration-200"
+                                    >
+                                        <div className="mb-1 flex items-center gap-1 font-bold text-purple-400">
+                                            <AlertTriangle size={12} /> {diagnostic.type}
+                                        </div>
+                                        {diagnostic.message}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </aside>
 
@@ -818,7 +1308,7 @@ export const NetworkGraphPanel: React.FC = () => {
                     <div>
                         <div className="text-xs font-bold uppercase tracking-wide">Network Graph</div>
                         <div className="flex items-center gap-2 text-[10px] text-zinc-500">
-                            <span>Công cụ vận hành và chỉnh topology</span>
+                            <span>Cong cu van hanh va chinh topology</span>
                             {mode === 'realtime' && isStale && (
                                 <span className="rounded border border-orange-500/30 bg-orange-500/10 px-1.5 py-0.5 text-[9px] font-bold text-orange-300">
                                     stale
@@ -829,10 +1319,10 @@ export const NetworkGraphPanel: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-1">
-                    <button className="rounded border border-white/10 p-1.5 text-zinc-300 hover:bg-white/10" onClick={onPin} title={isPinned ? 'Bỏ ghim' : 'Ghim'}>
+                    <button className="rounded border border-white/10 p-1.5 text-zinc-300 hover:bg-white/10" onClick={onPin} title={isPinned ? 'Bo ghim' : 'Ghim'}>
                         {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
                     </button>
-                    <button className="rounded border border-white/10 p-1.5 text-zinc-300 hover:bg-white/10" onClick={onClose} title="Đóng">
+                    <button className="rounded border border-white/10 p-1.5 text-zinc-300 hover:bg-white/10" onClick={onClose} title="Dong">
                         <X size={14} />
                     </button>
                 </div>
@@ -842,10 +1332,10 @@ export const NetworkGraphPanel: React.FC = () => {
                 <div className="flex items-center gap-2">
                     <div className="flex rounded border border-white/10 bg-black/20 p-0.5 text-[11px] font-semibold">
                         <button className={cn('rounded px-3 py-1', tab === 'intersection' ? 'bg-cyan-400 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setTab('intersection')}>
-                            Nút giao
+                            Nut giao
                         </button>
                         <button className={cn('rounded px-3 py-1', tab === 'route' ? 'bg-cyan-400 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setTab('route')}>
-                            Toàn tuyến
+                            Toan tuyen
                         </button>
                     </div>
                     <button
@@ -891,5 +1381,6 @@ export const NetworkGraphPanel: React.FC = () => {
         </div>
     );
 };
+
 
 

@@ -10,6 +10,7 @@ import { VisibilityTool } from "@DESIGN/features/map/MapLayerComponents/Visibili
 import { SystemConfigPanel } from "@DESIGN/features/map/Palette/SystemConfigPanel";
 import { PaletteProvider } from "@DESIGN/features/map/Palette/PaletteContext";
 import { Intersection, PolylineIcon } from "@DESIGN/components/icons/MapIcons";
+import { useDrawingInteraction } from "@DESIGN/hooks/useDrawingInteraction";
 import { Portal } from "./Portal";
 
 interface CommonRibbonProps {
@@ -67,7 +68,22 @@ export const DesignRibbonTools = ({
     selectedGroupId: string | null;
     toggleCoordinatePanel: () => void; isCoordinatePanelOpen: boolean;
     onOpenStandalone: (view: any) => void; onExport: () => void; onOpenReport: () => void;
-}) => (
+}) => {
+    const { finishDrawingSession } = useDrawingInteraction();
+
+    const handleToolModeChange = async (nextMode: 'none' | 'point' | 'polyline' | 'image' | 'intersection' | 'move' | 'print_area') => {
+        if (drawingMode === nextMode) return;
+
+        if (drawingMode === 'polyline' && nextMode !== 'polyline') {
+            await finishDrawingSession();
+        }
+
+        if (nextMode !== 'none') {
+            setDrawingMode(nextMode);
+        }
+    };
+
+    return (
     <>
         <ToolGroup label="HISTORY">
             <ToolButton onClick={undo} icon={Undo2} label="UNDO" />
@@ -112,12 +128,12 @@ export const DesignRibbonTools = ({
         </ToolGroup>
         <RibbonSeparator />
         <ToolGroup label="DRAWING TOOLS">
-            <ToolButton onClick={() => setDrawingMode('none')} active={drawingMode === 'none'} icon={MousePointer2} label="CHỌN" />
-            <ToolButton onClick={() => setDrawingMode('move')} active={drawingMode === 'move'} icon={Move} label="DI CHUYỂN" />
-            <ToolButton onClick={() => setDrawingMode('intersection')} active={drawingMode === 'intersection'} disabled={!selectedGroupId} icon={Intersection} label="NÚT GIAO" />
-            <ToolButton onClick={() => setDrawingMode('point')} active={drawingMode === 'point'} disabled={!selectedGroupId} icon={MapPin} label="ĐIỂM" />
-            <ToolButton onClick={() => setDrawingMode('polyline')} active={drawingMode === 'polyline'} disabled={!selectedGroupId} icon={PolylineIcon} label="POLYLINE" />
-            <ToolButton onClick={() => setDrawingMode('image')} active={drawingMode === 'image'} disabled={!selectedGroupId} icon={Camera} label="CAMERA" />
+            <ToolButton onClick={() => void handleToolModeChange('none')} active={drawingMode === 'none'} icon={MousePointer2} label="CHỌN" />
+            <ToolButton onClick={() => void handleToolModeChange('move')} active={drawingMode === 'move'} icon={Move} label="DI CHUYỂN" />
+            <ToolButton onClick={() => void handleToolModeChange('intersection')} active={drawingMode === 'intersection'} disabled={!selectedGroupId} icon={Intersection} label="NÚT GIAO" />
+            <ToolButton onClick={() => void handleToolModeChange('point')} active={drawingMode === 'point'} disabled={!selectedGroupId} icon={MapPin} label="ĐIỂM" />
+            <ToolButton onClick={() => void handleToolModeChange('polyline')} active={drawingMode === 'polyline'} disabled={!selectedGroupId} icon={PolylineIcon} label="POLYLINE" />
+            <ToolButton onClick={() => void handleToolModeChange('image')} active={drawingMode === 'image'} disabled={!selectedGroupId} icon={Camera} label="CAMERA" />
         </ToolGroup>
         <RibbonSeparator />
         <ToolGroup label="VISIBILITY">
@@ -151,7 +167,8 @@ export const DesignRibbonTools = ({
             />
         </ToolGroup>
     </>
-);
+    );
+};
 
 export const ContractRibbonTools = ({
     enableAi, setEnableAi, onReleaseAiMemory,
@@ -222,3 +239,4 @@ export const GraphRibbonTools = ({
         </ToolGroup>
     </>
 );
+

@@ -23,6 +23,23 @@ export type FeatureProperties = Record<string, FeaturePropertyValue>;
 
 export type IconType = 'default' | 'cctv' | 'ptz' | 'speed' | 'lpr' | 'intersection';
 
+export type NetworkFeatureEndpointMetadata = {
+  type: 'feature';
+  id: string;
+};
+
+export type NetworkSharedPointEndpointMetadata = {
+  type: 'shared-point';
+  id: string;
+  intersection_id: string;
+  member_ids: string[];
+  coordinate: PointCoordinates;
+};
+
+export type NetworkEndpointMetadata =
+  | NetworkFeatureEndpointMetadata
+  | NetworkSharedPointEndpointMetadata;
+
 export interface VertexMetadata {
   description?: string;
   imageUrl?: string;
@@ -89,6 +106,8 @@ export interface FeatureMetadata {
     telemetry_id?: string;
     from_feature_id?: string;
     to_feature_id?: string;
+    from_endpoint?: NetworkEndpointMetadata;
+    to_endpoint?: NetworkEndpointMetadata;
     is_origin?: boolean;
     direction_mode?: 'auto' | 'manual';
   };

@@ -8,6 +8,13 @@ import {
     isSourceRole,
     type NetworkRole,
 } from './networkTopology';
+import {
+    createFeatureEndpointRef,
+    getNetworkEndpointKey,
+    getNetworkEndpointsFromMetadata,
+    getRepresentativeFeatureIdForEndpoint,
+    type NetworkEndpointRef,
+} from './NetworkEndpoint';
 
 export type NetworkEntityStatus = 'online' | 'offline' | 'unknown';
 export type NetworkComputedStatus =
@@ -43,6 +50,10 @@ export interface NetworkEdge {
     sourceType: 'map-polyline' | 'network-drawn';
     telemetryId?: string;
     feature?: FeatureState;
+    fromEndpoint: NetworkEndpointRef;
+    toEndpoint: NetworkEndpointRef;
+    fromEndpointKey: string;
+    toEndpointKey: string;
     directionMode: 'auto' | 'manual' | 'legacy';
     directionState: 'confirmed' | 'pending' | 'conflict';
 }
@@ -79,6 +90,7 @@ export interface NetworkEvaluation extends NetworkGraph {
 }
 
 type NetworkComponent = { nodeIds: string[]; edgeIds: string[]; originIds: string[] };
+type EdgePairEntry = { id: string; sourceType: NetworkEdge['sourceType'] };
 
 const parseMetadata = (metadata: FeatureState['metadata']): FeatureMetadata => {
     if (!metadata) return {};
@@ -232,7 +244,7 @@ export const NetworkGraphService = {
         const nodes = mapNodes(featuresById);
         const diagnostics: NetworkDiagnostic[] = [];
         const nodeIds = new Set(nodes.map(node => node.id));
-        const edgePairs = new Map<string, string>();
+        const edgePairs = new Map<string, EdgePairEntry>();
         const duplicateEdgeIds = new Set<string>();
         const rawEdges = collectNetworkEdges(featuresById, nodeIds);
         const edgeMap = new Map<string, NetworkEdge>();
@@ -241,10 +253,8 @@ export const NetworkGraphService = {
             const metadata = parseMetadata(feature.metadata);
             if (!isNetworkEdgeFeature(feature, metadata)) continue;
 
-            const from = metadata.network?.from_feature_id;
-            const to = metadata.network?.to_feature_id;
-
-            if (!from || !to) {
+            const { fromEndpoint, toEndpoint } = getNetworkEndpointsFromMetadata(metadata);
+            if (!fromEndpoint || !toEndpoint) {
                 diagnostics.push({
                     type: 'missing-endpoint',
                     edgeId: feature.id,
@@ -252,8 +262,18 @@ export const NetworkGraphService = {
                 });
                 continue;
             }
+            const from = getRepresentativeFeatureIdForEndpoint(fromEndpoint, featuresById);
+            const to = getRepresentativeFeatureIdForEndpoint(toEndpoint, featuresById);
+            if (!from || !to) {
+                diagnostics.push({
+                    type: 'unknown-node',
+                    edgeId: feature.id,
+                    message: `Network link ${feature.id} references unknown node(s).`,
+                });
+                continue;
+            }
 
-            if (from === to) {
+            if (getNetworkEndpointKey(fromEndpoint) === getNetworkEndpointKey(toEndpoint)) {
                 diagnostics.push({
                     type: 'self-loop',
                     edgeId: feature.id,
@@ -272,19 +292,28 @@ export const NetworkGraphService = {
                 continue;
             }
 
-            const pairKey = `${from}->${to}`;
-            const previousEdgeId = edgePairs.get(pairKey);
-            if (previousEdgeId) {
-                duplicateEdgeIds.add(feature.id);
+            const pairKey = `${getNetworkEndpointKey(fromEndpoint)}->${getNetworkEndpointKey(toEndpoint)}`;
+            const sourceType = getEdgeSourceType(feature, metadata);
+            const previousEdge = edgePairs.get(pairKey);
+            if (previousEdge) {
+                const shouldPreferCurrent = previousEdge.sourceType === 'network-drawn' && sourceType === 'map-polyline';
+                const duplicateEdgeId = shouldPreferCurrent ? previousEdge.id : feature.id;
+
+                duplicateEdgeIds.add(duplicateEdgeId);
                 diagnostics.push({
                     type: 'duplicate-edge',
-                    edgeId: feature.id,
-                    message: `Network link ${feature.id} duplicates ${previousEdgeId}.`,
+                    edgeId: duplicateEdgeId,
+                    message: shouldPreferCurrent
+                        ? `Network link ${previousEdge.id} duplicates ${feature.id}.`
+                        : `Network link ${feature.id} duplicates ${previousEdge.id}.`,
                 });
+                if (shouldPreferCurrent) {
+                    edgePairs.set(pairKey, { id: feature.id, sourceType });
+                }
                 continue;
             }
 
-            edgePairs.set(pairKey, feature.id);
+            edgePairs.set(pairKey, { id: feature.id, sourceType });
         }
 
         for (const edge of rawEdges) {
@@ -298,6 +327,10 @@ export const NetworkGraphService = {
                 sourceType: getEdgeSourceType(edge.feature, edge.metadata),
                 telemetryId: edge.metadata.network?.telemetry_id,
                 feature: edge.feature,
+                fromEndpoint: edge.fromEndpoint,
+                toEndpoint: edge.toEndpoint,
+                fromEndpointKey: edge.fromEndpointKey,
+                toEndpointKey: edge.toEndpointKey,
                 directionMode: edge.directionMode,
                 directionState: edge.directionMode === 'legacy' || edge.directionMode === 'manual' ? 'confirmed' : 'pending',
             });
@@ -320,11 +353,13 @@ export const NetworkGraphService = {
             if (!resolvedFrom || !resolvedTo || resolvedFrom === resolvedTo) continue;
             if (!nodeIds.has(resolvedFrom) || !nodeIds.has(resolvedTo)) continue;
 
-            const pairKey = `${resolvedFrom}->${resolvedTo}`;
-            const reversePairKey = `${resolvedTo}->${resolvedFrom}`;
+            const fromEndpoint = createFeatureEndpointRef(resolvedFrom);
+            const toEndpoint = createFeatureEndpointRef(resolvedTo);
+            const pairKey = `${getNetworkEndpointKey(fromEndpoint)}->${getNetworkEndpointKey(toEndpoint)}`;
+            const reversePairKey = `${getNetworkEndpointKey(toEndpoint)}->${getNetworkEndpointKey(fromEndpoint)}`;
             if (edgePairs.has(pairKey) || edgePairs.has(reversePairKey)) continue;
 
-            edgePairs.set(pairKey, feature.id);
+            edgePairs.set(pairKey, { id: feature.id, sourceType: 'map-polyline' });
             edgeMap.set(feature.id, {
                 id: feature.id,
                 label: feature.name || feature.id,
@@ -334,6 +369,10 @@ export const NetworkGraphService = {
                 sourceType: 'map-polyline',
                 telemetryId: metadata.network?.telemetry_id,
                 feature,
+                fromEndpoint,
+                toEndpoint,
+                fromEndpointKey: getNetworkEndpointKey(fromEndpoint),
+                toEndpointKey: getNetworkEndpointKey(toEndpoint),
                 directionMode: 'auto',
                 directionState: 'pending',
             });
@@ -432,10 +471,22 @@ export const NetworkGraphService = {
             ? sourceNodes
             : graph.nodes.filter(node => {
                 const component = componentByNode.get(node.id);
+                if (!component) return false;
                 const componentHasAutoEdges = graph.edges.some(edge =>
-                    component?.edgeIds.includes(edge.id) && edge.directionMode === 'auto'
+                    component.edgeIds.includes(edge.id) && edge.directionMode === 'auto'
                 );
-                return !componentHasAutoEdges && isSourceRole(node.role);
+                if (componentHasAutoEdges) return false;
+
+                const hasCabinet = component.nodeIds.some(id => {
+                    const n = graph.nodes.find(item => item.id === id);
+                    return n && n.role === 'cabinet';
+                });
+
+                if (hasCabinet) {
+                    return node.role === 'cabinet';
+                }
+
+                return isSourceRole(node.role);
             });
 
         for (const source of fallbackSourceNodes) {

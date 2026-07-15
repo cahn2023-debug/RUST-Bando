@@ -5,6 +5,7 @@ import type {
     DesignBulkActionResponse,
     SelectionSummary
 } from '@CONTRACT/designTypes';
+import type { NetworkConnectionDraft } from '../network/NetworkEndpoint';
 
 export type {
     DesignEventType,
@@ -67,7 +68,7 @@ export type DrawingSlice = {
     currentDrawingSnapIds: (string | null)[];
     snappedPoint: { x: number, y: number, id?: string } | null;
     activeParentFeatureId: string | null;
-    networkConnectionDraft: { fromFeatureId: string; toFeatureId: string } | null;
+    networkConnectionDraft: NetworkConnectionDraft | null;
 
     setDrawingMode: (mode: DrawingSlice['drawingMode']) => void;
     setEditingFeatureId: (id: string | null) => void;
@@ -75,7 +76,7 @@ export type DrawingSlice = {
     addDrawingPoint: (lat: number, lng: number, snapId?: string | null) => void;
     clearDrawingPoints: () => void;
     setSnappedPoint: (point: DrawingSlice['snappedPoint']) => void;
-    setNetworkConnectionDraft: (draft: { fromFeatureId: string; toFeatureId: string } | null) => void;
+    setNetworkConnectionDraft: (draft: NetworkConnectionDraft | null) => void;
     clearNetworkConnectionDraft: () => void;
 
     // High-level drawing actions

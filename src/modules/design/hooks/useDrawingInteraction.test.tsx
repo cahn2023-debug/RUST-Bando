@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { useDrawingInteraction } from './useDrawingInteraction';
+import { createFeatureEndpointRef } from '@DESIGN/features/map/network/NetworkEndpoint';
 
 vi.mock('@tauri-apps/api/event', () => ({
     emit: vi.fn(),
@@ -58,10 +59,14 @@ const getMetadataFromCall = (dispatchEvent: ReturnType<typeof vi.fn>, callIndex 
 
 describe('useDrawingInteraction', () => {
     let dispatchEvent: ReturnType<typeof vi.fn>;
+    let queueEvent: ReturnType<typeof vi.fn>;
+    let queueEvents: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
         vi.clearAllMocks();
         dispatchEvent = vi.fn().mockResolvedValue(undefined);
+        queueEvent = vi.fn().mockResolvedValue(undefined);
+        queueEvents = vi.fn().mockResolvedValue(undefined);
         useDesignSync.setState({
             state: makeState() as any,
             drawingMode: 'none',
@@ -71,6 +76,8 @@ describe('useDrawingInteraction', () => {
             currentDrawingSnapIds: [],
             dispatchEvent: dispatchEvent as any,
             dispatchEvents: vi.fn().mockResolvedValue(undefined) as any,
+            queueEvent: queueEvent as any,
+            queueEvents: queueEvents as any,
         });
     });
 
@@ -248,12 +255,36 @@ describe('useDrawingInteraction', () => {
         expect(useDesignSync.getState().drawingMode).toBe('none');
     });
 
+    it('finalizes the current polyline session instead of dropping a network draft on finish', async () => {
+        useDesignSync.setState({
+            drawingMode: 'polyline',
+            currentDrawingPoints: [[20, 10], [21, 11]],
+            currentDrawingSnapIds: ['cabinet-1', 'intersection-1'],
+            networkConnectionDraft: {
+                fromEndpoint: createFeatureEndpointRef('cabinet-1'),
+                toEndpoint: createFeatureEndpointRef('intersection-1'),
+            },
+        });
+        const { result } = renderHook(() => useDrawingInteraction());
+
+        await act(async () => {
+            result.current.finishDrawingSession();
+        });
+
+        expect(queueEvent).toHaveBeenCalledTimes(1);
+        expect(useDesignSync.getState().networkConnectionDraft).toBeNull();
+        expect(useDesignSync.getState().drawingMode).toBe('none');
+    });
+
     it('finalizes a network connection draft as a SignalLine with explicit endpoints', async () => {
         useDesignSync.setState({
             drawingMode: 'polyline',
             currentDrawingPoints: [[20, 10], [21, 11]],
             currentDrawingSnapIds: ['cabinet-1', 'intersection-1'],
-            networkConnectionDraft: { fromFeatureId: 'cabinet-1', toFeatureId: 'intersection-1' },
+            networkConnectionDraft: {
+                fromEndpoint: createFeatureEndpointRef('cabinet-1'),
+                toEndpoint: createFeatureEndpointRef('intersection-1'),
+            },
         });
         const { result } = renderHook(() => useDrawingInteraction());
 
@@ -261,8 +292,9 @@ describe('useDrawingInteraction', () => {
             await result.current.finalizePolyline();
         });
 
-        expect(dispatchEvent).toHaveBeenCalledTimes(1);
-        expect(dispatchEvent.mock.calls[0][0]).toMatchObject({
+        expect(queueEvent).toHaveBeenCalledTimes(1);
+        expect(dispatchEvent).not.toHaveBeenCalled();
+        expect(queueEvent.mock.calls[0][0]).toMatchObject({
             type: 'FeatureCreated',
             payload: {
                 layer_id: 'layer-1',
@@ -272,11 +304,13 @@ describe('useDrawingInteraction', () => {
                 coordinates: JSON.stringify([[20, 10], [21, 11]]),
             },
         });
-        expect(getMetadataFromCall(dispatchEvent)).toMatchObject({
+        expect(getMetadataFromCall(queueEvent)).toMatchObject({
             infrastructure: { type: 'SignalLine' },
             network: {
                 from_feature_id: 'cabinet-1',
                 to_feature_id: 'intersection-1',
+                from_endpoint: createFeatureEndpointRef('cabinet-1'),
+                to_endpoint: createFeatureEndpointRef('intersection-1'),
                 direction_mode: 'auto',
             },
             start_node_id: 'cabinet-1',
@@ -311,9 +345,9 @@ describe('useDrawingInteraction', () => {
     });
 
     it('updates device parent in the same batch when a device connects directly to a source node', async () => {
-        const dispatchEvents = vi.fn().mockResolvedValue(undefined);
+        const batchedQueueEvents = vi.fn().mockResolvedValue(undefined);
         useDesignSync.setState({
-            dispatchEvents: dispatchEvents as any,
+            queueEvents: batchedQueueEvents as any,
             drawingMode: 'polyline',
             currentDrawingPoints: [[20, 10], [22, 12]],
             currentDrawingSnapIds: ['cabinet-1', 'camera-1'],
@@ -324,8 +358,8 @@ describe('useDrawingInteraction', () => {
             await result.current.finalizePolyline();
         });
 
-        expect(dispatchEvents).toHaveBeenCalledTimes(1);
-        const events = dispatchEvents.mock.calls[0][0];
+        expect(batchedQueueEvents).toHaveBeenCalledTimes(1);
+        const events = batchedQueueEvents.mock.calls[0][0];
         expect(events).toHaveLength(2);
         expect(events[0]).toMatchObject({
             type: 'FeatureUpdated',
@@ -345,9 +379,9 @@ describe('useDrawingInteraction', () => {
     });
 
     it('creates a SignalLine when a point snaps to an existing SignalLine branch', async () => {
-        const dispatchEventSingle = vi.fn().mockResolvedValue(undefined);
+        const queuedEventSingle = vi.fn().mockResolvedValue(undefined);
         useDesignSync.setState({
-            dispatchEvent: dispatchEventSingle as any,
+            queueEvent: queuedEventSingle as any,
             dispatchEvents: vi.fn().mockResolvedValue(undefined) as any,
             state: {
                 ...makeState(),
@@ -379,8 +413,8 @@ describe('useDrawingInteraction', () => {
             await result.current.finalizePolyline();
         });
 
-        expect(dispatchEventSingle).toHaveBeenCalledTimes(1);
-        const metadata = JSON.parse(dispatchEventSingle.mock.calls[0][0].payload.metadata);
+        expect(queuedEventSingle).toHaveBeenCalledTimes(1);
+        const metadata = JSON.parse(queuedEventSingle.mock.calls[0][0].payload.metadata);
         expect(metadata.infrastructure).toMatchObject({ type: 'SignalLine' });
         expect(metadata.network).toMatchObject({
             from_feature_id: 'cabinet-1',
@@ -396,7 +430,10 @@ describe('useDrawingInteraction', () => {
             selectedGroupId: null,
             currentDrawingPoints: [[20, 10], [21, 11]],
             currentDrawingSnapIds: ['cabinet-1', 'intersection-1'],
-            networkConnectionDraft: { fromFeatureId: 'cabinet-1', toFeatureId: 'intersection-1' },
+            networkConnectionDraft: {
+                fromEndpoint: createFeatureEndpointRef('cabinet-1'),
+                toEndpoint: createFeatureEndpointRef('intersection-1'),
+            },
         });
         const { result } = renderHook(() => useDrawingInteraction());
 
@@ -406,10 +443,52 @@ describe('useDrawingInteraction', () => {
 
         expect(dispatchEvent).not.toHaveBeenCalled();
         expect(useDesignSync.getState().networkConnectionDraft).toEqual({
-            fromFeatureId: 'cabinet-1',
-            toFeatureId: 'intersection-1',
+            fromEndpoint: createFeatureEndpointRef('cabinet-1'),
+            toEndpoint: createFeatureEndpointRef('intersection-1'),
         });
         expect(useDesignSync.getState().drawingMode).toBe('polyline');
         alertSpy.mockRestore();
+    });
+
+    it('stores shared-point endpoint metadata without collapsing it into a representative camera', async () => {
+        const batchedQueueEvents = vi.fn().mockResolvedValue(undefined);
+        useDesignSync.setState({
+            queueEvents: batchedQueueEvents as any,
+            drawingMode: 'polyline',
+            currentDrawingPoints: [[20, 10], [21, 11]],
+            currentDrawingSnapIds: ['cabinet-1', 'intersection-1'],
+            networkConnectionDraft: {
+                fromEndpoint: createFeatureEndpointRef('cabinet-1'),
+                toEndpoint: {
+                    type: 'shared-point',
+                    id: 'intersection:cabinet-1:distance:camera-1',
+                    intersection_id: 'cabinet-1',
+                    member_ids: ['camera-1', 'missing-camera'],
+                    coordinate: [21, 11],
+                },
+            },
+        });
+        const { result } = renderHook(() => useDrawingInteraction());
+
+        await act(async () => {
+            await result.current.finalizePolyline();
+        });
+
+        const events = batchedQueueEvents.mock.calls[0][0];
+        expect(events).toHaveLength(2);
+        expect(JSON.parse(events[1].payload.metadata)).toMatchObject({
+            network: {
+                from_feature_id: 'cabinet-1',
+                to_feature_id: 'camera-1',
+                from_endpoint: createFeatureEndpointRef('cabinet-1'),
+                to_endpoint: {
+                    type: 'shared-point',
+                    id: 'intersection:cabinet-1:distance:camera-1',
+                    intersection_id: 'cabinet-1',
+                    member_ids: ['camera-1', 'missing-camera'],
+                    coordinate: [21, 11],
+                },
+            },
+        });
     });
 });

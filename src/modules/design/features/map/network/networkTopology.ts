@@ -1,6 +1,12 @@
 import type { DesignEventType, FeatureMetadata, FeatureState, LineStringCoordinates } from '@CONTRACT/types';
 import { getLineCoordinates, getParsedCoordinates, getPointCoordinates } from '@TOOL/utils/featureMapping';
 import { getParsedMetadata } from '@TOOL/utils/featureMetadata';
+import {
+    getNetworkEndpointKey,
+    getNetworkEndpointsFromMetadata,
+    getRepresentativeFeatureIdForEndpoint,
+    type NetworkEndpointRef,
+} from './NetworkEndpoint';
 
 export type NetworkRole = 'cabinet' | 'intersection' | 'device';
 export type StoredDirectionMode = 'auto' | 'manual' | 'legacy';
@@ -20,6 +26,10 @@ export interface NetworkEdgeDescriptor {
     metadata: FeatureMetadata;
     from: string;
     to: string;
+    fromEndpoint: NetworkEndpointRef;
+    toEndpoint: NetworkEndpointRef;
+    fromEndpointKey: string;
+    toEndpointKey: string;
     directionMode: StoredDirectionMode;
 }
 
@@ -115,9 +125,11 @@ export const collectNetworkEdges = (featuresById: Record<string, FeatureState>, 
         const metadata = getParsedMetadata(feature) as FeatureMetadata;
         if (!isNetworkEdgeFeature(feature, metadata)) continue;
 
-        const from = metadata.network?.from_feature_id;
-        const to = metadata.network?.to_feature_id;
-        if (!from || !to || !validNodeIds.has(from) || !validNodeIds.has(to) || from === to) continue;
+        const { fromEndpoint, toEndpoint } = getNetworkEndpointsFromMetadata(metadata);
+        if (!fromEndpoint || !toEndpoint) continue;
+        const from = getRepresentativeFeatureIdForEndpoint(fromEndpoint, featuresById);
+        const to = getRepresentativeFeatureIdForEndpoint(toEndpoint, featuresById);
+        if (!from || !to || !validNodeIds.has(from) || !validNodeIds.has(to) || getNetworkEndpointKey(fromEndpoint) === getNetworkEndpointKey(toEndpoint)) continue;
 
         edges.push({
             id: feature.id,
@@ -125,6 +137,10 @@ export const collectNetworkEdges = (featuresById: Record<string, FeatureState>, 
             metadata,
             from,
             to,
+            fromEndpoint,
+            toEndpoint,
+            fromEndpointKey: getNetworkEndpointKey(fromEndpoint),
+            toEndpointKey: getNetworkEndpointKey(toEndpoint),
             directionMode: getStoredDirectionMode(metadata),
         });
     }
@@ -389,8 +405,9 @@ export const resolveNetworkNodeIdFromSnap = (
         return isPointFeature(snapFeature) ? snapFeature.id : null;
     }
 
-    const fromId = snapMetadata.network?.from_feature_id;
-    const toId = snapMetadata.network?.to_feature_id;
+    const { fromEndpoint, toEndpoint } = getNetworkEndpointsFromMetadata(snapMetadata);
+    const fromId = fromEndpoint ? getRepresentativeFeatureIdForEndpoint(fromEndpoint, featuresById) : null;
+    const toId = toEndpoint ? getRepresentativeFeatureIdForEndpoint(toEndpoint, featuresById) : null;
     if (!fromId || !toId) return null;
 
     const fromFeature = featuresById[fromId];
