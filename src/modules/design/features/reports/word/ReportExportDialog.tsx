@@ -350,7 +350,7 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
         path: filePath,
         data: Array.from(new Uint8Array(buffer)),
       });
-      setExportStatus("Da xuat file Word.");
+      setExportStatus("Đã xuất file Word.");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -429,8 +429,8 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
                 onChange={(event) => setIncludeMapImages(event.target.checked)}
               />
               <span>
-                <span className="block font-black uppercase text-cad-text-primary">Kem anh ban do khi xuat</span>
-                <span className="block text-cad-text-muted">Bat mac dinh. Co the tat neu bao cao qua nhieu doi tuong.</span>
+                <span className="block font-black uppercase text-cad-text-primary">Kèm ảnh bản đồ khi xuất</span>
+                <span className="block text-cad-text-muted">Bật mặc định. Có thể tắt nếu báo cáo quá nhiều đối tượng.</span>
               </span>
             </label>
             <div className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted mb-2">Thư mục / đối tượng</div>

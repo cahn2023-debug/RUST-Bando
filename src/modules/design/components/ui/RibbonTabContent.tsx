@@ -3,7 +3,7 @@ import {
     Save, FolderUp, RefreshCw, Layers, Settings, Zap, Cpu,
     Undo2, Redo2, Sliders, Camera, Video, Calculator,
     MousePointer2, Move, MapPin, Globe, BarChart2, Printer, FileDown,
-    Briefcase, Activity, FileText
+    Network, Briefcase, Activity, FileText
 } from "lucide-react";
 import { ToolGroup, ToolButton, RibbonSeparator } from "./RibbonComponents";
 import { VisibilityTool } from "@DESIGN/features/map/MapLayerComponents/VisibilityTool";
@@ -124,6 +124,7 @@ export const DesignRibbonTools = ({
             <ToolButton onClick={() => togglePalette('spec-panel')} active={activePaletteId === 'spec-panel'} icon={Sliders} label="THÔNG SỐ" />
             <ToolButton onClick={() => togglePalette('device-config')} active={activePaletteId === 'device-config'} icon={Camera} label="THIẾT BỊ" />
             <ToolButton onClick={() => togglePalette('camera-view')} active={activePaletteId === 'camera-view'} icon={Video} label="GÓC NHÌN" />
+            <ToolButton onClick={() => togglePalette('network-graph')} active={activePaletteId === 'network-graph'} icon={Network} label="NETWORK" />
             <ToolButton onClick={() => togglePalette('summary-panel')} active={activePaletteId === 'summary-panel'} icon={Calculator} label="TỔNG HỢP" />
         </ToolGroup>
         <RibbonSeparator />

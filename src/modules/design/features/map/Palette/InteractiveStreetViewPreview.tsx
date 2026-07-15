@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { cn } from '@TOOL/utils/cn';
 
 export interface InteractiveStreetViewPreviewProps {
@@ -6,10 +6,11 @@ export interface InteractiveStreetViewPreviewProps {
     lng: number;
     heading: number;
     fov: number;
-    apiKey: string;
     fallback: React.ReactNode;
     onHeadingChange?: (heading: number) => void;
 }
+
+const PUBLIC_STREET_VIEW_TIMEOUT_MS = 5000;
 
 export const InteractiveStreetViewPreview: React.FC<InteractiveStreetViewPreviewProps> = ({
     lat,
@@ -18,30 +19,60 @@ export const InteractiveStreetViewPreview: React.FC<InteractiveStreetViewPreview
     fallback,
 }) => {
     const [loading, setLoading] = useState(true);
+    const [loadFailed, setLoadFailed] = useState(false);
 
     if (isNaN(lat) || isNaN(lng)) {
         return <>{fallback}</>;
     }
 
-    // Use the public Street View embed URL which doesn't require an API key
-    // Format: layer=c (streetview), cbll=lat,lng, cbp=12,heading,pitch,zoom,0
-    const publicUrl = `https://maps.google.com/maps?layer=c&cbll=${lat},${lng}&cbp=12,${heading.toFixed(1)},0,0,0&output=svembed`;
+    const normalizedHeading = ((heading % 360) + 360) % 360;
+    const publicUrl = useMemo(() => {
+        const params = new URLSearchParams({
+            layer: 'c',
+            cbll: `${lat},${lng}`,
+            cbp: `12,${normalizedHeading.toFixed(1)},0,0,0`,
+            output: 'svembed'
+        });
+        return `https://maps.google.com/maps?${params.toString()}`;
+    }, [lat, lng, normalizedHeading]);
+
+    useEffect(() => {
+        setLoading(true);
+        setLoadFailed(false);
+    }, [publicUrl]);
+
+    useEffect(() => {
+        if (!loading) return undefined;
+        const timeoutId = window.setTimeout(() => {
+            setLoadFailed(true);
+            setLoading(false);
+        }, PUBLIC_STREET_VIEW_TIMEOUT_MS);
+        return () => window.clearTimeout(timeoutId);
+    }, [loading, publicUrl]);
+
+    if (loadFailed) {
+        return <>{fallback}</>;
+    }
 
     return (
         <div className="relative w-full aspect-video rounded-lg bg-[#070b12] border border-white/10 overflow-hidden shadow-2xl select-none group pointer-events-none">
             <iframe
                 src={publicUrl}
+                title="Street View Public Preview"
                 frameBorder="0"
-                style={{ 
+                style={{
                     position: 'absolute',
-                    width: 'calc(100% + 600px)', 
+                    width: 'calc(100% + 600px)',
                     height: 'calc(100% + 200px)',
                     left: '-300px',
                     top: '-100px',
-                    border: 0 
+                    border: 0
                 }}
                 allowFullScreen
-                onLoad={() => setLoading(false)}
+                onLoad={() => {
+                    setLoadFailed(false);
+                    setLoading(false);
+                }}
                 className={cn(
                     'transition-opacity duration-300',
                     loading ? 'opacity-0' : 'opacity-100'
@@ -57,7 +88,7 @@ export const InteractiveStreetViewPreview: React.FC<InteractiveStreetViewPreview
                 </div>
             )}
             
-            {!loading && (
+            {!loading && !loadFailed && (
                 <div className="absolute bottom-2.5 right-2.5 text-[8px] font-bold text-gray-500 uppercase tracking-widest bg-[#030712]/50 px-1.5 py-0.5 rounded border border-white/5 backdrop-blur-sm pointer-events-none">
                     Street View (Public)
                 </div>

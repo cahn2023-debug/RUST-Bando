@@ -26,7 +26,6 @@ import { cn } from '@TOOL/utils/cn';
 import { DORILegend } from '@DESIGN/features/map/MapLayerComponents/DORILegend';
 import { InteractiveStreetViewPreview } from './InteractiveStreetViewPreview';
 import { CameraHudFallback } from './CameraHudFallback';
-import { getGoogleMapsApiKey } from '@TOOL/utils/googleMapsRuntime';
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { buildFeaturePropertiesForPersistence } from '@TOOL/utils/featurePersistence';
 
@@ -347,7 +346,6 @@ export const CameraViewPanel: React.FC = () => {
                                 lng={coords?.[0] ?? NaN}
                                 heading={mapRotationToHeading(rotation)}
                                 fov={hfov}
-                                apiKey={getGoogleMapsApiKey()}
                                 onHeadingChange={(newHeading) => {
                                     const newRotation = mapHeadingToRotation(newHeading);
                                     updateNestedMeta('gis.rotation', newRotation);

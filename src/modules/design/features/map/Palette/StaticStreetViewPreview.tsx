@@ -11,6 +11,7 @@ export interface StaticStreetViewPreviewProps {
     pitch?: number;
     apiKey: string;
     fallback: React.ReactNode;
+    onHeadingChange?: (heading: number) => void;
 }
 
 const STREET_VIEW_RADIUS_METERS = 200;

@@ -15,7 +15,7 @@
   --color-cad-text-muted: #4B5563;
 
   --font-sans: "Inter", "Segoe UI", Roboto, sans-serif;
-  --font-display: "Space Grotesk", sans-serif;
+  --font-display: "Inter", "Segoe UI", Roboto, sans-serif;
   --font-mono: "Roboto Mono", monospace;
 
   /* Custom Animations for Tailwind v4 */

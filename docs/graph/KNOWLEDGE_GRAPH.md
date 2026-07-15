@@ -154,15 +154,15 @@ graph TD
     node_295_file --- node_295_s9
     node_295_s10["🔧 ensure_excel_extension (fn)"]:::symbol
     node_295_file --- node_295_s10
-    node_295_s11["🔧 normalize_column_key (fn)"]:::symbol
+    node_295_s11["🔧 copy_text_to_system_clipboard (fn)"]:::symbol
     node_295_file --- node_295_s11
-    node_295_s12["🔧 cell_to_string (fn)"]:::symbol
+    node_295_s12["🔧 normalize_column_key (fn)"]:::symbol
     node_295_file --- node_295_s12
-    node_295_s13["🔧 read_excel_table (fn)"]:::symbol
+    node_295_s13["🔧 cell_to_string (fn)"]:::symbol
     node_295_file --- node_295_s13
-    node_295_s14["🔧 infer_field_type (fn)"]:::symbol
+    node_295_s14["🔧 read_excel_table (fn)"]:::symbol
     node_295_file --- node_295_s14
-    node_295_more["... and 25 more symbols"]:::symbol
+    node_295_more["... and 26 more symbols"]:::symbol
     node_295_file --- node_295_more
   end
   class node_295_sub rs

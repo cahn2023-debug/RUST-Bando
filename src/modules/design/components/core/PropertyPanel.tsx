@@ -75,8 +75,6 @@ const withMediaAssets = (metadata: FeatureMetadata, assetIds: string[]): Feature
     imageAssetIds: assetIds,
     primaryImageAssetId: assetIds[0] || undefined,
   };
-  delete nextMedia.imageUrl;
-  delete nextMedia.imageUrls;
   return {
     ...metadata,
     media: nextMedia,
@@ -232,7 +230,7 @@ const drawAssetStamp = (ctx: CanvasRenderingContext2D, point: DragPoint, stamp: 
     ctx.arc(x + armLength * scale + 8 * scale, y - poleHeight - 18 * scale, 8 * scale, 0, Math.PI * 2);
     ctx.stroke();
     ctx.font = `bold ${14 * scale}px sans-serif`;
-    ctx.fillText(stamp === 'pole-4m' ? 'Cot 6m - TV 4m' : stamp === 'pole-6m' ? 'Cot 6m - TV 6m' : 'Cot 6m - TV 8m', x + 10 * scale, y + 18 * scale);
+    ctx.fillText(stamp === 'pole-4m' ? 'Cột 6m - TV 4m' : stamp === 'pole-6m' ? 'Cột 6m - TV 6m' : 'Cột 6m - TV 8m', x + 10 * scale, y + 18 * scale);
   } else if (stamp === 'cabinet-300x520') {
     ctx.strokeRect(x - 26 * scale, y - 42 * scale, 52 * scale, 84 * scale);
     ctx.beginPath();
@@ -242,7 +240,7 @@ const drawAssetStamp = (ctx: CanvasRenderingContext2D, point: DragPoint, stamp: 
     ctx.lineTo(x + 18 * scale, y);
     ctx.stroke();
     ctx.font = `bold ${13 * scale}px sans-serif`;
-    ctx.fillText('Tu 300x520', x + 34 * scale, y + 4 * scale);
+    ctx.fillText('Tủ 300x520', x + 34 * scale, y + 4 * scale);
   } else {
     ctx.strokeRect(x - 34 * scale, y - 18 * scale, 54 * scale, 34 * scale);
     ctx.beginPath();
@@ -255,7 +253,7 @@ const drawAssetStamp = (ctx: CanvasRenderingContext2D, point: DragPoint, stamp: 
     ctx.arc(x - 8 * scale, y, 7 * scale, 0, Math.PI * 2);
     ctx.stroke();
     ctx.font = `bold ${13 * scale}px sans-serif`;
-    ctx.fillText('Camera mo phong', x - 34 * scale, y + 36 * scale);
+    ctx.fillText('Camera mô phỏng', x - 34 * scale, y + 36 * scale);
   }
 
   ctx.restore();
@@ -621,20 +619,20 @@ const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ imageUrl, imageInde
           </button>
           <button onClick={applyCrop} disabled={!cropRect} className="px-3 py-2 rounded bg-[#111] border border-[#333] text-[10px] font-black uppercase text-[#aaa] hover:text-white disabled:opacity-40">Apply crop</button>
           <select aria-label="Stroke pattern" value={strokePattern} onChange={e => setStrokePattern(e.target.value as StrokePattern)} className="bg-[#111] border border-[#333] rounded px-2 py-2 text-xs text-white outline-none">
-            <option value="solid">Net lien</option>
-            <option value="dashed">Net dut</option>
-            <option value="dashdot">Cham gach</option>
-            <option value="dotted">Net cham</option>
+            <option value="solid">Nét liền</option>
+            <option value="dashed">Nét đứt</option>
+            <option value="dashdot">Chấm gạch</option>
+            <option value="dotted">Nét chấm</option>
             <option value="zigzag">Zigzag</option>
           </select>
           <input aria-label="Stroke color" type="color" value={strokeColor} onChange={e => setStrokeColor(e.target.value)} className="h-9 w-10 bg-[#111] border border-[#333] rounded" />
           <input aria-label="Stroke width" type="range" min={1} max={18} value={strokeWidth} onChange={e => setStrokeWidth(Number(e.target.value))} className="w-24" />
           <select aria-label="Asset stamp" value={assetStamp} onChange={e => setAssetStamp(e.target.value as AssetStamp)} className="bg-[#111] border border-[#333] rounded px-2 py-2 text-xs text-white outline-none">
-            <option value="pole-4m">Cot 6m tay vuon 4m</option>
-            <option value="pole-6m">Cot 6m tay vuon 6m</option>
-            <option value="pole-8m">Cot 6m tay vuon 8m</option>
-            <option value="cabinet-300x520">Tu 300x520</option>
-            <option value="camera-sim">Camera mo phong</option>
+            <option value="pole-4m">Cột 6m tay vươn 4m</option>
+            <option value="pole-6m">Cột 6m tay vươn 6m</option>
+            <option value="pole-8m">Cột 6m tay vươn 8m</option>
+            <option value="cabinet-300x520">Tủ 300x520</option>
+            <option value="camera-sim">Camera mô phỏng</option>
           </select>
           <input aria-label="Text size" type="number" min={10} max={120} value={textSize} onChange={e => setTextSize(Number(e.target.value))} className="w-20 bg-[#111] border border-[#333] rounded px-2 py-2 text-xs text-white outline-none" />
           <input
@@ -768,6 +766,8 @@ export const PropertyPanel: React.FC = () => {
   const [isSaved, setIsSaved] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingImage, setEditingImage] = useState<{ index: number; url: string } | null>(null);
+  const [isImportingMedia, setIsImportingMedia] = useState(false);
+  const [mediaImportError, setMediaImportError] = useState<string | null>(null);
   const togglePalette = useLayoutStore(s => s.togglePalette);
   const paletteConfigs = useLayoutStore(s => s.paletteConfigs);
 
@@ -892,18 +892,68 @@ export const PropertyPanel: React.FC = () => {
   const persistMediaAssetMetadata = async (nextMeta: FeatureMetadata) => {
     if (!feature) return;
     const standardizedMeta = preparePropertyMetadata(nextMeta, feature.properties as FeatureProperties);
+    const nextProperties = buildFeaturePropertiesForPersistence(
+      feature.properties as FeatureProperties | undefined,
+      standardizedMeta
+    );
     await queueEvent({
       type: 'FeatureUpdated',
       payload: {
         id: feature.id,
+        name: localName,
         metadata: JSON.stringify(standardizedMeta),
+        properties: nextProperties,
       },
     });
   };
 
   const appendImageUrls = async (dataUrls: string[]) => {
     if (dataUrls.length === 0) return;
-    updateMediaImages([...legacyImageUrls, ...dataUrls]);
+    if (!feature || !projectId) {
+      setMediaImportError('Không thể lưu ảnh khi thiếu project hoặc đối tượng.');
+      return;
+    }
+
+    setIsImportingMedia(true);
+    setMediaImportError(null);
+
+    const importedAssetIds: string[] = [];
+    const importedAssets: Array<{ assetId: string; src: string }> = [];
+
+    try {
+      for (const dataUrl of dataUrls) {
+        const imported = await importMediaAsset(String(projectId), feature.id, dataUrl);
+        const assetId = imported.assetId || imported.id;
+        importedAssetIds.push(assetId);
+        importedAssets.push({ assetId, src: imported.src });
+      }
+
+      setResolvedMediaUrls((prev) => {
+        const next = { ...prev };
+        for (const asset of importedAssets) {
+          next[asset.assetId] = asset.src;
+        }
+        return next;
+      });
+
+      const nextMeta = updateMediaAssets([...imageAssetIds, ...importedAssetIds]);
+      await persistMediaAssetMetadata(nextMeta);
+      setPreview(null, null);
+    } catch (error) {
+      await Promise.all(
+        importedAssetIds.map(async (assetId) => {
+          try {
+            await deleteMediaAsset(String(projectId), assetId);
+          } catch (cleanupError) {
+            void cleanupError;
+          }
+        })
+      );
+      setMediaImportError('Không thể lưu ảnh vào thư mục dự án. Vui lòng thử lại.');
+      throw error;
+    } finally {
+      setIsImportingMedia(false);
+    }
   };
 
   const updateMediaAssets = (assetIds: string[]): FeatureMetadata => {
@@ -1031,7 +1081,7 @@ export const PropertyPanel: React.FC = () => {
       await appendImageUrls(dataUrls);
       console.log('[PropertyPanel][Paste] appended images', {
         source,
-        nextCount: legacyImageUrls.length + dataUrls.length,
+        nextCount: imageAssetIds.length + legacyImageUrls.length + dataUrls.length,
       });
     } catch (error) {
       console.error('[PropertyPanel][Paste] failed', error);
@@ -1799,11 +1849,19 @@ export const PropertyPanel: React.FC = () => {
             </div>
             <button
               onClick={startCamera}
+              disabled={isImportingMedia}
               className="text-[10px] font-black text-indigo-400 hover:text-indigo-300 uppercase flex items-center gap-1"
             >
-              <Camera className="w-3 h-3" /> Capture
+              {isImportingMedia ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
+              {isImportingMedia ? 'Saving...' : 'Capture'}
             </button>
           </div>
+
+          {mediaImportError ? (
+            <div className="rounded border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wide text-red-300">
+              {mediaImportError}
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-2 gap-2">
             {displayImageUrls.length > 0 ? (

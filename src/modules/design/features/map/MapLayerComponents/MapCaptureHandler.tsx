@@ -3,9 +3,11 @@ import { useMap } from 'react-leaflet';
 import { listen, emit } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import html2canvas from 'html2canvas';
+import { validateMapCaptureCanvas } from './mapCaptureValidation';
 
 const MAX_CAPTURE_ZOOM = 36;
 const REPORT_CAPTURE_EVENT = 'design-report-map-capture';
+const TRANSPARENT_TILE_DATA_URL = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 const tileDataUrlCache = new Map<string, string>();
 
 type MapCaptureRequest = {
@@ -30,11 +32,17 @@ const waitForMapMove = (map: ReturnType<typeof useMap>, timeoutMs = 1200): Promi
   })
 );
 
+const isTransparentPlaceholderTile = (tile: HTMLImageElement): boolean =>
+  tile.src === TRANSPARENT_TILE_DATA_URL || (tile.naturalWidth <= 1 && tile.naturalHeight <= 1);
+
+const isFetchableTileUrl = (url: string): boolean => /^https?:\/\//i.test(url);
+
 const waitForTiles = (container: HTMLElement, timeoutMs = 5000): Promise<void> => (
   new Promise((resolve) => {
     const startedAt = Date.now();
     const check = () => {
-      const tiles = Array.from(container.querySelectorAll<HTMLImageElement>('img.leaflet-tile'));
+      const tiles = Array.from(container.querySelectorAll<HTMLImageElement>('img.leaflet-tile'))
+        .filter((tile) => !isTransparentPlaceholderTile(tile));
       const loadingTiles = container.querySelectorAll('.leaflet-tile-loading').length;
       const ready = tiles.length > 0
         && loadingTiles === 0
@@ -51,9 +59,22 @@ const waitForTiles = (container: HTMLElement, timeoutMs = 5000): Promise<void> =
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => window.setTimeout(resolve, ms));
 
+const waitForAnimationFrames = (count = 2): Promise<void> => (
+  new Promise((resolve) => {
+    const tick = (remaining: number) => {
+      if (remaining <= 0) {
+        resolve();
+        return;
+      }
+      window.requestAnimationFrame(() => tick(remaining - 1));
+    };
+    tick(count);
+  })
+);
+
 const inlineVisibleTiles = async (container: HTMLElement): Promise<Array<() => void>> => {
   const tiles = Array.from(container.querySelectorAll<HTMLImageElement>('img.leaflet-tile'))
-    .filter((tile) => /^https?:\/\//i.test(tile.src));
+    .filter((tile) => isFetchableTileUrl(tile.src) && !isTransparentPlaceholderTile(tile));
   const restorers: Array<() => void> = [];
   const queue = [...tiles];
 
@@ -112,7 +133,7 @@ export function MapCaptureHandler() {
           captureModeEnabled = true;
           await delay(120);
 
-          let captureOptions: any = {
+          const captureOptions: any = {
             useCORS: false,
             allowTaint: false,
             scale: scale ?? 4,
@@ -139,6 +160,7 @@ export function MapCaptureHandler() {
           restoreTiles = await inlineVisibleTiles(mapContainer);
           await waitForTiles(mapContainer, 1500);
           await delay(250);
+          await waitForAnimationFrames(2);
 
           // If printArea is provided, calculate crop bounds
           if (printArea && !fitToBounds) {
@@ -161,6 +183,10 @@ export function MapCaptureHandler() {
           }
 
           const canvas = await html2canvas(mapContainer, captureOptions);
+          const validation = validateMapCaptureCanvas(canvas);
+          if (!validation.valid) {
+            throw new Error(validation.reason || 'Ảnh bản đồ không hợp lệ.');
+          }
           
           const dataUrl = canvas.toDataURL('image/png');
           emit('map-capture-result', { captureId, dataUrl });

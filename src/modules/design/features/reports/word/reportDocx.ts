@@ -254,6 +254,12 @@ export const buildReportDocx = async (model: ReportModel, imageMap: ReportImageM
   ];
 
   const doc = new Document({
+    documentDefaults: {
+      run: {
+        font: "Times New Roman",
+        size: 24, // 12pt
+      },
+    },
     sections: [{
       properties: {
         page: {
@@ -262,7 +268,7 @@ export const buildReportDocx = async (model: ReportModel, imageMap: ReportImageM
       },
       children,
     }],
-  });
+  } as any);
 
   return Packer.toArrayBuffer(doc);
 };

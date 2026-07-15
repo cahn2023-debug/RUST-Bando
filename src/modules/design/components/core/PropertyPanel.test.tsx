@@ -12,6 +12,16 @@ const mocks = vi.hoisted(() => ({
   setPreview: vi.fn(),
   setEditingFeatureId: vi.fn(),
   togglePalette: vi.fn(),
+  startCamera: vi.fn(),
+  stopCamera: vi.fn(),
+  capture: vi.fn(),
+  importMediaAsset: vi.fn(),
+  resolveMediaAsset: vi.fn(),
+  deleteMediaAsset: vi.fn(),
+}));
+
+const cameraState = vi.hoisted(() => ({
+  onCapture: null as null | ((dataUrl: string) => void),
 }));
 
 const selectedFeature = {
@@ -93,15 +103,18 @@ vi.mock('@DESIGN/features/map/Palette/PaletteContext', () => ({
 }));
 
 vi.mock('@IMPLEMENT/hooks/useCamera', () => ({
-  useCamera: () => ({
+  useCamera: (options?: { onCapture?: (dataUrl: string) => void }) => {
+    cameraState.onCapture = options?.onCapture ?? null;
+    return {
     isCameraOpen: false,
     isCapturing: false,
     videoRef: { current: null },
     canvasRef: { current: null },
-    startCamera: vi.fn(),
-    stopCamera: vi.fn(),
-    capture: vi.fn(),
-  }),
+    startCamera: mocks.startCamera,
+    stopCamera: mocks.stopCamera,
+    capture: mocks.capture,
+    };
+  },
 }));
 
 vi.mock('@IMPLEMENT/services/importService', () => ({
@@ -113,6 +126,12 @@ vi.mock('@IMPLEMENT/services/importService', () => ({
 
 vi.mock('@IMPLEMENT/lib/tauri', () => ({
   safeOpenDialog: vi.fn(),
+}));
+
+vi.mock('@IMPLEMENT/services/mediaAssetService', () => ({
+  importMediaAsset: mocks.importMediaAsset,
+  resolveMediaAsset: mocks.resolveMediaAsset,
+  deleteMediaAsset: mocks.deleteMediaAsset,
 }));
 
 const createClipboardItem = (file: File) => ({
@@ -131,9 +150,35 @@ const getMediaSection = async () => {
 describe('PropertyPanel clipboard images', () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockClear());
+    cameraState.onCapture = null;
     mockUseDesignSync.mockClear();
     mockUseDesignSync.getState.mockClear();
     mockUseDesignSync.setState.mockClear();
+    mocks.importMediaAsset.mockImplementation(async (_projectId: string, _featureId: string, dataUrl: string) => ({
+      id: dataUrl.includes('jpeg') ? 'asset-jpeg' : 'asset-png',
+      assetId: dataUrl.includes('jpeg') ? 'asset-jpeg' : 'asset-png',
+      projectId: 'project-1',
+      featureId: selectedFeature.id,
+      sha256: 'sha',
+      relPath: 'project.assets/media/test.png',
+      path: 'D:/Code Antinigaty/RUST/project.assets/media/test.png',
+      mimeType: dataUrl.includes('jpeg') ? 'image/jpeg' : 'image/png',
+      byteSize: 123,
+      src: dataUrl.includes('jpeg') ? 'asset://jpeg-preview' : 'asset://png-preview',
+    }));
+    mocks.resolveMediaAsset.mockImplementation(async (_projectId: string, assetId: string) => ({
+      id: assetId,
+      assetId,
+      projectId: 'project-1',
+      featureId: selectedFeature.id,
+      sha256: 'sha',
+      relPath: `project.assets/media/${assetId}.png`,
+      path: `D:/Code Antinigaty/RUST/project.assets/media/${assetId}.png`,
+      mimeType: 'image/png',
+      byteSize: 123,
+      src: `asset://${assetId}`,
+    }));
+    mocks.deleteMediaAsset.mockResolvedValue(undefined);
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
       clearRect: vi.fn(),
       drawImage: vi.fn(),
@@ -167,16 +212,23 @@ describe('PropertyPanel clipboard images', () => {
     });
 
     await waitFor(() => {
+      expect(mocks.importMediaAsset).toHaveBeenCalledWith('project-1', selectedFeature.id, expect.stringMatching(/^data:image\/png;base64,/));
+      expect(mocks.queueEvent).toHaveBeenCalledWith({
+        type: 'FeatureUpdated',
+        payload: expect.objectContaining({
+          id: selectedFeature.id,
+          name: 'Camera A',
+        }),
+      });
       expect(mocks.setPreview).toHaveBeenCalledWith(
         selectedFeature.id,
         expect.objectContaining({
-          media: {
+          media: expect.objectContaining({
+            imageAssetIds: ['asset-png'],
+            primaryImageAssetId: 'asset-png',
             imageUrl: 'data:image/png;base64,old',
-            imageUrls: [
-              'data:image/png;base64,old',
-              expect.stringMatching(/^data:image\/png;base64,/),
-            ],
-          },
+            imageUrls: ['data:image/png;base64,old'],
+          }),
         }),
         'Camera A',
       );
@@ -199,14 +251,12 @@ describe('PropertyPanel clipboard images', () => {
       expect(mocks.setPreview).toHaveBeenCalledWith(
         selectedFeature.id,
         expect.objectContaining({
-          media: {
+          media: expect.objectContaining({
+            imageAssetIds: ['asset-png', 'asset-jpeg'],
+            primaryImageAssetId: 'asset-png',
             imageUrl: 'data:image/png;base64,old',
-            imageUrls: [
-              'data:image/png;base64,old',
-              expect.stringMatching(/^data:image\/png;base64,/),
-              expect.stringMatching(/^data:image\/jpeg;base64,/),
-            ],
-          },
+            imageUrls: ['data:image/png;base64,old'],
+          }),
         }),
         'Camera A',
       );
@@ -232,28 +282,7 @@ describe('PropertyPanel clipboard images', () => {
     });
   });
 
-  it('removes a pasted image from media.imageUrls', async () => {
-    const { unmount } = render(<PropertyPanel />);
-    const mediaSection = await getMediaSection();
-    const file = new File(['image-data'], 'site.png', { type: 'image/png' });
-
-    fireEvent.paste(mediaSection, {
-      clipboardData: {
-        items: [createClipboardItem(file)],
-      },
-    });
-
-    let pastedUrl = '';
-    await waitFor(() => {
-      const previewCall = mocks.setPreview.mock.calls.find((call) => {
-        const metadata = call[1] as { media?: { imageUrls?: string[] } };
-        return metadata.media?.imageUrls?.length === 2;
-      });
-      expect(previewCall).toBeTruthy();
-      pastedUrl = previewCall?.[1].media.imageUrls[1] ?? '';
-    });
-
-    unmount();
+  it('removes an asset-backed image and keeps legacy images', async () => {
     mockUseDesignSync.mockReturnValue({
       state: designState,
       selectedFeatureId: selectedFeature.id,
@@ -269,7 +298,9 @@ describe('PropertyPanel clipboard images', () => {
         name: 'Camera A',
         metadata: {
           media: {
-            imageUrls: ['data:image/png;base64,old', pastedUrl],
+            imageAssetIds: ['asset-1'],
+            primaryImageAssetId: 'asset-1',
+            imageUrls: ['data:image/png;base64,old'],
           },
         },
       },
@@ -281,16 +312,16 @@ describe('PropertyPanel clipboard images', () => {
 
     render(<PropertyPanel />);
     await screen.findAllByRole('button', { name: 'Remove' });
-    const removeButtons = screen.getAllByRole('button', { name: 'Remove' });
-    fireEvent.click(removeButtons[removeButtons.length - 1]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[0]);
 
     await waitFor(() => {
-      expect(mocks.setPreview).toHaveBeenCalledWith(
+      expect(mocks.deleteMediaAsset).toHaveBeenCalledWith('project-1', 'asset-1');
+        expect(mocks.setPreview).toHaveBeenCalledWith(
         selectedFeature.id,
         expect.objectContaining({
           media: expect.objectContaining({
-            imageUrl: 'data:image/png;base64,old',
             imageUrls: ['data:image/png;base64,old'],
+            imageAssetIds: [],
           }),
         }),
         'Camera A',
@@ -330,10 +361,8 @@ describe('PropertyPanel clipboard images', () => {
         name: 'Camera A',
         metadata: {
           media: {
-            imageUrls: [
-              'data:image/png;base64,first',
-              'data:image/png;base64,second',
-            ],
+            imageAssetIds: ['asset-1', 'asset-2'],
+            primaryImageAssetId: 'asset-1',
           },
         },
       },
@@ -349,15 +378,14 @@ describe('PropertyPanel clipboard images', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Save photo' }));
 
     await waitFor(() => {
+      expect(mocks.importMediaAsset).toHaveBeenCalledWith('project-1', selectedFeature.id, 'data:image/png;base64,edited');
+      expect(mocks.deleteMediaAsset).toHaveBeenCalledWith('project-1', 'asset-2');
       expect(mocks.setPreview).toHaveBeenCalledWith(
         selectedFeature.id,
         expect.objectContaining({
           media: expect.objectContaining({
-            imageUrl: 'data:image/png;base64,first',
-            imageUrls: [
-              'data:image/png;base64,first',
-              'data:image/png;base64,edited',
-            ],
+            imageAssetIds: ['asset-1', 'asset-png'],
+            primaryImageAssetId: 'asset-1',
           }),
         }),
         'Camera A',
@@ -369,9 +397,83 @@ describe('PropertyPanel clipboard images', () => {
         payload: expect.objectContaining({
           id: selectedFeature.id,
           name: 'Camera A',
-          metadata: expect.stringContaining('data:image/png;base64,edited'),
+          metadata: expect.stringContaining('asset-png'),
         }),
       });
+    });
+  });
+
+  it('imports a captured image into media assets immediately', async () => {
+    render(<PropertyPanel />);
+
+    expect(cameraState.onCapture).toBeTypeOf('function');
+    await cameraState.onCapture?.('data:image/png;base64,captured');
+
+    await waitFor(() => {
+      expect(mocks.importMediaAsset).toHaveBeenCalledWith('project-1', selectedFeature.id, 'data:image/png;base64,captured');
+      expect(mocks.queueEvent).toHaveBeenCalledWith({
+        type: 'FeatureUpdated',
+        payload: expect.objectContaining({
+          id: selectedFeature.id,
+          metadata: expect.stringContaining('asset-png'),
+        }),
+      });
+    });
+  });
+
+  it('shows an error and leaves metadata unchanged when media import fails', async () => {
+    mocks.importMediaAsset.mockRejectedValueOnce(new Error('disk full'));
+
+    render(<PropertyPanel />);
+    const mediaSection = await getMediaSection();
+    const file = new File(['image-data'], 'site.png', { type: 'image/png' });
+
+    fireEvent.paste(mediaSection, {
+      clipboardData: {
+        items: [createClipboardItem(file)],
+      },
+    });
+
+    expect(await screen.findByText('Không thể lưu ảnh vào thư mục dự án. Vui lòng thử lại.')).toBeInTheDocument();
+    expect(mocks.setPreview).not.toHaveBeenCalled();
+    expect(mocks.queueEvent).not.toHaveBeenCalled();
+  });
+
+  it('still renders legacy imageUrls alongside asset-backed photos', async () => {
+    mockUseDesignSync.mockReturnValue({
+      state: designState,
+      selectedFeatureId: selectedFeature.id,
+      selectFeature: mocks.selectFeature,
+      dispatchEvent: mocks.dispatchEvent,
+      queueEvent: mocks.queueEvent,
+      setDrawingMode: mocks.setDrawingMode,
+      setSelectedGroup: mocks.setSelectedGroup,
+      setActiveParentFeature: mocks.setActiveParentFeature,
+      setPreview: mocks.setPreview,
+      previewMetadata: {
+        id: selectedFeature.id,
+        name: 'Camera A',
+        metadata: {
+          media: {
+            imageAssetIds: ['asset-1'],
+            primaryImageAssetId: 'asset-1',
+            imageUrls: ['data:image/png;base64,legacy'],
+          },
+        },
+      },
+      editingFeatureId: null,
+      setEditingFeatureId: mocks.setEditingFeatureId,
+      projectId: 'project-1',
+      selectionSet: new Set<string>(),
+    });
+
+    render(<PropertyPanel />);
+
+    await waitFor(async () => {
+      const images = await screen.findAllByRole('img');
+      expect(images).toHaveLength(2);
+      expect(images[0]).toHaveAttribute('src', 'asset://asset-1');
+      expect(images[1]).toHaveAttribute('src', 'data:image/png;base64,legacy');
     });
   });
 
