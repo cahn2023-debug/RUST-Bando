@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { MapLayer } from "@DESIGN/features/map/MapLayer";
 import { CoordinatePanel } from "@DESIGN/components/core/CoordinatePanel";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
@@ -10,6 +10,7 @@ import { useDrawingInteraction } from "@DESIGN/hooks/useDrawingInteraction";
 export function CADCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerZoomExtend = useDesignSync(s => s.triggerZoomExtend);
+  const [isMeasureActive, setIsMeasureActive] = useState(false);
 
   useEffect(() => {
     // Trigger auto-zoom on mount (when entering Design tab)
@@ -37,6 +38,8 @@ export function CADCanvas() {
           onLocationChange={handleLocationChange}
           onFinishDrawing={finalizePolyline}
           onFinishDrawingSession={finishDrawingSession}
+          isMeasureActive={isMeasureActive}
+          onMeasureDeactivate={() => setIsMeasureActive(false)}
         />
       </div>
 
@@ -47,6 +50,8 @@ export function CADCanvas() {
         onZoomIn={() => {/* Leaflet handles zoom via container if needed, or we use map instance */ }}
         onZoomOut={() => { }}
         onZoomExtend={triggerZoomExtend}
+        isMeasureActive={isMeasureActive}
+        onToggleMeasure={() => setIsMeasureActive((active) => !active)}
       />
 
       <CoordinatePanel />

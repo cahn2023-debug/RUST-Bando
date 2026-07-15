@@ -7,6 +7,7 @@ interface LocationMarkerProps {
     onLocationChange: (lat: number, lng: number, snapId?: string | null) => void;
     onFinishDrawing?: () => void;
     onFinishDrawingSession?: () => void;
+    isMeasureActive?: boolean;
 }
 
 type CoordinatePopupState = {
@@ -19,7 +20,12 @@ type CoordinatePopupState = {
 
 const formatCoordinate = (value: number) => value.toFixed(7);
 
-export function LocationMarker({ onLocationChange, onFinishDrawing, onFinishDrawingSession }: LocationMarkerProps) {
+export function LocationMarker({
+    onLocationChange,
+    onFinishDrawing,
+    onFinishDrawingSession,
+    isMeasureActive = false
+}: LocationMarkerProps) {
     const drawingMode = useDesignSync(s => s.drawingMode);
     const editingFeatureId = useDesignSync(s => s.editingFeatureId);
     const [coordinatePopup, setCoordinatePopup] = useState<CoordinatePopupState>(null);
@@ -62,7 +68,7 @@ export function LocationMarker({ onLocationChange, onFinishDrawing, onFinishDraw
                 onFinishDrawingSession?.();
                 return;
             }
-            if (editingFeatureId) return;
+            if (editingFeatureId || isMeasureActive) return;
             setCoordinatePopup({
                 lat: e.latlng.lat,
                 lng: e.latlng.lng,

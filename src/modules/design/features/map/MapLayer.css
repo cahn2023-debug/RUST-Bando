@@ -187,6 +187,40 @@
     background: transparent !important;
 }
 
+.leaflet-control-attribution {
+    display: none !important;
+}
+
+.measure-tool-active {
+    cursor: crosshair !important;
+}
+
+.measure-panel {
+    position: absolute;
+    left: 50%;
+    bottom: 24px;
+    z-index: 1000;
+    width: 220px;
+    transform: translateX(-50%);
+    border: 1px solid rgba(45, 48, 57, 0.95);
+    border-radius: 4px;
+    background: rgba(30, 32, 38, 0.94);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+    padding: 10px;
+    backdrop-filter: blur(8px);
+}
+
+.measure-tooltip {
+    border: 1px solid rgba(56, 189, 248, 0.45) !important;
+    border-radius: 4px !important;
+    background: rgba(15, 23, 42, 0.92) !important;
+    color: #e0f2fe !important;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3) !important;
+    font-family: var(--font-mono, monospace) !important;
+    font-size: 10px !important;
+    font-weight: 800 !important;
+}
+
 /* Keep selected vectors readable without making them float above the basemap */
 .polyline-selected {
     filter: drop-shadow(0 0 1px rgba(34, 211, 238, 0.35));

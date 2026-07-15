@@ -99,6 +99,23 @@ describe('LocationMarker', () => {
         expect(screen.queryByText('Tọa độ điểm click')).not.toBeInTheDocument();
     });
 
+    it('does not show the copy-coordinate popup while measuring', async () => {
+        const preventDefault = vi.fn();
+
+        render(<LocationMarker onLocationChange={vi.fn()} isMeasureActive />);
+
+        await act(async () => {
+            handlers.contextmenu({
+                latlng: { lat: 21.02851111, lng: 105.85422222 },
+                containerPoint: { x: 320, y: 240 },
+                originalEvent: { preventDefault },
+            });
+        });
+
+        expect(preventDefault).toHaveBeenCalledTimes(1);
+        expect(screen.queryByText('Tọa độ điểm click')).not.toBeInTheDocument();
+    });
+
     it('keeps double click finalize scoped to polyline mode', () => {
         const onFinishDrawing = vi.fn();
         useDesignSync.setState({ drawingMode: 'polyline' });

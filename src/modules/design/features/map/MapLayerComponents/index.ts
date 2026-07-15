@@ -11,3 +11,4 @@ export * from './FOVLayer';
 export * from './DORIOverlay';
 export * from './InteractivePPM';
 export * from './MapResizeObserver';
+export * from './MeasurementTool';

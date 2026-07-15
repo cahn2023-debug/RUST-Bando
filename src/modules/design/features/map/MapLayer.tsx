@@ -14,7 +14,8 @@ import {
     MapCaptureHandler,
     DORIOverlay,
     InteractivePPM,
-    MapResizeObserver
+    MapResizeObserver,
+    MeasurementTool
 } from '@DESIGN/features/map/MapLayerComponents';
 import { DORILegend } from '@DESIGN/features/map/MapLayerComponents/DORILegend';
 import { MapSettingsPortal } from './MapSettingsPortal';
@@ -66,6 +67,8 @@ interface MapLayerProps {
     onLocationChange?: (lat: number, lng: number, x: number, snapId?: string | null) => void;
     onFinishDrawing?: () => void;
     onFinishDrawingSession?: () => void;
+    isMeasureActive?: boolean;
+    onMeasureDeactivate?: () => void;
 }
 
 function BasemapPersistence({ onBasemapChange }: { onBasemapChange: (name: BasemapName) => void }) {
@@ -85,7 +88,15 @@ function BasemapPersistence({ onBasemapChange }: { onBasemapChange: (name: Basem
     return null;
 }
 
-export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing, onFinishDrawingSession }: MapLayerProps) {
+export function MapLayer({
+    center,
+    zoom,
+    onLocationChange,
+    onFinishDrawing,
+    onFinishDrawingSession,
+    isMeasureActive = false,
+    onMeasureDeactivate = () => { }
+}: MapLayerProps) {
     const [selectedBasemapName, setSelectedBasemapName] = useState<BasemapName>(getSavedBasemapName);
     const {
         isGrayscale,
@@ -106,6 +117,7 @@ export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing, onFi
             preferCanvas={true}
             style={{ height: '100%', width: '100%', background: 'transparent' }}
             zoomControl={false}
+            attributionControl={false}
             boxZoom={false}
             className={isGrayscale ? 'grayscale-basemap' : ''}
         >
@@ -116,7 +128,6 @@ export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing, onFi
                         url={getStyledUrl('r')}
                         maxZoom={36}
                         maxNativeZoom={20}
-                        attribution="&copy; Google"
                     />
                 </LayersControl.BaseLayer>
                 <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Satellite (Hybrid)'} name="Google Satellite (Hybrid)">
@@ -125,7 +136,6 @@ export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing, onFi
                         url={getStyledUrl('y')}
                         maxZoom={36}
                         maxNativeZoom={20}
-                        attribution="&copy; Google"
                     />
                 </LayersControl.BaseLayer>
                 <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Satellite (Trắng đen)'} name="Google Satellite (Trắng đen)">
@@ -135,7 +145,6 @@ export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing, onFi
                         url={getStyledUrl('y')}
                         maxZoom={36}
                         maxNativeZoom={20}
-                        attribution="&copy; Google"
                     />
                 </LayersControl.BaseLayer>
                 <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Terrain'} name="Google Terrain">
@@ -144,7 +153,6 @@ export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing, onFi
                         url={getStyledUrl('p')}
                         maxZoom={36}
                         maxNativeZoom={20}
-                        attribution="&copy; Google"
                     />
                 </LayersControl.BaseLayer>
 
@@ -176,6 +184,7 @@ export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing, onFi
                 onLocationChange={(lat, lng, snapId) => onLocationChange?.(lat, lng, 0, snapId as any)}
                 onFinishDrawing={onFinishDrawing}
                 onFinishDrawingSession={onFinishDrawingSession}
+                isMeasureActive={isMeasureActive}
             />
 
             <ZoomToHandler />
@@ -185,6 +194,7 @@ export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing, onFi
             <PrintAreaHandler />
             <MapCaptureHandler />
             <MapResizeObserver />
+            <MeasurementTool active={isMeasureActive} onDeactivate={onMeasureDeactivate} />
         </MapContainer>
     );
 }
