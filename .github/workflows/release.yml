@@ -25,11 +25,23 @@ jobs:
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
       version: ${{ steps.get_version.outputs.version }}
+      has_crates_token: ${{ steps.check_secrets.outputs.has_crates_token }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Check secrets
+        id: check_secrets
+        env:
+          CRATES_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          if [[ -n "$CRATES_TOKEN" ]]; then
+            echo "has_crates_token=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_crates_token=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Get version
         id: get_version
@@ -134,7 +146,7 @@ jobs:
     name: Publish to crates.io (optional)
     needs: create-release
     runs-on: ubuntu-latest
-    if: ${{ secrets.CRATES_IO_TOKEN != '' }}
+    if: needs.create-release.outputs.has_crates_token == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
