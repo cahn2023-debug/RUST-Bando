@@ -109,6 +109,11 @@ const readClipboardImageDataUrls = async (clipboardData: DataTransfer): Promise<
   return Promise.all(imageFiles.map(readFileAsDataUrl));
 };
 
+const isEditablePasteTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+};
+
 type ImageEditTool = 'crop' | 'line' | 'arrow' | 'circle' | 'square' | 'text' | 'stamp';
 type StrokePattern = 'solid' | 'dashed' | 'dashdot' | 'dotted' | 'zigzag';
 type AssetStamp = 'pole-4m' | 'pole-6m' | 'pole-8m' | 'cabinet-300x520' | 'camera-sim';
@@ -711,16 +716,6 @@ const preparePropertyMetadata = (metaInput: unknown, properties?: FeaturePropert
   return standardizedMeta;
 };
 
-const getDebugShape = (metadata: FeatureMetadata, properties?: FeatureProperties) => ({
-  metaIcon: metadata.icon ?? null,
-  metaType: metadata.type ?? null,
-  metaColor: metadata.color ?? null,
-  metaSize: metadata.size ?? null,
-  propIcon: properties?.icon ?? null,
-  propIconKey: properties?.iconKey ?? null,
-  propType: properties?.type ?? null,
-});
-
 export const PropertyPanel: React.FC = () => {
   const { onPin, onClose, isPinned, dragHandleProps } = usePaletteContext() || {};
   const {
@@ -832,7 +827,7 @@ export const PropertyPanel: React.FC = () => {
         }
       })
       .catch((error) => {
-        console.error('[PropertyPanel] Failed to resolve media assets:', error);
+        void error;
       });
     return () => {
       cancelled = true;
@@ -908,21 +903,7 @@ export const PropertyPanel: React.FC = () => {
 
   const appendImageUrls = async (dataUrls: string[]) => {
     if (dataUrls.length === 0) return;
-    if (!projectId || !selectedFeatureId || !feature) return;
-    const imported = await Promise.all(
-      dataUrls.map((dataUrl) => importMediaAsset(String(projectId), selectedFeatureId, dataUrl))
-    );
-    const currentAssetIds = getMediaAssetIds(localMeta);
-    const nextAssetIds = [
-      ...currentAssetIds,
-      ...imported.map((asset) => asset.assetId || asset.id),
-    ];
-    setResolvedMediaUrls((prev) => ({
-      ...prev,
-      ...Object.fromEntries(imported.map((asset, index) => [asset.assetId || asset.id, dataUrls[index]])),
-    }));
-    const nextMeta = updateMediaAssets(nextAssetIds);
-    await persistMediaAssetMetadata(nextMeta);
+    updateMediaImages([...legacyImageUrls, ...dataUrls]);
   };
 
   const updateMediaAssets = (assetIds: string[]): FeatureMetadata => {
@@ -934,7 +915,7 @@ export const PropertyPanel: React.FC = () => {
     return next;
   };
 
-  const updateMediaImages = (imageUrls: string[]) => {
+  const updateMediaImages = (imageUrls: string[]): FeatureMetadata => {
     const next = {
       ...localMeta,
       media: {
@@ -948,6 +929,7 @@ export const PropertyPanel: React.FC = () => {
     if (selectedFeatureId) {
       setPreview(selectedFeatureId, next, localName);
     }
+    return next;
   };
 
   const removeImageUrl = async (index: number) => {
@@ -974,32 +956,36 @@ export const PropertyPanel: React.FC = () => {
   };
 
   const replaceImageUrl = async (index: number, dataUrl: string) => {
-    if (!feature || !projectId) return;
-    const imported = await importMediaAsset(String(projectId), feature.id, dataUrl);
-    const assetId = imported.assetId || imported.id;
-    const nextAssetIds = [...imageAssetIds];
-    const replacedAssetId = index < nextAssetIds.length ? nextAssetIds[index] : null;
-    if (index < nextAssetIds.length) {
+    if (!feature) return;
+    let nextMeta: FeatureMetadata;
+
+    if (index < imageAssetIds.length && projectId) {
+      const imported = await importMediaAsset(String(projectId), feature.id, dataUrl);
+      const assetId = imported.assetId || imported.id;
+      const nextAssetIds = [...imageAssetIds];
+      const replacedAssetId = nextAssetIds[index];
       nextAssetIds[index] = assetId;
+      if (replacedAssetId && replacedAssetId !== assetId) {
+        await deleteMediaAsset(String(projectId), replacedAssetId);
+      }
+      setResolvedMediaUrls((prev) => ({
+        ...prev,
+        [assetId]: dataUrl,
+      }));
+      nextMeta = updateMediaAssets(nextAssetIds);
     } else {
-      nextAssetIds.push(assetId);
-    }
-    if (replacedAssetId && replacedAssetId !== assetId) {
-      await deleteMediaAsset(String(projectId), replacedAssetId);
+      const legacyIndex = Math.max(index - imageAssetIds.length, 0);
+      const nextImageUrls = [...legacyImageUrls];
+      nextImageUrls[legacyIndex] = dataUrl;
+      nextMeta = updateMediaImages(nextImageUrls);
     }
 
-    const nextMeta = withMediaAssets(localMeta, nextAssetIds);
     const standardizedMeta = preparePropertyMetadata(nextMeta, feature.properties as FeatureProperties);
     const nextProperties = buildFeaturePropertiesForPersistence(
       feature.properties as FeatureProperties | undefined,
       standardizedMeta
     );
 
-    setResolvedMediaUrls((prev) => ({
-      ...prev,
-      [assetId]: dataUrl,
-    }));
-    updateMediaAssets(nextAssetIds);
     await queueEvent({
       type: 'FeatureUpdated',
       payload: {
@@ -1013,18 +999,52 @@ export const PropertyPanel: React.FC = () => {
     setEditingImage(null);
   };
 
-  const handleMediaPaste = async (event: React.ClipboardEvent<HTMLDivElement>) => {
-    const hasImage = Array.from(event.clipboardData.items)
-      .some((item) => item.kind === 'file' && item.type.startsWith('image/'));
+  const pasteClipboardImages = async (
+    clipboardData: DataTransfer,
+    source: 'panel' | 'window',
+    preventDefault: () => void,
+    stopPropagation?: () => void,
+  ) => {
+    const items = Array.from(clipboardData.items);
+    const imageItems = items.filter((item) => item.kind === 'file' && item.type.startsWith('image/'));
 
-    if (!hasImage) return;
+    console.log('[PropertyPanel][Paste] event', {
+      source,
+      selectedFeatureId,
+      itemCount: items.length,
+      items: items.map((item) => ({ kind: item.kind, type: item.type })),
+      imageCount: imageItems.length,
+      activeElement: document.activeElement?.tagName ?? null,
+    });
 
-    event.preventDefault();
+    if (imageItems.length === 0) return;
+
+    preventDefault();
+    stopPropagation?.();
     try {
-      appendImageUrls(await readClipboardImageDataUrls(event.clipboardData));
+      const dataUrls = await readClipboardImageDataUrls(clipboardData);
+      console.log('[PropertyPanel][Paste] read images', {
+        source,
+        count: dataUrls.length,
+        existingCount: legacyImageUrls.length,
+      });
+      await appendImageUrls(dataUrls);
+      console.log('[PropertyPanel][Paste] appended images', {
+        source,
+        nextCount: legacyImageUrls.length + dataUrls.length,
+      });
     } catch (error) {
-      console.error('[PropertyPanel] Failed to paste clipboard image:', error);
+      console.error('[PropertyPanel][Paste] failed', error);
     }
+  };
+
+  const handleMediaPaste = async (event: React.ClipboardEvent<HTMLElement>) => {
+    await pasteClipboardImages(
+      event.clipboardData,
+      'panel',
+      () => event.preventDefault(),
+      () => event.stopPropagation(),
+    );
   };
 
   const openCameraPalettes = () => {
@@ -1045,12 +1065,6 @@ export const PropertyPanel: React.FC = () => {
       icon,
       type: getTypeForIcon(icon),
     } as FeatureMetadata;
-
-    console.groupCollapsed(`[PropertyPanel] Icon change -> ${icon}`);
-    console.log('featureId:', selectedFeatureId);
-    console.log('before:', getDebugShape(preparePropertyMetadata(localMeta, feature?.properties as FeatureProperties | undefined), feature?.properties as FeatureProperties | undefined));
-    console.log('after:', getDebugShape(preparePropertyMetadata(nextMeta, feature?.properties as FeatureProperties | undefined), feature?.properties as FeatureProperties | undefined));
-    console.groupEnd();
 
     setLocalMeta(nextMeta);
     if (selectedFeatureId) {
@@ -1074,7 +1088,7 @@ export const PropertyPanel: React.FC = () => {
   } = useCamera({
     onCapture: (dataUrl) => {
       void appendImageUrls([dataUrl]).catch((error) => {
-        console.error('[PropertyPanel] Failed to import captured image:', error);
+        void error;
       });
     },
     watermarkData: {
@@ -1094,15 +1108,6 @@ export const PropertyPanel: React.FC = () => {
       try {
         const meta = typeof feature.metadata === 'string' ? JSON.parse(feature.metadata || '{}') : (feature.metadata || {});
         const normalized = normalizeMetadataObject(meta);
-
-        console.groupCollapsed(`[PropertyPanel] Feature synced from store ${feature.id}`);
-        console.log('name:', feature.name);
-        console.log('metadata(raw):', meta);
-        console.log('metadata(normalized):', normalized);
-        console.log('media.imageAssetIds.count:', getMediaAssetIds(normalized).length);
-        console.log('properties:', feature.properties);
-        console.log('shape:', getDebugShape(normalized, feature.properties as FeatureProperties | undefined));
-        console.groupEnd();
 
         // Cập nhật tên (làm sạch STT nếu có)
         const sttValue = asStringValue(normalized.display_order ?? normalized.stt ?? normalized.STT);
@@ -1142,15 +1147,25 @@ export const PropertyPanel: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [editingImage, selectFeature, setActiveParentFeature]);
 
+  useEffect(() => {
+    if (!feature) return;
+    const handleWindowPaste = (event: ClipboardEvent) => {
+      if (!event.clipboardData || isEditablePasteTarget(event.target)) return;
+      void pasteClipboardImages(
+        event.clipboardData,
+        'window',
+        () => event.preventDefault(),
+        () => event.stopPropagation(),
+      );
+    };
+    window.addEventListener('paste', handleWindowPaste);
+    return () => window.removeEventListener('paste', handleWindowPaste);
+  }, [feature?.id, legacyImageUrls, selectedFeatureId, localMeta, localName]);
+
   const handleSave = async () => {
     if (!feature || (!isNameDirty && !isMetadataDirty)) return;
     setIsSaving(true);
     setIsSaved(false);
-
-    console.log('[PropertyPanel] 💾 Saving feature:', feature.id);
-    console.log('[PropertyPanel] 📝 draftMeta before save:', JSON.stringify(draftMeta, null, 2));
-    console.log('[PropertyPanel] 🔧 Size/Stroke value:', draftMeta.size);
-    console.log('[PropertyPanel] 🎨 Color value:', draftMeta.color);
 
     try {
       const standardizedMeta = preparePropertyMetadata(draftMeta, feature.properties as FeatureProperties);
@@ -1158,17 +1173,6 @@ export const PropertyPanel: React.FC = () => {
         feature.properties as FeatureProperties | undefined,
         standardizedMeta
       );
-
-      console.groupCollapsed(`[PropertyPanel] Save payload ${feature.id}`);
-      console.log('persisted-before:', getDebugShape(persistedMeta, feature.properties as FeatureProperties | undefined));
-      console.log('standardizedMeta:', standardizedMeta);
-      console.log('nextProperties:', nextProperties);
-      console.log('persisted-after:', getDebugShape(standardizedMeta, nextProperties));
-      console.groupEnd();
-
-      console.log('[PropertyPanel] ✅ Standardized metadata:', JSON.stringify(standardizedMeta, null, 2));
-      console.log('[PropertyPanel] 📦 Final payload size:', standardizedMeta.size);
-      console.log('[PropertyPanel] 🧭 Final payload icon/type:', nextProperties.iconKey, nextProperties.type);
 
       // Save to database via event queue
       await queueEvent({
@@ -1180,14 +1184,10 @@ export const PropertyPanel: React.FC = () => {
           properties: nextProperties
         }
       });
-
-      console.log('[PropertyPanel] ✅ Event queued successfully');
-
       // CRITICAL: Force state update to trigger map re-render
       const currentState = useDesignSync.getState().state;
       if (currentState) {
         useDesignSync.setState({ state: { ...currentState } });
-        console.log('[PropertyPanel] 🔄 Forced state update for re-render');
       }
 
       // CRITICAL: Verify save was successful
@@ -1200,17 +1200,6 @@ export const PropertyPanel: React.FC = () => {
           : verifyFeature.metadata;
         const normalizedVerifyMeta = preparePropertyMetadata(verifyMeta, feature.properties as FeatureProperties);
 
-        console.groupCollapsed(`[PropertyPanel] Save verification ${feature.id}`);
-        console.log('expected shape:', getDebugShape(standardizedMeta, nextProperties));
-        console.log('actual metadata:', verifyMeta);
-        console.log('actual properties:', verifyFeature.properties);
-        console.log('actual shape:', getDebugShape(normalizedVerifyMeta, verifyFeature.properties as FeatureProperties | undefined));
-        console.groupEnd();
-
-        console.log('[PropertyPanel] 🔍 Verification:');
-        console.log('[PropertyPanel]   Expected size:', standardizedMeta.size);
-        console.log('[PropertyPanel]   Actual size:', verifyMeta.size);
-
         if (
           verifyMeta.size !== standardizedMeta.size ||
           normalizedVerifyMeta.icon !== standardizedMeta.icon ||
@@ -1218,10 +1207,7 @@ export const PropertyPanel: React.FC = () => {
           verifyFeature.properties?.iconKey !== nextProperties.iconKey ||
           verifyFeature.properties?.type !== nextProperties.type
         ) {
-          console.error('[PropertyPanel] ❌ Metadata was not saved correctly!');
-          console.error('[PropertyPanel] This indicates a sync/database write issue or state overwrite.');
-        } else {
-          console.log('[PropertyPanel] ✅ Metadata saved successfully!');
+          // Keep non-paste diagnostics silent while isolating clipboard paste issues.
         }
       }
 
@@ -1232,7 +1218,7 @@ export const PropertyPanel: React.FC = () => {
       // Clear preview after save
       setPreview(null, null);
     } catch (error) {
-      console.error("[PropertyPanel] ❌ Save failed:", error);
+      void error;
       alert("Lỗi khi lưu dữ liệu. Vui lòng thử lại.");
     } finally {
       setIsSaving(false);
@@ -1292,7 +1278,7 @@ export const PropertyPanel: React.FC = () => {
       setPreview(null, null);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      console.error('Import error:', err);
+      void err;
       alert('Lỗi import: ' + errorMessage);
     } finally {
       setIsImporting(false);
@@ -1383,6 +1369,7 @@ export const PropertyPanel: React.FC = () => {
   return (
     <aside
       className="w-full h-full bg-[#1e1e1e] border border-[#333] flex flex-col shadow-2xl text-white font-mono rounded-xl overflow-hidden"
+      onPaste={handleMediaPaste}
       onContextMenu={(e) => {
         e.preventDefault();
         selectFeature(null);
@@ -1598,7 +1585,7 @@ export const PropertyPanel: React.FC = () => {
                   );
                 }
               } catch (e) {
-                console.error('[PropertyPanel] Failed to parse feature data:', e);
+                void e;
                 return <p className="col-span-2 text-[9px] text-red-500">Error loading feature data</p>;
               }
             })()}
