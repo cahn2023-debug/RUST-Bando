@@ -16,6 +16,14 @@ import { handleFeatureSelection } from "@DESIGN/features/map";
 
 const EMPTY_OBJ = {};
 
+const canUseLeafletPanes = (map: L.Map) => {
+    try {
+        return Boolean((map as any)?._loaded && map.getPane('markerPane'));
+    } catch {
+        return false;
+    }
+};
+
 // -------------------------------------------------------------------
 // SelectedFeaturePopupManager — unchanged API, same as before
 // -------------------------------------------------------------------
@@ -203,67 +211,78 @@ export const PointLayer = React.memo(({
     const isMovingRef = useRef<Map<string, boolean>>(new Map());
 
     useEffect(() => {
-        if (nativeGroupRef.current) return;
+        let disposed = false;
 
-        const group = (L as any).markerClusterGroup({
-            chunkedLoading: true,
-            chunkInterval: 200,
-            chunkDelay: 10,
-            maxClusterRadius: 50,
-            spiderfyOnMaxZoom: true,
-            showCoverageOnHover: false,
-            disableClusteringAtZoom: 19,
-            animate: false,
-        });
+        const setupGroups = () => {
+            if (disposed || nativeGroupRef.current || !canUseLeafletPanes(map)) return;
 
-        nativeGroupRef.current = group;
-        clusterGroupRef.current = group;
+            const group = (L as any).markerClusterGroup({
+                chunkedLoading: true,
+                chunkInterval: 200,
+                chunkDelay: 10,
+                maxClusterRadius: 50,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                disableClusteringAtZoom: 19,
+                animate: false,
+            });
 
-        const moveGroup = new L.FeatureGroup();
-        moveToolGroupRef.current = moveGroup;
+            nativeGroupRef.current = group;
+            clusterGroupRef.current = group;
 
-        if (!map.getPane('move-tool-pane')) {
-            const pane = map.createPane('move-tool-pane');
-            pane.style.zIndex = '1000';
+            const moveGroup = new L.FeatureGroup();
+            moveToolGroupRef.current = moveGroup;
+
+            if (!map.getPane('move-tool-pane')) {
+                const pane = map.createPane('move-tool-pane');
+                pane.style.zIndex = '1000';
+            }
+
+            map.addLayer(group);
+            map.addLayer(moveGroup);
+            if (moveGroupRef) moveGroupRef.current = moveGroup;
+
+            group.on('animationend spiderfied unspiderfied', () => {
+                map.fire('popup-sync');
+            });
+
+            group.on('click', (e: any) => {
+                if (e.originalEvent) {
+                    L.DomEvent.stopPropagation(e.originalEvent);
+                }
+                const featureId = e.layer?.options?.featureId || e.layer?.featureId;
+                const groupId = e.layer?.options?.featureGroupId || e.layer?.featureGroupId;
+                if (featureId) {
+                    const mode = useDesignSync.getState().drawingMode;
+                    if (mode === 'none' || mode === 'move') {
+                        handleFeatureSelection(featureId, groupId, e);
+                    }
+                }
+            });
+
+            moveGroup.on('click', (e: any) => {
+                if (e.originalEvent) {
+                    L.DomEvent.stopPropagation(e.originalEvent);
+                }
+                const featureId = e.layer?.options?.featureId || e.layer?.featureId;
+                const groupId = e.layer?.options?.featureGroupId || e.layer?.featureGroupId;
+                if (featureId) {
+                    const mode = useDesignSync.getState().drawingMode;
+                    if (mode === 'none' || mode === 'move') {
+                        handleFeatureSelection(featureId, groupId, e);
+                    }
+                }
+            });
+        };
+
+        if (canUseLeafletPanes(map)) {
+            setupGroups();
+        } else {
+            map.whenReady(setupGroups);
         }
 
-        map.addLayer(group);
-        map.addLayer(moveGroup);
-        if (moveGroupRef) moveGroupRef.current = moveGroup;
-
-        group.on('animationend spiderfied unspiderfied', () => {
-            map.fire('popup-sync');
-        });
-
-        group.on('click', (e: any) => {
-            if (e.originalEvent) {
-                L.DomEvent.stopPropagation(e.originalEvent);
-            }
-            const featureId = e.layer?.options?.featureId || e.layer?.featureId;
-            const groupId = e.layer?.options?.featureGroupId || e.layer?.featureGroupId;
-            if (featureId) {
-                const mode = useDesignSync.getState().drawingMode;
-                if (mode === 'none' || mode === 'move') {
-                    handleFeatureSelection(featureId, groupId, e);
-                }
-            }
-        });
-
-        moveGroup.on('click', (e: any) => {
-            if (e.originalEvent) {
-                L.DomEvent.stopPropagation(e.originalEvent);
-            }
-            const featureId = e.layer?.options?.featureId || e.layer?.featureId;
-            const groupId = e.layer?.options?.featureGroupId || e.layer?.featureGroupId;
-            if (featureId) {
-                const mode = useDesignSync.getState().drawingMode;
-                if (mode === 'none' || mode === 'move') {
-                    handleFeatureSelection(featureId, groupId, e);
-                }
-            }
-        });
-
         return () => {
+            disposed = true;
             if (nativeGroupRef.current && map.hasLayer(nativeGroupRef.current)) {
                 map.removeLayer(nativeGroupRef.current);
             }
@@ -281,7 +300,7 @@ export const PointLayer = React.memo(({
     useEffect(() => {
         const clusterGroup = nativeGroupRef.current;
         const moveGroup = moveToolGroupRef.current;
-        if (!clusterGroup || !moveGroup) return;
+        if (!clusterGroup || !moveGroup || !canUseLeafletPanes(map)) return;
 
         const currentIds = new Set<string>();
         const markersMap = markersMapRef.current;
@@ -335,6 +354,9 @@ export const PointLayer = React.memo(({
                 }
 
                 (marker as any)._group = targetGroup;
+                if (!canUseLeafletPanes(map)) {
+                    continue;
+                }
                 targetGroup.addLayer(marker);
                 markersMap.set(f.id, marker);
             } else {
@@ -377,6 +399,9 @@ export const PointLayer = React.memo(({
                 if (currentGroup !== targetGroup || currentPane !== targetPane) {
                     currentGroup.removeLayer(marker);
                     (marker.options as any).pane = targetPane;
+                    if (!canUseLeafletPanes(map)) {
+                        continue;
+                    }
                     targetGroup.addLayer(marker);
                     (marker as any)._group = targetGroup;
                 }
@@ -398,7 +423,8 @@ export const PointLayer = React.memo(({
         previewMetadata,
         feature_groups,
         groupThemePreview,
-        dispatchEventAction
+        dispatchEventAction,
+        map
     ]);
 
     return null;

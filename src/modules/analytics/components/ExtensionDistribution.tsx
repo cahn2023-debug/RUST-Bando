@@ -10,22 +10,21 @@ interface ExtensionDistributionProps {
 }
 
 const COLORS = [
-    '#60A5FA', // Blue
-    '#C084FC', // Purple
-    '#4ADE80', // Green
-    '#FB923C', // Orange
-    '#F87171', // Red
-    '#2DD4BF', // Teal
+    '#10B981',
+    '#34D399',
+    '#60A5FA',
+    '#C084FC',
+    '#F59E0B',
+    '#F87171',
 ];
 
 const ExtensionDistribution: React.FC<ExtensionDistributionProps> = ({ data }) => {
     const total = (data || []).reduce((acc, curr) => acc + curr.count, 0);
 
-    // Calculate segments for SVG Doughnut
     let currentAngle = -90;
     const segments = data.map((item, index) => {
-        const percentage = (item.count / total) * 100;
-        const angle = (item.count / total) * 360;
+        const percentage = total > 0 ? (item.count / total) * 100 : 0;
+        const angle = total > 0 ? (item.count / total) * 360 : 0;
         const pathData = describeArc(50, 50, 40, currentAngle, currentAngle + angle);
         currentAngle += angle;
         return {
@@ -37,11 +36,13 @@ const ExtensionDistribution: React.FC<ExtensionDistributionProps> = ({ data }) =
     });
 
     return (
-        <div className="p-6 rounded-2xl border border-white/10 backdrop-blur-xl bg-white/5">
-            <h3 className="text-sm font-semibold text-white/60 mb-6 uppercase tracking-wider">File Extension Distribution</h3>
-            <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-                <div className="relative w-48 h-48">
-                    <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+        <div className="cad-card p-6">
+            <h3 className="mb-6 text-sm font-semibold uppercase tracking-wider text-cad-text-secondary">
+                File Extension Distribution
+            </h3>
+            <div className="flex flex-col items-center justify-between gap-8 md:flex-row">
+                <div className="relative h-48 w-48">
+                    <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90 transform">
                         {segments.map((seg, i) => (
                             <path
                                 key={i}
@@ -49,23 +50,23 @@ const ExtensionDistribution: React.FC<ExtensionDistributionProps> = ({ data }) =
                                 fill="none"
                                 stroke={seg.color}
                                 strokeWidth="12"
-                                className="transition-all duration-700 hover:opacity-80 cursor-pointer"
+                                className="cursor-pointer transition-all duration-700 hover:opacity-80"
                             />
                         ))}
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-2xl font-bold text-white">{total}</span>
-                        <span className="text-[10px] text-white/40 uppercase">Total Files</span>
+                        <span className="text-2xl font-bold text-cad-text-primary">{total}</span>
+                        <span className="text-[10px] uppercase text-cad-text-muted">Total Files</span>
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-3 w-full md:w-auto">
+                <div className="flex w-full flex-col gap-3 md:w-auto">
                     {segments.map((seg, i) => (
                         <div key={i} className="flex items-center gap-3">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: seg.color }} />
-                            <span className="text-sm text-white/70 min-w-16">{seg.extension || 'none'}</span>
-                            <span className="text-sm font-semibold text-white">{seg.count}</span>
-                            <span className="text-xs text-white/30 ml-auto">{seg.percentage.toFixed(1)}%</span>
+                            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: seg.color }} />
+                            <span className="min-w-16 text-sm text-cad-text-secondary">{seg.extension || 'none'}</span>
+                            <span className="text-sm font-semibold text-cad-text-primary">{seg.count}</span>
+                            <span className="ml-auto text-xs text-cad-text-muted">{seg.percentage.toFixed(1)}%</span>
                         </div>
                     ))}
                 </div>
@@ -74,7 +75,6 @@ const ExtensionDistribution: React.FC<ExtensionDistributionProps> = ({ data }) =
     );
 };
 
-// Helper functions for SVG Arc
 function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
     const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
     return {

@@ -10,6 +10,14 @@ export const isValidLatLng = (lat: number, lng: number) => {
         lng >= -180 && lng <= 180;
 };
 
+const canFitBounds = (map: L.Map) => {
+    try {
+        return Boolean((map as any)?._loaded && map.getPane('mapPane'));
+    } catch {
+        return false;
+    }
+};
+
 export function ZoomExtendControl() {
     const map = useMap();
     const state = useDesignSync(s => s.state);
@@ -73,6 +81,13 @@ export function ZoomExtendControl() {
             if (filteredPoints.length > 0) {
                 const bounds = L.latLngBounds(filteredPoints as L.LatLngExpression[]);
                 console.log("[ZoomExtend] Points collected:", allLatLngs.length, "Filtered:", filteredPoints.length);
+                if (!canFitBounds(map)) {
+                    map.whenReady(() => {
+                        if (!canFitBounds(map)) return;
+                        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+                    });
+                    return;
+                }
                 map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
             }
         } else {

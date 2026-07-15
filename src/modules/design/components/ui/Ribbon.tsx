@@ -130,7 +130,7 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
       <div
         role="tablist"
         aria-label="Ribbon tabs"
-        className="flex px-4 pt-1 gap-1 items-end"
+        className="flex items-end gap-1 px-4 pt-1"
       >
         {tabs.map((tab) => (
           <button
@@ -145,14 +145,21 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
             }}
             onKeyDown={handleTabKeyDown}
             className={cn(
-              "px-6 py-1.5 text-[11px] font-black tracking-tight rounded-t-sm transition-all relative font-display",
+              "relative inline-flex h-9 items-center gap-2 rounded-t-sm px-5 text-[10px] font-black uppercase tracking-[0.16em] transition-colors font-display",
               activeTab === tab.id
-                ? "bg-cad-elevated text-cad-accent border-x border-t border-cad-border"
-                : "text-cad-text-secondary hover:text-cad-text-primary hover:bg-cad-elevated/50"
+                ? "border-x border-t border-cad-border bg-cad-elevated text-cad-accent"
+                : "text-cad-text-secondary hover:bg-cad-elevated/50 hover:text-cad-text-primary"
             )}
           >
             <div className="flex items-center gap-2">
-              {tab.id === 'ADMIN' && <tab.icon size={12} className="text-cad-accent" aria-hidden="true" />}
+              <tab.icon
+                size={14}
+                className={cn(
+                  "shrink-0 transition-colors",
+                  activeTab === tab.id ? "text-cad-accent" : "text-cad-text-muted"
+                )}
+                aria-hidden="true"
+              />
               {tab.label}
             </div>
             {activeTab === tab.id && <div className="absolute -bottom-[1px] left-0 right-0 h-[1px] bg-cad-elevated" aria-hidden="true" />}
@@ -165,7 +172,7 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
         aria-label={`${activeTab} tools`}
         id={`panel-${activeTab}`}
         aria-labelledby={`tab-${activeTab}`}
-        className="h-[80px] bg-cad-elevated flex items-center px-6 gap-8 border-t border-cad-border overflow-x-auto no-scrollbar"
+        className="flex h-[80px] items-center gap-8 overflow-x-auto border-t border-cad-border bg-cad-elevated px-6 no-scrollbar"
       >
         {activeTab === 'ADMIN' ? (
           <div className="flex items-center gap-6 animate-in slide-in-from-left duration-300">
@@ -174,8 +181,8 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
               <span className="text-[9px] font-bold text-cad-text-muted uppercase">{t('project.projectSettings')}</span>
             </div>
             <div className="h-8 w-[1px] bg-cad-border" />
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-cad-accent/5 border border-cad-accent/10 rounded-md">
-              <ShieldCheck size={14} className="text-cad-accent" />
+            <div className="flex items-center gap-2 rounded-md border border-cad-accent/10 bg-cad-accent/5 px-3 py-1.5">
+              <ShieldCheck size={14} className="cad-icon-accent" />
               <span className="text-[10px] font-bold text-white uppercase italic">{t('settings.general')}</span>
             </div>
           </div>

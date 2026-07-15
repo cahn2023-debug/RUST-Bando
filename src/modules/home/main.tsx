@@ -42,7 +42,7 @@ window.visualViewport?.addEventListener("resize", syncViewportSize);
 const LoadingFallback = () => {
   const { t } = useTranslation();
   return (
-    <div className="h-full w-full min-h-0 min-w-0 flex items-center justify-center bg-[#16171B] text-cad-text-muted font-mono text-[10px] uppercase tracking-widest animate-pulse">
+    <div className="cad-shell-window items-center justify-center text-cad-text-muted font-mono text-[10px] uppercase tracking-[0.2em] animate-pulse">
       {t("common.loading")}
     </div>
   );

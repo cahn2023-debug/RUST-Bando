@@ -86,29 +86,21 @@ export function CreateProjectModal({ onClose, onSuccess }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-      {/* Overlay */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-md"
-        onClick={onClose}
-      />
+      <div className="cad-overlay" onClick={onClose} />
 
-      {/* Modal Card */}
       <div
-        className="relative w-full max-w-md bg-[#1e1e1e] border border-cad-border rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 duration-200"
+        className="cad-dialog relative w-full max-w-md animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Accent Gradient */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cad-accent to-transparent" />
-
-        {/* Subtle Background Glow */}
-        <div className="absolute -top-20 -right-20 w-40 h-40 bg-cad-accent/5 rounded-full blur-[80px] pointer-events-none" />
-
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-white/5">
-          <h2 className="text-sm font-black text-white uppercase tracking-widest">New Project</h2>
+        <div className="h-1 bg-gradient-to-r from-transparent via-cad-accent to-transparent" />
+        <div className="flex items-center justify-between border-b border-cad-border px-5 py-4">
+          <div>
+            <h2 className="text-sm font-black text-cad-text-primary uppercase tracking-[0.16em]">New Project</h2>
+            <p className="text-[9px] text-cad-text-muted uppercase tracking-[0.14em] mt-1">Create a new workspace file</p>
+          </div>
           <button
             onClick={onClose}
-            className="p-2 text-white/40 hover:text-white hover:bg-white/5 rounded-full transition-all"
+            className="cad-icon-button"
           >
             <X size={18} />
           </button>
@@ -127,25 +119,25 @@ export function CreateProjectModal({ onClose, onSuccess }: Props) {
                 type="text"
                 value={path}
                 placeholder="Select where to save the .pmp file"
-                className="flex-1 bg-cad-bg border border-cad-border hover:border-cad-accent/50 focus:border-cad-accent rounded-sm px-4 py-2 text-xs outline-none text-cad-text-primary transition-all font-mono overflow-ellipsis"
+                className="cad-input flex-1 font-mono overflow-ellipsis"
               />
               <button
                 type="button"
                 onClick={handleSelectPath}
-                className="px-4 bg-cad-accent hover:bg-white text-black font-black rounded-sm transition-all flex items-center justify-center shadow-md shadow-cad-accent/15"
+                className="cad-button cad-button-primary px-4"
                 title="Browse..."
               >
                 <FolderPlus size={18} />
               </button>
             </div>
             {error && (
-              <div className="mt-2 text-[10px] font-mono uppercase text-red-400 bg-red-500/10 p-2.5 rounded-sm border border-red-500/20 flex items-center gap-2">
+              <div className="mt-2 flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/10 p-2.5 text-[10px] font-mono uppercase text-red-300">
                 <Info size={14} className="rotate-180" />
                 <span>{error}</span>
               </div>
             )}
             {name && (
-              <div className="mt-2 flex items-center gap-2 text-[10px] font-mono uppercase text-cad-accent bg-cad-accent/10 p-2.5 rounded-sm border border-cad-accent/20">
+              <div className="mt-2 flex items-center gap-2 rounded-md border border-cad-accent/20 bg-cad-accent/10 p-2.5 text-[10px] font-mono uppercase text-cad-accent">
                 <Info size={14} />
                 <span>Project Name: <strong>{name}</strong> (derived from file)</span>
               </div>
@@ -161,22 +153,22 @@ export function CreateProjectModal({ onClose, onSuccess }: Props) {
               onChange={e => setDesc(e.target.value)}
               placeholder="Short description..."
               rows={3}
-              className="w-full bg-cad-bg border border-cad-border hover:border-cad-accent/50 focus:border-cad-accent rounded-sm px-4 py-3 text-xs outline-none transition-all resize-none text-cad-text-primary"
+              className="cad-textarea"
             />
           </div>
 
-          <div className="mt-4 flex justify-end gap-3 pt-4 border-t border-white/5">
+          <div className="mt-4 flex justify-end gap-3 border-t border-cad-border pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-wider rounded-sm transition-all border border-white/5"
+              className="cad-button cad-button-secondary flex-1 py-3"
             >
               Cancel
             </button>
             <button
               disabled={loading}
               type="submit"
-              className="flex-1 py-3 bg-cad-accent hover:bg-white text-black text-[10px] font-black uppercase tracking-wider rounded-sm transition-all shadow-lg shadow-cad-accent/20 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+              className="cad-button cad-button-primary flex-1 py-3"
             >
               {loading ? "Creating..." : "Create Project"}
             </button>

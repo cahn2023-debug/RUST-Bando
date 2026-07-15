@@ -51,7 +51,7 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={confirmDelete}
                 title="Xác nhận gỡ bỏ dự án"
-                message="Bạn có chắc chắn muốn xóa dự án này khỏi danh sách gần đây không? Thao tác này KHÔNG xóa tệp tin .pmp trên máy tính của bạn."
+                message="Bạn có chắc chắn muốn xóa dự án này khỏi danh sách gần đây không? Thao tác này không xóa tệp .pmp trên máy tính của bạn."
                 itemName={projectToDelete?.name}
             />
             <PerformanceOverlay />

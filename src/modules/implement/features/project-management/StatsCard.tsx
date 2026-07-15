@@ -26,7 +26,7 @@ export const StatsCard: React.FC<StatsCardProps> = ({
     const bgColor = BG_COLOR_MAP[color] || "bg-cad-accent";
 
     return (
-        <div className="bg-cad-surface border border-cad-border p-4 flex flex-col gap-3 group hover:border-cad-accent/50 transition-all">
+        <div className="cad-card p-4 flex flex-col gap-3 group hover:border-cad-accent/50 transition-all">
             <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold tracking-widest text-cad-text-secondary uppercase">
                     {label}
@@ -43,7 +43,7 @@ export const StatsCard: React.FC<StatsCardProps> = ({
                     </span>
                 )}
             </div>
-            <div className="h-[2px] w-full bg-cad-bg overflow-hidden mt-1">
+            <div className="h-[2px] w-full bg-cad-bg overflow-hidden mt-1 rounded-full">
                 <div
                     className={`h-full ${bgColor} opacity-30 group-hover:opacity-100 transition-all duration-500`}
                     style={{ width: '40%' }}

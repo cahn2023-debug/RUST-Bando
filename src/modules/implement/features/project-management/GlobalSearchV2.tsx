@@ -32,7 +32,7 @@ export function GlobalSearchV2() {
     };
 
     return (
-        <div className="px-4 py-3 border-b border-cad-border/30 bg-cad-header/20">
+        <div className="border-b border-cad-border/30 bg-cad-header/20 px-4 py-3">
             <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-cad-text-muted" />
                 <input
@@ -40,12 +40,12 @@ export function GlobalSearchV2() {
                     value={query}
                     onChange={(e) => handleSearch(e.target.value)}
                     placeholder="Tìm kiếm tài liệu (FTS5)..."
-                    className="w-full bg-black/40 border border-cad-border/50 rounded-sm py-1.5 pl-9 pr-8 text-xs text-white placeholder:text-cad-text-muted/50 focus:outline-none focus:border-cad-accent transition-colors"
+                    className="cad-search w-full"
                 />
                 {query && (
                     <button
                         onClick={() => handleSearch("")}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-cad-text-muted hover:text-white"
+                        className="cad-icon-button absolute right-1 top-1/2 h-6 w-6 -translate-y-1/2"
                     >
                         <X size={12} />
                     </button>
@@ -53,19 +53,19 @@ export function GlobalSearchV2() {
             </div>
 
             {results.length > 0 && (
-                <div className="mt-2 max-h-60 overflow-y-auto custom-scrollbar bg-cad-surface border border-cad-border shadow-2xl rounded-sm z-50">
+                <div className="cad-card cad-scrollbar z-50 mt-2 max-h-60 overflow-y-auto">
                     {results.map((file) => (
                         <button
                             key={file.id}
-                            className="w-full text-left px-3 py-2 hover:bg-cad-accent/10 border-b border-cad-border/20 last:border-0 transition-colors group"
+                            className="group w-full border-b border-cad-border/20 px-3 py-2 text-left transition-colors last:border-0 hover:bg-cad-accent/10"
                         >
                             <div className="flex items-center gap-2">
                                 <File size={12} className="text-cad-accent" />
-                                <span className="text-xs font-bold text-white truncate">{file.filename}</span>
+                                <span className="truncate text-xs font-bold text-cad-text-primary">{file.filename}</span>
                             </div>
-                            <div className="flex items-center gap-1 mt-0.5 opacity-60">
+                            <div className="mt-0.5 flex items-center gap-1 opacity-60">
                                 <Folder size={10} className="text-cad-text-muted" />
-                                <span className="text-[10px] text-cad-text-muted truncate">{file.rel_path}</span>
+                                <span className="truncate text-[10px] text-cad-text-muted">{file.rel_path}</span>
                             </div>
                         </button>
                     ))}
@@ -73,7 +73,7 @@ export function GlobalSearchV2() {
             )}
 
             {searching && (
-                <div className="mt-1 text-[10px] text-cad-accent animate-pulse px-1">Đang tìm kiếm...</div>
+                <div className="mt-1 px-1 text-[10px] text-cad-accent animate-pulse">Đang tìm kiếm...</div>
             )}
         </div>
     );

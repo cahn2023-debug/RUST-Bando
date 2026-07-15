@@ -57,22 +57,22 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ projectId }) =>
 
     if (loading && !stats) {
         return (
-            <div className="flex flex-col items-center justify-center h-[400px] gap-4">
-                <RefreshCw size={32} className="animate-spin text-blue-500" />
-                <p className="text-white/40 animate-pulse text-sm">Aggregating project data...</p>
+            <div className="cad-empty-state h-[400px] gap-4">
+                <RefreshCw size={32} className="animate-spin text-cad-accent" />
+                <p className="text-cad-text-muted animate-pulse text-sm">Aggregating project data...</p>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center h-[400px] gap-4 p-8 text-center bg-red-400/5 rounded-2xl border border-red-400/20">
+            <div className="cad-card flex h-[400px] flex-col items-center justify-center gap-4 p-8 text-center border-red-400/20 bg-red-400/5">
                 <AlertCircle size={40} className="text-red-400 opacity-50" />
-                <h4 className="text-white font-medium">Analytics Error</h4>
-                <p className="text-white/40 text-sm max-w-sm">{error}</p>
+                <h4 className="font-medium text-cad-text-primary">Analytics Error</h4>
+                <p className="max-w-sm text-sm text-cad-text-muted">{error}</p>
                 <button
                     onClick={fetchData}
-                    className="mt-4 px-6 py-2 bg-white/5 hover:bg-white/10 text-white rounded-full text-sm transition-all border border-white/10"
+                    className="cad-button cad-button-secondary mt-4 px-6 py-2"
                 >
                     Try Again
                 </button>
@@ -82,35 +82,33 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ projectId }) =>
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <BarChart3 className="text-blue-500" size={24} />
-                    <h2 className="text-xl font-bold text-white tracking-tight">Project Analytics</h2>
+                    <BarChart3 className="text-cad-accent" size={24} />
+                    <h2 className="text-xl font-bold tracking-tight text-cad-text-primary">Project Analytics</h2>
                 </div>
                 <button
                     onClick={fetchData}
-                    className="p-2 rounded-full hover:bg-white/5 text-white/40 hover:text-white transition-all outline-none"
+                    className="cad-icon-button"
                     title="Refresh Data"
                 >
                     <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
                 </button>
             </div>
 
-            {/* Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 <StatCard
                     title="Total Files"
                     value={stats?.total_files?.toLocaleString() || '0'}
                     icon={Files}
-                    color="blue"
+                    color="cad"
                     description="Total indexed files in this project"
                 />
                 <StatCard
                     title="Storage Usage"
                     value={formatSize(stats?.total_size || 0)}
                     icon={HardDrive}
-                    color="purple"
+                    color="cad"
                     description="Accumulated size of all project files"
                 />
                 <div className="hidden lg:block">
@@ -118,14 +116,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ projectId }) =>
                         title="Analysis Status"
                         value="Active"
                         icon={BarChart3}
-                        color="green"
+                        color="cad"
                         description="Project file indexing is currently available"
                     />
                 </div>
             </div>
 
-            {/* Detailed Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <ExtensionDistribution data={dist} />
                 <TopFiles files={topFiles} />
             </div>

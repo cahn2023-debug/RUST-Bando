@@ -2,11 +2,11 @@
 
 @theme {
   /* Deep Dark Theme Tokens */
-  --color-cad-header: #111111;
-  --color-cad-bg: #111111;
-  --color-cad-surface: #1E2026;
-  --color-cad-elevated: #25282E;
-  --color-cad-border: #2D3039;
+  --color-cad-header: #101217;
+  --color-cad-bg: #0F1115;
+  --color-cad-surface: #171B21;
+  --color-cad-elevated: #20252D;
+  --color-cad-border: #2B313B;
   --color-cad-accent: #10B981;
   --color-cad-active: #34D399;
   --color-cad-warn: #F59E0B;
@@ -69,9 +69,17 @@
   body {
     @apply h-full w-full m-0 p-0 text-cad-text-primary bg-cad-bg;
     font-family: var(--font-sans);
+    line-height: 1.5;
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
   }
 
   input,
@@ -188,12 +196,189 @@
   .monaco-editor *::selection {
     @apply bg-cad-accent/30 text-white;
   }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgb(16 185 129 / 0.6), 0 0 0 4px rgb(15 17 21 / 1);
+  }
 }
 
 /* Layout utilities */
 @layer utilities {
   .flex-center {
     @apply flex items-center justify-center;
+  }
+
+  .cad-shell-window {
+    @apply flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-cad-bg text-cad-text-primary;
+  }
+
+  .cad-toolbar {
+    @apply flex h-10 items-center justify-between border-b border-cad-border bg-cad-header px-4 shrink-0;
+  }
+
+  .cad-statusbar {
+    @apply flex h-[22px] items-center justify-between border-t border-cad-border bg-cad-header px-3 shrink-0 text-[9px] text-cad-text-muted;
+  }
+
+  .cad-panel {
+    @apply rounded-md border border-cad-border bg-cad-surface shadow-[0_16px_42px_rgba(0,0,0,0.28)];
+  }
+
+  .cad-panel-strong {
+    @apply rounded-md border border-cad-border bg-cad-elevated shadow-[0_20px_48px_rgba(0,0,0,0.34)];
+  }
+
+  .cad-card {
+    @apply rounded-md border border-cad-border bg-cad-surface/95 shadow-[0_12px_28px_rgba(0,0,0,0.22)];
+  }
+
+  .cad-dialog {
+    @apply overflow-hidden rounded-md border border-cad-border bg-cad-surface shadow-[0_24px_72px_rgba(0,0,0,0.48)];
+  }
+
+  .cad-overlay {
+    @apply fixed inset-0 bg-black/60 backdrop-blur-sm;
+  }
+
+  .cad-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-cad-border bg-cad-elevated px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-cad-text-primary transition-colors duration-200 hover:bg-cad-surface disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .cad-button-primary {
+    @apply border-cad-accent bg-cad-accent text-black hover:bg-cad-active;
+  }
+
+  .cad-button-secondary {
+    @apply border-cad-border bg-cad-surface text-cad-text-primary hover:bg-cad-elevated;
+  }
+
+  .cad-button-ghost {
+    @apply border-transparent bg-transparent text-cad-text-muted hover:bg-white/5 hover:text-cad-text-primary;
+  }
+
+  .cad-icon-button {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent bg-transparent text-cad-text-muted transition-colors hover:bg-white/5 hover:text-cad-text-primary;
+  }
+
+  .cad-icon-xs {
+    width: 12px;
+    height: 12px;
+  }
+
+  .cad-icon-sm {
+    width: 14px;
+    height: 14px;
+  }
+
+  .cad-icon-md {
+    width: 16px;
+    height: 16px;
+  }
+
+  .cad-icon-lg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .cad-icon-xl {
+    width: 20px;
+    height: 20px;
+  }
+
+  .cad-icon-muted {
+    color: var(--color-cad-text-muted);
+  }
+
+  .cad-icon-secondary {
+    color: var(--color-cad-text-secondary);
+  }
+
+  .cad-icon-primary {
+    color: var(--color-cad-text-primary);
+  }
+
+  .cad-icon-accent {
+    color: var(--color-cad-accent);
+  }
+
+  .cad-icon-success {
+    color: var(--color-cad-active);
+  }
+
+  .cad-icon-warn {
+    color: var(--color-cad-warn);
+  }
+
+  .cad-icon-danger {
+    color: #f87171;
+  }
+
+  .cad-icon-button-active {
+    @apply border-cad-accent/30 bg-cad-accent/10 text-cad-accent;
+  }
+
+  .cad-input,
+  .cad-select,
+  .cad-textarea {
+    @apply w-full rounded-md border border-cad-border bg-cad-bg px-3 py-2 text-xs text-cad-text-primary outline-none transition-colors placeholder:text-cad-text-muted/60 focus:border-cad-accent focus:bg-cad-surface;
+  }
+
+  .cad-textarea {
+    @apply min-h-24 resize-none;
+  }
+
+  .cad-search {
+    @apply w-full rounded-md border border-cad-border bg-cad-bg px-3 py-2 pl-9 text-xs text-cad-text-primary outline-none transition-colors placeholder:text-cad-text-muted/60 focus:border-cad-accent focus:bg-cad-surface;
+  }
+
+  .cad-badge {
+    @apply inline-flex items-center rounded-full border border-cad-border bg-cad-elevated px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-cad-text-muted;
+  }
+
+  .cad-badge-accent {
+    @apply border-cad-accent/30 bg-cad-accent/10 text-cad-accent;
+  }
+
+  .cad-empty-state {
+    @apply flex flex-col items-center justify-center rounded-md border border-dashed border-cad-border bg-cad-surface/40 p-6 text-center;
+  }
+
+  .cad-tabbar {
+    @apply flex items-end gap-1 overflow-x-auto border-b border-cad-border bg-cad-header px-3;
+  }
+
+  .cad-tab {
+    @apply relative inline-flex h-8 items-center rounded-t-md border border-transparent px-4 text-[10px] font-black uppercase tracking-[0.16em] text-cad-text-muted transition-colors hover:bg-white/5 hover:text-cad-text-primary;
+  }
+
+  .cad-tab-active {
+    @apply border-cad-border border-b-cad-bg bg-cad-bg text-cad-accent;
+  }
+
+  .cad-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-cad-text-secondary) transparent;
+  }
+
+  .cad-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .cad-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .cad-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--color-cad-text-muted);
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: content-box;
+  }
+
+  .cad-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-cad-text-secondary);
   }
 
   .glass-panel {
@@ -209,36 +394,15 @@
   .coordinate-display,
   .analysis-value {
     font-family: var(--font-mono) !important;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
   }
 
   .glass-panel:hover {
     @apply border-cad-active/30 bg-cad-surface/50;
   }
 
-  .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-cad-text-secondary) transparent;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: var(--color-cad-text-muted);
-    border-radius: 10px;
-    border: 1px solid transparent;
-    background-clip: content-box;
-  }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: var(--color-cad-text-secondary);
-  }
-
   .summary-overlay {
-    @apply absolute bottom-8 left-1/2 -translate-x-1/2 z-40 w-[420px] bg-cad-surface/90 backdrop-blur-md border border-cad-accent/30 rounded-sm overflow-hidden animate-fade-in animate-slide-up;
+    @apply absolute bottom-8 left-1/2 z-40 w-[420px] -translate-x-1/2 overflow-hidden rounded-md border border-cad-accent/30 bg-cad-surface/90 backdrop-blur-md animate-fade-in animate-slide-up;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   }
 

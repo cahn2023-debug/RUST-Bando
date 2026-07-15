@@ -5,7 +5,7 @@ export function StatusBar() {
   const syncStatus = useDesignSync((s) => s.syncStatus);
 
   return (
-    <div className="h-[22px] bg-[#1A1A1A] border-t border-[#000000] flex items-center px-3 justify-between shrink-0 select-none text-cad-text-muted">
+    <div className="cad-statusbar select-none">
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full bg-cad-accent animate-pulse" />

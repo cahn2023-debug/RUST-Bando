@@ -4,9 +4,9 @@ import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
 
 export const AppLoader: React.FC = () => {
     return (
-        <div className="h-full w-full min-h-0 min-w-0 flex items-center justify-center bg-cad-bg">
+        <div className="cad-shell-window items-center justify-center">
             <div className="flex flex-col items-center gap-4">
-                <div className="w-12 h-12 bg-cad-accent flex items-center justify-center rounded-lg animate-pulse shadow-lg shadow-cad-accent/10">
+                <div className="flex h-12 w-12 items-center justify-center rounded-md bg-cad-accent shadow-[0_10px_30px_rgba(16,185,129,0.18)] animate-pulse">
                     <span className="text-black font-black text-2xl italic">P</span>
                 </div>
                 <Loader2 className="animate-spin text-cad-accent" size={24} />
@@ -18,7 +18,7 @@ export const AppLoader: React.FC = () => {
                 </div>
                 <button
                     onClick={() => useAuthStore.setState({ initialized: true, loading: false })}
-                    className="mt-8 px-4 py-1.5 border border-cad-border text-[8px] font-mono text-cad-text-muted hover:text-white hover:border-cad-accent transition-all opacity-30 hover:opacity-100 hover:bg-white/5"
+                    className="cad-button cad-button-ghost mt-8 px-4 py-1.5 text-[8px] opacity-40 hover:opacity-100"
                 >
                     FORCE INITIALIZATION BYPASS
                 </button>

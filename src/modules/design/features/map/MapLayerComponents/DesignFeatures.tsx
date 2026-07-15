@@ -22,6 +22,14 @@ const ZOOM_THRESHOLD = 19;
 const BOUNDS_DEBOUNCE_MS = 150;
 const REPORT_CAPTURE_EVENT = 'design-report-map-capture';
 
+const canReadMapBounds = (map: L.Map) => {
+    try {
+        return Boolean((map as any)?._loaded && map.getPane('mapPane'));
+    } catch {
+        return false;
+    }
+};
+
 /**
  * Orchestrator component for Map Design Features.
  * Manages the high-level rendering of different map layers and their interactions.
@@ -62,8 +70,8 @@ export const DesignFeatures = () => {
     const map = useMap();
     const clusterGroupRef = React.useRef<any>(null);
     const moveGroupRef = React.useRef<any>(null);
-    const [currentZoom, setCurrentZoom] = useState(map.getZoom());
-    const [bounds, setBounds] = useState<L.LatLngBounds>(map.getBounds());
+    const [currentZoom, setCurrentZoom] = useState(() => (canReadMapBounds(map) ? map.getZoom() : 0));
+    const [bounds, setBounds] = useState<L.LatLngBounds | null>(() => (canReadMapBounds(map) ? map.getBounds() : null));
     const [isReportCaptureActive, setIsReportCaptureActive] = useState(false);
     const boundsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -78,6 +86,7 @@ export const DesignFeatures = () => {
     const debouncedSetBounds = useCallback(() => {
         if (boundsTimerRef.current) clearTimeout(boundsTimerRef.current);
         boundsTimerRef.current = setTimeout(() => {
+            if (!canReadMapBounds(map)) return;
             const nextZoom = map.getZoom();
             const nextBounds = map.getBounds();
 
@@ -97,12 +106,27 @@ export const DesignFeatures = () => {
         const now = Date.now();
         if (now - lastMoveTimeRef.current > THROTTLE_MS) {
             lastMoveTimeRef.current = now;
+            if (!canReadMapBounds(map)) return;
             const nextBounds = map.getBounds();
             setBounds(prev => {
                 if (prev && prev.equals(nextBounds)) return prev;
                 return nextBounds;
             });
         }
+    }, [map]);
+
+    useEffect(() => {
+        if (canReadMapBounds(map)) {
+            setCurrentZoom(map.getZoom());
+            setBounds(map.getBounds());
+            return;
+        }
+
+        map.whenReady(() => {
+            if (!canReadMapBounds(map)) return;
+            setCurrentZoom(map.getZoom());
+            setBounds(map.getBounds());
+        });
     }, [map]);
 
     useMapEvents({
