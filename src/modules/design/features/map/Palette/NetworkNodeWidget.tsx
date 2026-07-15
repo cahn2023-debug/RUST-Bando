@@ -32,7 +32,7 @@ export const NetworkNodeWidget = ({ data }: { data: NetworkNodeData }) => {
     return (
         <div
             className={cn(
-                'w-[152px] rounded-lg border backdrop-blur-md px-2.5 py-2 text-left shadow transition-all duration-300 ease-out hover:-translate-y-0.5',
+                'w-[152px] rounded-lg border backdrop-blur-md px-2.5 py-2 text-left shadow transition-all duration-300 ease-out hover:-translate-y-0.5 font-sans',
                 statusClass[data.status || 'unknown'],
                 data.isSelected && 'ring-2 ring-cyan-400 border-cyan-400/50 shadow-[0_0_15px_rgba(34,211,238,0.25)]'
             )}

@@ -68,10 +68,10 @@ const NETWORK_GRAPH_LAYOUT_STORAGE_PREFIX = 'network-graph-layout-v1';
 
 const statusLabel: Record<NetworkComputedStatus, string> = {
     online: 'Online',
-    'direct-offline': 'Loi truc tiep',
-    'upstream-offline': 'Mat upstream',
+    'direct-offline': 'Lỗi trực tiếp',
+    'upstream-offline': 'Mất upstream',
     unknown: 'Unknown',
-    'configuration-error': 'Chua cau hinh',
+    'configuration-error': 'Chưa cấu hình',
 };
 
 const statusColor: Record<NetworkComputedStatus, string> = {
@@ -97,8 +97,8 @@ const linkIconLabel: Record<NetworkLinkIcon, string | undefined> = {
 };
 
 const edgeSourceLabel: Record<NetworkEdge['sourceType'], string> = {
-    'map-polyline': 'Tu polyline ban do',
-    'network-drawn': 'Ve truc tiep trong Network',
+    'map-polyline': 'Từ polyline bản đồ',
+    'network-drawn': 'Vẽ trực tiếp trong Network',
 };
 
 const isNetworkLineStyle = (value: unknown): value is NetworkLineStyle =>
@@ -817,7 +817,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
         const targetDisplayNode = displayNodesById.get(connection.target);
         const preparedDraft = prepareNetworkConnectionDraft(sourceDisplayNode, targetDisplayNode, tab);
         if (!sourceDisplayNode || !targetDisplayNode || !preparedDraft) {
-            alert('Khong the bat dau ve ket noi tu node hien tai.');
+            alert('Không thể bắt đầu vẽ kết nối từ node hiện tại.');
             return;
         }
 
@@ -829,19 +829,19 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                 (edge.fromEndpointKey === toEndpointKey && edge.toEndpointKey === fromEndpointKey))
         );
         if (duplicateSignal) {
-            alert('Tuyen ket noi giua hai doi tuong nay da ton tai.');
+            alert('Tuyến kết nối giữa hai đối tượng này đã tồn tại.');
             return;
         }
 
         const groupId = preparedDraft.groupId;
         if (!groupId) {
-            alert('Khong the luu ket noi vi thieu nhom cua doi tuong.');
+            alert('Không thể lưu kết nối vì thiếu nhóm của đối tượng.');
             return;
         }
 
         const group = state?.feature_groups?.[groupId];
         if (!group) {
-            alert('Khong the luu ket noi vi thieu nhom cua doi tuong.');
+            alert('Không thể lưu kết nối vì thiếu nhóm của đối tượng.');
             return;
         }
 
@@ -957,10 +957,10 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                 <div className="absolute left-4 right-4 top-4 z-10 pointer-events-none flex flex-wrap justify-between gap-3 md:left-4">
                     {tab === 'intersection' && selectedIntersection ? <div className="w-40" /> : <div />}
 
-                    <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/75 px-3 py-1.5 shadow-xl backdrop-blur-md text-[10.5px]">
+                    <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/75 px-3 py-1.5 shadow-xl backdrop-blur-md text-[10.5px] font-sans">
                         <span className="text-zinc-500 font-bold uppercase tracking-wider mr-1">HUD:</span>
                         <span className="flex items-center gap-1 text-zinc-300 font-medium">
-                            Tong: <strong className="text-zinc-100">{stats.total}</strong>
+                            Tổng: <strong className="text-zinc-100">{stats.total}</strong>
                         </span>
                         <span className="h-3 w-px bg-white/10 mx-1" />
                         <span className="flex items-center gap-1 text-emerald-400 font-medium">
@@ -970,7 +970,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                         <span className="h-3 w-px bg-white/10 mx-1" />
                         <span className="flex items-center gap-1 text-red-400 font-medium">
                             <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
-                            Direct: <strong className="text-red-300">{stats.directOffline}</strong>
+                            Lỗi trực tiếp: <strong className="text-red-300">{stats.directOffline}</strong>
                         </span>
                         <span className="h-3 w-px bg-white/10 mx-1" />
                         <span className="flex items-center gap-1 text-orange-400 font-medium">
@@ -980,16 +980,16 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                         <span className="h-3 w-px bg-white/10 mx-1" />
                         <span className="flex items-center gap-1 text-purple-400 font-medium">
                             <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
-                            Config: <strong className="text-purple-300">{stats.configError}</strong>
+                            Chưa cấu hình: <strong className="text-purple-300">{stats.configError}</strong>
                         </span>
                     </div>
 
-                    <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/75 p-1 shadow-xl backdrop-blur-md">
+                    <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/75 p-1 shadow-xl backdrop-blur-md font-sans">
                         <div className="relative flex items-center">
                             <Search size={12} className="absolute left-2.5 text-zinc-500" />
                             <input
                                 type="text"
-                                placeholder="Tim nut, telemetry..."
+                                placeholder="Tìm nút, telemetry..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                                 className="w-[140px] rounded border border-white/5 bg-black/40 py-1 pl-7 pr-2.5 text-[10.5px] text-zinc-100 placeholder-zinc-500 outline-none focus:border-cyan-400/40 focus:bg-black/60 transition-all duration-200"
@@ -1011,11 +1011,11 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                                 onChange={e => setStatusFilter(e.target.value as any)}
                                 className="rounded border border-white/5 bg-black/40 py-1 pl-6 pr-2 text-[10.5px] text-zinc-300 outline-none hover:bg-black/50 focus:border-cyan-400/40 transition"
                             >
-                                <option value="all">Tat ca trang thai</option>
+                                <option value="all">Tất cả trạng thái</option>
                                 <option value="online">Online</option>
-                                <option value="direct-offline">Loi truc tiep</option>
-                                <option value="upstream-offline">Mat upstream</option>
-                                <option value="configuration-error">Chua cau hinh</option>
+                                <option value="direct-offline">Lỗi trực tiếp</option>
+                                <option value="upstream-offline">Mất upstream</option>
+                                <option value="configuration-error">Chưa cấu hình</option>
                             </select>
                         </div>
                     </div>
@@ -1034,10 +1034,10 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                     connectionMode={ConnectionMode.Loose}
                     fitView
                     deleteKeyCode={['Backspace', 'Delete']}
-                    className="bg-[#080c0f]"
+                    className="bg-[#080c0f] font-sans"
                 >
                     <Background color="#38bdf8" gap={16} size={1.2} variant={BackgroundVariant.Dots} className="opacity-[0.03]" />
-                    <Controls className="!border-white/10 !bg-zinc-950/80 !fill-zinc-300 !text-zinc-300 !shadow-lg backdrop-blur-md rounded-lg overflow-hidden [&_button]:hover:!bg-white/10" />
+                    <Controls className="!border-white/10 !bg-zinc-950/80 !fill-zinc-300 !text-zinc-300 !shadow-lg backdrop-blur-md rounded-lg overflow-hidden [&_button]:hover:!bg-white/10 font-sans" />
                     <MiniMap
                         nodeColor={node => {
                             const status = node.data?.status as NetworkComputedStatus | undefined;
@@ -1047,27 +1047,27 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                             if (status === 'configuration-error') return '#a855f7';
                             return '#71717a';
                         }}
-                        className="!border-white/10 !bg-zinc-950/80 !shadow-lg backdrop-blur-md rounded-lg overflow-hidden"
+                        className="!border-white/10 !bg-zinc-950/80 !shadow-lg backdrop-blur-md rounded-lg overflow-hidden font-sans"
                         maskColor="rgba(0,0,0,0.6)"
                     />
                 </ReactFlow>
 
                 {scopedNodes.length === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center p-6 bg-black/20 backdrop-blur-[1px]">
+                    <div className="absolute inset-0 flex items-center justify-center p-6 bg-black/20 backdrop-blur-[1px] font-sans">
                         <div className="max-w-md rounded-xl border border-white/10 bg-zinc-950/80 p-6 text-center shadow-2xl backdrop-blur-md">
                             <Router className="mx-auto mb-3 text-zinc-500 animate-pulse" size={32} />
-                            <div className="text-sm font-bold text-zinc-100">Chua co topology Network</div>
+                            <div className="text-sm font-bold text-zinc-100">Chưa có topology Network</div>
                             <div className="mt-2 text-xs leading-5 text-zinc-500">
-                                Chua co doi tuong khong phai line/polyline de hien thi trong Network.
+                                Chưa có đối tượng không phải line/polyline để hiển thị trong Network.
                             </div>
                         </div>
                     </div>
                 )}
 
                 {mode === 'realtime' && (isStale || !hasTelemetry) && (
-                    <div className="absolute left-4 bottom-4 z-10 flex items-center gap-2 rounded-lg border border-orange-500/20 bg-orange-950/85 px-3 py-2 text-[10.5px] font-semibold text-orange-200 shadow-xl backdrop-blur-md">
+                    <div className="absolute left-4 bottom-4 z-10 flex items-center gap-2 rounded-lg border border-orange-500/20 bg-orange-950/85 px-3 py-2 text-[10.5px] font-semibold text-orange-200 shadow-xl backdrop-blur-md font-sans">
                         <WifiOff size={14} className="text-orange-400 animate-pulse" />
-                        Chua ket noi telemetry
+                        Chưa kết nối telemetry
                     </div>
                 )}
 
@@ -1076,7 +1076,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                     <button
                         onClick={() => setIsInspectorOpen(true)}
                         className="absolute right-4 top-4 z-20 flex items-center justify-center rounded-lg border border-white/10 bg-zinc-950/80 p-2.5 text-zinc-300 hover:bg-white/10 hover:text-white shadow-xl backdrop-blur-md transition-all duration-200"
-                        title="Mo Inspector"
+                        title="Mở Inspector"
                     >
                         <PanelRightOpen size={16} />
                     </button>
@@ -1098,25 +1098,25 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                     </div>
                     <div className="flex items-center gap-1.5">
                         {selectedEdge && selectedEdge.kind === 'signal' && (
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 font-sans">
                                 {selectedEdge.directionState !== 'confirmed' && (
                                     <button
                                         onClick={handleConfirmEdgeDirection}
                                         className="inline-flex items-center gap-1 rounded bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[9px] font-bold text-emerald-300 hover:bg-emerald-500/20"
                                     >
-                                        Xac nhan
+                                        Xác nhận
                                     </button>
                                 )}
                                 <button
                                     onClick={handleReverseEdge}
                                     className="inline-flex items-center gap-1 rounded bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-[9px] font-bold text-cyan-300 hover:bg-cyan-500/20"
                                 >
-                                    Dao chieu
+                                    Đảo chiều
                                 </button>
                                 <button
                                     onClick={() => setEdgePendingDelete(selectedEdge)}
                                     className="inline-flex items-center gap-1 rounded bg-red-500/10 border border-red-500/30 p-1 text-[9px] font-bold text-red-300 hover:bg-red-500/20"
-                                    title="Xoa tuyen"
+                                    title="Xóa tuyến"
                                 >
                                     <Trash2 size={11} />
                                 </button>
@@ -1124,8 +1124,8 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                         )}
                         <button
                             onClick={() => setIsInspectorOpen(false)}
-                            className="rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-white transition"
-                            title="Thu gon"
+                            className="rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-white transition font-sans"
+                            title="Thu gọn"
                         >
                             <PanelRightClose size={14} />
                         </button>
@@ -1135,8 +1135,8 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                 {/* Content Area */}
                 <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 scrollbar-thin">
                     {!selectedNode && !selectedEdge && (
-                        <div className="rounded-lg border border-white/5 bg-black/25 p-3 text-[10.5px] leading-relaxed text-zinc-500">
-                            Chon mot node hoac tuyen tren graph de xem chi tiet. Keo tu handle ben phai cua node sang handle ben trai cua node khac de tao ket noi trong Network.
+                        <div className="rounded-lg border border-white/5 bg-black/25 p-3 text-[10.5px] leading-relaxed text-zinc-500 font-sans">
+                            Chọn một node hoặc tuyến trên graph để xem chi tiết. Kéo từ handle bên phải của node sang handle bên trái của node khác để tạo kết nối trong Network.
                         </div>
                     )}
 
@@ -1163,14 +1163,14 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                                             : 'border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
                                     )}
                                 >
-                                    {selectedNode.isOrigin ? 'Diem goc' : 'Dat lam goc'}
+                                    {selectedNode.isOrigin ? 'Điểm gốc' : 'Đặt làm gốc'}
                                 </button>
                             </div>
-                            <InspectorRow label="Trang thai" value={<span className="font-semibold">{statusLabel[evaluation.nodeStates[selectedNode.id]?.status || 'unknown']}</span>} />
-                            <InspectorRow label="Diem goc" value={selectedNode.isOrigin ? <span className="text-emerald-400 font-bold">Da chon</span> : 'Chua chon'} />
-                            <InspectorRow label="Telemetry" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedNode.telemetryId || 'Chua gan'}</span>} />
+                            <InspectorRow label="Trạng thái" value={<span className="font-semibold">{statusLabel[evaluation.nodeStates[selectedNode.id]?.status || 'unknown']}</span>} />
+                            <InspectorRow label="Điểm gốc" value={selectedNode.isOrigin ? <span className="text-emerald-400 font-bold">Đã chọn</span> : 'Chưa chọn'} />
+                            <InspectorRow label="Telemetry" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedNode.telemetryId || 'Chưa gán'}</span>} />
                             <InspectorRow label="Feature" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedNode.id}</span>} />
-                            <InspectorRow label="Ly do" value={<span className="text-zinc-300">{evaluation.nodeStates[selectedNode.id]?.reason || 'Khong co'}</span>} />
+                            <InspectorRow label="Lý do" value={<span className="text-zinc-300">{evaluation.nodeStates[selectedNode.id]?.reason || 'Không có'}</span>} />
                             <InspectorRow label="Downstream" value={<span className="font-bold text-zinc-100">{evaluation.nodeStates[selectedNode.id]?.affectedDownstream.length || 0} node</span>} />
                         </div>
                     )}
@@ -1192,7 +1192,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                             {selectedEdge.kind === 'signal' && selectedEdge.feature && (
                                 <div className="mb-3 space-y-3 rounded-lg border border-cyan-500/10 bg-cyan-500/5 p-3">
                                     <div>
-                                        <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-zinc-500">Ten ket noi</label>
+                                        <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-zinc-500">Tên kết nối</label>
                                         <input
                                             key={selectedEdge.id}
                                             defaultValue={selectedEdge.feature.name || selectedEdge.label}
@@ -1202,7 +1202,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-                                            Bieu tuong
+                                            Biểu tượng
                                             <select
                                                 value={selectedEdgePresentation.iconType}
                                                 onChange={event => handleUpdateEdgePresentation({ iconType: event.target.value as NetworkLinkIcon })}
@@ -1216,44 +1216,44 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                                             </select>
                                         </label>
                                         <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-                                            Loai net
+                                            Loại nét
                                             <select
                                                 value={selectedEdge.sourceType === 'map-polyline' ? 'solid' : selectedEdgePresentation.lineStyle}
                                                 onChange={event => handleUpdateEdgePresentation({ lineStyle: event.target.value as NetworkLineStyle })}
                                                 disabled={selectedEdge.sourceType === 'map-polyline'}
                                                 className="mt-1 w-full rounded border border-white/15 bg-black/45 px-2 py-1 text-[11px] normal-case text-zinc-100 outline-none focus:border-cyan-400/40 focus:bg-black/60 transition"
                                             >
-                                                <option value="solid">Lien</option>
-                                                <option value="dashed">Net dut</option>
-                                                <option value="dotted">Cham</option>
+                                                <option value="solid">Liền</option>
+                                                <option value="dashed">Nét đứt</option>
+                                                <option value="dotted">Chấm</option>
                                             </select>
                                         </label>
                                     </div>
                                 </div>
                             )}
 
-                            <InspectorRow label="Trang thai" value={<span className="font-semibold">{selectedEdge.kind === 'relationship' ? 'display-only' : snapshot.edges?.[selectedEdge.telemetryId || selectedEdge.id] || 'unknown'}</span>} />
-                            <InspectorRow label="Nguon ket noi" value={edgeSourceLabel[selectedEdge.sourceType]} />
-                            <InspectorRow label="Huong" value={<span className="capitalize">{selectedEdge.directionState}</span>} />
-                            <InspectorRow label="Nguon" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.from}</span>} />
-                            <InspectorRow label="Dich" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.to}</span>} />
-                            <InspectorRow label="Telemetry" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.telemetryId || 'Chua gan'}</span>} />
+                            <InspectorRow label="Trạng thái" value={<span className="font-semibold">{selectedEdge.kind === 'relationship' ? 'display-only' : snapshot.edges?.[selectedEdge.telemetryId || selectedEdge.id] || 'unknown'}</span>} />
+                            <InspectorRow label="Nguồn kết nối" value={edgeSourceLabel[selectedEdge.sourceType]} />
+                            <InspectorRow label="Hướng" value={<span className="capitalize">{selectedEdge.directionState}</span>} />
+                            <InspectorRow label="Nguồn" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.from}</span>} />
+                            <InspectorRow label="Đích" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.to}</span>} />
+                            <InspectorRow label="Telemetry" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.telemetryId || 'Chưa gán'}</span>} />
                             <InspectorRow label="Feature" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.id}</span>} />
                             {selectedEdge.directionState !== 'confirmed' && (
                                 <div className="mt-3 rounded border border-amber-500/20 bg-amber-500/10 p-2.5 text-[10px] leading-relaxed text-amber-200 shadow-inner">
-                                    Tuyen nay chua co huong hop le cho downstream. Hay chon lai diem goc hoac xac nhan thu cong.
+                                    Tuyến này chưa có hướng hợp lệ cho downstream. Hãy chọn lại điểm gốc hoặc xác nhận thủ công.
                                 </div>
                             )}
                         </div>
                     )}
 
-                    <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2">
+                    <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2 font-sans">
                         <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-300">
-                            <TriangleAlert size={13} className="text-zinc-500" /> Cau hinh
+                            <TriangleAlert size={13} className="text-zinc-500" /> Cấu hình
                         </div>
                         {evaluation.diagnostics.length === 0 ? (
                             <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-400 font-semibold bg-emerald-500/5 border border-emerald-500/15 p-2 rounded-lg">
-                                <CheckCircle2 size={13} /> Khong phat hien loi topology.
+                                <CheckCircle2 size={13} /> Không phát hiện lỗi topology.
                             </div>
                         ) : (
                             <div className="space-y-1.5">
@@ -1279,8 +1279,8 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                 isOpen={!!edgePendingDelete}
                 onClose={() => setEdgePendingDelete(null)}
                 onConfirm={confirmDeleteEdge}
-                title="Xoa ket noi Network"
-                message="Xoa ket noi gia lap trong Network. Khong tao hoac xoa polyline tren ban do."
+                title="Xóa kết nối Network"
+                message="Xóa kết nối giả lập trong Network. Không tạo hoặc xóa polyline trên bản đồ."
                 itemName={edgePendingDelete?.label}
             />
         </div>
@@ -1298,9 +1298,9 @@ export const NetworkGraphPanel: React.FC = () => {
     const resetSimulation = useNetworkStatusStore(s => s.resetSimulation);
 
     return (
-        <div className="flex h-full min-h-0 flex-col bg-[#0b0f12] text-zinc-100">
+        <div className="flex h-full min-h-0 flex-col bg-[#0b0f12] text-zinc-100 font-sans">
             <div
-                className="flex shrink-0 items-center justify-between border-b border-white/10 px-3 py-2"
+                className="flex shrink-0 items-center justify-between border-b border-white/10 px-3 py-2 font-sans"
                 {...dragHandleProps}
             >
                 <div className="flex items-center gap-2">
@@ -1308,7 +1308,7 @@ export const NetworkGraphPanel: React.FC = () => {
                     <div>
                         <div className="text-xs font-bold uppercase tracking-wide">Network Graph</div>
                         <div className="flex items-center gap-2 text-[10px] text-zinc-500">
-                            <span>Cong cu van hanh va chinh topology</span>
+                            <span>Công cụ vận hành và chỉnh topology</span>
                             {mode === 'realtime' && isStale && (
                                 <span className="rounded border border-orange-500/30 bg-orange-500/10 px-1.5 py-0.5 text-[9px] font-bold text-orange-300">
                                     stale
@@ -1319,23 +1319,23 @@ export const NetworkGraphPanel: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-1">
-                    <button className="rounded border border-white/10 p-1.5 text-zinc-300 hover:bg-white/10" onClick={onPin} title={isPinned ? 'Bo ghim' : 'Ghim'}>
+                    <button className="rounded border border-white/10 p-1.5 text-zinc-300 hover:bg-white/10 font-sans" onClick={onPin} title={isPinned ? 'Bỏ ghim' : 'Ghim'}>
                         {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
                     </button>
-                    <button className="rounded border border-white/10 p-1.5 text-zinc-300 hover:bg-white/10" onClick={onClose} title="Dong">
+                    <button className="rounded border border-white/10 p-1.5 text-zinc-300 hover:bg-white/10 font-sans" onClick={onClose} title="Đóng">
                         <X size={14} />
                     </button>
                 </div>
             </div>
 
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-3 py-2">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-3 py-2 font-sans">
                 <div className="flex items-center gap-2">
                     <div className="flex rounded border border-white/10 bg-black/20 p-0.5 text-[11px] font-semibold">
                         <button className={cn('rounded px-3 py-1', tab === 'intersection' ? 'bg-cyan-400 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setTab('intersection')}>
-                            Nut giao
+                            Nút giao
                         </button>
                         <button className={cn('rounded px-3 py-1', tab === 'route' ? 'bg-cyan-400 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setTab('route')}>
-                            Toan tuyen
+                            Toàn tuyến
                         </button>
                     </div>
                     <button
