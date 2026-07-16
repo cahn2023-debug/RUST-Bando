@@ -13,6 +13,7 @@ env:
   RUST_BACKTRACE: 1
   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+  CODE_SIGNING_CERT: ${{ secrets.CODE_SIGNING_CERT }}
 
 jobs:
   build-windows:
@@ -55,7 +56,7 @@ jobs:
         run: |
           Write-Host "Code signing step - configure with your certificate"
           Write-Host "Example: signtool sign /f certificate.pfx /p password /tr http://timestamp.digicert.com /td sha256 /fd sha256 dist/*.msi"
-        if: ${{ secrets.CODE_SIGNING_CERT == '' }}
+        if: ${{ env.CODE_SIGNING_CERT == '' }}
 
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
