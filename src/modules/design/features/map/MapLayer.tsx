@@ -128,6 +128,7 @@ export function MapLayer({
                         url={getStyledUrl('r')}
                         maxZoom={36}
                         maxNativeZoom={20}
+                        referrerPolicy="no-referrer"
                     />
                 </LayersControl.BaseLayer>
                 <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Satellite (Hybrid)'} name="Google Satellite (Hybrid)">
@@ -136,6 +137,7 @@ export function MapLayer({
                         url={getStyledUrl('y')}
                         maxZoom={36}
                         maxNativeZoom={20}
+                        referrerPolicy="no-referrer"
                     />
                 </LayersControl.BaseLayer>
                 <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Satellite (Trắng đen)'} name="Google Satellite (Trắng đen)">
@@ -145,6 +147,7 @@ export function MapLayer({
                         url={getStyledUrl('y')}
                         maxZoom={36}
                         maxNativeZoom={20}
+                        referrerPolicy="no-referrer"
                     />
                 </LayersControl.BaseLayer>
                 <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Terrain'} name="Google Terrain">
@@ -153,6 +156,7 @@ export function MapLayer({
                         url={getStyledUrl('p')}
                         maxZoom={36}
                         maxNativeZoom={20}
+                        referrerPolicy="no-referrer"
                     />
                 </LayersControl.BaseLayer>
 

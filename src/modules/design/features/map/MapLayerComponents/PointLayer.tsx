@@ -209,6 +209,7 @@ export const PointLayer = React.memo(({
     const moveToolGroupRef = useRef<L.FeatureGroup | null>(null);
     const markersMapRef = useRef<Map<string, L.Marker>>(new Map());
     const isMovingRef = useRef<Map<string, boolean>>(new Map());
+    const [groupsReady, setGroupsReady] = React.useState(false);
 
     useEffect(() => {
         let disposed = false;
@@ -241,6 +242,7 @@ export const PointLayer = React.memo(({
             map.addLayer(group);
             map.addLayer(moveGroup);
             if (moveGroupRef) moveGroupRef.current = moveGroup;
+            setGroupsReady(true);
 
             group.on('animationend spiderfied unspiderfied', () => {
                 map.fire('popup-sync');
@@ -292,6 +294,7 @@ export const PointLayer = React.memo(({
             nativeGroupRef.current = null;
             moveToolGroupRef.current = null;
             clusterGroupRef.current = null;
+            setGroupsReady(false);
             if (moveGroupRef) moveGroupRef.current = null;
             markersMapRef.current.clear();
         };
@@ -424,7 +427,8 @@ export const PointLayer = React.memo(({
         feature_groups,
         groupThemePreview,
         dispatchEventAction,
-        map
+        map,
+        groupsReady
     ]);
 
     return null;

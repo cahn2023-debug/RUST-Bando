@@ -63,7 +63,7 @@ export function useMapStyles() {
         if (!mapFeatures.labels) rules.push('s.t:1|s.e:l|p.v:off', 's.t:2|s.e:l|p.v:off', 's.t:4|s.e:l|p.v:off', 's.t:6|s.e:l|p.v:off');
 
         const styleParam = rules.length > 0 ? `&apistyle=${encodeURIComponent(rules.join(','))}` : '';
-        return `https://mt1.google.com/vt/lyrs=${lyr}&hl=vi&x={x}&y={y}&z={z}${styleParam}`;
+        return `https://mt1.google.com/vt/lyrs=${lyr}&hl=vi&gl=vn&x={x}&y={y}&z={z}${styleParam}`;
     };
 
     const mapKey = useMemo(() => JSON.stringify(mapFeatures), [mapFeatures]);
