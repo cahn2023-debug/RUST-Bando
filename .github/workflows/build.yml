@@ -18,14 +18,6 @@ jobs:
   build-windows:
     name: Build Windows
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-pc-windows-msvc
-            args: ""
-          - target: aarch64-pc-windows-msvc
-            args: "--target aarch64-pc-windows-msvc"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,13 +32,13 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-pc-windows-msvc
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-          key: ${{ matrix.target }}
+          key: x86_64-pc-windows-msvc
 
       - name: Install dependencies
         run: npm ci
@@ -55,7 +47,7 @@ jobs:
         run: npm install -g @tauri-apps/cli
 
       - name: Build Tauri app
-        run: npm run tauri build -- ${{ matrix.args }}
+        run: npm run tauri build -- --bundles msi,nsis
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -68,22 +60,18 @@ jobs:
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: project-manager-windows-${{ matrix.target }}
-          path: |
-            src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+          name: project-manager-windows-x86_64-pc-windows-msvc
+          path: src-tauri/target/release/bundle/msi/*.msi
           retention-days: 30
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Upload NSIS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: project-manager-nsis-${{ matrix.target }}
-          path: |
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
+          name: project-manager-nsis-x86_64-pc-windows-msvc
+          path: src-tauri/target/release/bundle/nsis/*.exe
           retention-days: 30
-          if-no-files-found: warn
+          if-no-files-found: error
 
   build-info:
     name: Generate Build Info
