@@ -1,6 +1,7 @@
 import { Save, RotateCcw, RotateCw, Search, Globe, Sun, User } from "lucide-react";
 import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
+import { StorageHealthIndicator } from "./StorageHealthIndicator";
 
 interface TopToolbarProps {
   onSave: () => void;
@@ -25,6 +26,7 @@ export function TopToolbar({ onSave, onUndo, onRedo }: TopToolbarProps) {
             <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-cad-warn" />
           )}
         </button>
+        <StorageHealthIndicator />
         <div className="mx-1 h-4 w-px bg-white/10" />
         <button
           onClick={onUndo}

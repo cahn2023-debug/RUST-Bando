@@ -17,6 +17,7 @@ import { AdminPanel } from "@IMPLEMENT/features/admin/AdminPanel";
 import { TabContainer } from "@IMPLEMENT/TabInProgram/TabContainer";
 import { useTabStore } from "@IMPLEMENT/TabInProgram/useTabStore";
 import { safeInvoke } from "@IMPLEMENT/lib/tauri";
+import { requestStorageHealthRefresh } from "@IMPLEMENT/services/projectStorageService";
 import { announce } from "@TOOL/utils/accessibility";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -69,6 +70,7 @@ export default function App() {
         await flushPendingPersists();
       }
       await safeInvoke("save_project");
+      requestStorageHealthRefresh();
       announce("Project saved successfully");
       console.log("[App] Project saved successfully");
     } catch (e) {
@@ -84,6 +86,7 @@ export default function App() {
         await flushPendingPersists();
       }
       await safeInvoke("force_save_project");
+      requestStorageHealthRefresh();
       announce("Project force-saved and flushed successfully");
       console.log("[App] Project force-saved successfully");
     } catch (e) {
@@ -229,6 +232,7 @@ export default function App() {
               await flushPendingPersists();
             }
             await safeInvoke("save_project");
+            requestStorageHealthRefresh();
           } catch (e) {
             console.error("[App] Auto-save before closing project failed:", e);
           }

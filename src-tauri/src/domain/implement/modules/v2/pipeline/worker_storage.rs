@@ -230,24 +230,9 @@ impl StorageWorker {
             }
             StorageCommand::GetProjectHealth { project_id, reply } => {
                 let res = (|| -> Result<Value, String> {
-                    let wal_path = wal_path_for(&self.db.pmp_path);
-                    let wal_size = std::fs::metadata(&wal_path).map(|m| m.len()).unwrap_or(0);
-                    let db_size = std::fs::metadata(&self.db.pmp_path)
-                        .map(|m| m.len())
-                        .unwrap_or(0);
                     let integrity = self.db.verify_integrity().map_err(|e| e.to_string())?;
-                    let page_size: i64 = self
-                        .db
-                        .conn
-                        .pragma_query_value(None, "page_size", |r| r.get(0))
-                        .map_err(|e| e.to_string())?;
-                    let freelist_count: i64 = self
-                        .db
-                        .conn
-                        .pragma_query_value(None, "freelist_count", |r| r.get(0))
-                        .map_err(|e| e.to_string())?;
-                    let asset_stats = self.media_asset_stats(&project_id)?;
-                    let table_sizes = self.table_size_summary().unwrap_or_else(|_| json!([]));
+                    let summary =
+                        project_storage_summary(&self.db.conn, &self.db.pmp_path, &project_id)?;
                     let backups = self.db.list_backups(&project_id)?;
                     let last_backup_at: Option<String> = self
                         .db
@@ -276,19 +261,36 @@ impl StorageWorker {
                             |r| r.get(0),
                         )
                         .ok();
+                    let last_optimized_at: Option<String> = self
+                        .db
+                        .conn
+                        .query_row(
+                            "SELECT json_extract(value, '$.optimizedAt') FROM sys_config WHERE key = ?1",
+                            [format!("storage_optimized:{project_id}")],
+                            |r| r.get(0),
+                        )
+                        .ok();
                     Ok(json!({
                         "projectId": project_id,
                         "databasePath": self.db.pmp_path.to_string_lossy().to_string(),
-                        "databaseSizeBytes": db_size,
-                        "walSizeBytes": wal_size,
-                        "freelistBytes": freelist_count * page_size,
-                        "mediaAssetCount": asset_stats.0,
-                        "mediaAssetsSizeBytes": asset_stats.1,
-                        "tableSizes": table_sizes,
+                        "databaseSizeBytes": summary.get("databaseSizeBytes").cloned().unwrap_or_else(|| json!(0)),
+                        "walSizeBytes": summary.get("walSizeBytes").cloned().unwrap_or_else(|| json!(0)),
+                        "freelistBytes": summary.get("freelistBytes").cloned().unwrap_or_else(|| json!(0)),
+                        "featureCount": summary.get("featureCount").cloned().unwrap_or_else(|| json!(0)),
+                        "featureGroupCount": summary.get("featureGroupCount").cloned().unwrap_or_else(|| json!(0)),
+                        "eventCount": summary.get("eventCount").cloned().unwrap_or_else(|| json!(0)),
+                        "snapshotBytes": summary.get("snapshotBytes").cloned().unwrap_or_else(|| json!(0)),
+                        "eventPayloadBytes": summary.get("eventPayloadBytes").cloned().unwrap_or_else(|| json!(0)),
+                        "largeEventCount": summary.get("largeEventCount").cloned().unwrap_or_else(|| json!(0)),
+                        "legacyMediaRefCount": summary.get("legacyMediaRefCount").cloned().unwrap_or_else(|| json!(0)),
+                        "mediaAssetCount": summary.get("mediaAssetCount").cloned().unwrap_or_else(|| json!(0)),
+                        "mediaAssetsSizeBytes": summary.get("mediaAssetsSizeBytes").cloned().unwrap_or_else(|| json!(0)),
+                        "tableSizes": summary.get("tableSizes").cloned().unwrap_or_else(|| json!([])),
                         "integrityStatus": if integrity == "ok" { "ok" } else { "failed" },
                         "lastBackupAt": last_backup_at,
                         "lastIntegrityCheckAt": last_integrity_check_at,
                         "lastRestoreTestAt": last_restore_test_at,
+                        "lastOptimizedAt": last_optimized_at,
                         "backupCount": backups.as_array().map(|a| a.len()).unwrap_or(0),
                         "checkedAt": chrono::Local::now().to_rfc3339(),
                     }))
@@ -547,18 +549,47 @@ impl StorageWorker {
     }
 
     fn optimize_project_storage(&mut self, project_id: &str) -> Result<Value, String> {
+        let integrity_before = self.db.verify_integrity().map_err(|e| e.to_string())?;
+        if integrity_before != "ok" {
+            return Err(format!(
+                "Cannot optimize project storage because integrity_check failed: {integrity_before}"
+            ));
+        }
         let before = project_storage_summary(&self.db.conn, &self.db.pmp_path, project_id)?;
+        self.db
+            .conn
+            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+            .map_err(|e| e.to_string())?;
+        let backup = backup_project_storage_optimization(&self.db.pmp_path, project_id)?;
         let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
         let migrated =
             migrate_feature_media(&tx, &self.db.base_dir, &self.db.pmp_path, project_id)?;
-        rebuild_project_snapshot(&tx, project_id)?;
+        let repaired_links =
+            repair_media_links(&tx, &self.db.base_dir, &self.db.pmp_path, project_id)?;
         let compacted_events = compact_large_events(&tx, project_id)?;
+        rebuild_project_snapshot(&tx, project_id)?;
         tx.execute(
             "UPDATE projects
              SET metadata_json = json_object('schema_version', '4.0.0', 'storage', json_object('snapshot', 'project_snapshots')),
-                 updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
              WHERE id = ?1",
             params![project_id],
+        )
+        .map_err(|e| e.to_string())?;
+        tx.execute(
+            "INSERT OR REPLACE INTO sys_config(key, value) VALUES(?1, ?2)",
+            params![
+                format!("storage_optimized:{project_id}"),
+                json!({
+                    "optimizedAt": chrono::Local::now().to_rfc3339(),
+                    "backupPath": backup.to_string_lossy().to_string(),
+                    "migratedMediaRefs": migrated,
+                    "repairedMediaLinks": repaired_links,
+                    "compactedEvents": compacted_events,
+                    "before": before,
+                })
+                .to_string()
+            ],
         )
         .map_err(|e| e.to_string())?;
         tx.commit().map_err(|e| e.to_string())?;
@@ -569,11 +600,22 @@ impl StorageWorker {
                 "PRAGMA wal_checkpoint(TRUNCATE); VACUUM; PRAGMA wal_checkpoint(TRUNCATE);",
             )
             .map_err(|e| e.to_string())?;
+        let integrity_after = self.db.verify_integrity().map_err(|e| e.to_string())?;
+        if integrity_after != "ok" {
+            return Err(format!(
+                "Storage optimization completed but integrity_check failed: {integrity_after}. Backup: {}",
+                backup.display()
+            ));
+        }
         let after = project_storage_summary(&self.db.conn, &self.db.pmp_path, project_id)?;
         Ok(json!({
             "projectId": project_id,
+            "backupPath": backup.to_string_lossy().to_string(),
             "migratedMediaRefs": migrated,
+            "repairedMediaLinks": repaired_links,
             "compactedEvents": compacted_events,
+            "integrityBefore": integrity_before,
+            "integrityAfter": integrity_after,
             "before": before,
             "after": after,
             "optimizedAt": chrono::Local::now().to_rfc3339(),
@@ -657,44 +699,6 @@ impl StorageWorker {
                 .map_err(|e| e.to_string())?;
         }
         Ok(())
-    }
-
-    fn media_asset_stats(&self, project_id: &str) -> Result<(i64, i64), String> {
-        self.db
-            .conn
-            .query_row(
-                "SELECT COUNT(*), COALESCE(SUM(byte_size), 0) FROM media_assets WHERE project_id = ?1",
-                params![project_id],
-                |row| Ok((row.get(0)?, row.get(1)?)),
-            )
-            .map_err(|e| e.to_string())
-    }
-
-    fn table_size_summary(&self) -> Result<Value, String> {
-        let mut stmt = self
-            .db
-            .conn
-            .prepare(
-                "SELECT name, SUM(pgsize) AS bytes
-                 FROM dbstat
-                 GROUP BY name
-                 ORDER BY bytes DESC
-                 LIMIT 12",
-            )
-            .map_err(|e| e.to_string())?;
-        let rows = stmt
-            .query_map([], |row| {
-                Ok(json!({
-                    "name": row.get::<_, String>(0)?,
-                    "bytes": row.get::<_, i64>(1)?,
-                }))
-            })
-            .map_err(|e| e.to_string())?;
-        let mut values = Vec::new();
-        for row in rows {
-            values.push(row.map_err(|e| e.to_string())?);
-        }
-        Ok(Value::Array(values))
     }
 
     fn commit_tx_batch(&mut self, commands: Vec<StorageCommand>) -> Result<(), String> {
@@ -1306,6 +1310,39 @@ fn wal_path_for(pmp_path: &Path) -> PathBuf {
     PathBuf::from(format!("{}-wal", pmp_path.to_string_lossy()))
 }
 
+fn backup_project_storage_optimization(
+    pmp_path: &Path,
+    project_id: &str,
+) -> Result<PathBuf, String> {
+    let backup_dir = pmp_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("backups")
+        .join(project_id)
+        .join("storage_optimize");
+    fs::create_dir_all(&backup_dir)
+        .map_err(|e| format!("Failed to create optimization backup directory: {e}"))?;
+    let stem = pmp_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("project");
+    let backup_path = backup_dir.join(format!(
+        "{}_before_optimize_{}.pmp",
+        safe_path_segment(stem, project_id),
+        chrono::Local::now().format("%Y%m%d_%H%M%S")
+    ));
+    fs::copy(pmp_path, &backup_path)
+        .map_err(|e| format!("Failed to backup .pmp before optimization: {e}"))?;
+
+    let wal_path = wal_path_for(pmp_path);
+    if wal_path.exists() {
+        let wal_backup = PathBuf::from(format!("{}-wal", backup_path.to_string_lossy()));
+        fs::copy(&wal_path, wal_backup)
+            .map_err(|e| format!("Failed to backup .pmp-wal before optimization: {e}"))?;
+    }
+    Ok(backup_path)
+}
+
 fn project_storage_summary(
     conn: &rusqlite::Connection,
     pmp_path: &Path,
@@ -1328,13 +1365,107 @@ fn project_storage_summary(
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .map_err(|e| e.to_string())?;
+    let feature_count = count_project_rows(conn, "features", project_id)?;
+    let group_count = count_project_rows(conn, "feature_groups", project_id)?;
+    let event_count = count_project_rows(conn, "events", project_id)?;
+    let snapshot_bytes: i64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(length(state_json)), 0) FROM project_snapshots WHERE project_id = ?1",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let event_payload_bytes: i64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(length(payload_json)), 0) FROM events WHERE project_id = ?1",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let large_event_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM events WHERE project_id = ?1 AND length(payload_json) > ?2",
+            params![project_id, MAX_EVENT_PAYLOAD_BYTES as i64],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let legacy_media_ref_count: i64 = legacy_media_ref_count(conn, project_id)?;
+    let table_sizes = table_size_summary_for_conn(conn).unwrap_or_else(|_| json!([]));
     Ok(json!({
         "databaseSizeBytes": db_size,
         "walSizeBytes": wal_size,
         "freelistBytes": freelist_count * page_size,
+        "featureCount": feature_count,
+        "featureGroupCount": group_count,
+        "eventCount": event_count,
+        "snapshotBytes": snapshot_bytes,
+        "eventPayloadBytes": event_payload_bytes,
+        "largeEventCount": large_event_count,
+        "legacyMediaRefCount": legacy_media_ref_count,
         "mediaAssetCount": media_count,
         "mediaAssetsSizeBytes": media_bytes,
+        "tableSizes": table_sizes,
     }))
+}
+
+fn count_project_rows(
+    conn: &rusqlite::Connection,
+    table_name: &str,
+    project_id: &str,
+) -> Result<i64, String> {
+    let sql = format!("SELECT COUNT(*) FROM {table_name} WHERE project_id = ?1");
+    conn.query_row(&sql, params![project_id], |row| row.get(0))
+        .map_err(|e| e.to_string())
+}
+
+fn legacy_media_ref_count(conn: &rusqlite::Connection, project_id: &str) -> Result<i64, String> {
+    let feature_hits: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM features WHERE project_id = ?1 AND metadata_json LIKE '%data:image%'",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let snapshot_hits: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM project_snapshots WHERE project_id = ?1 AND state_json LIKE '%data:image%'",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let project_hits: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM projects WHERE id = ?1 AND metadata_json LIKE '%data:image%'",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(feature_hits + snapshot_hits + project_hits)
+}
+
+fn table_size_summary_for_conn(conn: &rusqlite::Connection) -> Result<Value, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT name, SUM(pgsize) AS bytes
+             FROM dbstat
+             GROUP BY name
+             ORDER BY bytes DESC
+             LIMIT 12",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(json!({
+                "name": row.get::<_, String>(0)?,
+                "bytes": row.get::<_, i64>(1)?,
+            }))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut values = Vec::new();
+    for row in rows {
+        values.push(row.map_err(|e| e.to_string())?);
+    }
+    Ok(Value::Array(values))
 }
 
 fn list_project_ids(conn: &rusqlite::Connection) -> Result<Vec<String>, String> {
@@ -3038,6 +3169,169 @@ mod tests {
             .expect("snapshot");
         assert!(!snapshot_text.contains("data:image"));
         assert!(snapshot_text.contains(asset_id));
+    }
+
+    #[test]
+    fn optimize_project_storage_backs_up_migrates_and_compacts() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("optimize_media.pmp");
+        let db = PmpDatabase::open_or_create(pmp_path.clone()).expect("open db");
+        let project_id = "optimize-project";
+        let data_url = format!(
+            "data:image/png;base64,{}",
+            general_purpose::STANDARD.encode(vec![7u8; 1024])
+        );
+        let large_payload = json!({
+            "type": "FeatureUpdated",
+            "payload": {
+                "id": "feature-1",
+                "metadata": data_url.repeat(260)
+            }
+        })
+        .to_string();
+
+        db.conn
+            .execute(
+                "INSERT INTO projects (id, name, title, metadata_json) VALUES (?1, ?2, ?3, ?4)",
+                params![project_id, "Optimize", "Optimize", "{}"],
+            )
+            .expect("project");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name, metadata_json) VALUES (?1, ?2, ?3, ?4)",
+                params!["layer-1", project_id, "Layer", "{}"],
+            )
+            .expect("layer");
+        db.conn
+            .execute(
+                "INSERT INTO features (id, project_id, layer_id, name, geom_type, properties_json, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    "feature-1",
+                    project_id,
+                    "layer-1",
+                    "Camera",
+                    "Point",
+                    "{}",
+                    json!({"media": {"imageUrl": data_url.clone()}}).to_string()
+                ],
+            )
+            .expect("feature");
+        db.conn
+            .execute(
+                "INSERT INTO project_snapshots (project_id, state_json) VALUES (?1, ?2)",
+                params![
+                    project_id,
+                    json!({
+                        "layers": {"layer-1": {"id": "layer-1", "name": "Layer"}},
+                        "features": {
+                            "feature-1": {
+                                "id": "feature-1",
+                                "layer_id": "layer-1",
+                                "name": "Camera",
+                                "geom_type": "Point",
+                                "metadata": json!({"media": {"imageUrl": data_url}}).to_string(),
+                                "properties": {},
+                                "coordinates": null
+                            }
+                        }
+                    })
+                    .to_string()
+                ],
+            )
+            .expect("snapshot");
+        db.conn
+            .execute(
+                "INSERT INTO events (id, project_id, entity_type, entity_id, event_type, payload_json, metadata_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![
+                    "event-large-1",
+                    project_id,
+                    "feature",
+                    "feature-1",
+                    "FeatureUpdated",
+                    large_payload,
+                    "{}"
+                ],
+            )
+            .expect("large event");
+
+        let (_tx, rx) = mpsc::channel(1);
+        let mut worker = StorageWorker { rx, db };
+        let before = project_storage_summary(&worker.db.conn, &worker.db.pmp_path, project_id)
+            .expect("before summary");
+        assert!(
+            before
+                .get("legacyMediaRefCount")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                > 0
+        );
+        assert!(
+            before
+                .get("largeEventCount")
+                .and_then(Value::as_i64)
+                .unwrap_or(0)
+                > 0
+        );
+
+        let result = worker
+            .optimize_project_storage(project_id)
+            .expect("optimize storage");
+        let backup_path = result
+            .get("backupPath")
+            .and_then(Value::as_str)
+            .expect("backup path");
+        assert!(PathBuf::from(backup_path).exists());
+        assert_eq!(
+            result.get("integrityAfter").and_then(Value::as_str),
+            Some("ok")
+        );
+        assert_eq!(
+            result.get("migratedMediaRefs").and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            result.get("compactedEvents").and_then(Value::as_i64),
+            Some(1)
+        );
+
+        let snapshot_text: String = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT state_json FROM project_snapshots WHERE project_id = ?1",
+                params![project_id],
+                |row| row.get(0),
+            )
+            .expect("snapshot");
+        assert!(!snapshot_text.contains("data:image"));
+        let event_payload: String = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT payload_json FROM events WHERE id = ?1",
+                params!["event-large-1"],
+                |row| row.get(0),
+            )
+            .expect("event payload");
+        assert!(event_payload.contains("CompactedEvent"));
+
+        let after = project_storage_summary(&worker.db.conn, &worker.db.pmp_path, project_id)
+            .expect("after summary");
+        assert_eq!(
+            after
+                .get("legacyMediaRefCount")
+                .and_then(Value::as_i64)
+                .unwrap_or(-1),
+            0
+        );
+        assert_eq!(
+            after
+                .get("largeEventCount")
+                .and_then(Value::as_i64)
+                .unwrap_or(-1),
+            0
+        );
     }
 
     #[test]

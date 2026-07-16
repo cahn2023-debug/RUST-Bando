@@ -20,6 +20,7 @@ import { cn } from '@TOOL/utils/cn';
 import { useProjectData } from '@IMPLEMENT/hooks/useProjectData';
 import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
 import { deleteMediaAsset, importMediaAsset, resolveMediaAsset } from '@IMPLEMENT/services/mediaAssetService';
+import { requestStorageHealthRefresh } from '@IMPLEMENT/services/projectStorageService';
 
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { buildFeaturePropertiesForPersistence, getTypeForIcon } from '@TOOL/utils/featurePersistence';
@@ -939,6 +940,7 @@ export const PropertyPanel: React.FC = () => {
       const nextMeta = updateMediaAssets([...imageAssetIds, ...importedAssetIds]);
       await persistMediaAssetMetadata(nextMeta);
       setPreview(null, null);
+      requestStorageHealthRefresh();
     } catch (error) {
       await Promise.all(
         importedAssetIds.map(async (assetId) => {
@@ -997,6 +999,7 @@ export const PropertyPanel: React.FC = () => {
       });
       const nextMeta = updateMediaAssets(nextAssetIds);
       await persistMediaAssetMetadata(nextMeta);
+      requestStorageHealthRefresh();
       return;
     }
     const legacyIndex = index - imageAssetIds.length;
@@ -1047,6 +1050,7 @@ export const PropertyPanel: React.FC = () => {
     });
     setPreview(null, null);
     setEditingImage(null);
+    requestStorageHealthRefresh();
   };
 
   const pasteClipboardImages = async (
