@@ -68,9 +68,12 @@ jobs:
             git log --pretty=format:"- %s (%h)" --no-merges >> CHANGELOG.md
           fi
 
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          cat CHANGELOG.md >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "changelog<<EOF"
+            cat CHANGELOG.md
+            echo
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create or update release
         id: create_release
