@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FileUp, Loader2, MapPin, Route, Image as ImageIcon, Grid3X3 } from 'lucide-react';
 import { importFromExcel, importFromKML, getExcelHeaders, applyImportedRecords } from '@IMPLEMENT/services/importService';
 import { safeOpenDialog } from '@IMPLEMENT/lib/tauri';
+import { ImportReviewDialog } from '@IMPLEMENT/components/import/ImportReviewDialog';
 
 interface PropertyImportControlsProps {
   feature: any;
