@@ -143,7 +143,7 @@ const parseKmlRecords = async (filePath: string): Promise<FeatureRecord[]> => {
   const placemarks = Array.from(document.getElementsByTagName('Placemark'));
   const baseName = getFileName(filePath).replace(/\.(kml|kmz)$/i, '');
 
-  return placemarks.map((placemark, index) => {
+  const records: Array<FeatureRecord | null> = placemarks.map((placemark, index) => {
     const name = getElementText(placemark, 'name') || `Placemark ${index + 1}`;
     const description = getElementText(placemark, 'description');
     const properties: Record<string, string> = {
@@ -216,7 +216,9 @@ const parseKmlRecords = async (filePath: string): Promise<FeatureRecord[]> => {
     }
 
     return null;
-  }).filter((record): record is FeatureRecord => !!record);
+  });
+
+  return records.filter((record): record is FeatureRecord => record !== null);
 };
 
 export const buildFeatureCreatedEvents = (
@@ -347,4 +349,3 @@ export const getExcelHeaders = async (filePath: string): Promise<string[]> => {
   const meta = await importService.analyzeFile(filePath);
   return meta.fields.map((f) => f.name);
 };
-

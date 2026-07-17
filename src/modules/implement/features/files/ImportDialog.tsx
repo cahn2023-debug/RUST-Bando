@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { X, FileSpreadsheet, Upload, CheckCircle2, Loader2, FileCode, ArrowRight, Settings2, AlertCircle } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { importService, DatasetMeta, ImportMapping, applyImportedRecords } from "@IMPLEMENT/services/importService";
+import { importService, DatasetMeta, ImportMapping, applyImportedRecords, type FeatureRecord } from "@IMPLEMENT/services/importService";
+import { ImportReviewDialog } from "@IMPLEMENT/components/import/ImportReviewDialog";
 
 interface Props {
   onClose: () => void;
@@ -23,6 +24,7 @@ export function ImportDialog({ onClose, onSuccess }: Props) {
   const [meta, setMeta] = useState<DatasetMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [review, setReview] = useState<{ fileName: string; sourceLabel: string; records: FeatureRecord[] } | null>(null);
   const [mapping, setMapping] = useState<ImportMapping>({
     name_column: "",
     lat_column: "",
@@ -79,11 +81,12 @@ export function ImportDialog({ onClose, onSuccess }: Props) {
 
     try {
       const records = await importService.startImport(filePath, mapping);
-      const importedCount = await applyImportedRecords(records);
-
-      setStep("complete");
-      onSuccess(`imported_${importedCount}`);
-      onClose();
+      setReview({
+        fileName: filePath.split('\\').pop() || filePath,
+        sourceLabel: isKml ? 'KML/KMZ' : 'Excel',
+        records,
+      });
+      setStep("preview");
     } catch (err: any) {
       setError(err?.message || err?.toString() || "Import failed.");
       setStep("preview");
@@ -94,8 +97,20 @@ export function ImportDialog({ onClose, onSuccess }: Props) {
 
   const isKml = filePath.toLowerCase().endsWith('.kml') || filePath.toLowerCase().endsWith('.kmz');
 
+  const confirmImport = async (records: FeatureRecord[]) => {
+    try {
+      const importedCount = await applyImportedRecords(records);
+      setStep("complete");
+      onSuccess(`imported_${importedCount}`);
+      onClose();
+    } finally {
+      setReview(null);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex-center bg-surface-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    <>
+      <div className="fixed inset-0 z-50 flex-center bg-surface-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-surface-100 rounded-2xl shadow-2xl border border-surface-200 w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-200 relative pb-2">
         <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/10 rounded-full blur-3xl pointer-events-none -mt-32 -mr-32" />
 
@@ -256,5 +271,16 @@ export function ImportDialog({ onClose, onSuccess }: Props) {
         </div>
       </div>
     </div>
+    {review && (
+      <ImportReviewDialog
+        open={true}
+        fileName={review.fileName}
+        sourceLabel={review.sourceLabel}
+        records={review.records}
+        onClose={() => setReview(null)}
+        onConfirm={confirmImport}
+      />
+    )}
+    </>
   );
 }

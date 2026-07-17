@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, FileSpreadsheet, FileCode, X, SquareCheckBig } from 'lucide-react';
+import { FileSpreadsheet, FileCode, X, SquareCheckBig } from 'lucide-react';
 import type { FeatureRecord } from '@IMPLEMENT/services/importService';
 
 interface ImportReviewDialogProps {

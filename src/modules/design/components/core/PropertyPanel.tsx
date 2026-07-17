@@ -1,4 +1,3 @@
-﻿
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
@@ -6,22 +5,20 @@ import type { FeatureMetadata, FeatureProperties, IconType } from '@CONTRACT/typ
 import {
   Save, Camera, MapPin, Route,
   Info, Palette, Settings, Image as ImageIcon,
-  Calculator, Phone, User as UserIcon, Loader2, X, Clock, Grid3X3, Sparkles, FileUp, Briefcase, List, Edit3,
+  Calculator, Phone, User as UserIcon, Loader2, X, Clock, Grid3X3, Sparkles, Briefcase, List, Edit3,
   Layers, Zap, Radio, Construction, Pencil, Crop, RotateCw, Circle, Square, Type as TypeIcon, Minus, MoveUpRight, Undo2
 } from "lucide-react";
 import { IconSelector } from '@DESIGN/components/ui/IconSelector';
 import { designLogic } from '@TOOL/utils/designLogic';
 import { getFeatureDisplayInfo, safeString, getCleanName, isCameraIcon, getParsedMetadata, getPointCoordinates } from '@TOOL/utils/featureUtils';
 import { useCamera } from '@IMPLEMENT/hooks/useCamera';
-import { importFromExcel, importFromKML, getExcelHeaders, applyImportedRecords, type FeatureRecord } from '@IMPLEMENT/services/importService';
-import { safeOpenDialog } from '@IMPLEMENT/lib/tauri';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
 import { cn } from '@TOOL/utils/cn';
 import { useProjectData } from '@IMPLEMENT/hooks/useProjectData';
 import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
 import { deleteMediaAsset, importMediaAsset, resolveMediaAsset } from '@IMPLEMENT/services/mediaAssetService';
 import { requestStorageHealthRefresh } from '@IMPLEMENT/services/projectStorageService';
-import { ImportReviewDialog } from '@IMPLEMENT/components/import/ImportReviewDialog';
+import { PropertyImportControls } from './PropertyPanel/PropertyImportControls';
 
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { buildFeaturePropertiesForPersistence, getTypeForIcon } from '@TOOL/utils/featurePersistence';
@@ -767,9 +764,7 @@ export const PropertyPanel: React.FC = () => {
     created_at: '',
     updated_at: '',
   });
-  const [isImporting, setIsImporting] = useState(false);
-
-  // Multi-selection check will be handled in the final return block to avoid hook violations.
+    // Multi-selection check will be handled in the final return block to avoid hook violations.
 
   const feature = selectedFeatureId && state?.features ? state.features[selectedFeatureId] : null;
   const group = feature?.group_id ? state?.feature_groups?.[feature.group_id] : null;
@@ -782,7 +777,6 @@ export const PropertyPanel: React.FC = () => {
   const [editingImage, setEditingImage] = useState<{ index: number; url: string } | null>(null);
   const [isImportingMedia, setIsImportingMedia] = useState(false);
   const [mediaImportError, setMediaImportError] = useState<string | null>(null);
-  const [importReview, setImportReview] = useState<{ fileName: string; sourceLabel: string; records: FeatureRecord[] } | null>(null);
   const togglePalette = useLayoutStore(s => s.togglePalette);
   const paletteConfigs = useLayoutStore(s => s.paletteConfigs);
   const projectSettings = useMemo(() => normalizeProjectSettings(state?.settings), [state?.settings]);
@@ -1301,54 +1295,6 @@ export const PropertyPanel: React.FC = () => {
     await dispatchEvents(events);
   };
 
-  const handleFileUpload = async () => {
-    if (!feature || !state) return;
-    setIsImporting(true);
-    try {
-      const selected = await safeOpenDialog({
-        filters: [{ name: 'GIS Data', extensions: ['xlsx', 'xls', 'xlsm', 'xlsb', 'kml', 'kmz'] }],
-        multiple: false,
-        directory: false,
-      });
-      if (!selected || typeof selected !== 'string') {
-        return;
-      }
-
-      const filePath = selected;
-      const fileName = filePath.split(/[\\/]/).pop() || filePath;
-      const ext = fileName.split('.').pop()?.toLowerCase() || '';
-      const targetGroupId = feature.group_id;
-
-      if (['xls', 'xlsx', 'xlsm', 'xlsb'].includes(ext)) {
-        const headers = await getExcelHeaders(filePath);
-        if (headers.length === 0) { alert('File Excel rong hoac khong doc duoc.'); return; }
-        const records = await importFromExcel(filePath, {
-          name_column: headers[0] || '',
-          lat_column: headers.find((header) => /lat|vi_do|latitude/i.test(header)) || '',
-          lng_column: headers.find((header) => /lng|lon|kinh|longitude/i.test(header)) || '',
-          description_column: headers.find((header) => /mo ta|description|ghi chu/i.test(header)),
-          order_column: headers.find((header) => /stt|order|ma hieu|id/i.test(header)),
-        });
-        setImportReview({ fileName, sourceLabel: 'Excel', records });
-      } else if (['kml', 'kmz'].includes(ext)) {
-        const records = await importFromKML(filePath);
-        setImportReview({ fileName, sourceLabel: 'KML/KMZ', records });
-      } else if (['gpx'].includes(ext)) {
-        alert('Dinh dang GPX se duoc ho tro trong phien ban tiep theo.');
-      } else {
-        alert('Dinh dang file khong duoc ho tro. Vui long chon Excel, KML, hoac KMZ.');
-      }
-
-      setSelectedGroup(targetGroupId);
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      void err;
-      alert('Loi import: ' + errorMessage);
-    } finally {
-      setIsImporting(false);
-    }
-  };
-
   const handleDelete = () => {
     if (!feature) return;
     setShowDeleteModal(true);
@@ -1565,46 +1511,13 @@ export const PropertyPanel: React.FC = () => {
             )}
 
             {feature.geom_type === 'Point' && isIntersectionFeature && (
-              <div className="pt-2 space-y-3">
-                <div className="space-y-2 p-3 bg-orange-500/5 border border-orange-500/10 rounded-md">
-                  <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                    <Grid3X3 size={12} /> Báº£ng Ä‘iá»u khiá»ƒn NÃºt giao
-                  </p>
-                  <button
-                    onClick={handleFileUpload}
-                    disabled={isImporting}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 disabled:opacity-60 text-white rounded-md transition-all text-[10px] font-bold uppercase tracking-wider shadow-lg shadow-orange-500/20 group"
-                  >
-                    {isImporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />}
-                    {isImporting ? 'Äang import...' : 'Upload dá»¯ liá»‡u (Excel/KML/KMZ)'}
-                  </button>
-                  <p className="text-[7px] text-[#555] px-1 leading-relaxed">
-                    Há»— trá»£: .xlsx, .xls, .xlsm, .xlsb, .kml, .kmz
-                  </p>
-                  <div className="h-px bg-orange-500/10 my-1" />
-                  <p className="text-[8px] text-[#666] uppercase tracking-wider font-bold mb-1">ThÃªm thá»§ cÃ´ng:</p>
-                  <div className="grid grid-cols-1 gap-1.5">
-                    <button
-                      onClick={() => { setDrawingMode('point'); setSelectedGroup(feature.group_id); setActiveParentFeature(feature.id); }}
-                      className="flex items-center gap-2 py-1.5 px-3 bg-[#252525] hover:bg-indigo-600 text-white rounded text-[8px] font-bold uppercase transition-all"
-                    >
-                      <MapPin size={10} className="text-indigo-400" /> ThÃªm Äiá»ƒm Kháº£o SÃ¡t
-                    </button>
-                    <button
-                      onClick={() => { setDrawingMode('polyline'); setSelectedGroup(feature.group_id); setActiveParentFeature(feature.id); }}
-                      className="flex items-center gap-2 py-1.5 px-3 bg-[#252525] hover:bg-emerald-600 text-white rounded text-[8px] font-bold uppercase transition-all"
-                    >
-                      <Route size={10} className="text-emerald-400" /> ThÃªm Tuyáº¿n/CÃ¡p
-                    </button>
-                    <button
-                      onClick={() => { setDrawingMode('image'); setSelectedGroup(feature.group_id); setActiveParentFeature(feature.id); }}
-                      className="flex items-center gap-2 py-1.5 px-3 bg-[#252525] hover:bg-amber-600 text-white rounded text-[8px] font-bold uppercase transition-all"
-                    >
-                      <ImageIcon size={10} className="text-amber-400" /> ThÃªm áº¢nh Hiá»‡n TrÆ°á»ng
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <PropertyImportControls
+                feature={feature}
+                setDrawingMode={setDrawingMode}
+                setSelectedGroup={setSelectedGroup}
+                setActiveParentFeature={setActiveParentFeature}
+                setPreview={setPreview}
+              />
             )}
 
             <div className="space-y-1">
@@ -2062,16 +1975,6 @@ export const PropertyPanel: React.FC = () => {
         message={`Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a Ä‘á»‘i tÆ°á»£ng "${localName || feature.id}"? HÃ nh Ä‘á»™ng nÃ y khÃ´ng thá»ƒ hoÃ n tÃ¡c.`}
         itemName={localName || feature.id}
       />
-      {importReview && (
-        <ImportReviewDialog
-          open={true}
-          fileName={importReview.fileName}
-          sourceLabel={importReview.sourceLabel}
-          records={importReview.records}
-          onClose={() => setImportReview(null)}
-          onConfirm={confirmImportReview}
-        />
-      )}
       {editingImage && (
         <ImageEditorModal
           imageUrl={editingImage.url}

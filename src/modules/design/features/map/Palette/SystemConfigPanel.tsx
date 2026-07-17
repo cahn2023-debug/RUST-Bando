@@ -1,16 +1,16 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import {
-  Save, Settings, Info, Camera, Ruler,
-  Pin, PinOff, X, Check, Plus, Trash2, Edit3, List, Grid3X3
+  Save, Settings, Camera, Ruler,
+  Pin, PinOff, X, Check, Plus, Trash2, Edit3, Grid3X3
 } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
 import {
-  DEFAULT_OBJECT_DATA_TEMPLATES,
   normalizeProjectSettings,
   normalizeSchemaFieldKey,
   type ObjectDataTemplateField,
   type ObjectDataTemplateGroup,
+  type ObjectDataTemplateType,
   type ObjectDataTemplateTypeId,
   type ProjectSettingsSchema,
 } from '@TOOL/utils/objectDataTemplates';
@@ -53,7 +53,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
     JSON.stringify(localSettings) !== JSON.stringify(normalizeProjectSettings(state?.settings))
   ), [localSettings, state?.settings]);
 
-  const updateTemplateType = (typeId: ObjectDataTemplateTypeId, updater: (current: typeof localSettings.object_data_templates.types[ObjectDataTemplateTypeId]) => typeof localSettings.object_data_templates.types[ObjectDataTemplateTypeId]) => {
+  const updateTemplateType = (typeId: ObjectDataTemplateTypeId, updater: (current: ObjectDataTemplateType) => ObjectDataTemplateType) => {
     setLocalSettings((prev) => ({
       ...prev,
       object_data_templates: {
@@ -409,4 +409,3 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
     </div>
   );
 };
-

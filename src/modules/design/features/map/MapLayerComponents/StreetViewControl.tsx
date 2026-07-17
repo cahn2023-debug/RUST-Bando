@@ -24,6 +24,14 @@ const STREETVIEW_SMOOTH_FACTOR = 0.45;
 const ICON_HEADING_OFFSET = 0;
 const STREETVIEW_PEGMAN_PANE = 'streetview-pegman-pane';
 
+function canUseLeafletPanes(map: L.Map) {
+  try {
+    return Boolean((map as any)?._loaded && map.getPane('mapPane'));
+  } catch {
+    return false;
+  }
+}
+
 type PegmanSource = 'map' | 'streetview';
 
 type StreetViewLocationPayload = {
@@ -356,11 +364,27 @@ export function StreetViewControl() {
   }, [map]);
 
   useEffect(() => {
-    if (!map.getPane(STREETVIEW_PEGMAN_PANE)) {
+    let cancelled = false;
+
+    const ensurePegmanPane = () => {
+      if (cancelled || !canUseLeafletPanes(map) || map.getPane(STREETVIEW_PEGMAN_PANE)) {
+        return;
+      }
+
       const pane = map.createPane(STREETVIEW_PEGMAN_PANE);
       pane.style.zIndex = '1350';
       pane.style.pointerEvents = 'auto';
+    };
+
+    if (canUseLeafletPanes(map)) {
+      ensurePegmanPane();
+    } else {
+      map.whenReady(ensurePegmanPane);
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [map]);
 
   const injectCleanup = useCallback(async () => {
