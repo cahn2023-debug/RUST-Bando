@@ -51,6 +51,17 @@ const getFileName = (filePath: string) => filePath.split(/[\\/]/).pop() || fileP
 
 const getFileExtension = (filePath: string) => getFileName(filePath).split('.').pop()?.toLowerCase() || '';
 
+const createImportRecordId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `import-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const ensureUuidLikeId = (value: string) => (UUID_PATTERN.test(value) ? value : createImportRecordId());
+
 const decodeBytes = (bytes: number[] | Uint8Array) => {
   const buffer = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
   return new TextDecoder('utf-8').decode(buffer);
@@ -144,6 +155,7 @@ const parseKmlRecords = async (filePath: string): Promise<FeatureRecord[]> => {
   const baseName = getFileName(filePath).replace(/\.(kml|kmz)$/i, '');
 
   const records: Array<FeatureRecord | null> = placemarks.map((placemark, index) => {
+    const recordId = createImportRecordId();
     const name = getElementText(placemark, 'name') || `Placemark ${index + 1}`;
     const description = getElementText(placemark, 'description');
     const properties: Record<string, string> = {
@@ -168,7 +180,7 @@ const parseKmlRecords = async (filePath: string): Promise<FeatureRecord[]> => {
       const coords = parseCoordinatesText(pointText);
       const first = coords[0] || [0, 0];
       return {
-        id: `${baseName}-${index + 1}`,
+        id: recordId,
         geom_type: 'Point' as const,
         geometry: [first[0], first[1]],
         center_lat: first[1],
@@ -185,7 +197,7 @@ const parseKmlRecords = async (filePath: string): Promise<FeatureRecord[]> => {
       const coords = parseCoordinatesText(lineText).map((coord) => [coord[0], coord[1]]);
       const center = averageCoordinate(coords.map((coord) => [coord[0], coord[1]]));
       return {
-        id: `${baseName}-${index + 1}`,
+        id: recordId,
         geom_type: 'LineString' as const,
         geometry: coords,
         center_lat: center.lat,
@@ -203,7 +215,7 @@ const parseKmlRecords = async (filePath: string): Promise<FeatureRecord[]> => {
       const coords = parseCoordinatesText(polygonText).map((coord) => [coord[0], coord[1]]);
       const center = averageCoordinate(coords.map((coord) => [coord[0], coord[1]]));
       return {
-        id: `${baseName}-${index + 1}`,
+        id: recordId,
         geom_type: 'Polygon' as const,
         geometry: [coords],
         center_lat: center.lat,
@@ -227,6 +239,7 @@ export const buildFeatureCreatedEvents = (
   layerId: string
 ): DesignEventType[] => {
   return records.map((record, index) => {
+    const featureId = ensureUuidLikeId(record.id);
     const name = record.properties.name || record.properties.label || `Point ${index + 1}`;
     const metadata = syncDisplayOrderAliases(
       {
@@ -244,7 +257,7 @@ export const buildFeatureCreatedEvents = (
     return {
       type: 'FeatureCreated',
       payload: {
-        id: record.id,
+        id: featureId,
         layer_id: layerId,
         group_id: groupId,
         name,
@@ -329,6 +342,14 @@ export const applyImportedRecords = async (records: FeatureRecord[], preferredGr
   }
 
   const events = buildFeatureCreatedEvents(records, targetGroupId, targetGroup.layer_id);
+  if (records.some((record) => record.source_format === 'kml' || record.source_format === 'kmz')) {
+    console.info('[Import] Applying KML/KMZ records', {
+      count: records.length,
+      groupId: targetGroupId,
+      layerId: targetGroup.layer_id,
+      firstId: records[0]?.id,
+    });
+  }
   await store.dispatchEvents(events);
   store.setSelectedGroup(targetGroupId);
   if (records[0]) {

@@ -2396,12 +2396,22 @@ mod tests {
             )
             .expect("project metadata");
         let metadata: Value = serde_json::from_str(&metadata_json).expect("metadata parse");
+        let snapshot_json: String = reopened
+            .conn
+            .query_row(
+                "SELECT state_json FROM project_snapshots WHERE project_id = ?1",
+                rusqlite::params![project_id.clone()],
+                |r| r.get(0),
+            )
+            .expect("project snapshot");
+        let snapshot: Value = serde_json::from_str(&snapshot_json).expect("snapshot parse");
 
         assert_eq!(active_id, project_id);
         assert_eq!(active_path, pmp_path_str);
-        assert!(metadata.get("features").is_some());
-        assert!(metadata.get("layers").is_some());
-        assert!(metadata.get("regions").is_some());
+        assert!(metadata.get("storage").is_some());
+        assert!(snapshot.get("features").is_some());
+        assert!(snapshot.get("layers").is_some());
+        assert!(snapshot.get("regions").is_some());
     }
 
     #[test]

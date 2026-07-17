@@ -16,7 +16,8 @@ import { VectorLayer } from '@DESIGN/features/map/MapLayerComponents/VectorLayer
 import { DrawingLayer } from '@DESIGN/features/map/MapLayerComponents/DrawingLayer';
 import { VertexEditor } from '@DESIGN/features/map/MapLayerComponents/VertexEditor';
 import { getParsedMetadata } from '@DESIGN/features/map/MapLayerComponents/SharedMapComponents';
-import { getFeatureDisplayInfo } from '@TOOL/utils/featureUtils';
+import { getFeatureDisplayInfo, getParsedCoordinates } from '@TOOL/utils/featureUtils';
+import { isRenderableFeatureGeometry } from '@TOOL/utils/featurePersistence';
 
 const ZOOM_THRESHOLD = 19;
 const BOUNDS_DEBOUNCE_MS = 150;
@@ -161,6 +162,8 @@ export const DesignFeatures = () => {
         // V2 Fix: ONLY hide features that user explicitly clicked the eye icon
         // All data from database should be visible by default
         const result = geoVisibleFeatures.filter(f => {
+            if (!isRenderableFeatureGeometry(f.geom_type, getParsedCoordinates(f))) return false;
+
             // ONLY check mapHiddenIds (user clicked hide button in Project Explorer)
             // Do NOT check database is_visible - everything is visible by default
             if (mapHiddenIds.has(f.id)) return false;

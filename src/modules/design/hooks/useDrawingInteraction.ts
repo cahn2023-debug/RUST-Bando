@@ -2,6 +2,7 @@ import { useCallback, useEffect } from "react";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import { getNextFeatureDisplayOrder, syncDisplayOrderAliases } from "@TOOL/utils/featureMapping";
 import { getParsedMetadata } from "@TOOL/utils/featureMetadata";
+import { buildFeatureCreatedPayload } from "@TOOL/utils/featurePersistence";
 import { getNetworkEndpointCoordinate, getRepresentativeFeatureIdForEndpoint } from "@DESIGN/features/map/network/NetworkEndpoint";
 import { buildSnapLinks, inferNetworkRole, isSourceRole, resolveNetworkNodeIdFromSnap } from "@DESIGN/features/map/network/networkTopology";
 
@@ -192,16 +193,15 @@ export function useDrawingInteraction() {
 
         events.push({
             type: 'FeatureCreated',
-            payload: {
+            payload: buildFeatureCreatedPayload({
                 id,
                 layer_id: group.layer_id,
                 group_id: selectedGroupId,
                 name: shouldCreateNetworkEdge ? "Tuyến SignalLine Mới" : "Đường Khảo Sát Mới",
                 geom_type: 'LineString',
-                coordinates: JSON.stringify(workingPoints),
-                metadata: JSON.stringify(finalMetadata),
-                properties: JSON.stringify({})
-            }
+                coordinates: workingPoints,
+                metadata: finalMetadata,
+            })
         } as any);
 
         if (shouldCreateNetworkEdge) {
@@ -246,7 +246,6 @@ export function useDrawingInteraction() {
                 icon: defaults.icon,
                 type: defaults.type,
                 color: defaults.color,
-                // V2 Fix: Use snap_to_id (read by topology.rs) instead of snapped_object_id (dead data)
                 snap_to_id: snapId || undefined,
             }, getNextFeatureDisplayOrder(
                 state?.features || {},
@@ -263,16 +262,15 @@ export function useDrawingInteraction() {
 
             await dispatchEvent({
                 type: 'FeatureCreated',
-                payload: {
+                payload: buildFeatureCreatedPayload({
                     id: crypto.randomUUID(),
                     layer_id: group.layer_id,
                     group_id: selectedGroupId,
                     name: defaults.name,
                     geom_type: 'Point',
-                    coordinates: JSON.stringify([lng, lat]),
-                    metadata: JSON.stringify(metadata),
-                    properties: JSON.stringify({})
-                }
+                    coordinates: [lng, lat],
+                    metadata,
+                })
             } as any);
         } else if (drawingMode === 'polyline') {
             addDrawingPoint(lat, lng, snapId);

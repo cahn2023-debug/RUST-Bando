@@ -6,7 +6,7 @@ describe("importService", () => {
     const events = buildFeatureCreatedEvents(
       [
         {
-          id: "feature-1",
+          id: "7f4c6d4b-8a67-4c44-a5f2-3d1b0d3f1f11",
           geom_type: "Point",
           geometry: [105.8342, 21.0278],
           center_lat: 21.0278,
@@ -27,7 +27,7 @@ describe("importService", () => {
       {
         type: "FeatureCreated",
         payload: {
-          id: "feature-1",
+          id: "7f4c6d4b-8a67-4c44-a5f2-3d1b0d3f1f11",
           layer_id: "layer-1",
           group_id: "group-1",
           name: "Camera A",
@@ -52,6 +52,31 @@ describe("importService", () => {
         },
       },
     ]);
+  });
+
+  it("uses UUID-like ids for imported KML/KMZ records", () => {
+    const events = buildFeatureCreatedEvents(
+      [
+        {
+          id: "ignored-for-kml-import",
+          geom_type: "LineString",
+          geometry: [[105.8, 21.0], [105.9, 21.1]],
+          center_lat: 21.05,
+          center_lon: 105.85,
+          tile_id: "sample-row-1",
+          properties: {
+            name: "Polyline A",
+          },
+          source_format: "kml",
+        },
+      ],
+      "group-1",
+      "layer-1"
+    );
+
+    expect(events[0]?.payload.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    );
   });
 
   it("keeps the imported STT column merged with display_order", () => {

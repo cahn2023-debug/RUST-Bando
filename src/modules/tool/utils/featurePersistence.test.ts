@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { FeatureMetadata, FeatureProperties } from '@CONTRACT/types';
-import { buildFeaturePropertiesForPersistence, getTypeForIcon } from './featurePersistence';
+import {
+  buildFeatureCreatedPayload,
+  buildFeaturePropertiesForPersistence,
+  getTypeForIcon,
+  isRenderableFeatureGeometry,
+  normalizeFeatureMetadataForPersistence,
+} from './featurePersistence';
 
 describe('featurePersistence', () => {
   it('maps default icon back to point type', () => {
@@ -60,5 +66,61 @@ describe('featurePersistence', () => {
       iconKey: 'ptz',
       type: 'ptz',
     });
+  });
+
+  it('normalizes metadata aliases before persistence', () => {
+    const metadata: FeatureMetadata = {
+      icon: 'default',
+      STT: '12.0',
+    };
+
+    expect(normalizeFeatureMetadataForPersistence(metadata)).toMatchObject({
+      icon: 'default',
+      type: 'point',
+      display_order: '12',
+    });
+  });
+
+  it('builds a map-native FeatureCreated payload with normalized properties', () => {
+    const payload = buildFeatureCreatedPayload({
+      id: 'feature-1',
+      layer_id: 'layer-1',
+      group_id: 'group-1',
+      name: 'Camera A',
+      geom_type: 'Point',
+      coordinates: [106.1, 10.2],
+      metadata: {
+        icon: 'cctv',
+        type: 'cctv',
+        STT: '7',
+      },
+    });
+
+    expect(payload).toMatchObject({
+      id: 'feature-1',
+      layer_id: 'layer-1',
+      group_id: 'group-1',
+      name: 'Camera A',
+      geom_type: 'Point',
+      coordinates: JSON.stringify([106.1, 10.2]),
+      properties: {
+        icon: 'cctv',
+        iconKey: 'cctv',
+        type: 'cctv',
+      },
+    });
+    expect(JSON.parse(payload.metadata)).toMatchObject({
+      icon: 'cctv',
+      type: 'cctv',
+      display_order: '7',
+    });
+  });
+
+  it('accepts only renderable geometry shapes for the map', () => {
+    expect(isRenderableFeatureGeometry('Point', [106, 10])).toBe(true);
+    expect(isRenderableFeatureGeometry('LineString', [[106, 10], [106.1, 10.1]])).toBe(true);
+    expect(isRenderableFeatureGeometry('Polygon', [[[106, 10], [106.1, 10.1], [106.2, 10.2]]])).toBe(true);
+    expect(isRenderableFeatureGeometry('Point', [106] as any)).toBe(false);
+    expect(isRenderableFeatureGeometry('LineString', [[106, 10]] as any)).toBe(false);
   });
 });

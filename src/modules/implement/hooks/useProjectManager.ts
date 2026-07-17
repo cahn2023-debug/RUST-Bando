@@ -63,36 +63,36 @@ export function useProjectManager() {
         let hydratedProject: Project | null = normalizeProject(selectedProjectRef.current);
 
         try {
-            // 1. Check active project from backend
-            try {
-                const activeProject = normalizeProject(await invoke<Project | null>("get_active_project"));
-                console.info("Backend Active Project Result:", activeProject?.name || "None");
+            const [activeProjectResult, recentProjectsResult] = await Promise.allSettled([
+                invoke<Project | null>("get_active_project"),
+                invoke<Project[]>("get_recent_projects"),
+            ]);
 
-                if (requestId !== requestIdRef.current) {
-                    console.warn("Request ID mismatch (Stale request), aborting hydration.");
-                    console.groupEnd();
-                    return;
-                }
-
-                if (isProjectLoadable(activeProject)) {
-                    console.info(`[useProjectManager] Hydrating active project from backend: ${activeProject.name}`);
-                    hydratedProject = activeProject;
-                }
-            } catch (err) {
-                console.warn("Failed to check active project from backend:", err);
+            if (requestId !== requestIdRef.current) {
+                console.warn("Request ID mismatch (Stale request), aborting hydration.");
+                console.groupEnd();
+                return;
             }
 
-            // 2. Load recent projects from backend
+            const activeProject = activeProjectResult.status === "fulfilled"
+                ? normalizeProject(activeProjectResult.value)
+                : null;
+            console.info("Backend Active Project Result:", activeProject?.name || "None");
+
+            if (isProjectLoadable(activeProject)) {
+                console.info(`[useProjectManager] Hydrating active project from backend: ${activeProject.name}`);
+                hydratedProject = activeProject;
+            }
+
             let currentProjects: Project[] = [];
-            try {
-                const backendProjects = await invoke<Project[]>("get_recent_projects");
-                currentProjects = (Array.isArray(backendProjects) ? backendProjects : [])
+            if (recentProjectsResult.status === "fulfilled") {
+                currentProjects = (Array.isArray(recentProjectsResult.value) ? recentProjectsResult.value : [])
                     .map(normalizeProject)
                     .filter((project): project is Project => project !== null);
                 console.info(`Loaded ${currentProjects.length} recent projects from backend`);
-            } catch (backendErr) {
-                console.warn("Backend recent projects not available, falling back to localStorage:", backendErr);
-                // Fallback to localStorage only if backend fails
+                localStorage.setItem("recent_pmps", JSON.stringify(currentProjects));
+            } else {
+                console.warn("Backend recent projects not available, falling back to localStorage:", recentProjectsResult.reason);
                 const saved = localStorage.getItem("recent_pmps");
                 if (saved) {
                     try {
@@ -103,24 +103,6 @@ export function useProjectManager() {
                         console.error("Failed to parse local projects:", e);
                     }
                 }
-            }
-
-            // 3. Load official config from backend
-            try {
-                const config = await invoke<{ recent_pmps: Project[]; last_opened_pmp?: string }>("get_app_config");
-                if (requestId !== requestIdRef.current) return;
-
-                if (config && config.recent_pmps && Array.isArray(config.recent_pmps)) {
-                    currentProjects = config.recent_pmps
-                        .map(normalizeProject)
-                        .filter((project): project is Project => project !== null);
-                    localStorage.setItem("recent_pmps", JSON.stringify(currentProjects));
-                }
-
-                // V4.1 Note: Auto-load from config.last_opened_pmp is intentionally disabled 
-                // to support F5 -> Home Dashboard flow.
-            } catch (backendErr) {
-                console.warn("Backend config not available or incompatible:", backendErr);
             }
 
             console.info("Final Hydrated Project:", hydratedProject?.name || "None");

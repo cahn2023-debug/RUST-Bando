@@ -41,15 +41,9 @@ impl PmpDatabase {
             ));
         }
 
-        apply_v2_schema(&conn)?;
-        migrate_foundational_v4_state(&conn)?;
-
-        let integrity: String = conn.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
-        if integrity != "ok" {
-            return Err(rusqlite::Error::SqliteFailure(
-                rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CORRUPT),
-                Some(format!("Database integrity check failed: {}", integrity)),
-            ));
+        if version < CURRENT_SCHEMA_VERSION {
+            apply_v2_schema(&conn)?;
+            migrate_foundational_v4_state(&conn)?;
         }
 
         Ok(Self {
