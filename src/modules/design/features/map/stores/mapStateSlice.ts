@@ -2,6 +2,8 @@ import { StateCreator } from 'zustand';
 import { MapStateSlice, DesignSyncStore } from './types';
 import { MapState } from '@CONTRACT/types';
 import { DesignEventType } from '@CONTRACT/designTypes';
+import { normalizeMapStateForDisplay } from '../../../../tool/utils/normalizeDisplay';
+
 
 
 const UPDATE_THROTTLE_MS = 100;
@@ -218,8 +220,9 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
             response.side_effects?.forEach(applySingle);
         }
 
-        set({ state: newState });
-        console.log(`[Sync] ✅ Patch applied for ${newState.lastEventId}`);
+        const normalizedState = normalizeMapStateForDisplay(newState);
+        set({ state: normalizedState });
+        console.log(`[Sync] ✅ Patch applied for ${normalizedState.lastEventId}`);
     },
 
     applyQueuedAckToState: (response) => {
@@ -314,8 +317,9 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
             response.side_effects?.forEach(applySingle);
         }
 
-        set({ state: newState });
-        console.log(`[Sync] Queued ack applied for ${newState.lastEventId}`);
+        const normalizedState = normalizeMapStateForDisplay(newState);
+        set({ state: normalizedState });
+        console.log(`[Sync] Queued ack applied for ${normalizedState.lastEventId}`);
     },
 
     applyEventsOptimistically: (events) => {
@@ -417,7 +421,8 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         };
 
         events?.forEach(apply);
-        set({ state: newState });
+        const normalizedState = normalizeMapStateForDisplay(newState);
+        set({ state: normalizedState });
         console.log(`[Sync] 🚀 Optimistic update applied for ${events?.length || 0} events`);
     },
 

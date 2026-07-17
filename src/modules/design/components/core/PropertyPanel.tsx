@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { IconSelector } from '@DESIGN/components/ui/IconSelector';
 import { designLogic } from '@TOOL/utils/designLogic';
-import { getFeatureDisplayInfo, safeString, getCleanName, isCameraIcon } from '@TOOL/utils/featureUtils';
+import { getFeatureDisplayInfo, safeString, getCleanName, isCameraIcon, getParsedMetadata, getPointCoordinates } from '@TOOL/utils/featureUtils';
 import { useCamera } from '@IMPLEMENT/hooks/useCamera';
 import { importFromExcel, importFromKML, getExcelHeaders, applyImportedRecords } from '@IMPLEMENT/services/importService';
 import { safeOpenDialog } from '@IMPLEMENT/lib/tauri';
@@ -791,7 +791,7 @@ export const PropertyPanel: React.FC = () => {
   let persistedMetaJson = '{}';
   if (feature) {
     try {
-      const parsed = typeof feature.metadata === 'string' ? JSON.parse(feature.metadata || '{}') : (feature.metadata || {});
+      const parsed = getParsedMetadata(feature);
       persistedMeta = preparePropertyMetadata(parsed, feature.properties as FeatureProperties);
       persistedMetaJson = JSON.stringify(persistedMeta);
     } catch {
@@ -1161,12 +1161,7 @@ export const PropertyPanel: React.FC = () => {
       });
     },
     watermarkData: {
-      location: (() => {
-        try {
-          const coords = typeof feature?.coordinates === 'string' ? JSON.parse(feature.coordinates) : feature?.coordinates;
-          return Array.isArray(coords) && coords.length > 0 ? coords[0] : undefined;
-        } catch (e) { return undefined; }
-      })(),
+      location: feature ? (getPointCoordinates(feature) ?? undefined) : undefined,
       label: localName || 'Đối tượng khảo sát'
     }
   });
@@ -1175,7 +1170,7 @@ export const PropertyPanel: React.FC = () => {
   useEffect(() => {
     if (feature) {
       try {
-        const meta = typeof feature.metadata === 'string' ? JSON.parse(feature.metadata || '{}') : (feature.metadata || {});
+        const meta = getParsedMetadata(feature);
         const normalized = normalizeMetadataObject(meta);
 
         // Cập nhật tên (làm sạch STT nếu có)
@@ -1264,9 +1259,7 @@ export const PropertyPanel: React.FC = () => {
       const verifyState = useDesignSync.getState().state;
       const verifyFeature = verifyState?.features[feature.id];
       if (verifyFeature) {
-        const verifyMeta = typeof verifyFeature.metadata === 'string'
-          ? JSON.parse(verifyFeature.metadata)
-          : verifyFeature.metadata;
+        const verifyMeta = getParsedMetadata(verifyFeature);
         const normalizedVerifyMeta = preparePropertyMetadata(verifyMeta, feature.properties as FeatureProperties);
 
         if (

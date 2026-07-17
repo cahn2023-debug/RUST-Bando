@@ -181,3 +181,48 @@ export const getIconByDisplayType = (displayType: string) => {
 
     return { icon: IconComponent, color: colorClass };
 };
+
+/**
+ * Checks if a feature represents a network connection link that lacks coordinates (and thus should be hidden).
+ * Features with valid coordinates should remain visible in both the map and list views.
+ */
+export const isNetworkLinkFeature = (feature: any): boolean => {
+    if (!feature) return false;
+
+    // We only hide network features if they DO NOT have valid coordinates.
+    let coords = feature.coordinates;
+    while (typeof coords === 'string') {
+        try {
+            const parsed = JSON.parse(coords);
+            if (parsed === coords) break;
+            coords = parsed;
+        } catch {
+            break;
+        }
+    }
+    
+    const hasCoordinates = coords && (
+        (Array.isArray(coords) && coords.length > 0) ||
+        (typeof coords === 'object' && !Array.isArray(coords) && Object.keys(coords).length > 0)
+    );
+
+    // If it has coordinates, we do NOT hide it from the frontend views.
+    if (hasCoordinates) return false;
+
+    if (feature.geom_type === 'NetworkLink') return true;
+    if (typeof feature.name === 'string' && (feature.name.startsWith('Tuyen Network Moi') || feature.name.startsWith('Tuyến Network Mới'))) return true;
+    
+    let metadata = feature.metadata;
+    if (typeof metadata === 'string') {
+        try {
+            metadata = JSON.parse(metadata);
+        } catch {
+            metadata = null;
+        }
+    }
+    if (metadata && typeof metadata === 'object') {
+        if (metadata.network && typeof metadata.network === 'object') return true;
+        if (metadata.infrastructure && typeof metadata.infrastructure === 'object' && metadata.infrastructure.type === 'NetworkLink') return true;
+    }
+    return false;
+};

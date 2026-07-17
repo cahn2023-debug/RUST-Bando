@@ -78,10 +78,43 @@ fn row_array(value: Value) -> Vec<Value> {
     value.as_array().cloned().unwrap_or_default()
 }
 
+fn normalize_metadata_to_string(v: &Value) -> String {
+    match v {
+        Value::Null => "{}".to_string(),
+        Value::String(s) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() || trimmed == "null" || trimmed == "undefined" {
+                "{}".to_string()
+            } else {
+                trimmed.to_string()
+            }
+        }
+        other => other.to_string(),
+    }
+}
+
 async fn load_design_state_from_tables(
     state: &ActorState,
     project_id: &str,
 ) -> Result<Value, String> {
+    // Dọn dẹp: Xóa các feature "Tuyen Network Moi" không có tọa độ trên bản đồ
+    let cleanup_sql = "
+        DELETE FROM features 
+        WHERE project_id = ?1 
+        AND (name = 'Tuyen Network Moi' OR name LIKE 'Tuyen Network Moi%' OR name LIKE 'Tuyến Network Mới%')
+        AND (coordinates_json IS NULL OR coordinates_json = '' OR coordinates_json = '[]' OR coordinates_json = '{}')
+    ";
+    let (tx_clean, rx_clean) = tokio::sync::oneshot::channel();
+    let _ = state
+        .gateway_tx
+        .send(StorageCommand::Query {
+            sql: cleanup_sql.to_string(),
+            params: vec![project_id.to_string()],
+            reply: tx_clean,
+        })
+        .await;
+    let _ = rx_clean.await;
+
     let regions = exec_query(
         state,
         "SELECT id, parent_id, name, description FROM regions WHERE project_id = ?1 ORDER BY created_at, id",
@@ -133,9 +166,8 @@ async fn load_design_state_from_tables(
         if let Some(id) = row.get("id").and_then(Value::as_str) {
             let metadata = row
                 .get("metadata_json")
-                .cloned()
-                .unwrap_or_else(|| json!({}))
-                .to_string();
+                .map(normalize_metadata_to_string)
+                .unwrap_or_else(|| "{}".to_string());
             groups_obj.insert(
                 id.to_string(),
                 json!({
@@ -157,9 +189,8 @@ async fn load_design_state_from_tables(
         if let Some(id) = row.get("id").and_then(Value::as_str) {
             let metadata = row
                 .get("metadata_json")
-                .cloned()
-                .unwrap_or_else(|| json!({}))
-                .to_string();
+                .map(normalize_metadata_to_string)
+                .unwrap_or_else(|| "{}".to_string());
             features_obj.insert(
                 id.to_string(),
                 json!({
@@ -271,6 +302,17 @@ pub async fn load_design_state_v2(
     }])));
 
     if has_design_data(&snapshot_state) {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        state
+            .gateway_tx
+            .send(StorageCommand::UpdateProjectState {
+                project_id: project_id.clone(),
+                state: snapshot_state.clone(),
+                reply: tx,
+            })
+            .await
+            .map_err(|e| e.to_string())?;
+        rx.await.map_err(|e| e.to_string())??;
         return Ok(snapshot_state);
     }
 

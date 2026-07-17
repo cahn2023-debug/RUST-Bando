@@ -8,6 +8,8 @@ import {
     getLatestInitializeRequestId,
     loadDesignState
 } from '../../../../tool/utils/designIpc';
+import { normalizeMapStateForDisplay } from '../../../../tool/utils/normalizeDisplay';
+
 
 let initWatchdogTimer: ReturnType<typeof setTimeout> | null = null;
 let loadingSinceTs: number | null = null;
@@ -213,133 +215,11 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             const tDone = performance.now();
             logger.info(`[Store] ✅ Hydration completed in ${(tDone - tStart).toFixed(1)}ms for project ${projectId}`);
 
-            // 🔥 [Giai đoạn Fix Bọc Thép 1.1]: "Sếp bảo vứt hết reduce, cứ map cho anh"
-            if (state && state.features) {
-                const featureArrayRaw = Array.isArray(state.features) ? state.features : Object.values(state.features);
-
-                // 1. Phỏng vấn tọa độ của feature đầu tiên để bắt thóp CRS
-                if (featureArrayRaw.length > 0) {
-                    const first = featureArrayRaw[0];
-                    console.log("📌 [Hydration] 1st Feature Coords (Raw):", first.coordinates);
-                    console.log("📌 [Hydration] 1st Feature BBOX (Raw):", first.bbox);
-                }
-
-                // V4 Fix: Heavy lifting is now done by getParsedCoordinates in the layer components.
-                // Here we just normalize IDs and properties.
-                const totalLoad = featureArrayRaw.length;
-                const validCoordsCount = featureArrayRaw.filter((f: any) => {
-                    const c = f.coordinates;
-                    return c && c !== 'null' && c !== '""';
-                }).length;
-
-                console.log(`🔥 [Hydration] Sếp ơi, đã nạp xong ${totalLoad} features từ Backend.`);
-                console.log(`📡 [Hydration] Trong đó có ${validCoordsCount} features có tọa độ hợp lệ (non-null).`);
-
-                if (totalLoad > 0) {
-                    console.log("🛑 [CHỐT HẠ] TOÀN BỘ NỘI DUNG 1 FEATURE TỪ RUST:", featureArrayRaw[0]);
-                    console.log(`🧪 [Hydration] Sample feature coordinate format:`, featureArrayRaw[0].coordinates);
-                }
-
-                // 3. Nạp vào Record (Vì UI và Hooks dùng Record[id] để query cho cực nhanh)
-                const featureRecord = featureArrayRaw.reduce((acc: any, f: any, index: number) => {
-                    const validId = f.id || f.feature_id || f.uuid;
-                    if (validId) {
-                        // 1. Ép properties về Object
-                        let parsedProps = f.properties;
-                        if (typeof parsedProps === 'string') {
-                            try {
-                                parsedProps = JSON.parse(parsedProps);
-                            } catch (e) {
-                                parsedProps = {};
-                            }
-                        }
-
-                        // ==========================================
-                        // 🚨 2. TRUY LÙNG TỌA ĐỘ VÀ BBOX (BỌC THÉP V4)
-                        // ==========================================
-                        let finalCoords = f.coordinates;
-
-                        // Lật tung sample để soi key C# (chỉ log 1 lần cho feature đầu hoặc ID cụ thể)
-                        if (index === 0) {
-                            console.log("🕵️ [Hydration] LẬT TUNG PROPERTIES TÌM TỌA ĐỘ:", parsedProps);
-                        }
-
-                        // A. Bình thường hóa tọa độ
-                        if (typeof finalCoords === 'string') {
-                            try { finalCoords = JSON.parse(finalCoords); } catch (e) { }
-                        }
-                        if (finalCoords && typeof finalCoords === 'object' && !Array.isArray(finalCoords) && Object.keys(finalCoords).length === 0) {
-                            finalCoords = null;
-                        }
-
-                        // B. Dò tìm tọa độ từ properties (C# Legacy)
-                        const rawLat = parsedProps?.Latitude || parsedProps?.latitude || parsedProps?.Lat || parsedProps?.lat || parsedProps?.Y || parsedProps?.y || parsedProps?.Location?.Latitude;
-                        const rawLng = parsedProps?.Longitude || parsedProps?.longitude || parsedProps?.Lng || parsedProps?.lng || parsedProps?.X || parsedProps?.x || parsedProps?.Location?.Longitude;
-
-                        if (rawLat !== undefined && rawLng !== undefined) {
-                            // Ép mốc tọa độ về mảng chuẩn của Leaflet/MapLibre [lng, lat]
-                            finalCoords = [Number(rawLng), Number(rawLat)];
-                        } else {
-                            // Luồng backup tìm trong các key phổ biến khác
-                            finalCoords = finalCoords
-                                || parsedProps?.coordinates
-                                || parsedProps?.Coordinates
-                                || parsedProps?.geometry?.coordinates
-                                || parsedProps?.location?.coordinates
-                                || parsedProps?.Location?.coordinates;
-                        }
-
-                        // C. Xử lý BBOX
-                        let finalBbox = f.bbox || parsedProps?.bbox || parsedProps?.BBox;
-                        if (typeof finalBbox === 'string') {
-                            try {
-                                finalBbox = JSON.parse(finalBbox);
-                            } catch (e) {
-                                finalBbox = null;
-                            }
-                        }
-
-                        // Tự sinh BBOX nếu tìm được mảng tọa độ [lng, lat] nhưng thiếu BBOX
-                        if (!finalBbox && Array.isArray(finalCoords) && finalCoords.length >= 2) {
-                            if (typeof finalCoords[0] === 'number') {
-                                finalBbox = {
-                                    min_x: finalCoords[0],
-                                    max_x: finalCoords[0],
-                                    min_y: finalCoords[1],
-                                    max_y: finalCoords[1]
-                                };
-                            }
-                        }
-
-                        // 4. Ghi vào Record
-                        acc[validId] = {
-                            ...f,
-                            id: validId,
-                            properties: parsedProps || {},
-                            coordinates: finalCoords,
-                            bbox: finalBbox
-                        };
-                    }
-                    return acc;
-                }, {});
-
-                console.log(`🔥 [Hydration] Sếp ơi, đã nạp xong ${featureArrayRaw.length} features vào Store (Record format).`);
-
-                // Cập nhật lại state
-                state.features = featureRecord;
-            }
-
-            // Ensure state structure is complete
-            if (state) {
-                if (!state.regions) state.regions = {};
-                if (!state.layers) state.layers = {};
-                if (!state.feature_groups) state.feature_groups = {};
-                if (!state.features) state.features = {};
-                if (!state.settings) state.settings = {};
-            }
+            // Standardize state using the canonical helper
+            const normalizedState = normalizeMapStateForDisplay(state);
 
             set({
-                state,
+                state: normalizedState,
                 projectId,
                 projectKey: normalizedProjectKey,
                 projectPath,

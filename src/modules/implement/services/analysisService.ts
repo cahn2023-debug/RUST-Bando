@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { save, open } from '@tauri-apps/plugin-dialog';
 import { safeInvoke as invoke } from '@IMPLEMENT/lib/tauri';
 import { normalizeAnalysisColumnKey } from '@IMPLEMENT/features/analysis/analysisColumns';
-import { syncDisplayOrderAliases } from '@TOOL/utils/featureMapping';
+import { syncDisplayOrderAliases, getParsedMetadata } from '@TOOL/utils/featureUtils';
 import type { DesignEventType, FeatureProperties } from '@CONTRACT/designTypes';
 import type { FeatureState, FeatureGroupState, LayerState, MapState, RegionState } from '@CONTRACT/types';
 
@@ -111,16 +111,7 @@ const HEADER_ALIASES: Record<string, keyof ParsedAnalysisRow | 'skip'> = {
   is_visible: 'isVisible',
 };
 
-const parseFeatureMetadata = (metadata: unknown) => {
-  if (!metadata) return {};
-  if (typeof metadata === 'object') return { ...(metadata as Record<string, unknown>) };
-
-  try {
-    return JSON.parse(String(metadata) || '{}') as Record<string, unknown>;
-  } catch {
-    return {};
-  }
-};
+// Delegated metadata parsing to canonical getParsedMetadata helper
 
 const normalizeHeader = (key: string) => normalizeAnalysisColumnKey(String(key || ''));
 
@@ -233,7 +224,7 @@ const buildExistingFeatureLookup = (state: MapState) => {
   Object.values(state.features || {}).forEach((feature) => {
     bySourceId.set(feature.id, feature.id);
 
-    const metadata = parseFeatureMetadata(feature.metadata);
+    const metadata = getParsedMetadata(feature);
     const sourceFeatureId = readString(metadata.source_feature_id);
     if (sourceFeatureId) {
       bySourceId.set(sourceFeatureId, feature.id);
@@ -404,7 +395,7 @@ export const buildAnalysisImportEvents = (rows: AnalysisRow[], state: MapState):
       const feature = state.features[targetFeatureId];
       if (!feature) return;
 
-      const currentMeta = parseFeatureMetadata(feature.metadata);
+      const currentMeta = getParsedMetadata(feature);
       const currentProps = { ...(feature.properties || {}) };
       const nextMeta = syncDisplayOrderAliases(
         {

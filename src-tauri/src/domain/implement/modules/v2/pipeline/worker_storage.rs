@@ -2393,6 +2393,20 @@ fn rebuild_project_snapshot(tx: &Transaction<'_>, project_id: &str) -> Result<()
     Ok(())
 }
 
+fn normalize_metadata_to_string_opt(v: Option<String>) -> String {
+    match v {
+        None => "{}".to_string(),
+        Some(s) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() || trimmed == "null" || trimmed == "undefined" {
+                "{}".to_string()
+            } else {
+                trimmed.to_string()
+            }
+        }
+    }
+}
+
 fn build_snapshot_from_tables(tx: &Transaction<'_>, project_id: &str) -> Result<Value, String> {
     let mut state = empty_design_state();
     let state_obj = state.as_object_mut().expect("state object");
@@ -2454,7 +2468,8 @@ fn build_snapshot_from_tables(tx: &Transaction<'_>, project_id: &str) -> Result<
         .map_err(|e| e.to_string())?;
     let rows = stmt
         .query_map(params![project_id], |row| {
-            let metadata_json: String = row.get(6)?;
+            let metadata_json: Option<String> = row.get(6)?;
+            let metadata = normalize_metadata_to_string_opt(metadata_json);
             Ok(json!({
                 "id": row.get::<_, String>(0)?,
                 "layer_id": row.get::<_, String>(1)?,
@@ -2462,7 +2477,7 @@ fn build_snapshot_from_tables(tx: &Transaction<'_>, project_id: &str) -> Result<
                 "name": row.get::<_, String>(3)?,
                 "type": row.get::<_, Option<String>>(4)?,
                 "is_visible": row.get::<_, i64>(5)? != 0,
-                "metadata": metadata_json,
+                "metadata": metadata,
             }))
         })
         .map_err(|e| e.to_string())?;
@@ -2485,8 +2500,9 @@ fn build_snapshot_from_tables(tx: &Transaction<'_>, project_id: &str) -> Result<
         .query_map(params![project_id], |row| {
             let coordinates_json: Option<String> = row.get(5)?;
             let properties_json: String = row.get(6)?;
-            let metadata_json: String = row.get(7)?;
+            let metadata_json: Option<String> = row.get(7)?;
             let bbox_json: Option<String> = row.get(8)?;
+            let metadata = normalize_metadata_to_string_opt(metadata_json);
             Ok(json!({
                 "id": row.get::<_, String>(0)?,
                 "layer_id": row.get::<_, String>(1)?,
@@ -2497,7 +2513,7 @@ fn build_snapshot_from_tables(tx: &Transaction<'_>, project_id: &str) -> Result<
                     .and_then(|text| serde_json::from_str::<Value>(&text).ok())
                     .unwrap_or(Value::Null),
                 "properties": serde_json::from_str::<Value>(&properties_json).unwrap_or_else(|_| json!({})),
-                "metadata": metadata_json,
+                "metadata": metadata,
                 "bbox": bbox_json
                     .and_then(|text| serde_json::from_str::<Value>(&text).ok())
                     .unwrap_or(Value::Null),
