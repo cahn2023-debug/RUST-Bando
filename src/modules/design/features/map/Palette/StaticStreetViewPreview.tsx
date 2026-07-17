@@ -251,12 +251,12 @@ export const StaticStreetViewPreview: React.FC<StaticStreetViewPreviewProps> = (
     }
 
     return (
-        <div className="relative w-full aspect-video rounded-lg bg-[#070b12] border border-white/10 overflow-hidden shadow-2xl select-none group">
+        <div className="relative w-full aspect-video rounded-lg bg-white border border-slate-200 overflow-hidden shadow-2xl select-none group">
             {resolvedUrl && (
                 <img
                     src={resolvedUrl}
                     alt="Street View Preview"
-                    className={`w-full h-full object-contain transition-opacity duration-300 image-pixelated ${imageError ? 'opacity-0' : 'opacity-100'}`}
+                    className={`w-full h-full object-contain transition-opacity duration-300 image-pixelated bg-white ${imageError ? 'opacity-0' : 'opacity-100'}`}
                     onError={() => {
                         if (resolvedLocation?.source === 'direct' && !resolveFinished) {
                             console.warn('[StaticStreetViewPreview] Direct Street View image failed before pano resolution finished. Waiting for nearest pano result.');
@@ -271,7 +271,7 @@ export const StaticStreetViewPreview: React.FC<StaticStreetViewPreviewProps> = (
             )}
 
             {(status === 'resolving' || (status === 'building' && !resolvedUrl)) && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 z-20">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-20">
                     <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                     <div className="mt-2 text-[9px] font-mono text-gray-500 uppercase tracking-widest">
                         Resolving Nearest Pano...
@@ -280,7 +280,7 @@ export const StaticStreetViewPreview: React.FC<StaticStreetViewPreviewProps> = (
             )}
 
             {status === 'building' && resolvedUrl && (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20 z-20 pointer-events-none">
+                <div className="absolute inset-0 flex items-center justify-center bg-white/20 z-20 pointer-events-none">
                     <div className="w-8 h-8 border-2 border-emerald-500/80 border-t-transparent rounded-full animate-spin" />
                 </div>
             )}

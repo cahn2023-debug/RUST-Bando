@@ -38,7 +38,6 @@ const getSavedMapFeatures = (): MapFeatures => {
 };
 
 export function useMapStyles() {
-    const [isGrayscale, setIsGrayscale] = useState(false);
     const [mapFeatures, setMapFeatures] = useState<MapFeatures>(getSavedMapFeatures);
 
     useEffect(() => {
@@ -50,6 +49,10 @@ export function useMapStyles() {
     }, [mapFeatures]);
 
     const getStyledUrl = (lyr: string) => {
+        if (lyr === 'm') {
+            return 'https://mt1.google.com/vt/lyrs=m&hl=vi&gl=vn&x={x}&y={y}&z={z}';
+        }
+
         const rules: string[] = [];
         // Road Geometry (the lines)
         if (!mapFeatures.roads) rules.push('s.t:3|s.e:g|p.v:off');
@@ -69,8 +72,6 @@ export function useMapStyles() {
     const mapKey = useMemo(() => JSON.stringify(mapFeatures), [mapFeatures]);
 
     return {
-        isGrayscale,
-        setIsGrayscale,
         mapFeatures,
         setMapFeatures,
         getStyledUrl,

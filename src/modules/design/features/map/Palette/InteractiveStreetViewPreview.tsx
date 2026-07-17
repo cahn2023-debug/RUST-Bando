@@ -21,12 +21,10 @@ export const InteractiveStreetViewPreview: React.FC<InteractiveStreetViewPreview
     const [loading, setLoading] = useState(true);
     const [loadFailed, setLoadFailed] = useState(false);
 
-    if (isNaN(lat) || isNaN(lng)) {
-        return <>{fallback}</>;
-    }
-
+    const hasValidCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
     const normalizedHeading = ((heading % 360) + 360) % 360;
     const publicUrl = useMemo(() => {
+        if (!hasValidCoordinates) return '';
         const params = new URLSearchParams({
             layer: 'c',
             cbll: `${lat},${lng}`,
@@ -34,28 +32,30 @@ export const InteractiveStreetViewPreview: React.FC<InteractiveStreetViewPreview
             output: 'svembed'
         });
         return `https://maps.google.com/maps?${params.toString()}`;
-    }, [lat, lng, normalizedHeading]);
+    }, [hasValidCoordinates, lat, lng, normalizedHeading]);
 
     useEffect(() => {
+        if (!hasValidCoordinates) return;
         setLoading(true);
         setLoadFailed(false);
-    }, [publicUrl]);
+    }, [hasValidCoordinates, publicUrl]);
 
     useEffect(() => {
+        if (!hasValidCoordinates) return undefined;
         if (!loading) return undefined;
         const timeoutId = window.setTimeout(() => {
             setLoadFailed(true);
             setLoading(false);
         }, PUBLIC_STREET_VIEW_TIMEOUT_MS);
         return () => window.clearTimeout(timeoutId);
-    }, [loading, publicUrl]);
+    }, [hasValidCoordinates, loading, publicUrl]);
 
-    if (loadFailed) {
+    if (!hasValidCoordinates || loadFailed) {
         return <>{fallback}</>;
     }
 
     return (
-        <div className="relative w-full aspect-video rounded-lg bg-[#070b12] border border-white/10 overflow-hidden shadow-2xl select-none group pointer-events-none">
+        <div className="relative w-full aspect-video rounded-lg bg-white border border-slate-200 overflow-hidden shadow-2xl select-none group pointer-events-none">
             <iframe
                 src={publicUrl}
                 title="Street View Public Preview"
@@ -73,14 +73,11 @@ export const InteractiveStreetViewPreview: React.FC<InteractiveStreetViewPreview
                     setLoadFailed(false);
                     setLoading(false);
                 }}
-                className={cn(
-                    'transition-opacity duration-300',
-                    loading ? 'opacity-0' : 'opacity-100'
-                )}
+                className={cn('transition-opacity duration-300 bg-white', loading ? 'opacity-0' : 'opacity-100')}
             />
 
             {loading && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 z-20 pointer-events-none">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-20 pointer-events-none">
                     <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                     <div className="mt-2 text-[9px] font-mono text-gray-500 uppercase tracking-widest">
                         Đang tải Street View...

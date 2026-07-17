@@ -25,7 +25,7 @@ import { requestStorageHealthRefresh } from '@IMPLEMENT/services/projectStorageS
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { buildFeaturePropertiesForPersistence, getTypeForIcon } from '@TOOL/utils/featurePersistence';
 import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
-import { getDeclaredOrderFieldKey, isOrderAliasKey, syncDisplayOrderAliases } from '@TOOL/utils/featureMapping';
+import { getDeclaredOrderFieldKey, syncDisplayOrderAliases } from '@TOOL/utils/featureMapping';
 import { buildToggleOriginEvents } from '@DESIGN/features/map/network/networkTopology';
 
 interface SegmentItem {
@@ -84,6 +84,19 @@ const withMediaAssets = (metadata: FeatureMetadata, assetIds: string[]): Feature
 
 const getOrderFieldLabel = (metadata: Record<string, unknown>, properties?: FeatureProperties): string =>
   getDeclaredOrderFieldKey(metadata, properties as Record<string, unknown> | undefined) || 'Mã hiệu (STT)';
+
+const isLineGeometry = (geomType?: string | null): boolean => {
+  const normalized = safeString(geomType).toLowerCase();
+  return normalized === 'linestring' || normalized === 'polyline' || normalized.includes('line');
+};
+
+const getFeatureNameById = (
+  features: Record<string, { name?: unknown }> | undefined,
+  featureId: unknown
+): string => {
+  if (typeof featureId !== 'string' || !featureId) return '';
+  return safeString(features?.[featureId]?.name);
+};
 
 const readFileAsDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -758,8 +771,6 @@ export const PropertyPanel: React.FC = () => {
 
   const feature = selectedFeatureId && state?.features ? state.features[selectedFeatureId] : null;
   const group = feature?.group_id ? state?.feature_groups?.[feature.group_id] : null;
-  const displayInfo = feature && group ? getFeatureDisplayInfo(feature, group.type, group.name) : null;
-  const isIntersectionFeature = !!displayInfo?.isIntersection;
 
   const [localName, setLocalName] = useState('');
   const [localMeta, setLocalMeta] = useState<FeatureMetadata>({});
@@ -771,6 +782,10 @@ export const PropertyPanel: React.FC = () => {
   const [mediaImportError, setMediaImportError] = useState<string | null>(null);
   const togglePalette = useLayoutStore(s => s.togglePalette);
   const paletteConfigs = useLayoutStore(s => s.paletteConfigs);
+  const displayInfo = feature && group ? getFeatureDisplayInfo(feature, group.type, group.name, localMeta) : null;
+  const isIntersectionFeature = !!displayInfo?.isIntersection;
+  const isPolyline = isLineGeometry(feature?.geom_type);
+  const isCameraFeature = !!displayInfo?.isCamera || isCameraIcon(asStringValue(localMeta.icon || localMeta.type));
 
   let persistedMeta: FeatureMetadata = {};
   let persistedMetaJson = '{}';
@@ -1410,7 +1425,6 @@ export const PropertyPanel: React.FC = () => {
     );
   }
 
-  const isPolyline = feature.geom_type === 'LineString' || feature.geom_type === 'polyline';
   const distance = isPolyline ? asNumberValue(getMetaValue('gis.lengthKm', 'lengthKm')) : 0;
   const linkBudget = isPolyline ? designLogic.calculateFiberLinkBudget(distance) : 0;
 
@@ -1809,36 +1823,101 @@ export const PropertyPanel: React.FC = () => {
           </section>
         )}
 
-        {/* TECHNICAL SPECIFICATIONS (DYNAMIC) */}
-        {(() => {
-          const excludedKeys = [
-            'description', 'color', 'size', 'icon', 'imageUrls', 'contractor', 'phoneNumber',
-            'business', 'media', 'gis', 'preview_rotation', 'preview_fov_angle', 'preview_fov_radius',
-            'display_order', 'stt', 'STT', 'order'
-          ];
-          const dynamicSpecs = Object.entries(localMeta).filter(([key]) => !excludedKeys.includes(key) && !isOrderAliasKey(key));
+        {/* METADATA CARDS */}
+        <section className="space-y-4 pt-4 border-t border-[#333]">
+          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-indigo-400 uppercase">
+            <Settings className="w-3 h-3" /> Object Metadata
+          </div>
+          <div className="bg-[#111] p-3 rounded border border-indigo-500/10 space-y-3">
+            <DesignField
+              label="Object Type"
+              icon={<Info className="w-3 h-3" />}
+              value={getMetaValue('type', 'type')}
+              onChange={v => updateNestedMeta('type', v)}
+            />
+            <DesignField
+              label="Survey Notes"
+              icon={<Pencil className="w-3 h-3" />}
+              value={getMetaValue('description', 'description')}
+              onChange={v => updateNestedMeta('description', v)}
+            />
+          </div>
+        </section>
 
-          if (dynamicSpecs.length === 0) return null;
+        {isCameraFeature && (
+          <section className="space-y-4 pt-4 border-t border-[#333]">
+            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-blue-400 uppercase">
+              <Camera className="w-3 h-3" /> Camera Metadata
+            </div>
+            <div className="bg-[#111] p-3 rounded border border-blue-500/10 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <DesignField label="Telemetry ID" icon={<Radio className="w-3 h-3" />} value={getMetaValue('network.telemetry_id')} onChange={v => updateNestedMeta('network.telemetry_id', v)} />
+                <DesignField label="Install Height" icon={<MoveUpRight className="w-3 h-3" />} value={getMetaValue('specs.install_height')} onChange={v => updateNestedMeta('specs.install_height', asNumberValue(v))} />
+                <DesignField label="Focal Length" icon={<Camera className="w-3 h-3" />} value={getMetaValue('specs.focal_length')} onChange={v => updateNestedMeta('specs.focal_length', asNumberValue(v))} />
+                <DesignField label="Sensor Size" icon={<Square className="w-3 h-3" />} value={getMetaValue('specs.sensor_size')} onChange={v => updateNestedMeta('specs.sensor_size', v)} />
+                <DesignField label="Resolution X" icon={<Grid3X3 className="w-3 h-3" />} value={getMetaValue('specs.resolution_x')} onChange={v => updateNestedMeta('specs.resolution_x', asNumberValue(v))} />
+                <DesignField label="Resolution Y" icon={<Grid3X3 className="w-3 h-3" />} value={getMetaValue('specs.resolution_y')} onChange={v => updateNestedMeta('specs.resolution_y', asNumberValue(v))} />
+                <DesignField label="Rotation" icon={<RotateCw className="w-3 h-3" />} value={getMetaValue('gis.rotation', 'rotation')} onChange={v => updateNestedMeta('gis.rotation', asNumberValue(v))} />
+                <DesignField label="FOV Angle" icon={<MoveUpRight className="w-3 h-3" />} value={getMetaValue('gis.fov_angle', 'fov_angle')} onChange={v => updateNestedMeta('gis.fov_angle', asNumberValue(v))} />
+                <DesignField label="FOV Radius" icon={<Circle className="w-3 h-3" />} value={getMetaValue('gis.fov_radius', 'fov_radius')} onChange={v => updateNestedMeta('gis.fov_radius', asNumberValue(v))} />
+                <DesignField label="Target Distance" icon={<MapPin className="w-3 h-3" />} value={getMetaValue('specs.target_distance')} onChange={v => updateNestedMeta('specs.target_distance', asNumberValue(v))} />
+                <DesignField label="Target Height" icon={<MoveUpRight className="w-3 h-3" />} value={getMetaValue('specs.target_height')} onChange={v => updateNestedMeta('specs.target_height', asNumberValue(v))} />
+              </div>
+              <label className="flex items-center justify-between rounded border border-[#333] bg-[#0a0a0a] px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">
+                <span className="flex items-center gap-1.5"><Circle className="w-3 h-3" /> Show FOV</span>
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 accent-blue-500"
+                  checked={getMetaValue('gis.fov_visible', 'fov_visible') === true}
+                  onChange={e => updateNestedMeta('gis.fov_visible', e.target.checked)}
+                />
+              </label>
+            </div>
+          </section>
+        )}
 
-          return (
-            <section className="space-y-4 pt-4 border-t border-[#333]">
-              <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-indigo-400 uppercase">
-                <Settings className="w-3 h-3" /> Technical Specs
+        {isIntersectionFeature && (
+          <section className="space-y-4 pt-4 border-t border-[#333]">
+            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-orange-400 uppercase">
+              <Grid3X3 className="w-3 h-3" /> Intersection Metadata
+            </div>
+            <div className="bg-[#111] p-3 rounded border border-orange-500/10 space-y-3">
+              <DesignField
+                label="Network Role"
+                icon={<Radio className="w-3 h-3" />}
+                value={getMetaValue('network.role')}
+                onChange={v => updateNestedMeta('network.role', v)}
+              />
+              <label className="flex items-center justify-between rounded border border-[#333] bg-[#0a0a0a] px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">
+                <span className="flex items-center gap-1.5"><Zap className="w-3 h-3" /> Network Origin</span>
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 accent-orange-500"
+                  checked={getMetaValue('network.is_origin') === true}
+                  onChange={e => updateNestedMeta('network.is_origin', e.target.checked)}
+                />
+              </label>
+            </div>
+          </section>
+        )}
+
+        {isPolyline && (
+          <section className="space-y-4 pt-4 border-t border-[#333]">
+            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-emerald-400 uppercase">
+              <Route className="w-3 h-3" /> Line Metadata
+            </div>
+            <div className="bg-[#111] p-3 rounded border border-emerald-500/10 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <ReadOnlyField label="Start Object" value={getFeatureNameById(state?.features, getMetaValue('network.from_feature_id') || getMetaValue('start_node_id')) || 'Not linked'} />
+                <ReadOnlyField label="End Object" value={getFeatureNameById(state?.features, getMetaValue('network.to_feature_id') || getMetaValue('end_node_id')) || 'Not linked'} />
+                <DesignField label="Cable Type" icon={<Radio className="w-3 h-3" />} value={getMetaValue('infrastructure.cable_type')} onChange={v => updateNestedMeta('infrastructure.cable_type', v)} />
+                <DesignField label="Core Count" icon={<Layers className="w-3 h-3" />} value={getMetaValue('infrastructure.core_count')} onChange={v => updateNestedMeta('infrastructure.core_count', asNumberValue(v))} />
+                <DesignField label="Depth" icon={<Construction className="w-3 h-3" />} value={getMetaValue('infrastructure.depth')} onChange={v => updateNestedMeta('infrastructure.depth', asNumberValue(v))} />
+                <DesignField label="Surface" icon={<Grid3X3 className="w-3 h-3" />} value={getMetaValue('infrastructure.surface_type')} onChange={v => updateNestedMeta('infrastructure.surface_type', v)} />
               </div>
-              <div className="grid grid-cols-1 gap-3">
-                {dynamicSpecs.map(([key, value]) => (
-                  <DesignField
-                    key={key}
-                    label={key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ')}
-                    icon={<Settings className="w-3 h-3 opacity-30" />}
-                    value={typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                    onChange={v => updateNestedMeta(key, v)}
-                  />
-                ))}
-              </div>
-            </section>
-          );
-        })()}
+            </div>
+          </section>
+        )}
 
         {/* MEDIA */}
         <section
@@ -1953,16 +2032,21 @@ const ReadOnlyField = ({ label, value }: { label: string, value: string }) => (
   </div>
 );
 
-const DesignField = ({ label, icon, value, onChange }: { label: string, icon: React.ReactNode, value: unknown, onChange: (v: string) => void }) => (
-  <div className="space-y-1">
-    <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1 flex items-center gap-1.5">
-      {icon} {label}
-    </label>
-    <input
-      className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:border-cad-accent outline-none transition-all"
-      value={asStringValue(value)}
-      onChange={e => onChange(e.target.value)}
-      placeholder={`Enter ${safeString(label).toLowerCase()}...`}
-    />
-  </div>
-);
+const DesignField = ({ label, icon, value, onChange }: { label: string, icon: React.ReactNode, value: unknown, onChange: (v: string) => void }) => {
+  const inputId = React.useId();
+
+  return (
+    <div className="space-y-1">
+      <label htmlFor={inputId} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1 flex items-center gap-1.5">
+        {icon} {label}
+      </label>
+      <input
+        id={inputId}
+        className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:border-cad-accent outline-none transition-all"
+        value={asStringValue(value)}
+        onChange={e => onChange(e.target.value)}
+        placeholder={`Enter ${safeString(label).toLowerCase()}...`}
+      />
+    </div>
+  );
+};

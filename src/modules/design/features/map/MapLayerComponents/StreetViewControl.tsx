@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { listen, TauriEvent } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
-import { useMap, TileLayer, Marker } from 'react-leaflet';
+import { useMap, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getEffectiveCameraSpecs, getParsedMetadata } from '@TOOL/utils/featureMetadata';
@@ -949,14 +949,6 @@ export function StreetViewControl() {
   return (
     <>
       {controlButton}
-
-      {isActive && (
-        <TileLayer
-          url="https://mt1.google.com/vt?lyrs=svv&style=40,18&hl=vi&gl=vn&x={x}&y={y}&z={z}"
-          opacity={0.72}
-          zIndex={1000}
-        />
-      )}
 
       {shouldShowPegman && location && (
         <Marker
