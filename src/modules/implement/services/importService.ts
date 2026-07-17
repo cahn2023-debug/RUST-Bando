@@ -1,7 +1,11 @@
 import JSZip from 'jszip';
 import { safeInvoke as invoke } from '@IMPLEMENT/lib/tauri';
 import type { DesignEventType } from '@CONTRACT/designTypes';
-import { syncDisplayOrderAliases } from '@TOOL/utils/featureMapping';
+import type { FeatureMetadata, FeatureState } from '@CONTRACT/types';
+import { getPointCoordinates, syncDisplayOrderAliases } from '@TOOL/utils/featureMapping';
+import { getParsedMetadata } from '@TOOL/utils/featureMetadata';
+import { createFeatureEndpointRef } from '@DESIGN/features/map/network/NetworkEndpoint';
+import { buildSnapLinks, getPolylineSnapCoordinate, isLineFeature, isNetworkEdgeFeature, resolveNetworkNodeIdFromSnap } from '@DESIGN/features/map/network/networkTopology';
 
 export interface FieldMeta {
   name: string;
@@ -36,6 +40,15 @@ export interface ImportMapping {
   order_column?: string;
 }
 
+interface BuildFeatureCreatedEventsOptions {
+  featuresById?: Record<string, FeatureState>;
+  snapThreshold?: number;
+}
+
+type PointLikeCoordinate = [number, number];
+
+const DEFAULT_IMPORT_SNAP_THRESHOLD = 0.00002;
+
 const ensureAbsolutePath = (filePath: string): string => {
   const normalized = filePath?.trim();
   if (!normalized) {
@@ -61,6 +74,149 @@ const createImportRecordId = () => {
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const ensureUuidLikeId = (value: string) => (UUID_PATTERN.test(value) ? value : createImportRecordId());
+
+const isPointLikeCoordinate = (value: unknown): value is PointLikeCoordinate =>
+  Array.isArray(value) &&
+  value.length >= 2 &&
+  typeof value[0] === 'number' &&
+  Number.isFinite(value[0]) &&
+  typeof value[1] === 'number' &&
+  Number.isFinite(value[1]);
+
+const isLineStringCoordinates = (value: unknown): value is PointLikeCoordinate[] =>
+  Array.isArray(value) &&
+  value.length >= 2 &&
+  value.every(isPointLikeCoordinate);
+
+const distanceBetween = (a: PointLikeCoordinate, b: PointLikeCoordinate) =>
+  Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+const createImportedFeatureMetadata = (record: FeatureRecord) => syncDisplayOrderAliases(
+  {
+    ...(record.metadata || {}),
+    ...(record.properties.description ? { description: record.properties.description } : {}),
+    ...(record.properties.display_order ? { display_order: record.properties.display_order } : {}),
+    imported_from: record.source_format || 'excel',
+    imported_tile_id: record.tile_id,
+    source_properties: record.properties,
+  },
+  record.properties.display_order,
+  record.properties
+);
+
+const createImportedFeatureDraft = (
+  record: FeatureRecord,
+  index: number,
+  groupId: string,
+  layerId: string
+): FeatureState => ({
+  id: ensureUuidLikeId(record.id),
+  layer_id: layerId,
+  group_id: groupId,
+  name: record.properties.name || record.properties.label || `Point ${index + 1}`,
+  geom_type: record.geom_type,
+  metadata: createImportedFeatureMetadata(record),
+  coordinates: record.geometry,
+  properties: record.properties,
+});
+
+const findNearestSnapTarget = (
+  coordinate: PointLikeCoordinate,
+  featuresById: Record<string, FeatureState>,
+  excludedFeatureId: string,
+  threshold: number
+): { snapId: string; snappedCoordinate: PointLikeCoordinate } | null => {
+  let bestMatch: { snapId: string; snappedCoordinate: PointLikeCoordinate } | null = null;
+  let bestDistance = threshold;
+
+  for (const feature of Object.values(featuresById)) {
+    if (feature.id === excludedFeatureId) continue;
+
+    const metadata = getParsedMetadata(feature) as FeatureMetadata;
+    if (isLineFeature(feature) || isNetworkEdgeFeature(feature, metadata)) {
+      const snappedCoordinate = getPolylineSnapCoordinate(feature, coordinate[0], coordinate[1]);
+      if (!snappedCoordinate) continue;
+      const distance = distanceBetween(snappedCoordinate, coordinate);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestMatch = { snapId: feature.id, snappedCoordinate };
+      }
+      continue;
+    }
+
+    const pointCoordinate = getPointCoordinates(feature);
+    if (!pointCoordinate) continue;
+    const distance = distanceBetween(pointCoordinate, coordinate);
+    if (distance <= bestDistance) {
+      bestDistance = distance;
+      bestMatch = { snapId: feature.id, snappedCoordinate: pointCoordinate };
+    }
+  }
+
+  return bestMatch;
+};
+
+const enrichImportedLineFeature = (
+  feature: FeatureState,
+  featuresById: Record<string, FeatureState>,
+  threshold: number
+): FeatureState => {
+  if (!isLineStringCoordinates(feature.coordinates)) {
+    return feature;
+  }
+
+  const snapIds = feature.coordinates.map((coordinate) =>
+    findNearestSnapTarget(coordinate, featuresById, feature.id, threshold)?.snapId || null
+  );
+  const nextMetadata = {
+    ...(getParsedMetadata(feature) as FeatureMetadata),
+  } as FeatureMetadata & Record<string, unknown>;
+  const snapLinks = buildSnapLinks(snapIds);
+
+  if (snapLinks) {
+    nextMetadata.snap_links = snapLinks;
+  } else {
+    delete nextMetadata.snap_links;
+  }
+
+  const startSnapId = snapIds[0] || null;
+  const endSnapId = snapIds[snapIds.length - 1] || null;
+
+  if (startSnapId) {
+    nextMetadata.start_node_id = startSnapId;
+  } else {
+    delete nextMetadata.start_node_id;
+  }
+
+  if (endSnapId) {
+    nextMetadata.end_node_id = endSnapId;
+  } else {
+    delete nextMetadata.end_node_id;
+  }
+
+  const resolvedFrom = resolveNetworkNodeIdFromSnap(featuresById, startSnapId, feature.coordinates[0]);
+  const resolvedTo = resolveNetworkNodeIdFromSnap(featuresById, endSnapId, feature.coordinates[feature.coordinates.length - 1]);
+
+  if (resolvedFrom && resolvedTo && resolvedFrom !== resolvedTo) {
+    nextMetadata.infrastructure = {
+      ...(typeof nextMetadata.infrastructure === 'object' && nextMetadata.infrastructure ? nextMetadata.infrastructure as Record<string, unknown> : {}),
+      type: 'SignalLine',
+    };
+    nextMetadata.network = {
+      ...(typeof nextMetadata.network === 'object' && nextMetadata.network ? nextMetadata.network as Record<string, unknown> : {}),
+      from_feature_id: resolvedFrom,
+      to_feature_id: resolvedTo,
+      from_endpoint: createFeatureEndpointRef(resolvedFrom),
+      to_endpoint: createFeatureEndpointRef(resolvedTo),
+      direction_mode: 'auto',
+    };
+  }
+
+  return {
+    ...feature,
+    metadata: nextMetadata,
+  };
+};
 
 const decodeBytes = (bytes: number[] | Uint8Array) => {
   const buffer = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
@@ -236,35 +392,34 @@ const parseKmlRecords = async (filePath: string): Promise<FeatureRecord[]> => {
 export const buildFeatureCreatedEvents = (
   records: FeatureRecord[],
   groupId: string,
-  layerId: string
+  layerId: string,
+  options: BuildFeatureCreatedEventsOptions = {}
 ): DesignEventType[] => {
-  return records.map((record, index) => {
-    const featureId = ensureUuidLikeId(record.id);
-    const name = record.properties.name || record.properties.label || `Point ${index + 1}`;
-    const metadata = syncDisplayOrderAliases(
-      {
-        ...(record.metadata || {}),
-        ...(record.properties.description ? { description: record.properties.description } : {}),
-        ...(record.properties.display_order ? { display_order: record.properties.display_order } : {}),
-        imported_from: record.source_format || 'excel',
-        imported_tile_id: record.tile_id,
-        source_properties: record.properties,
-      },
-      record.properties.display_order,
-      record.properties
-    );
+  const importedFeatures = records.map((record, index) =>
+    createImportedFeatureDraft(record, index, groupId, layerId)
+  );
+  const featuresById = {
+    ...(options.featuresById || {}),
+    ...Object.fromEntries(importedFeatures.map((feature) => [feature.id, feature])),
+  };
+  const snapThreshold = options.snapThreshold ?? DEFAULT_IMPORT_SNAP_THRESHOLD;
+
+  return importedFeatures.map((feature) => {
+    const enrichedFeature = feature.geom_type === 'LineString'
+      ? enrichImportedLineFeature(feature, featuresById, snapThreshold)
+      : feature;
 
     return {
       type: 'FeatureCreated',
       payload: {
-        id: featureId,
+        id: enrichedFeature.id,
         layer_id: layerId,
         group_id: groupId,
-        name,
-        geom_type: record.geom_type,
-        metadata: JSON.stringify(metadata),
-        coordinates: record.geometry,
-        properties: record.properties,
+        name: enrichedFeature.name,
+        geom_type: enrichedFeature.geom_type,
+        metadata: JSON.stringify(enrichedFeature.metadata),
+        coordinates: enrichedFeature.coordinates,
+        properties: enrichedFeature.properties,
       },
     };
   });
@@ -341,7 +496,9 @@ export const applyImportedRecords = async (records: FeatureRecord[], preferredGr
     throw new Error('Nhom dich khong hop le hoac chua co layer de chua du lieu import.');
   }
 
-  const events = buildFeatureCreatedEvents(records, targetGroupId, targetGroup.layer_id);
+  const events = buildFeatureCreatedEvents(records, targetGroupId, targetGroup.layer_id, {
+    featuresById: store.state?.features || {},
+  });
   if (records.some((record) => record.source_format === 'kml' || record.source_format === 'kmz')) {
     console.info('[Import] Applying KML/KMZ records', {
       count: records.length,
