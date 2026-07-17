@@ -101,11 +101,14 @@ export const DesignRibbonTools = ({
                 {showSystemConfig && (
                     <Portal>
                         <div
-                            className="fixed z-[9999] shadow-2xl max-h-[calc(100vh-140px)] flex flex-col min-w-[450px]"
+                            className="fixed z-[9999] shadow-2xl flex flex-col min-w-[450px] overflow-hidden rounded-xl"
                             onMouseDown={(e) => e.stopPropagation()}
                             style={{
                                 top: systemConfigRef.current?.getBoundingClientRect().bottom ? systemConfigRef.current.getBoundingClientRect().bottom + 8 : '100px',
-                                left: systemConfigRef.current?.getBoundingClientRect().left || '20px'
+                                left: systemConfigRef.current?.getBoundingClientRect().left || '20px',
+                                maxHeight: systemConfigRef.current?.getBoundingClientRect().bottom 
+                                    ? `calc(100vh - ${systemConfigRef.current.getBoundingClientRect().bottom + 24}px)` 
+                                    : 'calc(100vh - 140px)'
                             }}
                         >
                             <PaletteProvider value={{

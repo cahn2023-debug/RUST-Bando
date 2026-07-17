@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
@@ -6,7 +6,7 @@ import type { FeatureMetadata, FeatureProperties, IconType } from '@CONTRACT/typ
 import {
   Save, Camera, MapPin, Route,
   Info, Palette, Settings, Image as ImageIcon,
-  Calculator, Phone, User as UserIcon, Loader2, X, Clock, Grid3X3, Sparkles, FileUp, Briefcase,
+  Calculator, Phone, User as UserIcon, Loader2, X, Clock, Grid3X3, Sparkles, FileUp, Briefcase, List, Edit3,
   Layers, Zap, Radio, Construction, Pencil, Crop, RotateCw, Circle, Square, Type as TypeIcon, Minus, MoveUpRight, Undo2
 } from "lucide-react";
 import { IconSelector } from '@DESIGN/components/ui/IconSelector';
@@ -85,7 +85,7 @@ const withMediaAssets = (metadata: FeatureMetadata, assetIds: string[]): Feature
 };
 
 const getOrderFieldLabel = (metadata: Record<string, unknown>, properties?: FeatureProperties): string =>
-  getDeclaredOrderFieldKey(metadata, properties as Record<string, unknown> | undefined) || 'Mã hiệu (STT)';
+  getDeclaredOrderFieldKey(metadata, properties as Record<string, unknown> | undefined) || 'MÃ£ hiá»‡u (STT)';
 
 const isLineGeometry = (geomType?: string | null): boolean => {
   const normalized = safeString(geomType).toLowerCase();
@@ -246,7 +246,7 @@ const drawAssetStamp = (ctx: CanvasRenderingContext2D, point: DragPoint, stamp: 
     ctx.arc(x + armLength * scale + 8 * scale, y - poleHeight - 18 * scale, 8 * scale, 0, Math.PI * 2);
     ctx.stroke();
     ctx.font = `bold ${14 * scale}px sans-serif`;
-    ctx.fillText(stamp === 'pole-4m' ? 'Cột 6m - TV 4m' : stamp === 'pole-6m' ? 'Cột 6m - TV 6m' : 'Cột 6m - TV 8m', x + 10 * scale, y + 18 * scale);
+    ctx.fillText(stamp === 'pole-4m' ? 'Cá»™t 6m - TV 4m' : stamp === 'pole-6m' ? 'Cá»™t 6m - TV 6m' : 'Cá»™t 6m - TV 8m', x + 10 * scale, y + 18 * scale);
   } else if (stamp === 'cabinet-300x520') {
     ctx.strokeRect(x - 26 * scale, y - 42 * scale, 52 * scale, 84 * scale);
     ctx.beginPath();
@@ -256,7 +256,7 @@ const drawAssetStamp = (ctx: CanvasRenderingContext2D, point: DragPoint, stamp: 
     ctx.lineTo(x + 18 * scale, y);
     ctx.stroke();
     ctx.font = `bold ${13 * scale}px sans-serif`;
-    ctx.fillText('Tủ 300x520', x + 34 * scale, y + 4 * scale);
+    ctx.fillText('Tá»§ 300x520', x + 34 * scale, y + 4 * scale);
   } else {
     ctx.strokeRect(x - 34 * scale, y - 18 * scale, 54 * scale, 34 * scale);
     ctx.beginPath();
@@ -269,7 +269,7 @@ const drawAssetStamp = (ctx: CanvasRenderingContext2D, point: DragPoint, stamp: 
     ctx.arc(x - 8 * scale, y, 7 * scale, 0, Math.PI * 2);
     ctx.stroke();
     ctx.font = `bold ${13 * scale}px sans-serif`;
-    ctx.fillText('Camera mô phỏng', x - 34 * scale, y + 36 * scale);
+    ctx.fillText('Camera mÃ´ phá»ng', x - 34 * scale, y + 36 * scale);
   }
 
   ctx.restore();
@@ -285,7 +285,7 @@ const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ imageUrl, imageInde
   const [strokeColor, setStrokeColor] = useState('#f97316');
   const [strokeWidth, setStrokeWidth] = useState(4);
   const [strokePattern, setStrokePattern] = useState<StrokePattern>('solid');
-  const [textValue, setTextValue] = useState('Ghi chú');
+  const [textValue, setTextValue] = useState('Ghi chÃº');
   const [textSize, setTextSize] = useState(28);
   const [pendingTextPoint, setPendingTextPoint] = useState<DragPoint | null>(null);
   const [assetStamp, setAssetStamp] = useState<AssetStamp>('pole-4m');
@@ -635,20 +635,20 @@ const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ imageUrl, imageInde
           </button>
           <button onClick={applyCrop} disabled={!cropRect} className="px-3 py-2 rounded bg-[#111] border border-[#333] text-[10px] font-black uppercase text-[#aaa] hover:text-white disabled:opacity-40">Apply crop</button>
           <select aria-label="Stroke pattern" value={strokePattern} onChange={e => setStrokePattern(e.target.value as StrokePattern)} className="bg-[#111] border border-[#333] rounded px-2 py-2 text-xs text-white outline-none">
-            <option value="solid">Nét liền</option>
-            <option value="dashed">Nét đứt</option>
-            <option value="dashdot">Chấm gạch</option>
-            <option value="dotted">Nét chấm</option>
+            <option value="solid">NÃ©t liá»n</option>
+            <option value="dashed">NÃ©t Ä‘á»©t</option>
+            <option value="dashdot">Cháº¥m gáº¡ch</option>
+            <option value="dotted">NÃ©t cháº¥m</option>
             <option value="zigzag">Zigzag</option>
           </select>
           <input aria-label="Stroke color" type="color" value={strokeColor} onChange={e => setStrokeColor(e.target.value)} className="h-9 w-10 bg-[#111] border border-[#333] rounded" />
           <input aria-label="Stroke width" type="range" min={1} max={18} value={strokeWidth} onChange={e => setStrokeWidth(Number(e.target.value))} className="w-24" />
           <select aria-label="Asset stamp" value={assetStamp} onChange={e => setAssetStamp(e.target.value as AssetStamp)} className="bg-[#111] border border-[#333] rounded px-2 py-2 text-xs text-white outline-none">
-            <option value="pole-4m">Cột 6m tay vươn 4m</option>
-            <option value="pole-6m">Cột 6m tay vươn 6m</option>
-            <option value="pole-8m">Cột 6m tay vươn 8m</option>
-            <option value="cabinet-300x520">Tủ 300x520</option>
-            <option value="camera-sim">Camera mô phỏng</option>
+            <option value="pole-4m">Cá»™t 6m tay vÆ°Æ¡n 4m</option>
+            <option value="pole-6m">Cá»™t 6m tay vÆ°Æ¡n 6m</option>
+            <option value="pole-8m">Cá»™t 6m tay vÆ°Æ¡n 8m</option>
+            <option value="cabinet-300x520">Tá»§ 300x520</option>
+            <option value="camera-sim">Camera mÃ´ phá»ng</option>
           </select>
           <input aria-label="Text size" type="number" min={10} max={120} value={textSize} onChange={e => setTextSize(Number(e.target.value))} className="w-20 bg-[#111] border border-[#333] rounded px-2 py-2 text-xs text-white outline-none" />
           <input
@@ -933,7 +933,7 @@ export const PropertyPanel: React.FC = () => {
   const appendImageUrls = async (dataUrls: string[]) => {
     if (dataUrls.length === 0) return;
     if (!feature || !projectId) {
-      setMediaImportError('Không thể lưu ảnh khi thiếu project hoặc đối tượng.');
+      setMediaImportError('KhÃ´ng thá»ƒ lÆ°u áº£nh khi thiáº¿u project hoáº·c Ä‘á»‘i tÆ°á»£ng.');
       return;
     }
 
@@ -973,7 +973,7 @@ export const PropertyPanel: React.FC = () => {
           }
         })
       );
-      setMediaImportError('Không thể lưu ảnh vào thư mục dự án. Vui lòng thử lại.');
+      setMediaImportError('KhÃ´ng thá»ƒ lÆ°u áº£nh vÃ o thÆ° má»¥c dá»± Ã¡n. Vui lÃ²ng thá»­ láº¡i.');
       throw error;
     } finally {
       setIsImportingMedia(false);
@@ -1169,7 +1169,7 @@ export const PropertyPanel: React.FC = () => {
     },
     watermarkData: {
       location: feature ? (getPointCoordinates(feature) ?? undefined) : undefined,
-      label: localName || 'Đối tượng khảo sát'
+      label: localName || 'Äá»‘i tÆ°á»£ng kháº£o sÃ¡t'
     }
   });
 
@@ -1180,11 +1180,11 @@ export const PropertyPanel: React.FC = () => {
         const meta = getParsedMetadata(feature);
         const normalized = normalizeMetadataObject(meta);
 
-        // Cập nhật tên (làm sạch STT nếu có)
+        // Cáº­p nháº­t tÃªn (lÃ m sáº¡ch STT náº¿u cÃ³)
         const sttValue = asStringValue(normalized.display_order ?? normalized.stt ?? normalized.STT);
         setLocalName(getCleanName(feature, sttValue));
 
-        // Cập nhật metadata
+        // Cáº­p nháº­t metadata
         setLocalMeta(normalized);
       } catch (e) {
         setLocalName(safeString(feature.name) || '');
@@ -1288,7 +1288,7 @@ export const PropertyPanel: React.FC = () => {
       setPreview(null, null);
     } catch (error) {
       void error;
-      alert("Lỗi khi lưu dữ liệu. Vui lòng thử lại.");
+      alert("Lá»—i khi lÆ°u dá»¯ liá»‡u. Vui lÃ²ng thá»­ láº¡i.");
     } finally {
       setIsSaving(false);
     }
@@ -1317,38 +1317,33 @@ export const PropertyPanel: React.FC = () => {
       const filePath = selected;
       const fileName = filePath.split(/[\\/]/).pop() || filePath;
       const ext = fileName.split('.').pop()?.toLowerCase() || '';
-      // Virtual Folder Logic: Data goes to the same group, but is tied to this feature's ID
       const targetGroupId = feature.group_id;
 
       if (['xls', 'xlsx', 'xlsm', 'xlsb'].includes(ext)) {
         const headers = await getExcelHeaders(filePath);
-        if (headers.length === 0) { alert('File Excel rỗng hoặc không đọc được.'); return; }
+        if (headers.length === 0) { alert('File Excel rong hoac khong doc duoc.'); return; }
         const records = await importFromExcel(filePath, {
           name_column: headers[0] || '',
-          lat_column: headers.find((header) => /lat|vĩ|vi_do|latitude/i.test(header)) || '',
+          lat_column: headers.find((header) => /lat|vi_do|latitude/i.test(header)) || '',
           lng_column: headers.find((header) => /lng|lon|kinh|longitude/i.test(header)) || '',
-          description_column: headers.find((header) => /mô tả|mo ta|description|ghi chú/i.test(header)),
-          order_column: headers.find((header) => /stt|order|mã hiệu|ma hieu|id/i.test(header)),
+          description_column: headers.find((header) => /mo ta|description|ghi chu/i.test(header)),
+          order_column: headers.find((header) => /stt|order|ma hieu|id/i.test(header)),
         });
-        const importedCount = await applyImportedRecords(records, targetGroupId ?? undefined);
-        alert(`✅ Đã import ${importedCount} đối tượng từ ${fileName}.`);
+        setImportReview({ fileName, sourceLabel: 'Excel', records });
       } else if (['kml', 'kmz'].includes(ext)) {
         const records = await importFromKML(filePath);
-        const importedCount = await applyImportedRecords(records, targetGroupId ?? undefined);
-        alert(`✅ Đã import ${importedCount} đối tượng từ ${fileName}.`);
+        setImportReview({ fileName, sourceLabel: 'KML/KMZ', records });
       } else if (['gpx'].includes(ext)) {
-        alert('Định dạng GPX sẽ được hỗ trợ trong phiên bản tiếp theo.');
+        alert('Dinh dang GPX se duoc ho tro trong phien ban tiep theo.');
       } else {
-        alert('Định dạng file không được hỗ trợ. Vui lòng chọn Excel, KML, hoặc KMZ.');
+        alert('Dinh dang file khong duoc ho tro. Vui long chon Excel, KML, hoac KMZ.');
       }
 
-      // Auto-select the target group to expand it in sidebar
       setSelectedGroup(targetGroupId);
-      setPreview(null, null);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       void err;
-      alert('Lỗi import: ' + errorMessage);
+      alert('Loi import: ' + errorMessage);
     } finally {
       setIsImporting(false);
     }
@@ -1379,7 +1374,7 @@ export const PropertyPanel: React.FC = () => {
         <div className="flex items-center justify-between w-full p-3 border-b border-[#333] bg-[#252525] drag-handle cursor-move" {...dragHandleProps}>
             <div className="flex items-center gap-2">
                 <Settings className="w-3.5 h-3.5 text-[#444]" />
-                <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÔNG SỐ THIẾT KẾ</span>
+                <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÃ”NG Sá» THIáº¾T Káº¾</span>
             </div>
             <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-[#333] hover:text-white transition-all rounded"><X size={12} /></button>
         </div>
@@ -1410,7 +1405,7 @@ export const PropertyPanel: React.FC = () => {
         <div className="flex items-center justify-between w-full p-3 border-b border-[#333] bg-[#252525] drag-handle cursor-move" {...dragHandleProps}>
             <div className="flex items-center gap-2">
                 <Settings className="w-3.5 h-3.5 text-[#444]" />
-                <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÔNG SỐ THIẾT KẾ</span>
+                <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÃ”NG Sá» THIáº¾T Káº¾</span>
             </div>
             <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-[#333] hover:text-white transition-all rounded"><X size={12} /></button>
         </div>
@@ -1431,7 +1426,7 @@ export const PropertyPanel: React.FC = () => {
   // Detect polyline type for specific metadata
   const polyType = asStringValue(
     getMetaValue('infrastructure.type'),
-    safeString(feature.name).toLowerCase().includes('điện') ? 'PowerLine' : safeString(feature.name).toLowerCase().includes('cáp') ? 'SignalLine' : ''
+    safeString(feature.name).toLowerCase().includes('Ä‘iá»‡n') ? 'PowerLine' : safeString(feature.name).toLowerCase().includes('cÃ¡p') ? 'SignalLine' : ''
   );
 
   return (
@@ -1478,13 +1473,13 @@ export const PropertyPanel: React.FC = () => {
           ) : (
             isPolyline ? <Route className="w-3.5 h-3.5 text-cad-accent" /> : <MapPin className="w-3.5 h-3.5 text-cad-accent" />
           )}
-          <h2 className="text-[10px] font-black tracking-widest uppercase text-cad-accent">THÔNG SỐ THIẾT KẾ</h2>
+          <h2 className="text-[10px] font-black tracking-widest uppercase text-cad-accent">THÃ”NG Sá» THIáº¾T Káº¾</h2>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={handleDelete}
             className="p-1 px-2 hover:bg-red-500/20 text-red-400 rounded transition-colors text-[9px] font-bold uppercase border border-red-500/10"
-            title="Xóa đối tượng"
+            title="XÃ³a Ä‘á»‘i tÆ°á»£ng"
           >
             Delete
           </button>
@@ -1497,7 +1492,7 @@ export const PropertyPanel: React.FC = () => {
                   ? "bg-amber-500/20 text-amber-400 border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.2)]"
                   : "hover:bg-[#333] text-cad-text-muted border-transparent"
               )}
-              title="Chỉnh sửa điểm (Vertex Editing)"
+              title="Chá»‰nh sá»­a Ä‘iá»ƒm (Vertex Editing)"
             >
               <div className="flex items-center gap-1">
                 <Pencil className={cn("w-3 h-3", editingFeatureId === feature.id ? "animate-pulse" : "")} />
@@ -1565,7 +1560,7 @@ export const PropertyPanel: React.FC = () => {
                     : 'border-[#333] bg-[#111] text-white hover:border-emerald-500/40 hover:bg-emerald-500/10'
                 )}
               >
-                {localMeta.network?.is_origin ? 'Bỏ điểm gốc Network' : 'Đặt điểm gốc Network'}
+                {localMeta.network?.is_origin ? 'Bá» Ä‘iá»ƒm gá»‘c Network' : 'Äáº·t Ä‘iá»ƒm gá»‘c Network'}
               </button>
             )}
 
@@ -1573,7 +1568,7 @@ export const PropertyPanel: React.FC = () => {
               <div className="pt-2 space-y-3">
                 <div className="space-y-2 p-3 bg-orange-500/5 border border-orange-500/10 rounded-md">
                   <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                    <Grid3X3 size={12} /> Bảng điều khiển Nút giao
+                    <Grid3X3 size={12} /> Báº£ng Ä‘iá»u khiá»ƒn NÃºt giao
                   </p>
                   <button
                     onClick={handleFileUpload}
@@ -1581,31 +1576,31 @@ export const PropertyPanel: React.FC = () => {
                     className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 disabled:opacity-60 text-white rounded-md transition-all text-[10px] font-bold uppercase tracking-wider shadow-lg shadow-orange-500/20 group"
                   >
                     {isImporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />}
-                    {isImporting ? 'Đang import...' : 'Upload dữ liệu (Excel/KML/KMZ)'}
+                    {isImporting ? 'Äang import...' : 'Upload dá»¯ liá»‡u (Excel/KML/KMZ)'}
                   </button>
                   <p className="text-[7px] text-[#555] px-1 leading-relaxed">
-                    Hỗ trợ: .xlsx, .xls, .xlsm, .xlsb, .kml, .kmz
+                    Há»— trá»£: .xlsx, .xls, .xlsm, .xlsb, .kml, .kmz
                   </p>
                   <div className="h-px bg-orange-500/10 my-1" />
-                  <p className="text-[8px] text-[#666] uppercase tracking-wider font-bold mb-1">Thêm thủ công:</p>
+                  <p className="text-[8px] text-[#666] uppercase tracking-wider font-bold mb-1">ThÃªm thá»§ cÃ´ng:</p>
                   <div className="grid grid-cols-1 gap-1.5">
                     <button
                       onClick={() => { setDrawingMode('point'); setSelectedGroup(feature.group_id); setActiveParentFeature(feature.id); }}
                       className="flex items-center gap-2 py-1.5 px-3 bg-[#252525] hover:bg-indigo-600 text-white rounded text-[8px] font-bold uppercase transition-all"
                     >
-                      <MapPin size={10} className="text-indigo-400" /> Thêm Điểm Khảo Sát
+                      <MapPin size={10} className="text-indigo-400" /> ThÃªm Äiá»ƒm Kháº£o SÃ¡t
                     </button>
                     <button
                       onClick={() => { setDrawingMode('polyline'); setSelectedGroup(feature.group_id); setActiveParentFeature(feature.id); }}
                       className="flex items-center gap-2 py-1.5 px-3 bg-[#252525] hover:bg-emerald-600 text-white rounded text-[8px] font-bold uppercase transition-all"
                     >
-                      <Route size={10} className="text-emerald-400" /> Thêm Tuyến/Cáp
+                      <Route size={10} className="text-emerald-400" /> ThÃªm Tuyáº¿n/CÃ¡p
                     </button>
                     <button
                       onClick={() => { setDrawingMode('image'); setSelectedGroup(feature.group_id); setActiveParentFeature(feature.id); }}
                       className="flex items-center gap-2 py-1.5 px-3 bg-[#252525] hover:bg-amber-600 text-white rounded text-[8px] font-bold uppercase transition-all"
                     >
-                      <ImageIcon size={10} className="text-amber-400" /> Thêm Ảnh Hiện Trường
+                      <ImageIcon size={10} className="text-amber-400" /> ThÃªm áº¢nh Hiá»‡n TrÆ°á»ng
                     </button>
                   </div>
                 </div>
@@ -1624,6 +1619,62 @@ export const PropertyPanel: React.FC = () => {
             </div>
           </div>
         </section>
+
+        {templateFields.length > 0 && (
+          <section className="space-y-4">
+            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-emerald-400 uppercase">
+              <List className="w-3 h-3" /> Template Fields
+            </div>
+            <div className="bg-[#111] p-3 rounded border border-emerald-500/10 space-y-3">
+              {templateFields.map((field) => {
+                const value = getTemplateFieldValue(feature, field.key);
+                if (field.type === 'boolean') {
+                  return (
+                    <label key={field.key} className="flex items-center justify-between rounded border border-[#333] bg-[#0a0a0a] px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">
+                      <span className="flex items-center gap-1.5">
+                        <Edit3 className="w-3 h-3" /> {field.label}
+                      </span>
+                      <input
+                        type="checkbox"
+                        className="h-3.5 w-3.5 accent-emerald-500"
+                        checked={Boolean(value)}
+                        onChange={(e) => updateNestedMeta(field.key, e.target.checked)}
+                      />
+                    </label>
+                  );
+                }
+
+                if (field.type === 'select') {
+                  return (
+                    <div key={field.key} className="space-y-1">
+                      <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{field.label}</label>
+                      <select
+                        className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
+                        value={asStringValue(value)}
+                        onChange={(e) => updateNestedMeta(field.key, e.target.value)}
+                      >
+                        <option value="">Select...</option>
+                        {(field.options || []).map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                }
+
+                return (
+                  <DesignField
+                    key={field.key}
+                    label={field.label}
+                    icon={<Edit3 className="w-3 h-3" />}
+                    value={value}
+                    onChange={(v) => updateNestedMeta(field.key, field.type === 'number' ? asNumberValue(v) : v)}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* GEOMETRY & VN2000 */}
         <section className="space-y-4">
@@ -1711,9 +1762,9 @@ export const PropertyPanel: React.FC = () => {
                 onChange={e => updateNestedMeta('infrastructure.type', e.target.value)}
               >
                 <option value="">Select Type...</option>
-                <option value="PowerLine">Power Line (Lưới điện)</option>
-                <option value="SignalLine">Signal / Fiber (Thông tin)</option>
-                <option value="TrenchLine">Trench / Pipe (Mương cáp)</option>
+                <option value="PowerLine">Power Line (LÆ°á»›i Ä‘iá»‡n)</option>
+                <option value="SignalLine">Signal / Fiber (ThÃ´ng tin)</option>
+                <option value="TrenchLine">Trench / Pipe (MÆ°Æ¡ng cÃ¡p)</option>
               </select>
             </div>
 
@@ -2007,10 +2058,20 @@ export const PropertyPanel: React.FC = () => {
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
-        title="Xóa Đối Tượng"
-        message={`Bạn có chắc chắn muốn xóa đối tượng "${localName || feature.id}"? Hành động này không thể hoàn tác.`}
+        title="XÃ³a Äá»‘i TÆ°á»£ng"
+        message={`Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a Ä‘á»‘i tÆ°á»£ng "${localName || feature.id}"? HÃ nh Ä‘á»™ng nÃ y khÃ´ng thá»ƒ hoÃ n tÃ¡c.`}
         itemName={localName || feature.id}
       />
+      {importReview && (
+        <ImportReviewDialog
+          open={true}
+          fileName={importReview.fileName}
+          sourceLabel={importReview.sourceLabel}
+          records={importReview.records}
+          onClose={() => setImportReview(null)}
+          onConfirm={confirmImportReview}
+        />
+      )}
       {editingImage && (
         <ImageEditorModal
           imageUrl={editingImage.url}
@@ -2050,3 +2111,4 @@ const DesignField = ({ label, icon, value, onChange }: { label: string, icon: Re
     </div>
   );
 };
+

@@ -24,7 +24,7 @@ import {
 import {
   buildAnalysisHierarchyRows,
 } from '@IMPLEMENT/features/analysis/analysisHierarchy';
-import { getAnalysisTemplateGroups, normalizeProjectSettings, type ObjectDataTemplateField } from '@TOOL/utils/objectDataTemplates';
+import { getAnalysisTemplateGroups, normalizeProjectSettings } from '@TOOL/utils/objectDataTemplates';
 import { compareAnalysisHierarchyRows } from '@IMPLEMENT/features/analysis/analysisHierarchy';
 import { cn } from '@TOOL/utils/cn';
 import { getLineCoordinates, getPointCoordinates, getPolygonCoordinates } from '@TOOL/utils/featureUtils';
