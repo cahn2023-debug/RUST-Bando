@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import type { FeatureMetadata, FeatureProperties, IconType } from '@CONTRACT/types';
@@ -13,7 +13,7 @@ import { IconSelector } from '@DESIGN/components/ui/IconSelector';
 import { designLogic } from '@TOOL/utils/designLogic';
 import { getFeatureDisplayInfo, safeString, getCleanName, isCameraIcon, getParsedMetadata, getPointCoordinates } from '@TOOL/utils/featureUtils';
 import { useCamera } from '@IMPLEMENT/hooks/useCamera';
-import { importFromExcel, importFromKML, getExcelHeaders, applyImportedRecords } from '@IMPLEMENT/services/importService';
+import { importFromExcel, importFromKML, getExcelHeaders, applyImportedRecords, type FeatureRecord } from '@IMPLEMENT/services/importService';
 import { safeOpenDialog } from '@IMPLEMENT/lib/tauri';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
 import { cn } from '@TOOL/utils/cn';
@@ -21,12 +21,14 @@ import { useProjectData } from '@IMPLEMENT/hooks/useProjectData';
 import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
 import { deleteMediaAsset, importMediaAsset, resolveMediaAsset } from '@IMPLEMENT/services/mediaAssetService';
 import { requestStorageHealthRefresh } from '@IMPLEMENT/services/projectStorageService';
+import { ImportReviewDialog } from '@IMPLEMENT/components/import/ImportReviewDialog';
 
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { buildFeaturePropertiesForPersistence, getTypeForIcon } from '@TOOL/utils/featurePersistence';
 import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
 import { getDeclaredOrderFieldKey, syncDisplayOrderAliases } from '@TOOL/utils/featureMapping';
 import { buildToggleOriginEvents } from '@DESIGN/features/map/network/networkTopology';
+import { getTemplateFieldValue, getTemplateTypeIdForFeature, normalizeProjectSettings } from '@TOOL/utils/objectDataTemplates';
 
 interface SegmentItem {
   id?: string | number;
@@ -780,12 +782,17 @@ export const PropertyPanel: React.FC = () => {
   const [editingImage, setEditingImage] = useState<{ index: number; url: string } | null>(null);
   const [isImportingMedia, setIsImportingMedia] = useState(false);
   const [mediaImportError, setMediaImportError] = useState<string | null>(null);
+  const [importReview, setImportReview] = useState<{ fileName: string; sourceLabel: string; records: FeatureRecord[] } | null>(null);
   const togglePalette = useLayoutStore(s => s.togglePalette);
   const paletteConfigs = useLayoutStore(s => s.paletteConfigs);
+  const projectSettings = useMemo(() => normalizeProjectSettings(state?.settings), [state?.settings]);
   const displayInfo = feature && group ? getFeatureDisplayInfo(feature, group.type, group.name, localMeta) : null;
   const isIntersectionFeature = !!displayInfo?.isIntersection;
   const isPolyline = isLineGeometry(feature?.geom_type);
   const isCameraFeature = !!displayInfo?.isCamera || isCameraIcon(asStringValue(localMeta.icon || localMeta.type));
+  const templateTypeId = getTemplateTypeIdForFeature(feature, { isCamera: isCameraFeature, isIntersection: isIntersectionFeature });
+  const templateType = templateTypeId ? projectSettings.object_data_templates.types[templateTypeId] : null;
+  const templateFields = templateType?.fields.filter((field) => field.showInPalette) || [];
 
   let persistedMeta: FeatureMetadata = {};
   let persistedMetaJson = '{}';

@@ -16,6 +16,7 @@ import {
   ANALYSIS_EXPORT_COLUMN_ORDER,
   buildAnalysisExportRows,
   getAnalysisUserColumnKeys,
+  getAnalysisSchemaColumnKeys,
   isAllowedAnalysisDynamicColumnKey,
   isAnalysisScalarValue,
   normalizeAnalysisColumnKey,
@@ -23,6 +24,7 @@ import {
 import {
   buildAnalysisHierarchyRows,
 } from '@IMPLEMENT/features/analysis/analysisHierarchy';
+import { getAnalysisTemplateGroups, normalizeProjectSettings, type ObjectDataTemplateField } from '@TOOL/utils/objectDataTemplates';
 import { compareAnalysisHierarchyRows } from '@IMPLEMENT/features/analysis/analysisHierarchy';
 import { cn } from '@TOOL/utils/cn';
 import { getLineCoordinates, getPointCoordinates, getPolygonCoordinates } from '@TOOL/utils/featureUtils';
@@ -136,6 +138,107 @@ const hierarchySortingFn: SortingFn<FlatFeature> = (rowA, rowB, columnId) => (
   compareAnalysisHierarchyRows(rowA.original, rowB.original, columnId)
 );
 
+const buildAnalysisFieldColumn = (
+  key: string,
+  handleUpdate: (id: string, field: string, value: any) => Promise<void>,
+  options?: string[],
+): ColumnDef<FlatFeature> => {
+  if (key === 'name') {
+    return {
+      header: toColumnLabel(key),
+      accessorKey: key,
+      size: 220,
+      sortingFn: hierarchySortingFn,
+      cell: (info) => (
+        <div
+          className="flex items-center gap-2"
+          style={{ paddingLeft: `${(info.row.original.__analysis_depth || 0) * 16}px` }}
+        >
+          {info.row.original.__analysis_is_intersection && (
+            <span className="shrink-0 rounded border border-cad-accent/40 bg-cad-accent/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cad-accent">
+              Nut giao
+            </span>
+          )}
+          {!!info.row.original.__analysis_parent_id && (
+            <span className="shrink-0 rounded border border-cad-border bg-cad-surface/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-cad-text-muted">
+              Thuoc nut giao
+            </span>
+          )}
+          <EditableCell
+            value={info.getValue()}
+            row={info.row}
+            column={info.column}
+            onUpdate={handleUpdate}
+            className="font-bold text-cad-accent"
+          />
+        </div>
+      ),
+    };
+  }
+
+  if (key === 'geom_type') {
+    return {
+      header: toColumnLabel(key),
+      accessorKey: key,
+      size: getColumnWidth(key),
+      sortingFn: hierarchySortingFn,
+      meta: { options: GEOM_TYPES_OPTIONS },
+      cell: (info) => (
+        <DropdownCell
+          value={String(info.getValue() ?? '')}
+          options={GEOM_TYPES_OPTIONS}
+          row={info.row}
+          column={info.column}
+          onUpdate={handleUpdate}
+        />
+      ),
+    };
+  }
+
+  if (options && options.length > 0) {
+    return {
+      header: toColumnLabel(key),
+      accessorKey: key,
+      size: getColumnWidth(key),
+      sortingFn: hierarchySortingFn,
+      meta: { options },
+      cell: (info) => (
+        <DropdownCell
+          value={String(info.getValue() ?? '')}
+          options={options}
+          row={info.row}
+          column={info.column}
+          onUpdate={handleUpdate}
+        />
+      ),
+    };
+  }
+
+  if (ANALYSIS_NON_EDITABLE_FIELDS.has(key)) {
+    return {
+      header: toColumnLabel(key),
+      accessorKey: key,
+      size: getColumnWidth(key),
+      sortingFn: hierarchySortingFn,
+    };
+  }
+
+  return {
+    header: toColumnLabel(key),
+    accessorKey: key,
+    size: getColumnWidth(key),
+    sortingFn: hierarchySortingFn,
+    cell: (info) => (
+      <EditableCell
+        value={buildDisplayValue(info.getValue())}
+        row={info.row}
+        column={info.column}
+        onUpdate={handleUpdate}
+      />
+    ),
+  };
+};
+
 const getGeomIconValue = (value: unknown) => {
   const lowerVal = String(value ?? '').toLowerCase();
   if (['cctv', 'ptz', 'speed', 'lpr'].includes(lowerVal)) return lowerVal;
@@ -196,15 +299,18 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
     });
   }, [allData, filterGroup, filterLayer, filterRegion, filterGeomType]);
 
+  const projectSettings = useMemo(() => normalizeProjectSettings(state?.settings), [state?.settings]);
+  const schemaColumnKeys = useMemo(() => getAnalysisSchemaColumnKeys(projectSettings), [projectSettings]);
   const userColumnKeys = useMemo(() => (
     getAnalysisUserColumnKeys(Object.values(state?.features || {}), manualColumnKeys)
   ), [manualColumnKeys, state]);
 
   const analysisColumnKeys = useMemo(() => {
     const coreKeys = ANALYSIS_CORE_COLUMN_ORDER.filter((key) => hasKeyInRows(allData, key));
+    const schemaKeys = schemaColumnKeys.filter((key) => hasKeyInRows(allData, key));
     const dynamicKeys = userColumnKeys.filter((key) => !coreKeys.includes(key as (typeof coreKeys)[number]));
-    return [...coreKeys, ...dynamicKeys];
-  }, [allData, userColumnKeys]);
+    return [...coreKeys, ...schemaKeys, ...dynamicKeys];
+  }, [allData, schemaColumnKeys, userColumnKeys]);
 
   const exportColumnKeys = useMemo(() => (
     [
