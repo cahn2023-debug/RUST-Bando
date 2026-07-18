@@ -1,4 +1,7 @@
 use crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand;
+use crate::domain::implement::modules::v2::ai::{
+    self, AiState, SendAiMessageRequest, UpdateAiConfigRequest,
+};
 use crate::domain::implement::modules::v2::storage::connection::PmpDatabase;
 use crate::domain::implement::state::hydrator::{self, AppState, StoredRecentProject};
 use base64::{engine::general_purpose, Engine as _};
@@ -8,7 +11,7 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
@@ -1326,17 +1329,378 @@ pub async fn update_metadata_v2(
 // --- Compatibility & Required Stubs ---
 
 #[tauri::command]
-pub async fn get_app_config(app: AppHandle) -> Result<serde_json::Value, String> {
+pub async fn get_app_config(
+    app: AppHandle,
+    ai_state: State<'_, AiState>,
+) -> Result<serde_json::Value, String> {
     let (app_data_dir, mut state) = load_app_state(&app)?;
     let existing_recent = state.recent_pmps.clone();
     let recent = write_recent_projects(&app_data_dir, &mut state, existing_recent)?;
-    Ok(json!({
-        "version": "2.0.0-zero-legacy",
-        "storage_mode": "monolithic",
-        "features": ["fts5", "actor_pipeline"],
-        "recent_pmps": recent.iter().map(recent_project_to_value).collect::<Vec<_>>(),
-        "last_opened_pmp": state.last_opened_path
-    }))
+    let ai_config = ai::read_config(&ai_state).await;
+    let mut value = ai::redact_config(&ai_config, ai::has_api_key());
+    let obj = value
+        .as_object_mut()
+        .ok_or_else(|| "Invalid AI config object".to_string())?;
+    obj.insert("version".to_string(), json!("2.0.0-zero-legacy"));
+    obj.insert("storage_mode".to_string(), json!("monolithic"));
+    obj.insert("features".to_string(), json!(["fts5", "actor_pipeline", "ai_v2"]));
+    obj.insert(
+        "recent_pmps".to_string(),
+        json!(recent.iter().map(recent_project_to_value).collect::<Vec<_>>()),
+    );
+    obj.insert("last_opened_pmp".to_string(), json!(state.last_opened_path));
+    obj.insert("admins".to_string(), json!({}));
+    Ok(value)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn update_app_config(
+    app: AppHandle,
+    ai_state: State<'_, AiState>,
+    enable_ai: Option<bool>,
+    enableAi: Option<bool>,
+    low_power_mode: Option<bool>,
+    lowPowerMode: Option<bool>,
+    provider_enabled: Option<bool>,
+    providerEnabled: Option<bool>,
+    provider_base_url: Option<String>,
+    providerBaseUrl: Option<String>,
+    provider_model: Option<String>,
+    providerModel: Option<String>,
+    max_tokens: Option<u32>,
+    maxTokens: Option<u32>,
+    timeout_ms: Option<u64>,
+    timeoutMs: Option<u64>,
+    cloud_confirm_each_request: Option<bool>,
+    cloudConfirmEachRequest: Option<bool>,
+) -> Result<serde_json::Value, String> {
+    let request = UpdateAiConfigRequest {
+        enable_ai: enable_ai.or(enableAi),
+        low_power_mode: low_power_mode.or(lowPowerMode),
+        provider_enabled: provider_enabled.or(providerEnabled),
+        provider_base_url: provider_base_url.or(providerBaseUrl),
+        provider_model: provider_model.or(providerModel),
+        max_tokens: max_tokens.or(maxTokens),
+        timeout_ms: timeout_ms.or(timeoutMs),
+        cloud_confirm_each_request: cloud_confirm_each_request.or(cloudConfirmEachRequest),
+    };
+    let config = ai::update_config(&app, &ai_state, request).await?;
+    Ok(ai::redact_config(&config, ai::has_api_key()))
+}
+
+#[tauri::command]
+pub async fn get_ai_config(ai_state: State<'_, AiState>) -> Result<serde_json::Value, String> {
+    let config = ai::read_config(&ai_state).await;
+    Ok(ai::redact_config(&config, ai::has_api_key()))
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn update_ai_config(
+    app: AppHandle,
+    ai_state: State<'_, AiState>,
+    config: Option<UpdateAiConfigRequest>,
+) -> Result<serde_json::Value, String> {
+    let config = ai::update_config(&app, &ai_state, config.unwrap_or(UpdateAiConfigRequest {
+        enable_ai: None,
+        low_power_mode: None,
+        provider_enabled: None,
+        provider_base_url: None,
+        provider_model: None,
+        max_tokens: None,
+        timeout_ms: None,
+        cloud_confirm_each_request: None,
+    })).await?;
+    Ok(ai::redact_config(&config, ai::has_api_key()))
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn set_ai_api_key(api_key: Option<String>, apiKey: Option<String>) -> Result<(), String> {
+    ai::set_api_key(api_key.or(apiKey).ok_or_else(|| "Missing API key".to_string())?)
+}
+
+#[tauri::command]
+pub async fn delete_ai_api_key() -> Result<(), String> {
+    ai::delete_api_key()
+}
+
+#[tauri::command]
+pub async fn get_ai_status(
+    app: AppHandle,
+    ai_state: State<'_, AiState>,
+) -> Result<serde_json::Value, String> {
+    serde_json::to_value(ai::status(&app, &ai_state).await).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn install_ai_models(
+    app: AppHandle,
+    ai_state: State<'_, AiState>,
+    request_id: Option<String>,
+    requestId: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let request_id = request_id
+        .or(requestId)
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+    ai::install_models(app, &ai_state, request_id).await
+}
+
+#[tauri::command]
+pub async fn cancel_ai_model_install(ai_state: State<'_, AiState>) -> Result<(), String> {
+    ai::cancel_install(&ai_state).await
+}
+
+#[tauri::command]
+pub async fn remove_ai_models(
+    app: AppHandle,
+    ai_state: State<'_, AiState>,
+) -> Result<serde_json::Value, String> {
+    let result = ai::remove_models(&app)?;
+    let _ = ai::release_memory(&ai_state).await?;
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn release_ai_memory(ai_state: State<'_, AiState>) -> Result<serde_json::Value, String> {
+    ai::release_memory(&ai_state).await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn predict_task(
+    app: AppHandle,
+    ai_state: State<'_, AiState>,
+    task_name: Option<String>,
+    taskName: Option<String>,
+) -> Result<i64, String> {
+    let task_name = task_name
+        .or(taskName)
+        .ok_or_else(|| "Missing task name".to_string())?;
+    ai::predict_task(&app, &ai_state, task_name).await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn analyze_contract_metadata(
+    text: Option<String>,
+    content: Option<String>,
+    metadata: Option<Value>,
+) -> Result<serde_json::Value, String> {
+    let source = text
+        .or(content)
+        .or_else(|| metadata.map(|value| value.to_string()))
+        .ok_or_else(|| "Missing contract metadata input".to_string())?;
+    Ok(ai::analyze_contract_metadata(source))
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn save_ai_correction(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    path: Option<String>,
+    data: Option<Value>,
+    original: Option<Value>,
+    reason: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let correction = data.ok_or_else(|| "Missing correction data".to_string())?;
+    ai::validate_structured_output(&correction, 256 * 1024)?;
+    let project_id = project_id.or(projectId);
+    let id = Uuid::new_v4().to_string();
+    let row = exec_query(
+        &state,
+        "INSERT INTO ai_corrections(id, project_id, source_path, original_json, corrected_json, reason)
+         VALUES (?1, NULLIF(?2, ''), ?3, ?4, ?5, ?6)
+         RETURNING id, project_id, source_path, corrected_json, created_at",
+        vec![
+            id,
+            project_id.unwrap_or_default(),
+            path.unwrap_or_default(),
+            original.unwrap_or_else(|| json!({})).to_string(),
+            correction.to_string(),
+            reason.unwrap_or_default(),
+        ],
+    )
+    .await?;
+    Ok(row.as_array().and_then(|rows| rows.first()).cloned().unwrap_or(row))
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn create_ai_conversation(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    title: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let project_id = project_id.or(projectId).ok_or_else(|| "Missing project id".to_string())?;
+    ai::validate_project_id(&project_id)?;
+    let id = Uuid::new_v4().to_string();
+    let rows = exec_query(
+        &state,
+        "INSERT INTO ai_conversations(id, project_id, title, provider, model)
+         VALUES (?1, ?2, ?3, 'local', 'local-rag-summary-v1')
+         RETURNING id, project_id, title, provider, model, created_at, updated_at",
+        vec![id, project_id, title.unwrap_or_else(|| "AI Assistant".to_string())],
+    )
+    .await?;
+    Ok(rows.as_array().and_then(|items| items.first()).cloned().unwrap_or(rows))
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn list_ai_conversations(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let project_id = project_id.or(projectId).ok_or_else(|| "Missing project id".to_string())?;
+    ai::validate_project_id(&project_id)?;
+    exec_query(
+        &state,
+        "SELECT id, project_id, title, provider, model, created_at, updated_at, metadata_json
+         FROM ai_conversations WHERE project_id = ?1 ORDER BY updated_at DESC",
+        vec![project_id],
+    )
+    .await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn send_ai_message(
+    app: AppHandle,
+    state: State<'_, ActorState>,
+    ai_state: State<'_, AiState>,
+    request: SendAiMessageRequest,
+) -> Result<serde_json::Value, String> {
+    ai::validate_project_id(&request.project_id)?;
+    ai::validate_structured_output(&json!({"message": request.message}), 64 * 1024)?;
+    if request.allow_cloud && request.confirmed_scope.is_none() {
+        return Err("Cloud request requires explicit confirmed data scope.".to_string());
+    }
+    let request_id = request
+        .request_id
+        .clone()
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+    let request = SendAiMessageRequest {
+        request_id: Some(request_id.clone()),
+        ..request
+    };
+    let user_message_id = ai::make_message_id();
+    let assistant_message_id = ai::make_message_id();
+    let citations_rows = exec_query(
+        &state,
+        "SELECT 'files' AS source_table, id AS source_id, filename AS title, metadata_json AS snippet, 1.0 AS score
+         FROM files
+         WHERE project_id = ?1 AND (filename LIKE '%' || ?2 || '%' OR metadata_json LIKE '%' || ?2 || '%')
+         UNION ALL
+         SELECT 'features' AS source_table, id AS source_id, name AS title, metadata_json AS snippet, 0.8 AS score
+         FROM features
+         WHERE project_id = ?1 AND (name LIKE '%' || ?2 || '%' OR metadata_json LIKE '%' || ?2 || '%')
+         LIMIT 8",
+        vec![request.project_id.clone(), request.message.clone()],
+    )
+    .await?;
+    let citations = ai::build_citations(citations_rows);
+    let result = ai::local_chat_response(&app, &ai_state, &request, citations).await?;
+    let citations_json = serde_json::to_string(&result.citations).map_err(|e| e.to_string())?;
+    exec_query(
+        &state,
+        "INSERT INTO ai_messages(id, conversation_id, project_id, role, content, provider, model)
+         VALUES (?1, ?2, ?3, 'user', ?4, 'user', 'user')
+         RETURNING id",
+        vec![
+            user_message_id,
+            request.conversation_id.clone(),
+            request.project_id.clone(),
+            request.message.clone(),
+        ],
+    )
+    .await?;
+    exec_query(
+        &state,
+        "INSERT INTO ai_messages(id, conversation_id, project_id, role, content, provider, model, token_usage_json, citations_json)
+         VALUES (?1, ?2, ?3, 'assistant', ?4, ?5, ?6, ?7, ?8)
+         RETURNING id",
+        vec![
+            assistant_message_id,
+            request.conversation_id.clone(),
+            request.project_id.clone(),
+            result.content.clone(),
+            result.provider.clone(),
+            result.model.clone(),
+            result.token_usage.to_string(),
+            citations_json,
+        ],
+    )
+    .await?;
+    exec_query(
+        &state,
+        "UPDATE ai_conversations SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1 RETURNING id",
+        vec![request.conversation_id.clone()],
+    )
+    .await?;
+    let _ = app.emit("ai-chat-final", &result);
+    Ok(serde_json::to_value(result).map_err(|e| e.to_string())?)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn cancel_ai_request(
+    ai_state: State<'_, AiState>,
+    request_id: Option<String>,
+    requestId: Option<String>,
+) -> Result<(), String> {
+    ai::mark_request_cancelled(
+        &ai_state,
+        request_id.or(requestId).ok_or_else(|| "Missing request id".to_string())?,
+    )
+    .await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn confirm_ai_action(
+    state: State<'_, ActorState>,
+    action_id: Option<String>,
+    actionId: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let action_id = action_id.or(actionId).ok_or_else(|| "Missing action id".to_string())?;
+    let rows = exec_query(
+        &state,
+        "UPDATE ai_actions
+         SET status = 'accepted', decided_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         WHERE id = ?1 AND status = 'proposed'
+         RETURNING id, project_id, action_type, target_table, target_id, proposal_json, status, decided_at",
+        vec![action_id],
+    )
+    .await?;
+    Ok(rows.as_array().and_then(|items| items.first()).cloned().unwrap_or(rows))
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn reject_ai_action(
+    state: State<'_, ActorState>,
+    action_id: Option<String>,
+    actionId: Option<String>,
+    note: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let action_id = action_id.or(actionId).ok_or_else(|| "Missing action id".to_string())?;
+    let rows = exec_query(
+        &state,
+        "UPDATE ai_actions
+         SET status = 'rejected', decision_note = ?2, decided_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         WHERE id = ?1 AND status = 'proposed'
+         RETURNING id, project_id, action_type, target_table, target_id, proposal_json, status, decided_at",
+        vec![action_id, note.unwrap_or_default()],
+    )
+    .await?;
+    Ok(rows.as_array().and_then(|items| items.first()).cloned().unwrap_or(rows))
 }
 
 #[tauri::command]
@@ -1893,17 +2257,12 @@ pub async fn invoke_design_event_batch(
 
 #[tauri::command]
 pub async fn normalize_metadata(
-    _state: State<'_, ActorState>,
+    app: AppHandle,
+    ai_state: State<'_, AiState>,
     text: String,
 ) -> Result<serde_json::Value, String> {
-    log::info!("[V2] AI Normalization requested for: {}", text);
-    // Mock response for now, to be replaced by ONNX/Burn actor
-    Ok(json!({
-        "normalized_text": text.trim().to_uppercase(),
-        "embedding": vec![0.0; 384],
-        "model": "all-MiniLM-L6-v2-mock",
-        "updated_at": chrono::Local::now().to_rfc3339()
-    }))
+    log::info!("[V2] AI normalization requested, len={}", text.len());
+    ai::normalize_metadata(&app, &ai_state, text).await
 }
 
 #[tauri::command]

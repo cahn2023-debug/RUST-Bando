@@ -1,27 +1,27 @@
 use rusqlite::Connection;
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 4;
-pub const CURRENT_SCHEMA_LABEL: &str = "4.0.0";
+pub const CURRENT_SCHEMA_VERSION: i32 = 5;
+pub const CURRENT_SCHEMA_LABEL: &str = "5.0.0";
 
 pub const V4_SCHEMA_SQL: &str = r#"
     PRAGMA journal_mode=WAL;
     PRAGMA synchronous=NORMAL;
     PRAGMA foreign_keys=ON;
-    PRAGMA user_version = 4;
+    PRAGMA user_version = 5;
 
     CREATE TABLE IF NOT EXISTS sys_config (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     );
-    INSERT OR REPLACE INTO sys_config (key, value) VALUES ('schema_version', '4.0.0');
+    INSERT OR REPLACE INTO sys_config (key, value) VALUES ('schema_version', '5.0.0');
 
     CREATE TABLE IF NOT EXISTS schema_migrations (
         version INTEGER PRIMARY KEY,
         label TEXT NOT NULL,
         applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     );
-    INSERT OR REPLACE INTO schema_migrations (version, label) VALUES (4, '4.0.0');
+    INSERT OR REPLACE INTO schema_migrations (version, label) VALUES (5, '5.0.0');
 
     CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY,
@@ -202,6 +202,83 @@ pub const V4_SCHEMA_SQL: &str = r#"
     CREATE TRIGGER IF NOT EXISTS fts_file_delete AFTER DELETE ON files BEGIN
         DELETE FROM fts_files_content WHERE file_id = old.id;
     END;
+
+    CREATE TABLE IF NOT EXISTS ai_conversations (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        metadata_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json) AND json_type(metadata_json) = 'object'),
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_conversations_project ON ai_conversations(project_id, updated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS ai_messages (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('system', 'user', 'assistant', 'tool')),
+        content TEXT NOT NULL,
+        provider TEXT,
+        model TEXT,
+        token_usage_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(token_usage_json) AND json_type(token_usage_json) = 'object'),
+        citations_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(citations_json) AND json_type(citations_json) = 'array'),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE,
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_messages_conversation ON ai_messages(conversation_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS ai_actions (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        action_type TEXT NOT NULL,
+        target_table TEXT NOT NULL,
+        target_id TEXT,
+        proposal_json TEXT NOT NULL CHECK (json_valid(proposal_json) AND json_type(proposal_json) = 'object'),
+        status TEXT NOT NULL DEFAULT 'proposed' CHECK(status IN ('proposed', 'accepted', 'rejected', 'failed')),
+        base_version TEXT,
+        decision_note TEXT,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        decided_at TEXT,
+        FOREIGN KEY(conversation_id) REFERENCES ai_conversations(id) ON DELETE CASCADE,
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_actions_project ON ai_actions(project_id, status, created_at);
+
+    CREATE TABLE IF NOT EXISTS ai_embeddings (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        source_table TEXT NOT NULL,
+        source_id TEXT NOT NULL,
+        source_hash TEXT NOT NULL,
+        model TEXT NOT NULL,
+        dims INTEGER NOT NULL,
+        embedding_json TEXT NOT NULL CHECK (json_valid(embedding_json) AND json_type(embedding_json) = 'array'),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        UNIQUE(project_id, source_table, source_id, model),
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_embeddings_source ON ai_embeddings(project_id, source_table, source_id);
+
+    CREATE TABLE IF NOT EXISTS ai_corrections (
+        id TEXT PRIMARY KEY,
+        project_id TEXT,
+        source_path TEXT,
+        source_table TEXT,
+        source_id TEXT,
+        original_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(original_json)),
+        corrected_json TEXT NOT NULL CHECK (json_valid(corrected_json)),
+        reason TEXT,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_ai_corrections_project ON ai_corrections(project_id, created_at DESC);
 "#;
 
 pub fn apply_v2_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -213,7 +290,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn apply_schema_sets_v4_and_creates_snapshot_tables() {
+    fn apply_schema_sets_v5_and_creates_ai_tables() {
         let conn = Connection::open_in_memory().expect("in-memory db");
         apply_v2_schema(&conn).expect("schema applied");
 
@@ -230,6 +307,15 @@ mod tests {
             )
             .expect("project_snapshots table");
         assert_eq!(snapshot_table, "project_snapshots");
+
+        let ai_table: String = conn
+            .query_row(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'ai_conversations'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("ai_conversations table");
+        assert_eq!(ai_table, "ai_conversations");
 
         let migration_label: String = conn
             .query_row(

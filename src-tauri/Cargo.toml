@@ -113,10 +113,10 @@ sha-1 = "0.10.1"
 base64 = "0.22.1"
 arboard = "3"
 clipboard-win = "5"
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole", "Win32_Security_Credentials"] }
 
 [features]
-default = []
+default = ["ai"]
 analytics = ["dep:duckdb"]
 ai = ["dep:burn", "dep:ort", "dep:ndarray", "dep:tokenizers", "dep:hf-hub", "dep:firebase-rs"]
 ai-cuda = ["ai", "ort/cuda"]

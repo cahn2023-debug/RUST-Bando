@@ -31,6 +31,10 @@ pub fn run() {
                 .expect("Failed to get app data dir");
             let state = crate::domain::implement::state::hydrator::load_state(&app_data_dir);
             app.manage(state);
+            let ai_state = crate::domain::implement::modules::v2::ai::AiState::default();
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::block_on(crate::domain::implement::modules::v2::ai::init_from_disk(&app_handle, &ai_state));
+            app.manage(ai_state);
             Ok(())
         })
         .plugin(tauri_plugin_fs::init())
@@ -42,6 +46,25 @@ pub fn run() {
             crate::domain::implement::commands::v2::add_file_v2,
             crate::domain::implement::commands::v2::update_metadata_v2,
             crate::domain::implement::commands::v2::get_app_config,
+            crate::domain::implement::commands::v2::update_app_config,
+            crate::domain::implement::commands::v2::get_ai_config,
+            crate::domain::implement::commands::v2::update_ai_config,
+            crate::domain::implement::commands::v2::set_ai_api_key,
+            crate::domain::implement::commands::v2::delete_ai_api_key,
+            crate::domain::implement::commands::v2::get_ai_status,
+            crate::domain::implement::commands::v2::install_ai_models,
+            crate::domain::implement::commands::v2::cancel_ai_model_install,
+            crate::domain::implement::commands::v2::remove_ai_models,
+            crate::domain::implement::commands::v2::release_ai_memory,
+            crate::domain::implement::commands::v2::predict_task,
+            crate::domain::implement::commands::v2::analyze_contract_metadata,
+            crate::domain::implement::commands::v2::save_ai_correction,
+            crate::domain::implement::commands::v2::create_ai_conversation,
+            crate::domain::implement::commands::v2::list_ai_conversations,
+            crate::domain::implement::commands::v2::send_ai_message,
+            crate::domain::implement::commands::v2::cancel_ai_request,
+            crate::domain::implement::commands::v2::confirm_ai_action,
+            crate::domain::implement::commands::v2::reject_ai_action,
             crate::domain::implement::commands::v2::get_pending_pmp_path,
             crate::domain::implement::commands::v2::get_recent_projects,
             crate::domain::implement::commands::v2::analyze_import_file,

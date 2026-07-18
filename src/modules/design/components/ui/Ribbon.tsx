@@ -38,6 +38,7 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
   const setAnyDialogOpen = useDesignSync(s => s.setAnyDialogOpen);
 
   const { enableAi, setEnableAi } = useSettingsStore();
+  const [aiStatusLabel, setAiStatusLabel] = useState("AI OFF");
   const { togglePalette, activePaletteId } = useLayoutStore();
   const { openStandaloneWindow, onReleaseAiMemory } = useRibbonActions(project);
 
@@ -72,6 +73,36 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
     };
     checkRole();
   }, [user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const status = await safeInvoke<any>('get_ai_status');
+        if (cancelled) return;
+        const label = !status?.enabled
+          ? "AI OFF"
+          : status?.downloading
+            ? "DOWNLOADING"
+            : status?.local_ready
+              ? "LOCAL READY"
+              : status?.cloud_ready
+                ? "CLOUD READY"
+                : "MODEL REQUIRED";
+        setAiStatusLabel(label);
+      } catch (error) {
+        if (!cancelled) {
+          setAiStatusLabel(enableAi ? "MODEL REQUIRED" : "AI OFF");
+        }
+      }
+    };
+    void refresh();
+    const interval = window.setInterval(refresh, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [enableAi]);
 
   const tabs = [
     { id: "HOME", label: t('project.newProject'), icon: Layout },
@@ -189,13 +220,14 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
         ) : activeTab === 'HOME' || activeTab === 'IMPLEMENT' || activeTab === 'RESOURCES' ? (
           <HomeRibbonTools
             enableAi={enableAi}
+            aiStatusLabel={aiStatusLabel}
             setEnableAi={setEnableAi}
             onReleaseAiMemory={onReleaseAiMemory}
             onForceSave={onForceSave}
           />
         ) : activeTab === 'DESIGN' ? (
           <DesignRibbonTools
-            enableAi={enableAi} setEnableAi={setEnableAi} onReleaseAiMemory={onReleaseAiMemory}
+            enableAi={enableAi} aiStatusLabel={aiStatusLabel} setEnableAi={setEnableAi} onReleaseAiMemory={onReleaseAiMemory}
             onForceSave={onForceSave}
             onImport={() => setIsImportOpen(true)}
             undo={undo} redo={redo}
@@ -214,7 +246,7 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
           />
         ) : activeTab === 'CONTRACT' ? (
           <ContractRibbonTools
-            enableAi={enableAi} setEnableAi={setEnableAi} onReleaseAiMemory={onReleaseAiMemory}
+            enableAi={enableAi} aiStatusLabel={aiStatusLabel} setEnableAi={setEnableAi} onReleaseAiMemory={onReleaseAiMemory}
             contractType={contractType} onContractTypeChange={onContractTypeChange}
           />
         ) : null}

@@ -15,12 +15,13 @@ import { Portal } from "./Portal";
 
 interface CommonRibbonProps {
     enableAi: boolean;
+    aiStatusLabel?: string;
     setEnableAi: (v: boolean) => void;
     onReleaseAiMemory: () => void;
     onForceSave?: () => void;
 }
 
-export const HomeRibbonTools = ({ enableAi, setEnableAi, onReleaseAiMemory, onForceSave }: CommonRibbonProps) => (
+export const HomeRibbonTools = ({ enableAi, aiStatusLabel, setEnableAi, onReleaseAiMemory, onForceSave }: CommonRibbonProps) => (
     <>
         <ToolGroup label="FILE SYSTEM">
             <ToolButton icon={Save} label="SAVE" onClick={onForceSave} />
@@ -37,7 +38,7 @@ export const HomeRibbonTools = ({ enableAi, setEnableAi, onReleaseAiMemory, onFo
                 onClick={() => setEnableAi(!enableAi)}
                 active={enableAi}
                 icon={Zap}
-                label={enableAi ? "AI READY" : "AI OFF"}
+                label={aiStatusLabel || (enableAi ? "AI READY" : "AI OFF")}
                 opacity={enableAi ? "animate-pulse" : "opacity-60"}
             />
             <ToolButton
@@ -51,7 +52,7 @@ export const HomeRibbonTools = ({ enableAi, setEnableAi, onReleaseAiMemory, onFo
 );
 
 export const DesignRibbonTools = ({
-    enableAi, setEnableAi, onReleaseAiMemory,
+    enableAi, aiStatusLabel, setEnableAi, onReleaseAiMemory,
     onImport,
     undo, redo,
     showSystemConfig, setShowSystemConfig, systemConfigRef,
@@ -162,7 +163,7 @@ export const DesignRibbonTools = ({
                 onClick={() => setEnableAi(!enableAi)}
                 active={enableAi}
                 icon={Zap}
-                label={enableAi ? "AI READY" : "AI OFF"}
+                label={aiStatusLabel || (enableAi ? "AI READY" : "AI OFF")}
                 opacity={enableAi ? "animate-pulse" : "opacity-60"}
             />
             <ToolButton
@@ -177,7 +178,7 @@ export const DesignRibbonTools = ({
 };
 
 export const ContractRibbonTools = ({
-    enableAi, setEnableAi, onReleaseAiMemory,
+    enableAi, aiStatusLabel, setEnableAi, onReleaseAiMemory,
     contractType, onContractTypeChange
 }: CommonRibbonProps & {
     contractType?: string;
@@ -200,7 +201,7 @@ export const ContractRibbonTools = ({
                 onClick={() => setEnableAi(!enableAi)}
                 active={enableAi}
                 icon={Zap}
-                label={enableAi ? "AI READY" : "AI OFF"}
+                label={aiStatusLabel || (enableAi ? "AI READY" : "AI OFF")}
                 opacity={enableAi ? "animate-pulse" : "opacity-60"}
             />
             <ToolButton
