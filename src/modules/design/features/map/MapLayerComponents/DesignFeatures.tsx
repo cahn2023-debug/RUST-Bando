@@ -66,8 +66,6 @@ export const DesignFeatures = () => {
         return rawFeatures;
     }, [rawFeatures]);
 
-    console.log(`🛠️ [DesignFeatures] Syncing ${Object.keys(features).length} features (Source: ${Array.isArray(rawFeatures) ? 'Array' : 'Record'})`);
-
     const map = useMap();
     const clusterGroupRef = React.useRef<any>(null);
     const moveGroupRef = React.useRef<any>(null);
@@ -157,8 +155,6 @@ export const DesignFeatures = () => {
     const geoVisibleFeatures = useVisibleFeatures(features, bounds, selectedFeatureId, featureHierarchy.hasVirtualChildren);
 
     const visibleFeatures = React.useMemo(() => {
-        const beforeFilter = geoVisibleFeatures.length;
-
         // V2 Fix: ONLY hide features that user explicitly clicked the eye icon
         // All data from database should be visible by default
         const result = geoVisibleFeatures.filter(f => {
@@ -174,24 +170,11 @@ export const DesignFeatures = () => {
             return true;
         });
 
-        console.log(`[DesignFeatures] Visibility filter: ${beforeFilter} → ${result.length} features (${beforeFilter - result.length} hidden by user)`);
-        if (result.length < beforeFilter) {
-            console.log(`[DesignFeatures] Hidden by user:`, geoVisibleFeatures
-                .filter(f => !result.includes(f))
-                .map(f => ({
-                    id: f.id,
-                    name: f.name,
-                    group_id: f.group_id,
-                    layer_id: f.layer_id
-                }))
-            );
-        }
         return result;
     }, [geoVisibleFeatures, mapHiddenIds]);
 
     // 4. Filtering Logic for Points (Clusters)
     const pointsToRender = React.useMemo(() => {
-        const beforeFilter = visibleFeatures.length;
         const result = visibleFeatures.filter((f: FeatureState) => {
             if (f.geom_type?.toLowerCase() !== 'point' && f.geom_type !== undefined) return false;
 
@@ -219,7 +202,6 @@ export const DesignFeatures = () => {
 
             return true;
         });
-        console.log(`[DesignFeatures] Points filter: ${beforeFilter} visible → ${result.length} points to render (zoom: ${currentZoom})`);
         return result;
     }, [visibleFeatures, feature_groups, previewMetadata, featureHierarchy, currentZoom, selectedFeatureId, isReportCaptureActive]);
 
