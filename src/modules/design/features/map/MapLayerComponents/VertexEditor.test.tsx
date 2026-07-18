@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';

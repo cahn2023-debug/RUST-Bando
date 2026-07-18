@@ -82,7 +82,7 @@ const CORE_COLUMN_TITLES: Record<string, string> = {
 
 const ANALYSIS_COLUMN_TITLES: Record<string, string> = {
   ...CORE_COLUMN_TITLES,
-  junction_scope: 'NUT GIAO',
+  junction_scope: 'NÚT GIAO',
 };
 
 const NON_EDITABLE_FIELDS = new Set([
@@ -156,12 +156,12 @@ const buildAnalysisFieldColumn = (
         >
           {info.row.original.__analysis_is_intersection && (
             <span className="shrink-0 rounded border border-cad-accent/40 bg-cad-accent/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cad-accent">
-              Nut giao
+              Nút giao
             </span>
           )}
           {!!info.row.original.__analysis_parent_id && (
             <span className="shrink-0 rounded border border-cad-border bg-cad-surface/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-cad-text-muted">
-              Thuoc nut giao
+              Thuộc nút giao
             </span>
           )}
           <EditableCell

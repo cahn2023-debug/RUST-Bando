@@ -94,7 +94,7 @@ impl PmpDatabase {
     }
 
     pub fn checkpoint_wal(&self) -> Result<(), rusqlite::Error> {
-        self.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)", [])?;
+        self.conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
         Ok(())
     }
 

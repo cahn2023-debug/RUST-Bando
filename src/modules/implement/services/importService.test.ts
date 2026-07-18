@@ -294,4 +294,120 @@ describe("importService", () => {
     });
     expect(metadata.infrastructure).toMatchObject({ type: "SignalLine" });
   });
+
+  it("preserves existing network connections and manual_override flag when re-importing a line with manual_override: true", () => {
+    const featureId = "7f4c6d4b-8a67-4c44-a5f2-3d1b0d3f1f11";
+    const events = buildFeatureCreatedEvents(
+      [
+        {
+          id: featureId,
+          geom_type: "LineString",
+          geometry: [[105.00001, 21.00001], [105.01001, 21.01001]],
+          center_lat: 21.005,
+          center_lon: 105.005,
+          tile_id: "kml-line-1",
+          properties: { name: "Imported Line", status: "new-import" },
+          source_format: "kml",
+        },
+      ],
+      "group-1",
+      "layer-1",
+      {
+        featuresById: {
+          [featureId]: {
+            id: featureId,
+            layer_id: "layer-1",
+            group_id: "group-1",
+            name: "Line 1",
+            geom_type: "LineString",
+            coordinates: [[105.00001, 21.00001], [105.01001, 21.01001]],
+            properties: {},
+            metadata: {
+              manual_override: true,
+              start_node_id: "cabinet-manual",
+              end_node_id: "camera-manual",
+              snap_links: { v0: "cabinet-manual", v1: "camera-manual" },
+              network: {
+                from_feature_id: "cabinet-manual",
+                to_feature_id: "camera-manual",
+                from_endpoint: { type: "feature", id: "cabinet-manual" },
+                to_endpoint: { type: "feature", id: "camera-manual" },
+                direction_mode: "manual",
+              },
+              infrastructure: { type: "SignalLine" }
+            }
+          },
+          cabinet: pointFeature("cabinet", [105, 21], { network: { role: "cabinet", is_origin: true } }),
+          camera: pointFeature("camera", [105.01, 21.01], { network: { role: "device" } }),
+        },
+      }
+    );
+
+    const metadata = JSON.parse((events[0] as any).payload.metadata);
+    expect((events[0] as any).payload.coordinates).toEqual([[105.00001, 21.00001], [105.01001, 21.01001]]);
+    expect((events[0] as any).payload.properties).toMatchObject({ name: "Imported Line", status: "new-import" });
+    expect(metadata.manual_override).toBe(true);
+    expect(metadata.start_node_id).toBe("cabinet-manual");
+    expect(metadata.end_node_id).toBe("camera-manual");
+    expect(metadata.snap_links).toEqual({ v0: "cabinet-manual", v1: "camera-manual" });
+    expect(metadata.network).toMatchObject({
+      from_feature_id: "cabinet-manual",
+      to_feature_id: "camera-manual",
+      direction_mode: "manual",
+    });
+  });
+
+  it("snaps imported lines within 10m (0.00009 deg) but does not snap when outside 10m", () => {
+    // 0.00008 deg is < 0.00009 deg (within 10m) -> should snap
+    const eventsSnap = buildFeatureCreatedEvents(
+      [
+        {
+          id: "line-snap",
+          geom_type: "LineString",
+          geometry: [[105.00008, 21.0], [105.01, 21.01]],
+          center_lat: 21.005,
+          center_lon: 105.005,
+          tile_id: "kml-line-snap",
+          properties: { name: "Line Snap" },
+          source_format: "kml",
+        },
+      ],
+      "group-1",
+      "layer-1",
+      {
+        featuresById: {
+          cabinet: pointFeature("cabinet", [105, 21], { network: { role: "cabinet", is_origin: true } }),
+        },
+      }
+    );
+
+    const metadataSnap = JSON.parse((eventsSnap[0] as any).payload.metadata);
+    expect(metadataSnap.start_node_id).toBe("cabinet");
+
+    // 0.00010 deg is > 0.00009 deg (outside 10m) -> should not snap
+    const eventsNoSnap = buildFeatureCreatedEvents(
+      [
+        {
+          id: "line-no-snap",
+          geom_type: "LineString",
+          geometry: [[105.00010, 21.0], [105.01, 21.01]],
+          center_lat: 21.005,
+          center_lon: 105.005,
+          tile_id: "kml-line-no-snap",
+          properties: { name: "Line No Snap" },
+          source_format: "kml",
+        },
+      ],
+      "group-1",
+      "layer-1",
+      {
+        featuresById: {
+          cabinet: pointFeature("cabinet", [105, 21], { network: { role: "cabinet", is_origin: true } }),
+        },
+      }
+    );
+
+    const metadataNoSnap = JSON.parse((eventsNoSnap[0] as any).payload.metadata);
+    expect(metadataNoSnap.start_node_id).toBeUndefined();
+  });
 });

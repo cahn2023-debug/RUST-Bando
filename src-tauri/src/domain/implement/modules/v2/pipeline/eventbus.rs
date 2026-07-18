@@ -41,6 +41,15 @@ pub enum StorageCommand {
         file_path: Option<String>,
         reply: oneshot::Sender<Result<serde_json::Value, String>>,
     },
+    AnalyzePmpImport {
+        source_path: PathBuf,
+        reply: oneshot::Sender<Result<serde_json::Value, String>>,
+    },
+    ImportPmpIntoProject {
+        source_path: PathBuf,
+        target_project_id: String,
+        reply: oneshot::Sender<Result<serde_json::Value, String>>,
+    },
     DeleteMediaAsset {
         project_id: String,
         asset_id: String,

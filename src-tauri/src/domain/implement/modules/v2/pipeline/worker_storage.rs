@@ -1,11 +1,13 @@
 use crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand;
 use crate::domain::implement::modules::v2::storage::connection::PmpDatabase;
 use crate::domain::implement::modules::v2::storage::path_meta::compute_rel_path;
+use crate::domain::implement::modules::v2::storage::schema::CURRENT_SCHEMA_VERSION;
 use crate::domain::models::v2::{AppEvent, EventEnvelope};
 use base64::{engine::general_purpose, Engine as _};
-use rusqlite::{params, OptionalExtension, Transaction};
+use rusqlite::{params, Connection, OpenFlags, OptionalExtension, Transaction};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::fs;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
@@ -44,6 +46,8 @@ impl StorageWorker {
                                     | StorageCommand::VerifyIntegrity { .. }
                                     | StorageCommand::GetProjectHealth { .. }
                                     | StorageCommand::ImportMediaAsset { .. }
+                                    | StorageCommand::AnalyzePmpImport { .. }
+                                    | StorageCommand::ImportPmpIntoProject { .. }
                                     | StorageCommand::DeleteMediaAsset { .. }
                                     | StorageCommand::ResolveMediaAsset { .. }
                                     | StorageCommand::OptimizeProjectStorage { .. }
@@ -196,6 +200,24 @@ impl StorageWorker {
                 .and_then(|result| result);
                 let _ = reply.send(res);
             }
+            StorageCommand::AnalyzePmpImport { source_path, reply } => {
+                let res = catch_unwind(AssertUnwindSafe(|| self.analyze_pmp_import(&source_path)))
+                    .map_err(panic_to_string)
+                    .and_then(|result| result);
+                let _ = reply.send(res);
+            }
+            StorageCommand::ImportPmpIntoProject {
+                source_path,
+                target_project_id,
+                reply,
+            } => {
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.import_pmp_into_project(&source_path, &target_project_id)
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
+                let _ = reply.send(res);
+            }
             StorageCommand::DeleteMediaAsset {
                 project_id,
                 asset_id,
@@ -324,6 +346,8 @@ impl StorageWorker {
                     | StorageCommand::VerifyIntegrity { .. }
                     | StorageCommand::GetProjectHealth { .. }
                     | StorageCommand::ImportMediaAsset { .. }
+                    | StorageCommand::AnalyzePmpImport { .. }
+                    | StorageCommand::ImportPmpIntoProject { .. }
                     | StorageCommand::DeleteMediaAsset { .. }
                     | StorageCommand::ResolveMediaAsset { .. }
                     | StorageCommand::OptimizeProjectStorage { .. }
@@ -428,6 +452,65 @@ impl StorageWorker {
         rebuild_project_snapshot(&tx, project_id)?;
         tx.commit().map_err(|e| e.to_string())?;
         Ok(asset)
+    }
+
+    fn analyze_pmp_import(&self, source_path: &Path) -> Result<Value, String> {
+        let source = inspect_source_pmp(source_path, Some(&self.db.pmp_path))?;
+        Ok(json!({
+            "sourceProjectName": source.project_name,
+            "regions": source.region_count,
+            "layers": source.layer_count,
+            "groups": source.group_count,
+            "features": source.feature_count,
+            "mediaAssets": source.media_asset_count,
+            "warnings": source.warnings,
+        }))
+    }
+
+    fn import_pmp_into_project(
+        &mut self,
+        source_path: &Path,
+        target_project_id: &str,
+    ) -> Result<Value, String> {
+        let source = inspect_source_pmp(source_path, Some(&self.db.pmp_path))?;
+        ensure_target_project_exists(&self.db.conn, target_project_id)?;
+
+        let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
+        let remap = import_source_design_tables(
+            &tx,
+            &source.conn,
+            &source.project_id,
+            target_project_id,
+        )
+        .map_err(|e| format!("Import design tables failed: {e}"))?;
+        let media_counts = import_source_media_assets(
+            &tx,
+            &source,
+            target_project_id,
+            &self.db.base_dir,
+            &self.db.pmp_path,
+            &remap.feature_ids,
+        )
+        .map_err(|e| format!("Import media assets failed: {e}"))?;
+        sync_feature_media_metadata(&tx, target_project_id)
+            .map_err(|e| format!("Sync imported media metadata failed: {e}"))?;
+        rebuild_project_snapshot(&tx, target_project_id)
+            .map_err(|e| format!("Rebuild imported project snapshot failed: {e}"))?;
+        tx.commit()
+            .map_err(|e| format!("Commit imported .pmp transaction failed: {e}"))?;
+        self.db
+            .checkpoint_wal()
+            .map_err(|e| format!("Checkpoint after .pmp import failed: {e}"))?;
+
+        Ok(json!({
+            "importedRegions": remap.region_count,
+            "importedLayers": remap.layer_count,
+            "importedGroups": remap.group_count,
+            "importedFeatures": remap.feature_count,
+            "importedMediaAssets": media_counts.imported_media_assets,
+            "skippedMediaAssets": media_counts.skipped_media_assets,
+            "importedAt": chrono::Local::now().to_rfc3339(),
+        }))
     }
 
     fn delete_media_asset(&mut self, project_id: &str, asset_id: &str) -> Result<(), String> {
@@ -764,6 +847,8 @@ impl StorageWorker {
                 | StorageCommand::VerifyIntegrity { .. }
                 | StorageCommand::GetProjectHealth { .. }
                 | StorageCommand::ImportMediaAsset { .. }
+                | StorageCommand::AnalyzePmpImport { .. }
+                | StorageCommand::ImportPmpIntoProject { .. }
                 | StorageCommand::DeleteMediaAsset { .. }
                 | StorageCommand::ResolveMediaAsset { .. }
                 | StorageCommand::OptimizeProjectStorage { .. } => {}
@@ -773,6 +858,57 @@ impl StorageWorker {
     }
 }
 
+struct SourcePmpContext {
+    conn: Connection,
+    project_id: String,
+    project_name: String,
+    base_dir: PathBuf,
+    pmp_path: PathBuf,
+    region_count: i64,
+    layer_count: i64,
+    group_count: i64,
+    feature_count: i64,
+    media_asset_count: i64,
+    warnings: Vec<String>,
+}
+
+#[derive(Default)]
+struct ImportedIdMaps {
+    region_ids: HashMap<String, String>,
+    layer_ids: HashMap<String, String>,
+    group_ids: HashMap<String, String>,
+    feature_ids: HashMap<String, String>,
+    region_count: i64,
+    layer_count: i64,
+    group_count: i64,
+    feature_count: i64,
+}
+
+#[derive(Default)]
+struct ImportedMediaCounts {
+    imported_media_assets: i64,
+    skipped_media_assets: i64,
+}
+
+#[derive(Debug, Clone)]
+struct SourceMediaAssetLink {
+    feature_id: String,
+    sort_order: i64,
+    is_primary: bool,
+}
+
+#[derive(Debug, Clone)]
+struct SourceMediaAssetRecord {
+    asset_id: String,
+    sha256: String,
+    rel_path: String,
+    mime_type: String,
+    byte_size: i64,
+    width: Option<i64>,
+    height: Option<i64>,
+    links: Vec<SourceMediaAssetLink>,
+}
+
 fn panic_to_string(payload: Box<dyn std::any::Any + Send>) -> String {
     if let Some(message) = payload.downcast_ref::<&str>() {
         (*message).to_string()
@@ -780,6 +916,737 @@ fn panic_to_string(payload: Box<dyn std::any::Any + Send>) -> String {
         message.clone()
     } else {
         "storage worker panicked".to_string()
+    }
+}
+
+fn inspect_source_pmp(
+    source_path: &Path,
+    active_pmp_path: Option<&Path>,
+) -> Result<SourcePmpContext, String> {
+    if !source_path.exists() {
+        return Err(format!("Source .pmp file does not exist: {}", source_path.display()));
+    }
+
+    let canonical_source =
+        fs::canonicalize(source_path).map_err(|e| format!("Failed to resolve source .pmp path: {e}"))?;
+    if let Some(active_path) = active_pmp_path {
+        let canonical_active = fs::canonicalize(active_path)
+            .unwrap_or_else(|_| active_path.to_path_buf());
+        if canonical_source == canonical_active {
+            return Err("Cannot import the currently opened .pmp file into itself.".to_string());
+        }
+    }
+
+    let conn = Connection::open_with_flags(
+        &canonical_source,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .map_err(|e| format!("Failed to open source .pmp file: {e}"))?;
+    conn.pragma_update(None, "query_only", "ON")
+        .map_err(|e| format!("Failed to open source .pmp in read-only mode: {e}"))?;
+    conn.pragma_update(None, "busy_timeout", "5000")
+        .map_err(|e| format!("Failed to configure source .pmp connection: {e}"))?;
+
+    let version: i32 = conn
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .map_err(|e| format!("Failed to read source .pmp schema version: {e}"))?;
+    if version != CURRENT_SCHEMA_VERSION {
+        return Err(format!(
+            "Source .pmp schema version {version} is not supported for import. Expected version {CURRENT_SCHEMA_VERSION}."
+        ));
+    }
+
+    let integrity: String = conn
+        .query_row("PRAGMA integrity_check", [], |row| row.get(0))
+        .map_err(|e| format!("Failed to verify source .pmp integrity: {e}"))?;
+    if integrity != "ok" {
+        return Err(format!(
+            "Source .pmp failed integrity_check and cannot be imported: {integrity}"
+        ));
+    }
+
+    let project_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM projects", [], |row| row.get(0))
+        .map_err(|e| format!("Failed to inspect source projects: {e}"))?;
+    if project_count <= 0 {
+        return Err("Source .pmp does not contain any projects to import.".to_string());
+    }
+
+    let (project_id, project_name): (String, String) = conn
+        .query_row(
+            "SELECT id, COALESCE(NULLIF(name, ''), NULLIF(title, ''), 'Untitled Project') FROM projects ORDER BY created_at ASC, id ASC LIMIT 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| format!("Failed to load source project metadata: {e}"))?;
+
+    let media_asset_count = conn
+        .query_row(
+            "SELECT COUNT(DISTINCT ma.id)
+             FROM media_assets ma
+             JOIN feature_media fm ON fm.asset_id = ma.id
+             JOIN features f ON f.id = fm.feature_id
+             WHERE ma.project_id = ?1 AND f.project_id = ?1",
+            params![&project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    let mut warnings = Vec::new();
+    if project_count > 1 {
+        warnings.push(format!(
+            "Source .pmp contains {project_count} projects; only the earliest project will be imported."
+        ));
+    }
+    if media_asset_count == 0 {
+        warnings.push("Source project does not contain linked media assets.".to_string());
+    }
+
+    let region_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM regions WHERE project_id = ?1",
+            params![&project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let layer_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM layers WHERE project_id = ?1",
+            params![&project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let group_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM feature_groups WHERE project_id = ?1",
+            params![&project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let feature_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM features WHERE project_id = ?1",
+            params![&project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+
+    Ok(SourcePmpContext {
+        conn,
+        project_id,
+        project_name,
+        base_dir: canonical_source
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .to_path_buf(),
+        pmp_path: canonical_source,
+        region_count,
+        layer_count,
+        group_count,
+        feature_count,
+        media_asset_count,
+        warnings,
+    })
+}
+
+fn ensure_target_project_exists(conn: &Connection, project_id: &str) -> Result<(), String> {
+    let exists: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM projects WHERE id = ?1",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| format!("Failed to verify target project: {e}"))?;
+    if exists == 0 {
+        return Err(format!("Target project was not found in the active workspace: {project_id}"));
+    }
+    Ok(())
+}
+
+fn import_source_design_tables(
+    tx: &Transaction<'_>,
+    source_conn: &Connection,
+    source_project_id: &str,
+    target_project_id: &str,
+) -> Result<ImportedIdMaps, String> {
+    let mut remap = ImportedIdMaps::default();
+
+    {
+        let mut stmt = source_conn
+            .prepare(
+                "SELECT id, parent_id, name, description, metadata_json
+                 FROM regions WHERE project_id = ?1 ORDER BY created_at, id",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![source_project_id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?;
+        for row in rows {
+            let (old_id, parent_id, name, description, metadata_json) =
+                row.map_err(|e| e.to_string())?;
+            let new_id = uuid::Uuid::new_v4().to_string();
+            let new_parent = parent_id
+                .as_ref()
+                .and_then(|id| remap.region_ids.get(id))
+                .cloned();
+            tx.execute(
+                "INSERT INTO regions (id, project_id, parent_id, name, description, metadata_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    &new_id,
+                    target_project_id,
+                    new_parent,
+                    name,
+                    description,
+                    normalize_json_object_text(metadata_json),
+                ],
+            )
+            .map_err(|e| format!("Failed to import region {old_id}: {e}"))?;
+            remap.region_ids.insert(old_id, new_id);
+            remap.region_count += 1;
+        }
+    }
+
+    {
+        let mut stmt = source_conn
+            .prepare(
+                "SELECT id, region_id, name, is_visible, metadata_json
+                 FROM layers WHERE project_id = ?1 ORDER BY created_at, id",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![source_project_id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?;
+        for row in rows {
+            let (old_id, region_id, name, is_visible, metadata_json) =
+                row.map_err(|e| e.to_string())?;
+            let new_id = uuid::Uuid::new_v4().to_string();
+            let new_region_id = region_id
+                .as_ref()
+                .and_then(|id| remap.region_ids.get(id))
+                .cloned();
+            tx.execute(
+                "INSERT INTO layers (id, project_id, region_id, name, is_visible, metadata_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![
+                    &new_id,
+                    target_project_id,
+                    new_region_id,
+                    name,
+                    is_visible,
+                    normalize_json_object_text(metadata_json),
+                ],
+            )
+            .map_err(|e| format!("Failed to import layer {old_id}: {e}"))?;
+            remap.layer_ids.insert(old_id, new_id);
+            remap.layer_count += 1;
+        }
+    }
+
+    {
+        let mut stmt = source_conn
+            .prepare(
+                "SELECT id, layer_id, parent_id, name, group_type, is_visible, metadata_json
+                 FROM feature_groups WHERE project_id = ?1 ORDER BY created_at, id",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![source_project_id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, Option<String>>(4)?,
+                    row.get::<_, i64>(5)?,
+                    row.get::<_, Option<String>>(6)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?;
+        for row in rows {
+            let (old_id, layer_id, parent_id, name, group_type, is_visible, metadata_json) =
+                row.map_err(|e| e.to_string())?;
+            let new_id = uuid::Uuid::new_v4().to_string();
+            let new_layer_id = remap
+                .layer_ids
+                .get(&layer_id)
+                .cloned()
+                .ok_or_else(|| format!("Missing remapped layer for source group {old_id}"))?;
+            let new_parent_id = parent_id
+                .as_ref()
+                .and_then(|id| remap.group_ids.get(id))
+                .cloned();
+            tx.execute(
+                "INSERT INTO feature_groups (id, project_id, layer_id, parent_id, name, group_type, is_visible, metadata_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    &new_id,
+                    target_project_id,
+                    new_layer_id,
+                    new_parent_id,
+                    name,
+                    group_type,
+                    is_visible,
+                    normalize_json_object_text(metadata_json),
+                ],
+            )
+            .map_err(|e| format!("Failed to import feature group {old_id}: {e}"))?;
+            remap.group_ids.insert(old_id, new_id);
+            remap.group_count += 1;
+        }
+    }
+
+    {
+        let mut stmt = source_conn
+            .prepare(
+                "SELECT id, layer_id, group_id, name, geom_type, coordinates_json, properties_json,
+                        metadata_json, bbox_json, is_visible, note
+                 FROM features WHERE project_id = ?1 ORDER BY created_at, id",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![source_project_id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, String>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                    row.get::<_, Option<String>>(8)?,
+                    row.get::<_, i64>(9)?,
+                    row.get::<_, Option<String>>(10)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?;
+        for row in rows {
+            let (
+                old_id,
+                layer_id,
+                group_id,
+                name,
+                geom_type,
+                coordinates_json,
+                properties_json,
+                metadata_json,
+                bbox_json,
+                is_visible,
+                note,
+            ) = row.map_err(|e| e.to_string())?;
+            let new_id = uuid::Uuid::new_v4().to_string();
+            let new_layer_id = remap
+                .layer_ids
+                .get(&layer_id)
+                .cloned()
+                .ok_or_else(|| format!("Missing remapped layer for source feature {old_id}"))?;
+            let new_group_id = group_id
+                .as_ref()
+                .and_then(|id| remap.group_ids.get(id))
+                .cloned();
+            remap.feature_ids.insert(old_id.clone(), new_id.clone());
+            let _ = (
+                coordinates_json,
+                properties_json,
+                metadata_json,
+                bbox_json,
+                is_visible,
+                note,
+                name,
+                geom_type,
+                new_layer_id,
+                new_group_id,
+                old_id,
+                new_id,
+            );
+        }
+    }
+
+    {
+        let mut stmt = source_conn
+            .prepare(
+                "SELECT id, layer_id, group_id, name, geom_type, coordinates_json, properties_json,
+                        metadata_json, bbox_json, is_visible, note
+                 FROM features WHERE project_id = ?1 ORDER BY created_at, id",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![source_project_id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, String>(6)?,
+                    row.get::<_, Option<String>>(7)?,
+                    row.get::<_, Option<String>>(8)?,
+                    row.get::<_, i64>(9)?,
+                    row.get::<_, Option<String>>(10)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?;
+        for row in rows {
+            let (
+                old_id,
+                layer_id,
+                group_id,
+                name,
+                geom_type,
+                coordinates_json,
+                properties_json,
+                metadata_json,
+                bbox_json,
+                is_visible,
+                note,
+            ) = row.map_err(|e| e.to_string())?;
+            let new_id = remap
+                .feature_ids
+                .get(&old_id)
+                .cloned()
+                .ok_or_else(|| format!("Missing remapped id for source feature {old_id}"))?;
+            let new_layer_id = remap
+                .layer_ids
+                .get(&layer_id)
+                .cloned()
+                .ok_or_else(|| format!("Missing remapped layer for source feature {old_id}"))?;
+            let new_group_id = group_id
+                .as_ref()
+                .and_then(|id| remap.group_ids.get(id))
+                .cloned();
+            let rewritten_metadata = rewrite_imported_feature_metadata(
+                metadata_json.as_deref(),
+                &remap.feature_ids,
+            );
+            tx.execute(
+                "INSERT INTO features (id, project_id, layer_id, group_id, name, geom_type, coordinates_json,
+                                       properties_json, metadata_json, bbox_json, is_visible, note)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                params![
+                    new_id,
+                    target_project_id,
+                    new_layer_id,
+                    new_group_id,
+                    name,
+                    geom_type,
+                    coordinates_json,
+                    normalize_json_object_text(Some(properties_json)),
+                    rewritten_metadata,
+                    bbox_json,
+                    is_visible,
+                    note,
+                ],
+            )
+            .map_err(|e| format!("Failed to import feature {old_id}: {e}"))?;
+            remap.feature_count += 1;
+        }
+    }
+
+    Ok(remap)
+}
+
+fn import_source_media_assets(
+    tx: &Transaction<'_>,
+    source: &SourcePmpContext,
+    target_project_id: &str,
+    target_base_dir: &Path,
+    target_pmp_path: &Path,
+    feature_id_map: &HashMap<String, String>,
+) -> Result<ImportedMediaCounts, String> {
+    let media_assets = collect_source_media_assets(&source.conn, &source.project_id)?;
+    let mut counts = ImportedMediaCounts::default();
+    for asset in media_assets {
+        let mut source_file_path = if PathBuf::from(&asset.rel_path).is_absolute() {
+            PathBuf::from(&asset.rel_path)
+        } else {
+            source.base_dir.join(&asset.rel_path)
+        };
+        if !source_file_path.exists() {
+            if let Some(found) = find_media_asset_file(&source.base_dir, &source.pmp_path, &asset.sha256) {
+                source_file_path = found;
+            } else {
+                counts.skipped_media_assets += 1;
+                continue;
+            }
+        }
+
+        let bytes = fs::read(&source_file_path)
+            .map_err(|e| format!("Failed to read source media asset {}: {e}", source_file_path.display()))?;
+        let new_asset_id = uuid::Uuid::new_v4().to_string();
+        let rel_path = next_imported_media_rel_path(
+            tx,
+            target_project_id,
+            target_pmp_path,
+            &source.project_name,
+            &asset.sha256,
+            &asset.mime_type,
+        )?;
+        let target_path = target_base_dir.join(&rel_path);
+        if let Some(parent) = target_path.parent() {
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create imported media directory: {e}"))?;
+        }
+        fs::write(&target_path, &bytes)
+            .map_err(|e| format!("Failed to copy imported media asset: {e}"))?;
+        tx.execute(
+            "INSERT INTO media_assets (id, project_id, sha256, rel_path, mime_type, byte_size, width, height)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                &new_asset_id,
+                target_project_id,
+                &asset.sha256,
+                &rel_path,
+                &asset.mime_type,
+                asset.byte_size,
+                asset.width,
+                asset.height,
+            ],
+        )
+        .map_err(|e| format!("Failed to import media asset {}: {e}", asset.asset_id))?;
+
+        for link in asset.links {
+            let Some(mapped_feature_id) = feature_id_map.get(&link.feature_id) else {
+                continue;
+            };
+            tx.execute(
+                "INSERT INTO feature_media (feature_id, asset_id, sort_order, is_primary)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![
+                    mapped_feature_id,
+                    &new_asset_id,
+                    link.sort_order,
+                    if link.is_primary { 1 } else { 0 },
+                ],
+            )
+            .map_err(|e| {
+                format!(
+                    "Failed to link imported media asset {} to source feature {}: {e}",
+                    asset.asset_id, link.feature_id
+                )
+            })?;
+        }
+
+        counts.imported_media_assets += 1;
+    }
+    Ok(counts)
+}
+
+fn collect_source_media_assets(
+    source_conn: &Connection,
+    source_project_id: &str,
+) -> Result<Vec<SourceMediaAssetRecord>, String> {
+    let mut stmt = source_conn
+        .prepare(
+            "SELECT ma.id, ma.sha256, ma.rel_path, ma.mime_type, ma.byte_size, ma.width, ma.height,
+                    fm.feature_id, fm.sort_order, fm.is_primary
+             FROM media_assets ma
+             JOIN feature_media fm ON fm.asset_id = ma.id
+             JOIN features f ON f.id = fm.feature_id
+             WHERE ma.project_id = ?1 AND f.project_id = ?1
+             ORDER BY ma.id, fm.sort_order, fm.asset_id",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![source_project_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, i64>(4)?,
+                row.get::<_, Option<i64>>(5)?,
+                row.get::<_, Option<i64>>(6)?,
+                row.get::<_, String>(7)?,
+                row.get::<_, i64>(8)?,
+                row.get::<_, i64>(9)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut by_asset: HashMap<String, SourceMediaAssetRecord> = HashMap::new();
+    for row in rows {
+        let (
+            asset_id,
+            sha256,
+            rel_path,
+            mime_type,
+            byte_size,
+            width,
+            height,
+            feature_id,
+            sort_order,
+            is_primary,
+        ) = row.map_err(|e| e.to_string())?;
+        let entry = by_asset
+            .entry(asset_id.clone())
+            .or_insert_with(|| SourceMediaAssetRecord {
+                asset_id: asset_id.clone(),
+                sha256,
+                rel_path,
+                mime_type,
+                byte_size,
+                width,
+                height,
+                links: Vec::new(),
+            });
+        entry.links.push(SourceMediaAssetLink {
+            feature_id,
+            sort_order,
+            is_primary: is_primary != 0,
+        });
+    }
+
+    Ok(by_asset.into_values().collect())
+}
+
+fn normalize_json_object_text(value: Option<String>) -> String {
+    let Some(text) = value else {
+        return "{}".to_string();
+    };
+    let trimmed = text.trim();
+    if trimmed.is_empty() || trimmed == "null" || trimmed == "undefined" {
+        return "{}".to_string();
+    }
+    if let Ok(parsed) = serde_json::from_str::<Value>(trimmed) {
+        if parsed.is_object() {
+            return parsed.to_string();
+        }
+        return json!({}).to_string();
+    }
+    "{}".to_string()
+}
+
+fn rewrite_imported_feature_metadata(
+    metadata_json: Option<&str>,
+    feature_id_map: &HashMap<String, String>,
+) -> String {
+    let parsed = metadata_json
+        .and_then(|text| serde_json::from_str::<Value>(text).ok())
+        .unwrap_or_else(|| json!({}));
+    let mut metadata = if parsed.is_object() { parsed } else { json!({}) };
+    rewrite_feature_reference_values(&mut metadata, feature_id_map);
+    if let Some(media) = metadata.get_mut("media").and_then(Value::as_object_mut) {
+        media.remove("imageAssetIds");
+        media.remove("primaryImageAssetId");
+        media.remove("imageUrls");
+        media.remove("imageUrl");
+    }
+    metadata.to_string()
+}
+
+fn rewrite_feature_reference_values(value: &mut Value, feature_id_map: &HashMap<String, String>) {
+    match value {
+        Value::Object(map) => {
+            for (key, child) in map.iter_mut() {
+                match key.as_str() {
+                    "parent_feature_id" | "start_node_id" | "end_node_id" | "from_feature_id"
+                    | "to_feature_id" => {
+                        if let Some(old_id) = child.as_str() {
+                            if let Some(new_id) = feature_id_map.get(old_id) {
+                                *child = json!(new_id);
+                            }
+                        }
+                    }
+                    "snap_links" => {
+                        if let Some(links) = child.as_object_mut() {
+                            for (_, link_value) in links.iter_mut() {
+                                if let Some(old_id) = link_value.as_str() {
+                                    if let Some(new_id) = feature_id_map.get(old_id) {
+                                        *link_value = json!(new_id);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    "from_endpoint" | "to_endpoint" => {
+                        if let Some(endpoint) = child.as_object_mut() {
+                            let is_feature = endpoint
+                                .get("type")
+                                .and_then(Value::as_str)
+                                .map(|value| value == "feature")
+                                .unwrap_or(false);
+                            if is_feature {
+                                if let Some(old_id) = endpoint.get("id").and_then(Value::as_str) {
+                                    if let Some(new_id) = feature_id_map.get(old_id) {
+                                        endpoint.insert("id".to_string(), json!(new_id));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => rewrite_feature_reference_values(child, feature_id_map),
+                }
+            }
+        }
+        Value::Array(items) => {
+            for item in items.iter_mut() {
+                rewrite_feature_reference_values(item, feature_id_map);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn next_imported_media_rel_path(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    target_pmp_path: &Path,
+    source_project_name: &str,
+    sha256: &str,
+    mime_type: &str,
+) -> Result<String, String> {
+    let assets_root = target_pmp_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .map(ToString::to_string)
+        .unwrap_or_else(|| "project".to_string());
+    let extension = extension_for_mime(mime_type);
+    let import_segment = safe_path_segment(source_project_name, project_id);
+    let base_rel = PathBuf::from(format!("{assets_root}.assets"))
+        .join("imported-pmp")
+        .join(import_segment)
+        .join(format!("{sha256}.{extension}"));
+    let mut attempt = 0_i64;
+    loop {
+        let candidate = if attempt == 0 {
+            base_rel.clone()
+        } else {
+            let stem = format!("{sha256}-{attempt}.{extension}");
+            PathBuf::from(format!("{assets_root}.assets"))
+                .join("imported-pmp")
+                .join(safe_path_segment(source_project_name, project_id))
+                .join(stem)
+        };
+        let candidate_text = candidate.to_string_lossy().to_string();
+        let exists: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM media_assets WHERE project_id = ?1 AND rel_path = ?2",
+                params![project_id, &candidate_text],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if exists == 0 {
+            return Ok(candidate_text);
+        }
+        attempt += 1;
     }
 }
 
@@ -2784,6 +3651,103 @@ mod tests {
     use tokio::sync::oneshot;
     use uuid::Uuid;
 
+    fn seed_basic_project(conn: &Connection, project_id: &str, name: &str) {
+        conn.execute(
+            "INSERT INTO projects (id, name, title) VALUES (?1, ?2, ?3)",
+            params![project_id, name, name],
+        )
+        .expect("seed project");
+    }
+
+    fn seed_source_design_with_media(db: &mut PmpDatabase, project_id: &str) -> String {
+        seed_basic_project(&db.conn, project_id, "Source Project");
+        db.conn
+            .execute(
+                "INSERT INTO regions (id, project_id, parent_id, name, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params!["region-1", project_id, Option::<String>::None, "Region A", "{}"],
+            )
+            .expect("source region");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, region_id, name, is_visible, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params!["layer-1", project_id, "region-1", "Layer A", 1, "{}"],
+            )
+            .expect("source layer");
+        db.conn
+            .execute(
+                "INSERT INTO feature_groups (id, project_id, layer_id, parent_id, name, group_type, is_visible, metadata_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params!["group-1", project_id, "layer-1", Option::<String>::None, "Group A", "default", 1, "{}"],
+            )
+            .expect("source group");
+        db.conn
+            .execute(
+                "INSERT INTO features (id, project_id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    "feature-parent",
+                    project_id,
+                    "layer-1",
+                    "group-1",
+                    "Node A",
+                    "Point",
+                    json!([105.0, 21.0]).to_string(),
+                    "{}",
+                    "{}"
+                ],
+            )
+            .expect("source parent feature");
+        db.conn
+            .execute(
+                "INSERT INTO features (id, project_id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    "feature-child",
+                    project_id,
+                    "layer-1",
+                    "group-1",
+                    "Node B",
+                    "Point",
+                    json!([105.1, 21.1]).to_string(),
+                    json!({"label": "B"}).to_string(),
+                    json!({
+                        "parent_feature_id": "feature-parent",
+                        "start_node_id": "feature-parent",
+                        "snap_links": { "v0": "feature-parent" },
+                        "network": {
+                            "from_feature_id": "feature-parent",
+                            "to_feature_id": "feature-parent",
+                            "from_endpoint": { "type": "feature", "id": "feature-parent" }
+                        }
+                    }).to_string()
+                ],
+            )
+            .expect("source child feature");
+
+        let tx = db.conn.transaction().expect("media tx");
+        let asset = persist_media_asset(
+            &tx,
+            &db.base_dir,
+            &db.pmp_path,
+            project_id,
+            Some("feature-child"),
+            b"import-image",
+            "image/png",
+        )
+        .expect("source media");
+        tx.commit().expect("media commit");
+        asset
+            .get("path")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .to_string()
+    }
+
+    fn make_worker(db: PmpDatabase) -> StorageWorker {
+        let (_tx, rx) = mpsc::channel(1);
+        StorageWorker { rx, db }
+    }
+
     #[tokio::test]
     async fn persists_project_state_and_reads_back_after_reopen() {
         let dir = tempdir().expect("tempdir");
@@ -2954,6 +3918,178 @@ mod tests {
             )
             .expect("feature count");
         assert_eq!(feature_count, 1);
+    }
+
+    #[test]
+    fn analyze_pmp_import_reports_counts() {
+        let dir = tempdir().expect("tempdir");
+        let source_path = dir.path().join("source_preview.pmp");
+        let mut source_db = PmpDatabase::open_or_create(source_path.clone()).expect("source db");
+        seed_source_design_with_media(&mut source_db, "source-project");
+
+        let target_path = dir.path().join("target_preview.pmp");
+        let target_db = PmpDatabase::open_or_create(target_path).expect("target db");
+        let worker = make_worker(target_db);
+
+        let preview = worker
+            .analyze_pmp_import(&source_path)
+            .expect("analyze import");
+
+        assert_eq!(
+            preview.get("sourceProjectName").and_then(Value::as_str),
+            Some("Source Project")
+        );
+        assert_eq!(preview.get("regions").and_then(Value::as_i64), Some(1));
+        assert_eq!(preview.get("layers").and_then(Value::as_i64), Some(1));
+        assert_eq!(preview.get("groups").and_then(Value::as_i64), Some(1));
+        assert_eq!(preview.get("features").and_then(Value::as_i64), Some(2));
+        assert_eq!(preview.get("mediaAssets").and_then(Value::as_i64), Some(1));
+    }
+
+    #[test]
+    fn import_pmp_into_project_merges_design_and_media_with_remapped_ids() {
+        let dir = tempdir().expect("tempdir");
+        let source_path = dir.path().join("source_import.pmp");
+        let mut source_db = PmpDatabase::open_or_create(source_path.clone()).expect("source db");
+        seed_source_design_with_media(&mut source_db, "source-project");
+
+        let target_path = dir.path().join("target_import.pmp");
+        let target_db = PmpDatabase::open_or_create(target_path).expect("target db");
+        seed_basic_project(&target_db.conn, "target-project", "Target Project");
+        target_db
+            .conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name, metadata_json) VALUES (?1, ?2, ?3, ?4)",
+                params!["layer-1", "target-project", "Existing Layer", "{}"],
+            )
+            .expect("existing target layer");
+        target_db
+            .conn
+            .execute(
+                "INSERT INTO features (id, project_id, layer_id, name, geom_type, properties_json, metadata_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params!["feature-parent", "target-project", "layer-1", "Existing Feature", "Point", "{}", "{}"],
+            )
+            .expect("existing target feature");
+
+        let mut worker = make_worker(target_db);
+        let result = worker
+            .import_pmp_into_project(&source_path, "target-project")
+            .expect("import pmp");
+
+        assert_eq!(result.get("importedRegions").and_then(Value::as_i64), Some(1));
+        assert_eq!(result.get("importedLayers").and_then(Value::as_i64), Some(1));
+        assert_eq!(result.get("importedGroups").and_then(Value::as_i64), Some(1));
+        assert_eq!(result.get("importedFeatures").and_then(Value::as_i64), Some(2));
+        assert_eq!(result.get("importedMediaAssets").and_then(Value::as_i64), Some(1));
+        assert_eq!(result.get("skippedMediaAssets").and_then(Value::as_i64), Some(0));
+
+        let feature_count: i64 = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM features WHERE project_id = ?1",
+                params!["target-project"],
+                |row| row.get(0),
+            )
+            .expect("feature count");
+        assert_eq!(feature_count, 3);
+
+        let imported_child: (String, String) = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT id, metadata_json FROM features WHERE project_id = ?1 AND name = 'Node B' LIMIT 1",
+                params!["target-project"],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("imported child");
+        assert_ne!(imported_child.0, "feature-child");
+        let imported_child_meta: Value =
+            serde_json::from_str(&imported_child.1).expect("imported child metadata");
+        let imported_parent_id = imported_child_meta
+            .get("parent_feature_id")
+            .and_then(Value::as_str)
+            .expect("parent remap");
+        assert_ne!(imported_parent_id, "feature-parent");
+
+        let imported_parent_name: String = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT name FROM features WHERE id = ?1",
+                params![imported_parent_id],
+                |row| row.get(0),
+            )
+            .expect("imported parent lookup");
+        assert_eq!(imported_parent_name, "Node A");
+
+        let media_count: i64 = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM media_assets WHERE project_id = ?1",
+                params!["target-project"],
+                |row| row.get(0),
+            )
+            .expect("media count");
+        assert_eq!(media_count, 1);
+
+        let target_metadata_text: String = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT metadata_json FROM features WHERE id = ?1",
+                params![imported_child.0],
+                |row| row.get(0),
+            )
+            .expect("target metadata");
+        let target_metadata: Value =
+            serde_json::from_str(&target_metadata_text).expect("target metadata json");
+        let image_asset_id = target_metadata
+            .get("media")
+            .and_then(|media| media.get("imageAssetIds"))
+            .and_then(Value::as_array)
+            .and_then(|items| items.first())
+            .and_then(Value::as_str)
+            .expect("linked asset");
+        assert!(!image_asset_id.is_empty());
+    }
+
+    #[test]
+    fn import_pmp_into_project_rejects_same_active_database_path() {
+        let dir = tempdir().expect("tempdir");
+        let target_path = dir.path().join("same_path.pmp");
+        let target_db = PmpDatabase::open_or_create(target_path.clone()).expect("target db");
+        seed_basic_project(&target_db.conn, "target-project", "Target Project");
+
+        let mut worker = make_worker(target_db);
+        let error = worker
+            .import_pmp_into_project(&target_path, "target-project")
+            .expect_err("should reject self import");
+        assert!(error.contains("currently opened .pmp"));
+    }
+
+    #[test]
+    fn import_pmp_into_project_skips_missing_media_files() {
+        let dir = tempdir().expect("tempdir");
+        let source_path = dir.path().join("source_missing_media.pmp");
+        let mut source_db = PmpDatabase::open_or_create(source_path.clone()).expect("source db");
+        let media_path = seed_source_design_with_media(&mut source_db, "source-project");
+        fs::remove_file(&media_path).expect("remove media file");
+
+        let target_path = dir.path().join("target_missing_media.pmp");
+        let target_db = PmpDatabase::open_or_create(target_path).expect("target db");
+        seed_basic_project(&target_db.conn, "target-project", "Target Project");
+
+        let mut worker = make_worker(target_db);
+        let result = worker
+            .import_pmp_into_project(&source_path, "target-project")
+            .expect("import pmp");
+
+        assert_eq!(result.get("importedFeatures").and_then(Value::as_i64), Some(2));
+        assert_eq!(result.get("importedMediaAssets").and_then(Value::as_i64), Some(0));
+        assert_eq!(result.get("skippedMediaAssets").and_then(Value::as_i64), Some(1));
     }
 
     #[test]

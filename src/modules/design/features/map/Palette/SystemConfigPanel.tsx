@@ -156,7 +156,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
       >
         <div className="flex items-center gap-2">
           <Settings className="h-3.5 w-3.5 text-cad-accent" />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-300">Cau hinh he thong</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-300">Cấu hình hệ thống</span>
           {(isDirty || isSaving || showSuccess) && (
             <div className={`h-1.5 w-1.5 rounded-full ${showSuccess ? 'bg-green-500' : 'bg-cad-accent'} animate-pulse`} />
           )}
@@ -182,13 +182,13 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
         <section className="space-y-3">
           <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
             <Ruler className="h-3.5 w-3.5 text-blue-400" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Thong so mac dinh du an</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Thông số mặc định dự án</span>
             <div className="ml-2 h-px flex-1 bg-[#333]" />
           </div>
 
           <div className="grid gap-3 rounded-lg border border-[#222] bg-[#101419] p-3 md:grid-cols-2">
             <label className="space-y-1">
-              <span className="text-[9px] font-bold uppercase tracking-tight text-cad-text-secondary">Chieu cao lap dat mac dinh (m)</span>
+              <span className="text-[9px] font-bold uppercase tracking-tight text-cad-text-secondary">Chiều cao lắp đặt mặc định (m)</span>
               <input
                 type="number"
                 value={localSettings.default_install_height}
@@ -198,7 +198,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
             </label>
 
             <div className="rounded border border-cad-accent/20 bg-cad-accent/5 p-3 text-[10px] text-cad-text-secondary">
-              Thong so nay se duoc ap dung khi tao doi tuong moi neu khong chon gia tri rieng.
+              Thông số này sẽ được áp dụng khi tạo đối tượng mới nếu không chọn giá trị riêng.
             </div>
           </div>
         </section>
@@ -206,7 +206,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
         <section className="mt-6 space-y-4">
           <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
             <Grid3X3 className="h-3.5 w-3.5 text-green-400" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Database mau theo doi tuong</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Database mẫu theo đối tượng</span>
             <div className="ml-2 h-px flex-1 bg-[#333]" />
           </div>
 
@@ -330,7 +330,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
         <section className="mt-6 space-y-4">
           <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
             <Camera className="h-3.5 w-3.5 text-green-400" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Thong so mau camera</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Thông số mẫu camera</span>
             <div className="ml-2 h-px flex-1 bg-[#333]" />
           </div>
           <div className="space-y-4 rounded-lg border border-[#222] bg-[#101419] p-3">
@@ -342,7 +342,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   <label className="space-y-1">
-                    <span className="text-[9px] font-bold uppercase tracking-tight text-cad-text-secondary">Tieu cu (mm)</span>
+                    <span className="text-[9px] font-bold uppercase tracking-tight text-cad-text-secondary">Tiêu cự (mm)</span>
                     <input
                       type="number"
                       step="0.1"
@@ -352,7 +352,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                     />
                   </label>
                   <label className="space-y-1">
-                    <span className="text-[9px] font-bold uppercase tracking-tight text-cad-text-secondary">Cam bien</span>
+                    <span className="text-[9px] font-bold uppercase tracking-tight text-cad-text-secondary">Cảm biến</span>
                     <input
                       value={preset.sensor_size}
                       onChange={(e) => updateCameraPreset(presetId, 'sensor_size', e.target.value)}
@@ -390,7 +390,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
             onClick={onClose}
             className="flex-1 rounded border border-[#444] bg-transparent py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 transition-all hover:border-gray-400 hover:text-white active:scale-95"
           >
-            Huy
+            Hủy
           </button>
         )}
         <button
@@ -403,7 +403,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
               : 'cursor-not-allowed bg-white/5 text-gray-500 opacity-50'
             }`}
         >
-          {showSuccess ? <><Check size={14} /> Da luu</> : isSaving ? <><div className="h-3 w-3 animate-spin rounded-full border-2 border-black/30 border-t-black" /> Dang luu...</> : <><Save size={14} /> Luu cau hinh</>}
+          {showSuccess ? <><Check size={14} /> Đã lưu</> : isSaving ? <><div className="h-3 w-3 animate-spin rounded-full border-2 border-black/30 border-t-black" /> Đang lưu...</> : <><Save size={14} /> Lưu cấu hình</>}
         </button>
       </div>
     </div>

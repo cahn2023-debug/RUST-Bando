@@ -82,7 +82,7 @@ const withMediaAssets = (metadata: FeatureMetadata, assetIds: string[]): Feature
 };
 
 const getOrderFieldLabel = (metadata: Record<string, unknown>, properties?: FeatureProperties): string =>
-  getDeclaredOrderFieldKey(metadata, properties as Record<string, unknown> | undefined) || 'MÃ£ hiá»‡u (STT)';
+  getDeclaredOrderFieldKey(metadata, properties as Record<string, unknown> | undefined) || 'Mã hiệu (STT)';
 
 const isLineGeometry = (geomType?: string | null): boolean => {
   const normalized = safeString(geomType).toLowerCase();
@@ -266,7 +266,7 @@ const drawAssetStamp = (ctx: CanvasRenderingContext2D, point: DragPoint, stamp: 
     ctx.arc(x - 8 * scale, y, 7 * scale, 0, Math.PI * 2);
     ctx.stroke();
     ctx.font = `bold ${13 * scale}px sans-serif`;
-    ctx.fillText('Camera mÃ´ phá»ng', x - 34 * scale, y + 36 * scale);
+    ctx.fillText('Camera mô phỏng', x - 34 * scale, y + 36 * scale);
   }
 
   ctx.restore();
@@ -282,7 +282,7 @@ const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ imageUrl, imageInde
   const [strokeColor, setStrokeColor] = useState('#f97316');
   const [strokeWidth, setStrokeWidth] = useState(4);
   const [strokePattern, setStrokePattern] = useState<StrokePattern>('solid');
-  const [textValue, setTextValue] = useState('Ghi chÃº');
+  const [textValue, setTextValue] = useState('Ghi chú');
   const [textSize, setTextSize] = useState(28);
   const [pendingTextPoint, setPendingTextPoint] = useState<DragPoint | null>(null);
   const [assetStamp, setAssetStamp] = useState<AssetStamp>('pole-4m');
@@ -632,20 +632,20 @@ const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ imageUrl, imageInde
           </button>
           <button onClick={applyCrop} disabled={!cropRect} className="px-3 py-2 rounded bg-[#111] border border-[#333] text-[10px] font-black uppercase text-[#aaa] hover:text-white disabled:opacity-40">Apply crop</button>
           <select aria-label="Stroke pattern" value={strokePattern} onChange={e => setStrokePattern(e.target.value as StrokePattern)} className="bg-[#111] border border-[#333] rounded px-2 py-2 text-xs text-white outline-none">
-            <option value="solid">NÃ©t liá»n</option>
-            <option value="dashed">NÃ©t Ä‘á»©t</option>
-            <option value="dashdot">Cháº¥m gáº¡ch</option>
-            <option value="dotted">NÃ©t cháº¥m</option>
+            <option value="solid">Nét liền</option>
+            <option value="dashed">Nét đứt</option>
+            <option value="dashdot">Chấm gạch</option>
+            <option value="dotted">Nét chấm</option>
             <option value="zigzag">Zigzag</option>
           </select>
           <input aria-label="Stroke color" type="color" value={strokeColor} onChange={e => setStrokeColor(e.target.value)} className="h-9 w-10 bg-[#111] border border-[#333] rounded" />
           <input aria-label="Stroke width" type="range" min={1} max={18} value={strokeWidth} onChange={e => setStrokeWidth(Number(e.target.value))} className="w-24" />
           <select aria-label="Asset stamp" value={assetStamp} onChange={e => setAssetStamp(e.target.value as AssetStamp)} className="bg-[#111] border border-[#333] rounded px-2 py-2 text-xs text-white outline-none">
-            <option value="pole-4m">Cá»™t 6m tay vÆ°Æ¡n 4m</option>
-            <option value="pole-6m">Cá»™t 6m tay vÆ°Æ¡n 6m</option>
-            <option value="pole-8m">Cá»™t 6m tay vÆ°Æ¡n 8m</option>
-            <option value="cabinet-300x520">Tá»§ 300x520</option>
-            <option value="camera-sim">Camera mÃ´ phá»ng</option>
+            <option value="pole-4m">Cột 6m tay vươn 4m</option>
+            <option value="pole-6m">Cột 6m tay vươn 6m</option>
+            <option value="pole-8m">Cột 6m tay vươn 8m</option>
+            <option value="cabinet-300x520">Tủ 300x520</option>
+            <option value="camera-sim">Camera mô phỏng</option>
           </select>
           <input aria-label="Text size" type="number" min={10} max={120} value={textSize} onChange={e => setTextSize(Number(e.target.value))} className="w-20 bg-[#111] border border-[#333] rounded px-2 py-2 text-xs text-white outline-none" />
           <input
@@ -927,7 +927,7 @@ export const PropertyPanel: React.FC = () => {
   const appendImageUrls = async (dataUrls: string[]) => {
     if (dataUrls.length === 0) return;
     if (!feature || !projectId) {
-      setMediaImportError('KhÃ´ng thá»ƒ lÆ°u áº£nh khi thiáº¿u project hoáº·c Ä‘á»‘i tÆ°á»£ng.');
+      setMediaImportError('Không thể lưu ảnh khi thiếu project hoặc đối tượng.');
       return;
     }
 
@@ -967,7 +967,7 @@ export const PropertyPanel: React.FC = () => {
           }
         })
       );
-      setMediaImportError('KhÃ´ng thá»ƒ lÆ°u áº£nh vÃ o thÆ° má»¥c dá»± Ã¡n. Vui lÃ²ng thá»­ láº¡i.');
+      setMediaImportError('Không thể lưu ảnh vào thư mục dự án. Vui lòng thử lại.');
       throw error;
     } finally {
       setIsImportingMedia(false);
@@ -1163,7 +1163,7 @@ export const PropertyPanel: React.FC = () => {
     },
     watermarkData: {
       location: feature ? (getPointCoordinates(feature) ?? undefined) : undefined,
-      label: localName || 'Äá»‘i tÆ°á»£ng kháº£o sÃ¡t'
+      label: localName || 'Đối tượng khảo sát'
     }
   });
 
@@ -1174,11 +1174,11 @@ export const PropertyPanel: React.FC = () => {
         const meta = getParsedMetadata(feature);
         const normalized = normalizeMetadataObject(meta);
 
-        // Cáº­p nháº­t tÃªn (lÃ m sáº¡ch STT náº¿u cÃ³)
+        // Cập nhật tên (làm sạch STT nếu có)
         const sttValue = asStringValue(normalized.display_order ?? normalized.stt ?? normalized.STT);
         setLocalName(getCleanName(feature, sttValue));
 
-        // Cáº­p nháº­t metadata
+        // Cập nhật metadata
         setLocalMeta(normalized);
       } catch (e) {
         setLocalName(safeString(feature.name) || '');
@@ -1282,7 +1282,7 @@ export const PropertyPanel: React.FC = () => {
       setPreview(null, null);
     } catch (error) {
       void error;
-      alert("Lá»—i khi lÆ°u dá»¯ liá»‡u. Vui lÃ²ng thá»­ láº¡i.");
+      alert("Lỗi khi lưu dữ liệu. Vui lòng thử lại.");
     } finally {
       setIsSaving(false);
     }
@@ -1320,7 +1320,7 @@ export const PropertyPanel: React.FC = () => {
         <div className="flex items-center justify-between w-full p-3 border-b border-[#333] bg-[#252525] drag-handle cursor-move" {...dragHandleProps}>
             <div className="flex items-center gap-2">
                 <Settings className="w-3.5 h-3.5 text-[#444]" />
-                <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÃ”NG Sá» THIáº¾T Káº¾</span>
+                <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÔNG SỐ THIẾT KẾ</span>
             </div>
             <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-[#333] hover:text-white transition-all rounded"><X size={12} /></button>
         </div>
@@ -1351,7 +1351,7 @@ export const PropertyPanel: React.FC = () => {
         <div className="flex items-center justify-between w-full p-3 border-b border-[#333] bg-[#252525] drag-handle cursor-move" {...dragHandleProps}>
             <div className="flex items-center gap-2">
                 <Settings className="w-3.5 h-3.5 text-[#444]" />
-                <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÃ”NG Sá» THIáº¾T Káº¾</span>
+                <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÔNG SỐ THIẾT KẾ</span>
             </div>
             <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-[#333] hover:text-white transition-all rounded"><X size={12} /></button>
         </div>
@@ -1372,7 +1372,7 @@ export const PropertyPanel: React.FC = () => {
   // Detect polyline type for specific metadata
   const polyType = asStringValue(
     getMetaValue('infrastructure.type'),
-    safeString(feature.name).toLowerCase().includes('Ä‘iá»‡n') ? 'PowerLine' : safeString(feature.name).toLowerCase().includes('cÃ¡p') ? 'SignalLine' : ''
+    safeString(feature.name).toLowerCase().includes('điện') ? 'PowerLine' : safeString(feature.name).toLowerCase().includes('cáp') ? 'SignalLine' : ''
   );
 
   return (
@@ -1419,13 +1419,13 @@ export const PropertyPanel: React.FC = () => {
           ) : (
             isPolyline ? <Route className="w-3.5 h-3.5 text-cad-accent" /> : <MapPin className="w-3.5 h-3.5 text-cad-accent" />
           )}
-          <h2 className="text-[10px] font-black tracking-widest uppercase text-cad-accent">THÃ”NG Sá» THIáº¾T Káº¾</h2>
+          <h2 className="text-[10px] font-black tracking-widest uppercase text-cad-accent">THÔNG SỐ THIẾT KẾ</h2>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={handleDelete}
             className="p-1 px-2 hover:bg-red-500/20 text-red-400 rounded transition-colors text-[9px] font-bold uppercase border border-red-500/10"
-            title="XÃ³a Ä‘á»‘i tÆ°á»£ng"
+            title="Xóa đối tượng"
           >
             Delete
           </button>
@@ -1438,7 +1438,7 @@ export const PropertyPanel: React.FC = () => {
                   ? "bg-amber-500/20 text-amber-400 border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.2)]"
                   : "hover:bg-[#333] text-cad-text-muted border-transparent"
               )}
-              title="Chá»‰nh sá»­a Ä‘iá»ƒm (Vertex Editing)"
+              title="Chỉnh sửa điểm (Vertex Editing)"
             >
               <div className="flex items-center gap-1">
                 <Pencil className={cn("w-3 h-3", editingFeatureId === feature.id ? "animate-pulse" : "")} />
@@ -1506,7 +1506,7 @@ export const PropertyPanel: React.FC = () => {
                     : 'border-[#333] bg-[#111] text-white hover:border-emerald-500/40 hover:bg-emerald-500/10'
                 )}
               >
-                {localMeta.network?.is_origin ? 'Bá» Ä‘iá»ƒm gá»‘c Network' : 'Äáº·t Ä‘iá»ƒm gá»‘c Network'}
+                {localMeta.network?.is_origin ? 'Bỏ điểm gốc Network' : 'Đặt điểm gốc Network'}
               </button>
             )}
 
@@ -1675,9 +1675,9 @@ export const PropertyPanel: React.FC = () => {
                 onChange={e => updateNestedMeta('infrastructure.type', e.target.value)}
               >
                 <option value="">Select Type...</option>
-                <option value="PowerLine">Power Line (LÆ°á»›i Ä‘iá»‡n)</option>
-                <option value="SignalLine">Signal / Fiber (ThÃ´ng tin)</option>
-                <option value="TrenchLine">Trench / Pipe (MÆ°Æ¡ng cÃ¡p)</option>
+                <option value="PowerLine">Power Line (Lưới điện)</option>
+                <option value="SignalLine">Signal / Fiber (Thông tin)</option>
+                <option value="TrenchLine">Trench / Pipe (Mương cáp)</option>
               </select>
             </div>
 
@@ -1971,8 +1971,8 @@ export const PropertyPanel: React.FC = () => {
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
-        title="XÃ³a Äá»‘i TÆ°á»£ng"
-        message={`Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a Ä‘á»‘i tÆ°á»£ng "${localName || feature.id}"? HÃ nh Ä‘á»™ng nÃ y khÃ´ng thá»ƒ hoÃ n tÃ¡c.`}
+        title="Xóa Đối Tượng"
+        message={`Bạn có chắc chắn muốn xóa đối tượng "${localName || feature.id}"? Hành động này không thể hoàn tác.`}
         itemName={localName || feature.id}
       />
       {editingImage && (

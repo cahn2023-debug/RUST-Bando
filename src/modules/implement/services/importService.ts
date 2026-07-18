@@ -40,6 +40,26 @@ export interface ImportMapping {
   order_column?: string;
 }
 
+export interface PmpImportPreview {
+  sourceProjectName: string;
+  regions: number;
+  layers: number;
+  groups: number;
+  features: number;
+  mediaAssets: number;
+  warnings: string[];
+}
+
+export interface PmpImportResult {
+  importedRegions: number;
+  importedLayers: number;
+  importedGroups: number;
+  importedFeatures: number;
+  importedMediaAssets: number;
+  skippedMediaAssets: number;
+  importedAt: string;
+}
+
 interface BuildFeatureCreatedEventsOptions {
   featuresById?: Record<string, FeatureState>;
   snapThreshold?: number;
@@ -47,7 +67,7 @@ interface BuildFeatureCreatedEventsOptions {
 
 type PointLikeCoordinate = [number, number];
 
-const DEFAULT_IMPORT_SNAP_THRESHOLD = 0.00002;
+const DEFAULT_IMPORT_SNAP_THRESHOLD = 0.00009;
 
 const ensureAbsolutePath = (filePath: string): string => {
   const normalized = filePath?.trim();
@@ -216,6 +236,24 @@ const enrichImportedLineFeature = (
     ...feature,
     metadata: nextMetadata,
   };
+};
+
+const preserveManualNetworkMetadata = (
+  importedMetadata: Record<string, unknown>,
+  existingMetadata: Record<string, unknown>
+) => {
+  const preservedMetadata: Record<string, unknown> = {
+    ...importedMetadata,
+    manual_override: true,
+  };
+
+  (['start_node_id', 'end_node_id', 'snap_links', 'network', 'infrastructure'] as const).forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(existingMetadata, key)) {
+      preservedMetadata[key] = existingMetadata[key];
+    }
+  });
+
+  return preservedMetadata;
 };
 
 const decodeBytes = (bytes: number[] | Uint8Array) => {
@@ -405,9 +443,22 @@ export const buildFeatureCreatedEvents = (
   const snapThreshold = options.snapThreshold ?? DEFAULT_IMPORT_SNAP_THRESHOLD;
 
   return importedFeatures.map((feature) => {
-    const enrichedFeature = feature.geom_type === 'LineString'
-      ? enrichImportedLineFeature(feature, featuresById, snapThreshold)
-      : feature;
+    let enrichedFeature = feature;
+    if (feature.geom_type === 'LineString') {
+      const existingFeature = options.featuresById?.[feature.id];
+      const existingMetadata = existingFeature ? getParsedMetadata(existingFeature) : null;
+      if (existingMetadata?.manual_override === true) {
+        enrichedFeature = {
+          ...feature,
+          metadata: preserveManualNetworkMetadata(
+            getParsedMetadata(feature) as FeatureMetadata & Record<string, unknown>,
+            existingMetadata
+          ),
+        };
+      } else {
+        enrichedFeature = enrichImportedLineFeature(feature, featuresById, snapThreshold);
+      }
+    }
 
     return {
       type: 'FeatureCreated',
@@ -476,6 +527,56 @@ export const importService = {
     }
 
     throw new Error(`Unsupported import format: ${extension}`);
+  },
+
+  async analyzePmpImport(filePath: string): Promise<PmpImportPreview> {
+    const normalizedPath = ensureAbsolutePath(filePath);
+    if (getFileExtension(normalizedPath) !== 'pmp') {
+      throw new Error('PMP import preview requires a .pmp file.');
+    }
+
+    const result = await invoke<PmpImportPreview>('analyze_pmp_import', {
+      sourcePath: normalizedPath,
+    });
+    if (!result || typeof result !== 'object') {
+      throw new Error('PMP import preview did not return usable data.');
+    }
+    return {
+      sourceProjectName: result.sourceProjectName || getFileName(normalizedPath),
+      regions: Number(result.regions || 0),
+      layers: Number(result.layers || 0),
+      groups: Number(result.groups || 0),
+      features: Number(result.features || 0),
+      mediaAssets: Number(result.mediaAssets || 0),
+      warnings: Array.isArray(result.warnings) ? result.warnings : [],
+    };
+  },
+
+  async importPmpIntoProject(filePath: string, targetProjectId: string): Promise<PmpImportResult> {
+    const normalizedPath = ensureAbsolutePath(filePath);
+    if (getFileExtension(normalizedPath) !== 'pmp') {
+      throw new Error('PMP import requires a .pmp file.');
+    }
+    if (!targetProjectId) {
+      throw new Error('Target project is missing for PMP import.');
+    }
+
+    const result = await invoke<PmpImportResult>('import_pmp_into_project', {
+      sourcePath: normalizedPath,
+      targetProjectId,
+    });
+    if (!result || typeof result !== 'object') {
+      throw new Error('PMP import did not return a usable result.');
+    }
+    return {
+      importedRegions: Number(result.importedRegions || 0),
+      importedLayers: Number(result.importedLayers || 0),
+      importedGroups: Number(result.importedGroups || 0),
+      importedFeatures: Number(result.importedFeatures || 0),
+      importedMediaAssets: Number(result.importedMediaAssets || 0),
+      skippedMediaAssets: Number(result.skippedMediaAssets || 0),
+      importedAt: String(result.importedAt || ''),
+    };
   }
 };
 

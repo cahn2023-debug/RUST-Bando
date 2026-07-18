@@ -126,6 +126,7 @@ export function useDrawingInteraction() {
             ...metadata,
             start_node_id: startSnapId,
             end_node_id: endSnapId,
+            manual_override: true,
         };
 
         const snapLinks = buildSnapLinks(workingSnapIds);

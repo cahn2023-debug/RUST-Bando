@@ -79,6 +79,30 @@ pub struct ImportFeatureRecord {
     pub properties: BTreeMap<String, String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PmpImportPreview {
+    pub source_project_name: String,
+    pub regions: i64,
+    pub layers: i64,
+    pub groups: i64,
+    pub features: i64,
+    pub media_assets: i64,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PmpImportResult {
+    pub imported_regions: i64,
+    pub imported_layers: i64,
+    pub imported_groups: i64,
+    pub imported_features: i64,
+    pub imported_media_assets: i64,
+    pub skipped_media_assets: i64,
+    pub imported_at: String,
+}
+
 fn ensure_absolute_path(path: &Path) -> Result<(), String> {
     if path.is_absolute() {
         return Ok(());
@@ -1950,6 +1974,50 @@ pub async fn import_media_asset(
             feature_id,
             data_url,
             file_path,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn analyze_pmp_import(
+    state: State<'_, ActorState>,
+    sourcePath: String,
+) -> Result<Value, String> {
+    let source_path = PathBuf::from(&sourcePath);
+    ensure_absolute_path(&source_path)?;
+    ensure_pmp_extension(&source_path)?;
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::AnalyzePmpImport {
+            source_path,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn import_pmp_into_project(
+    state: State<'_, ActorState>,
+    sourcePath: String,
+    targetProjectId: String,
+) -> Result<Value, String> {
+    let source_path = PathBuf::from(&sourcePath);
+    ensure_absolute_path(&source_path)?;
+    ensure_pmp_extension(&source_path)?;
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::ImportPmpIntoProject {
+            source_path,
+            target_project_id: targetProjectId,
             reply: tx,
         })
         .await

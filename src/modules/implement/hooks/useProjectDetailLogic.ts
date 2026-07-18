@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { safeInvoke, safeListen } from '@IMPLEMENT/lib/tauri';
 import {
   Project,
@@ -76,10 +76,10 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
       return;
     }
     try {
-      // âœ… DÃ¹ng utility queryProjection (V2 Bridge)
+      // ✅ Dùng utility queryProjection (V2 Bridge)
       const res = await queryProjection('bom_metadata', projectId);
 
-      // âœ… Optional chaining + fallback empty array
+      // ✅ Optional chaining + fallback empty array
       setGlobalBOMData(res?.bom_table ?? []);
 
       if (res?.metadata) {
@@ -159,7 +159,7 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
         const types = results[0].status === 'fulfilled' ? results[0].value : [];
 
         setContentTypes(types);
-        // logic xá»­ lÃ½ design state náº¿u cáº§n...
+        // logic xử lý design state nếu cần...
 
         loadBOM();
       } catch (err) {
@@ -173,12 +173,12 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
   const handleFileSelect = useCallback(
     async (path: string, name: string, extension?: string, activeTab?: string) => {
       if (
-        name === 'Báº£ng dá»¯ liá»‡u há»£p Ä‘á»“ng' ||
-        name === 'Tá»•ng há»£p chi tiáº¿t (Local)'
+        name === 'Bảng dữ liệu hợp đồng' ||
+        name === 'Tổng hợp chi tiết (Local)'
       ) {
         setAnalysisData(null);
         setSelectedFile({ name, type: 'excel', path });
-        setViewMode(name === 'Báº£ng dá»¯ liá»‡u há»£p Ä‘á»“ng' ? 'global-bom' : 'global-summary');
+        setViewMode(name === 'Bảng dữ liệu hợp đồng' ? 'global-bom' : 'global-summary');
         setAnalyzing(true);
         await loadBOM();
         setAnalyzing(false);
@@ -238,7 +238,7 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
         end_date: newData.end_date,
       });
     } catch (err) {
-      logger.error('Lá»—i Ä‘á»“ng bá»™ dá»¯ liá»‡u:', err);
+      logger.error('Lỗi đồng bộ dữ liệu:', err);
     } finally {
       setAnalyzing(false);
     }
@@ -266,9 +266,9 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
         }
         loadContracts();
         if (onProjectUpdate) onProjectUpdate();
-        logger.sync('ÄÃ£ Ä‘á»“ng bá»™ hÃ³a dá»¯ liá»‡u thÃ nh cÃ´ng!');
+        logger.sync('Đã đồng bộ hóa dữ liệu thành công!');
       } catch (err) {
-        logger.error('Lá»—i Ä‘á»“ng bá»™ dá»¯ liá»‡u:', err);
+        logger.error('Lỗi đồng bộ dữ liệu:', err);
       }
     },
     [projectId, selectedFile?.path, loadContracts, onProjectUpdate]
@@ -317,7 +317,7 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
         });
 
         if (onProjectUpdate) onProjectUpdate();
-        logger.sync('ÄÃ£ Ä‘á»“ng bá»™ hÃ³a dá»¯ liá»‡u dá»± Ã¡n thÃ nh cÃ´ng!');
+        logger.sync('Đã đồng bộ hóa dữ liệu dự án thành công!');
       } catch (err) {
         logger.error('Failed to update project metadata:', err);
         throw err;

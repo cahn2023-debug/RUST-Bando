@@ -20,11 +20,10 @@ interface CommonRibbonProps {
     onForceSave?: () => void;
 }
 
-export const HomeRibbonTools = ({ enableAi, setEnableAi, onReleaseAiMemory, onImport, onForceSave }: CommonRibbonProps & { onImport: () => void }) => (
+export const HomeRibbonTools = ({ enableAi, setEnableAi, onReleaseAiMemory, onForceSave }: CommonRibbonProps) => (
     <>
         <ToolGroup label="FILE SYSTEM">
             <ToolButton icon={Save} label="SAVE" onClick={onForceSave} />
-            <ToolButton icon={FolderUp} label="IMPORT" onClick={onImport} />
             <ToolButton icon={RefreshCw} label="SYNC" />
         </ToolGroup>
         <RibbonSeparator />
@@ -53,6 +52,7 @@ export const HomeRibbonTools = ({ enableAi, setEnableAi, onReleaseAiMemory, onIm
 
 export const DesignRibbonTools = ({
     enableAi, setEnableAi, onReleaseAiMemory,
+    onImport,
     undo, redo,
     showSystemConfig, setShowSystemConfig, systemConfigRef,
     togglePalette, activePaletteId,
@@ -60,6 +60,7 @@ export const DesignRibbonTools = ({
     toggleCoordinatePanel, isCoordinatePanelOpen,
     onOpenStandalone, onExport, onOpenReport
 }: CommonRibbonProps & {
+    onImport: () => void;
     undo: () => void; redo: () => void;
     showSystemConfig: boolean; setShowSystemConfig: (v: boolean) => void; systemConfigRef: React.RefObject<HTMLDivElement | null>;
     togglePalette: (id: string) => void; activePaletteId: string | null;
@@ -86,6 +87,7 @@ export const DesignRibbonTools = ({
     return (
     <>
         <ToolGroup label="HISTORY">
+            <ToolButton onClick={onImport} icon={FolderUp} label="IMPORT" />
             <ToolButton onClick={undo} icon={Undo2} label="UNDO" />
             <ToolButton onClick={redo} icon={Redo2} label="REDO" />
         </ToolGroup>

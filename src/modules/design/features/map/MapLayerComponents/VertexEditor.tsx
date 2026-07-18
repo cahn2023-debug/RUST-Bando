@@ -134,7 +134,7 @@ export const VertexEditor = () => {
 
             // ponytail: restrict SignalLine commit to intersection scope
             if (feature && isSignalLineFeature(feature)) {
-                const parentId = activeParentFeatureId || getParsedMetadata(feature).parent_feature_id;
+                const parentId = activeParentFeatureId || (getParsedMetadata(feature).parent_feature_id as string | undefined);
                 if (parentId) {
                     const scope = getIntersectionScope(parentId, state?.features || {});
                     if (scope) {
@@ -197,7 +197,7 @@ export const VertexEditor = () => {
 
                 // ponytail: restrict SignalLine commit to intersection scope
                 if (feature && isSignalLineFeature(feature)) {
-                    const parentId = activeParentFeatureId || getParsedMetadata(feature).parent_feature_id;
+                    const parentId = activeParentFeatureId || (getParsedMetadata(feature).parent_feature_id as string | undefined);
                     if (parentId) {
                         const scope = getIntersectionScope(parentId, state?.features || {});
                         if (scope) {

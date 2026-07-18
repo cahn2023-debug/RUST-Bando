@@ -68,7 +68,8 @@ export const isSignalLineFeature = (feature: FeatureState): boolean => {
     if (!feature) return false;
     const metadata = getParsedMetadata(feature);
     const geomType = (feature.geom_type || '').toLowerCase();
-    return geomType.includes('line') && metadata.infrastructure?.type === 'SignalLine';
+    const infra = metadata.infrastructure as Record<string, unknown> | undefined;
+    return geomType.includes('line') && infra?.type === 'SignalLine';
 };
 
 export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSlice> = (set, get) => ({
@@ -108,7 +109,7 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
 
         // ponytail: validate intersection scope boundary check for SignalLine edits
         if (isSignalLineFeature(feature)) {
-            const parentId = activeParentFeatureId || getParsedMetadata(feature).parent_feature_id;
+            const parentId = activeParentFeatureId || (getParsedMetadata(feature).parent_feature_id as string | undefined);
             if (parentId) {
                 const scope = getIntersectionScope(parentId, state.features);
                 if (scope) {
@@ -166,6 +167,13 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
         const currentMeta = { ...getParsedMetadata(feature) };
         let metaChanged = false;
         const isPolyline = (feature.geom_type || '').toUpperCase() === 'LINESTRING' || (feature.geom_type || '').toUpperCase() === 'POLYLINE';
+
+        if (isPolyline) {
+            if (currentMeta.manual_override !== true) {
+                currentMeta.manual_override = true;
+                metaChanged = true;
+            }
+        }
 
         if (isPolyline) {
             const isEndpoint = isPolylineEndpointIndex(feature, index);
@@ -248,7 +256,7 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
 
         // ponytail: validate intersection scope boundary check for SignalLine inserts
         if (isSignalLineFeature(feature)) {
-            const parentId = activeParentFeatureId || getParsedMetadata(feature).parent_feature_id;
+            const parentId = activeParentFeatureId || (getParsedMetadata(feature).parent_feature_id as string | undefined);
             if (parentId) {
                 const scope = getIntersectionScope(parentId, state.features);
                 if (scope && !isPointInPolygon([lng, lat], scope)) {
@@ -275,13 +283,22 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
             (newCoords as LineStringCoordinates).splice(index, 0, [lng, lat]);
         }
 
+        const isPolyline = (feature.geom_type || '').toUpperCase() === 'LINESTRING' || (feature.geom_type || '').toUpperCase() === 'POLYLINE';
+        const payload: any = {
+            id: editingFeatureId,
+            geom_type: feature.geom_type,
+            coordinates: newCoords
+        };
+        if (isPolyline) {
+            payload.metadata = JSON.stringify({
+                ...getParsedMetadata(feature),
+                manual_override: true
+            });
+        }
+
         await dispatchEvent({
             type: 'FeatureUpdated',
-            payload: {
-                id: editingFeatureId,
-                geom_type: feature.geom_type,
-                coordinates: newCoords
-            }
+            payload
         });
     },
 
@@ -311,13 +328,22 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
             (newCoords as LineStringCoordinates).splice(index, 1);
         }
 
+        const isPolyline = (feature.geom_type || '').toUpperCase() === 'LINESTRING' || (feature.geom_type || '').toUpperCase() === 'POLYLINE';
+        const payload: any = {
+            id: editingFeatureId,
+            geom_type: feature.geom_type,
+            coordinates: newCoords
+        };
+        if (isPolyline) {
+            payload.metadata = JSON.stringify({
+                ...getParsedMetadata(feature),
+                manual_override: true
+            });
+        }
+
         await dispatchEvent({
             type: 'FeatureUpdated',
-            payload: {
-                id: editingFeatureId,
-                geom_type: feature.geom_type,
-                coordinates: newCoords
-            }
+            payload
         });
     }
 });
