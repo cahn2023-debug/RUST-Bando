@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand';
 import { InitializationSlice, DesignSyncStore } from './types';
 import { safeInvoke as invoke } from '../../../../implement/lib/tauri';
-import { emit, listen } from '@tauri-apps/api/event';
+import { listen } from '@tauri-apps/api/event';
 import { logger } from '../../../../tool/utils/logger';
 import {
     incrementInitializeRequestId,
@@ -232,7 +232,6 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             // All data is visible by default. Only hide when user clicks the eye icon.
             // mapHiddenIds starts empty - only populated by user actions
 
-            emit('sync-map-state', { state, source: 'initial-load' });
             await get().syncDisplayOrderWithSTT();
             console.log(`[Store] Hydration and Display Sync complete for project: ${projectId}`);
 

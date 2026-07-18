@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { safeInvoke } from '../lib/tauri';
 import { useDesignSync } from './useDesignSync';
 
 // Mock Tauri APIs
@@ -11,6 +12,10 @@ vi.mock('@tauri-apps/api/event', () => ({
     listen: vi.fn(),
 }));
 
+vi.mock('../lib/tauri', () => ({
+    safeInvoke: vi.fn(),
+}));
+
 vi.mock('../lib/firestoreSync', () => ({
     pushStateToFirestore: vi.fn(),
     subscribeToProjectState: vi.fn(),
@@ -21,8 +26,14 @@ vi.mock('../lib/firestoreSync', () => ({
 
 describe('useDesignSync Store', () => {
     beforeEach(() => {
+        vi.useRealTimers();
+        vi.mocked(safeInvoke).mockReset();
         // Reset store state if needed, though zustand keeps state across tests if not handled
         useDesignSync.setState({
+            projectId: null,
+            projectKey: null,
+            state: null,
+            pendingSync: false,
             drawingMode: 'none',
             currentDrawingPoints: [],
             snappedPoint: null,
@@ -93,5 +104,80 @@ describe('useDesignSync Store', () => {
 
         useDesignSync.getState().selectFeature(null);
         expect(useDesignSync.getState().selectedFeatureId).toBe('f1'); // Should NOT be null
+    });
+
+    it('should batch queued persists and resolve every caller', async () => {
+        vi.useFakeTimers();
+        vi.mocked(safeInvoke).mockResolvedValue({
+            success: true,
+            last_event_id: 'evt-2',
+            applied_events: [],
+            side_effects: [],
+        });
+
+        useDesignSync.setState({
+            projectId: 'project-1',
+            projectKey: 'id:project-1',
+            state: {
+                regions: {},
+                layers: {},
+                feature_groups: {},
+                features: {},
+                settings: {},
+            },
+        });
+
+        const first = useDesignSync.getState().queueEvent({
+            type: 'SettingsUpdated',
+            payload: { settings: { a: 1 } },
+        });
+        const second = useDesignSync.getState().queueEvent({
+            type: 'SettingsUpdated',
+            payload: { settings: { b: 2 } },
+        });
+
+        expect(safeInvoke).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(150);
+        await Promise.all([first, second]);
+
+        expect(safeInvoke).toHaveBeenCalledTimes(1);
+        const [, args] = vi.mocked(safeInvoke).mock.calls[0];
+        expect((args as any).events).toHaveLength(2);
+        expect(useDesignSync.getState().pendingSync).toBe(false);
+    });
+
+    it('should flush queued persists immediately', async () => {
+        vi.useFakeTimers();
+        vi.mocked(safeInvoke).mockResolvedValue({
+            success: true,
+            last_event_id: 'evt-1',
+            applied_events: [],
+            side_effects: [],
+        });
+
+        useDesignSync.setState({
+            projectId: 'project-1',
+            projectKey: 'id:project-1',
+            state: {
+                regions: {},
+                layers: {},
+                feature_groups: {},
+                features: {},
+                settings: {},
+            },
+        });
+
+        const pending = useDesignSync.getState().queueEvent({
+            type: 'SettingsUpdated',
+            payload: { settings: { flushed: true } },
+        });
+
+        await useDesignSync.getState().flushPendingPersists();
+        await pending;
+
+        expect(safeInvoke).toHaveBeenCalledTimes(1);
+        const [, args] = vi.mocked(safeInvoke).mock.calls[0];
+        expect((args as any).events).toHaveLength(1);
+        expect(useDesignSync.getState().pendingSync).toBe(false);
     });
 });

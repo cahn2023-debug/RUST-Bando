@@ -3,11 +3,6 @@ import { BincodeDecoder } from './bincodeDecoder';
 import { MapState } from '@CONTRACT/types';
 import { DesignBulkActionResponse } from '@CONTRACT/designTypes';
 
-export const WINDOW_SYNC_SOURCE_ID =
-  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `window-${Math.random().toString(36).slice(2)}`;
-
 let latestInitializeRequestId = 0;
 export const getLatestInitializeRequestId = () => latestInitializeRequestId;
 export const incrementInitializeRequestId = () => ++latestInitializeRequestId;
@@ -210,13 +205,6 @@ export const invoke_design_event_batch = async (
   };
 
   return attempt(retryCount);
-};
-
-export const savePalettePersist = async (
-  projectId: string | number,
-  events: any[]
-): Promise<DesignBulkActionResponse> => {
-  return await invoke_design_event_batch(projectId, events);
 };
 
 export const loadDesignState = async (projectId: string): Promise<any | null> => {

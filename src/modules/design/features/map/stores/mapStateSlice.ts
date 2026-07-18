@@ -7,6 +7,7 @@ import { normalizeMapStateForDisplay } from '../../../../tool/utils/normalizeDis
 
 
 const UPDATE_THROTTLE_MS = 100;
+const IS_DEV = import.meta.env.DEV;
 let inboundUpdateTimer: any = null;
 let inboundStateBuffer: MapState | null = null;
 let lastUpdateTimestamp = 0;
@@ -127,7 +128,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 case 'FeatureCreated':
                 case 'FeatureUpdated':
                     const currentFeature = newState.features[payload.id];
-                    if (type === 'FeatureUpdated') {
+                    if (IS_DEV && type === 'FeatureUpdated') {
                         console.groupCollapsed(`[Sync] applyPatchToState FeatureUpdated ${payload.id}`);
                         console.log('incoming payload:', payload);
                         console.log('before metadata:', currentFeature?.metadata);
@@ -222,7 +223,9 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         const normalizedState = normalizeMapStateForDisplay(newState);
         set({ state: normalizedState });
-        console.log(`[Sync] ✅ Patch applied for ${normalizedState.lastEventId}`);
+        if (IS_DEV) {
+            console.log(`[Sync] Patch applied for ${normalizedState.lastEventId}`);
+        }
     },
 
     applyQueuedAckToState: (response) => {
@@ -236,7 +239,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
             switch (type) {
                 case 'FeatureCreated':
                 case 'FeatureUpdated':
-                    if (type === 'FeatureUpdated') {
+                    if (IS_DEV && type === 'FeatureUpdated') {
                         console.groupCollapsed(`[Sync] applyQueuedAckToState FeatureUpdated ${payload.id}`);
                         console.log('incoming payload:', payload);
                         console.log('before metadata:', newState.features[payload.id]?.metadata);
@@ -319,7 +322,9 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         const normalizedState = normalizeMapStateForDisplay(newState);
         set({ state: normalizedState });
-        console.log(`[Sync] Queued ack applied for ${normalizedState.lastEventId}`);
+        if (IS_DEV) {
+            console.log(`[Sync] Queued ack applied for ${normalizedState.lastEventId}`);
+        }
     },
 
     applyEventsOptimistically: (events) => {
@@ -339,7 +344,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                     const fPayload = { ...payload };
                     if (fPayload.group_id === '') fPayload.group_id = null;
                     const currentFeature = newState.features[payload.id];
-                    if (type === 'FeatureUpdated') {
+                    if (IS_DEV && type === 'FeatureUpdated') {
                         console.groupCollapsed(`[Sync] applyEventsOptimistically FeatureUpdated ${payload.id}`);
                         console.log('incoming payload:', fPayload);
                         console.log('before metadata:', currentFeature?.metadata);
@@ -423,7 +428,9 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         events?.forEach(apply);
         const normalizedState = normalizeMapStateForDisplay(newState);
         set({ state: normalizedState });
-        console.log(`[Sync] 🚀 Optimistic update applied for ${events?.length || 0} events`);
+        if (IS_DEV) {
+            console.log(`[Sync] Optimistic update applied for ${events?.length || 0} events`);
+        }
     },
 
     updateSettings: async (settings) => {

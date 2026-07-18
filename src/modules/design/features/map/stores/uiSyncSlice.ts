@@ -1,12 +1,24 @@
 import { StateCreator } from 'zustand';
 import { UISyncSlice, DesignSyncStore } from './types';
-import { DesignEventType } from '@CONTRACT/designTypes';
+import {
+    DesignActionResponse,
+    DesignBulkActionResponse,
+    DesignEventType
+} from '@CONTRACT/designTypes';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { invoke_design_event_batch } from '@TOOL/utils/designIpc';
 
+const DESIGN_PERSIST_BATCH_DELAY_MS = 150;
+const IS_DEV = import.meta.env.DEV;
+
 let eventBuffer: DesignEventType[] = [];
 let flushTimeout: NodeJS.Timeout | null = null;
+let bufferedProjectId: string | null = null;
+let bufferedResolvers: Array<{
+    resolve: (value: DesignBulkActionResponse | DesignActionResponse | undefined) => void;
+    reject: (reason?: unknown) => void;
+}> = [];
 let lastUiRecoveryInitializeAt = 0;
 const UI_RECOVERY_INITIALIZE_COOLDOWN_MS = 5000;
 let consecutiveUiSyncFailures = 0;
@@ -74,19 +86,25 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
         if (!events || events.length === 0) return { success: true } as any;
 
         const batchId = crypto.randomUUID().substring(0, 8);
-        console.group(`%c[PMP_FLOW] Batch Edit Start: ${batchId}`, 'color: #2196F3; font-weight: bold; font-size: 11px;');
-        console.log(`[PMP_FLOW] Project ID: ${projectId} | Events: ${events.length}`);
+        if (IS_DEV) {
+            console.group(`%c[PMP_FLOW] Batch Edit Start: ${batchId}`, 'color: #2196F3; font-weight: bold; font-size: 11px;');
+            console.log(`[PMP_FLOW] Project ID: ${projectId} | Events: ${events.length}`);
+        }
 
         try {
             set({ isSaving: true });
 
             const response = await invoke_design_event_batch(String(projectId), events as DesignEventType[]);
 
-            console.log(`%c[PMP_SYNC] Success. .pmp updated. Last event: ${response.last_event_id}`, 'color: #4CAF50; font-weight: bold;');
+            if (IS_DEV) {
+                console.log(`%c[PMP_SYNC] Success. .pmp updated. Last event: ${response.last_event_id}`, 'color: #4CAF50; font-weight: bold;');
+            }
             onUiSyncSuccess();
 
             set({ lastSync: Date.now(), error: null, isSaving: false });
-            console.groupEnd();
+            if (IS_DEV) {
+                console.groupEnd();
+            }
 
             return response as any;
         } catch (error: any) {
@@ -101,7 +119,9 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
                     : 'Sync đang lỗi liên tục. Đã tạm ngắt tự đồng bộ để tránh lặp. Vui lòng mở lại dự án.',
                 isSaving: false
             });
-            console.groupEnd();
+            if (IS_DEV) {
+                console.groupEnd();
+            }
             throw error;
         }
     },
@@ -112,51 +132,75 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
 
     _internalBufferedSyncEvents: async (events: DesignEventType[]) => {
         const { syncWithBackend, projectId } = get();
-        if (!projectId) return;
+        if (!projectId || events.length === 0) return;
 
+        const flushNow = async () => {
+            if (!bufferedProjectId || eventBuffer.length === 0) return;
+
+            const batch = eventBuffer;
+            const resolvers = bufferedResolvers;
+            const targetProjectId = bufferedProjectId;
+            eventBuffer = [];
+            bufferedResolvers = [];
+            bufferedProjectId = null;
+            if (flushTimeout) {
+                clearTimeout(flushTimeout);
+                flushTimeout = null;
+            }
+
+            try {
+                const result = await syncWithBackend(targetProjectId, batch);
+                set({ pendingSync: false });
+                resolvers.forEach(({ resolve }) => resolve(result));
+            } catch (err) {
+                set({ pendingSync: false });
+                resolvers.forEach(({ reject }) => reject(err));
+            }
+        };
+
+        if (bufferedProjectId && bufferedProjectId !== projectId && eventBuffer.length > 0) {
+            await flushNow();
+        }
+
+        bufferedProjectId = projectId;
         eventBuffer.push(...events);
+        set({ pendingSync: true });
 
         if (flushTimeout) {
             clearTimeout(flushTimeout);
         }
 
-        set({ pendingSync: true });
-
         return new Promise((resolve, reject) => {
-            flushTimeout = setTimeout(async () => {
-                const batch = [...eventBuffer];
-                eventBuffer = [];
-                flushTimeout = null;
-
-                try {
-                    const result = await syncWithBackend(projectId, batch);
-                    set({ pendingSync: false });
-                    resolve(result as any);
-                } catch (err) {
-                    set({ pendingSync: false });
-                    reject(err);
-                }
-            }, 200);
+            bufferedResolvers.push({ resolve, reject });
+            flushTimeout = setTimeout(() => {
+                void flushNow();
+            }, DESIGN_PERSIST_BATCH_DELAY_MS);
         });
     },
 
     flushPendingPersists: async () => {
         const { syncWithBackend, projectId } = get();
-        if (!projectId || eventBuffer.length === 0) return;
+        const targetProjectId = bufferedProjectId ?? projectId;
+        if (!targetProjectId || eventBuffer.length === 0) return;
 
         if (flushTimeout) {
             clearTimeout(flushTimeout);
             flushTimeout = null;
         }
 
-        const batch = [...eventBuffer];
+        const batch = eventBuffer;
+        const resolvers = bufferedResolvers;
         eventBuffer = [];
+        bufferedResolvers = [];
+        bufferedProjectId = null;
 
         try {
-            await syncWithBackend(projectId, batch);
+            const result = await syncWithBackend(targetProjectId, batch);
             set({ pendingSync: false });
+            resolvers.forEach(({ resolve }) => resolve(result));
         } catch (err) {
             set({ pendingSync: false });
+            resolvers.forEach(({ reject }) => reject(err));
             throw err;
         }
     },
