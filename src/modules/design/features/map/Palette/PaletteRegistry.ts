@@ -32,3 +32,6 @@ PaletteRegistry.register('camera-view', CameraViewPanel);
 PaletteRegistry.register('system-config', SystemConfigPanel);
 PaletteRegistry.register('summary-panel', BoxSummary);
 PaletteRegistry.register('network-graph', NetworkGraphPanel);
+
+const AiAssistantPanel = lazy(() => import('@DESIGN/features/map/Palette/AiAssistantPanel').then(m => ({ default: m.AiAssistantPanel })));
+PaletteRegistry.register('ai-assistant', AiAssistantPanel);

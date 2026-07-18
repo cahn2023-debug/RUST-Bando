@@ -3,8 +3,13 @@
 # rustflags = ["-C", "link-arg=-fuse-ld=lld"]
 
 [target.x86_64-pc-windows-msvc]
-# linker = "rust-lld.exe"
-# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+rustflags = [
+    "-C", "target-feature=-crt-static"
+]
+
+[env]
+CXXFLAGS = { value = "/MD", force = true }
+CFLAGS = { value = "/MD", force = true }
 
 [profile.dev]
 split-debuginfo = "unpacked"

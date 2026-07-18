@@ -38,7 +38,7 @@ interface LayoutState {
     registerPalette: (config: Partial<PaletteConfig> & { id: string }) => void;
 }
 
-const DEFAULT_LAYOUT_COLUMNS = [['spec-panel', 'summary-panel', 'camera-view', 'device-config'], ['network-graph']];
+const DEFAULT_LAYOUT_COLUMNS = [['spec-panel', 'summary-panel', 'camera-view', 'device-config', 'ai-assistant'], ['network-graph']];
 
 const CANONICAL_PALETTE_TITLES: Record<string, string> = {
     'spec-panel': 'Thông số thiết kế',
@@ -46,6 +46,7 @@ const CANONICAL_PALETTE_TITLES: Record<string, string> = {
     'device-config': 'Cấu hình thiết bị',
     'camera-view': 'Góc nhìn',
     'network-graph': 'Network',
+    'ai-assistant': 'AI Assistant',
 };
 
 const getCanonicalPaletteTitle = (id: string, fallback?: string) =>
@@ -57,6 +58,7 @@ const createDefaultPaletteConfigs = (): Record<string, PaletteConfig> => ({
     'device-config': { id: 'device-config', title: 'Cấu hình thiết bị', icon: 'Camera', isPinned: true, isVisible: false, width: 350, dockPosition: 'right', isFloating: false, position: { x: 0, y: 0 } },
     'camera-view': { id: 'camera-view', title: 'Góc Nhìn', icon: 'Video', isPinned: true, isVisible: false, width: 350, dockPosition: 'right', isFloating: false, position: { x: 0, y: 0 } },
     'network-graph': { id: 'network-graph', title: 'Network', icon: 'Network', isPinned: true, isVisible: false, width: 900, height: 320, dockPosition: 'bottom', isFloating: false, position: { x: 0, y: 0 } },
+    'ai-assistant': { id: 'ai-assistant', title: 'AI Assistant', icon: 'Zap', isPinned: true, isVisible: false, width: 350, dockPosition: 'right', isFloating: false, position: { x: 0, y: 0 } },
 });
 
 const normalizePaletteConfigs = (paletteConfigs: Record<string, PaletteConfig>): Record<string, PaletteConfig> => {
@@ -329,6 +331,18 @@ export const migrateLayoutState = (persistedState: any, version: number) => {
 
     stripBulkEditPalette();
     ensureNetworkPalette();
+    
+    // Ensure AI assistant palette exists in configs and layout columns
+    if (!state.paletteConfigs) state.paletteConfigs = {};
+    if (!state.paletteConfigs['ai-assistant']) {
+        state.paletteConfigs['ai-assistant'] = { id: 'ai-assistant', title: 'AI Assistant', icon: 'Zap', isPinned: true, isVisible: false, width: 350, dockPosition: 'right', isFloating: false, position: { x: 0, y: 0 } };
+    }
+    if (state.layoutColumns && state.layoutColumns.length > 0) {
+        if (!state.layoutColumns.some((col: string[]) => col.includes('ai-assistant'))) {
+            state.layoutColumns[0].push('ai-assistant');
+        }
+    }
+
     normalizePersistedPaletteTitles();
     return state;
 };

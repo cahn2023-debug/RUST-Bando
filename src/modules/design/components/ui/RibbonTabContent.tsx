@@ -19,9 +19,11 @@ interface CommonRibbonProps {
     setEnableAi: (v: boolean) => void;
     onReleaseAiMemory: () => void;
     onForceSave?: () => void;
+    togglePalette?: (id: string) => void;
+    activePaletteId?: string | null;
 }
 
-export const HomeRibbonTools = ({ enableAi, aiStatusLabel, setEnableAi, onReleaseAiMemory, onForceSave }: CommonRibbonProps) => (
+export const HomeRibbonTools = ({ enableAi, aiStatusLabel, setEnableAi, onReleaseAiMemory, onForceSave, togglePalette, activePaletteId }: CommonRibbonProps) => (
     <>
         <ToolGroup label="FILE SYSTEM">
             <ToolButton icon={Save} label="SAVE" onClick={onForceSave} />
@@ -35,8 +37,11 @@ export const HomeRibbonTools = ({ enableAi, aiStatusLabel, setEnableAi, onReleas
         <RibbonSeparator />
         <ToolGroup label="AI ASSISTANT">
             <ToolButton
-                onClick={() => setEnableAi(!enableAi)}
-                active={enableAi}
+                onClick={() => {
+                    setEnableAi(!enableAi);
+                    togglePalette?.('ai-assistant');
+                }}
+                active={enableAi || activePaletteId === 'ai-assistant'}
                 icon={Zap}
                 label={aiStatusLabel || (enableAi ? "AI READY" : "AI OFF")}
                 opacity={enableAi ? "animate-pulse" : "opacity-60"}
@@ -160,8 +165,11 @@ export const DesignRibbonTools = ({
         <RibbonSeparator />
         <ToolGroup label="AI ASSISTANT">
             <ToolButton
-                onClick={() => setEnableAi(!enableAi)}
-                active={enableAi}
+                onClick={() => {
+                    setEnableAi(!enableAi);
+                    togglePalette?.('ai-assistant');
+                }}
+                active={enableAi || activePaletteId === 'ai-assistant'}
                 icon={Zap}
                 label={aiStatusLabel || (enableAi ? "AI READY" : "AI OFF")}
                 opacity={enableAi ? "animate-pulse" : "opacity-60"}
@@ -179,7 +187,7 @@ export const DesignRibbonTools = ({
 
 export const ContractRibbonTools = ({
     enableAi, aiStatusLabel, setEnableAi, onReleaseAiMemory,
-    contractType, onContractTypeChange
+    contractType, onContractTypeChange, togglePalette, activePaletteId
 }: CommonRibbonProps & {
     contractType?: string;
     onContractTypeChange?: (v: any) => void;
@@ -198,8 +206,11 @@ export const ContractRibbonTools = ({
         <RibbonSeparator />
         <ToolGroup label="AI ASSISTANT">
             <ToolButton
-                onClick={() => setEnableAi(!enableAi)}
-                active={enableAi}
+                onClick={() => {
+                    setEnableAi(!enableAi);
+                    togglePalette?.('ai-assistant');
+                }}
+                active={enableAi || activePaletteId === 'ai-assistant'}
                 icon={Zap}
                 label={aiStatusLabel || (enableAi ? "AI READY" : "AI OFF")}
                 opacity={enableAi ? "animate-pulse" : "opacity-60"}
@@ -215,7 +226,7 @@ export const ContractRibbonTools = ({
 );
 
 export const GraphRibbonTools = ({
-    enableAi, setEnableAi, onReleaseAiMemory
+    enableAi, setEnableAi, onReleaseAiMemory, togglePalette, activePaletteId
 }: CommonRibbonProps) => (
     <>
         <ToolGroup label="GRAPH ACTIONS">
@@ -231,8 +242,11 @@ export const GraphRibbonTools = ({
         <RibbonSeparator />
         <ToolGroup label="AI ASSISTANT">
             <ToolButton
-                onClick={() => setEnableAi(!enableAi)}
-                active={enableAi}
+                onClick={() => {
+                    setEnableAi(!enableAi);
+                    togglePalette?.('ai-assistant');
+                }}
+                active={enableAi || activePaletteId === 'ai-assistant'}
                 icon={Zap}
                 label={enableAi ? "AI READY" : "AI OFF"}
                 opacity={enableAi ? "animate-pulse" : "opacity-60"}

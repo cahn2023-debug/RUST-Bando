@@ -224,6 +224,8 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
             setEnableAi={setEnableAi}
             onReleaseAiMemory={onReleaseAiMemory}
             onForceSave={onForceSave}
+            togglePalette={togglePalette}
+            activePaletteId={activePaletteId}
           />
         ) : activeTab === 'DESIGN' ? (
           <DesignRibbonTools
@@ -248,6 +250,8 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
           <ContractRibbonTools
             enableAi={enableAi} aiStatusLabel={aiStatusLabel} setEnableAi={setEnableAi} onReleaseAiMemory={onReleaseAiMemory}
             contractType={contractType} onContractTypeChange={onContractTypeChange}
+            togglePalette={togglePalette}
+            activePaletteId={activePaletteId}
           />
         ) : null}
       </div>
