@@ -531,4 +531,190 @@ describe('PropertyPanel clipboard images', () => {
 
     selectedFeature.metadata = originalMetadata;
   });
+
+  it('hides internal metadata keys but preserves them when saving user edits', async () => {
+    const originalMetadata = selectedFeature.metadata;
+    selectedFeature.metadata = JSON.stringify({
+      type: 'point',
+      parent_feature_id: 'parent-uuid',
+      start_node_id: 'start-uuid',
+      end_node_id: 'end-uuid',
+      snap_links: { v0: 'parent-uuid' },
+      vertexMetadata: { 0: { description: 'hidden vertex' } },
+      ai: { model: 'hidden-model' },
+      network: {
+        from_feature_id: 'start-uuid',
+        to_feature_id: 'end-uuid',
+      },
+    });
+
+    render(<PropertyPanel />);
+
+    await screen.findByText('Object Metadata');
+    expect(screen.queryByText(/parent feature id/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/start node id/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/end node id/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/snap links/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/vertexmetadata/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/hidden-model/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/undefined/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\{\}/)).not.toBeInTheDocument();
+
+    const notesInput = screen.getByLabelText('Survey Notes');
+    fireEvent.change(notesInput, { target: { value: 'Checked in field' } });
+    await waitFor(() => expect(notesInput).toHaveValue('Checked in field'));
+    fireEvent.click(screen.getByRole('button', { name: /save specs/i }));
+
+    await waitFor(() => {
+      expect(mocks.queueEvent).toHaveBeenCalledWith({
+        type: 'FeatureUpdated',
+        payload: expect.objectContaining({
+          id: selectedFeature.id,
+          metadata: expect.stringContaining('parent_feature_id'),
+        }),
+      });
+    });
+    const payload = mocks.queueEvent.mock.calls[mocks.queueEvent.mock.calls.length - 1][0].payload;
+    const savedMetadata = JSON.parse(payload.metadata);
+    expect(savedMetadata).toMatchObject({
+      description: 'Checked in field',
+      parent_feature_id: 'parent-uuid',
+      start_node_id: 'start-uuid',
+      end_node_id: 'end-uuid',
+      snap_links: { v0: 'parent-uuid' },
+      vertexMetadata: { 0: { description: 'hidden vertex' } },
+      ai: { model: 'hidden-model' },
+      network: {
+        from_feature_id: 'start-uuid',
+        to_feature_id: 'end-uuid',
+      },
+    });
+
+    selectedFeature.metadata = originalMetadata;
+  });
+
+  it('renders camera metadata fields from specs and GIS metadata', async () => {
+    const originalMetadata = selectedFeature.metadata;
+    selectedFeature.metadata = JSON.stringify({
+      icon: 'cctv',
+      type: 'cctv',
+      specs: {
+        install_height: 4.5,
+        focal_length: 8,
+        sensor_size: '1/2.8',
+        resolution_x: 1920,
+        resolution_y: 1080,
+        target_distance: 30,
+        target_height: 1.7,
+      },
+      gis: {
+        rotation: 90,
+        fov_angle: 65,
+        fov_radius: 40,
+        fov_visible: true,
+      },
+      network: {
+        telemetry_id: 'CAM-001',
+      },
+    });
+
+    render(<PropertyPanel />);
+
+    await screen.findByText('Camera Metadata');
+    expect(screen.getByLabelText('Telemetry ID')).toHaveValue('CAM-001');
+    expect(screen.getByLabelText('Install Height')).toHaveValue('4.5');
+    expect(screen.getByLabelText('Focal Length')).toHaveValue('8');
+    expect(screen.getByLabelText('Sensor Size')).toHaveValue('1/2.8');
+    expect(screen.getByLabelText('Resolution X')).toHaveValue('1920');
+    expect(screen.getByLabelText('Resolution Y')).toHaveValue('1080');
+    expect(screen.getByLabelText('Rotation')).toHaveValue('90');
+    expect(screen.getByLabelText('FOV Angle')).toHaveValue('65');
+    expect(screen.getByLabelText('FOV Radius')).toHaveValue('40');
+    expect(screen.getByLabelText('Target Distance')).toHaveValue('30');
+    expect(screen.getByLabelText('Target Height')).toHaveValue('1.7');
+    expect(screen.getByLabelText('Show FOV')).toBeChecked();
+
+    selectedFeature.metadata = originalMetadata;
+  });
+
+  it('renders SignalLine endpoint names without exposing endpoint UUID metadata', async () => {
+    const originalFeature = { ...selectedFeature };
+    Object.assign(selectedFeature, {
+      geom_type: 'LineString',
+      name: 'Signal Line A',
+      coordinates: [[106.1, 10.2], [106.2, 10.3]],
+      metadata: JSON.stringify({
+        infrastructure: {
+          type: 'SignalLine',
+          cable_type: 'FO-24',
+          core_count: 24,
+        },
+        network: {
+          from_feature_id: 'node-start',
+          to_feature_id: 'node-end',
+          direction_mode: 'auto',
+        },
+        start_node_id: 'node-start',
+        end_node_id: 'node-end',
+        snap_links: { v0: 'node-start', v1: 'node-end' },
+      }),
+    });
+    const stateWithLine = {
+      ...designState,
+      features: {
+        ...designState.features,
+        [selectedFeature.id]: selectedFeature,
+        'node-start': {
+          id: 'node-start',
+          name: 'Intersection Start',
+          geom_type: 'Point',
+          group_id: 'group-1',
+          layer_id: 'layer-1',
+          coordinates: [106.1, 10.2],
+          metadata: '{}',
+          properties: {},
+        },
+        'node-end': {
+          id: 'node-end',
+          name: 'Camera End',
+          geom_type: 'Point',
+          group_id: 'group-1',
+          layer_id: 'layer-1',
+          coordinates: [106.2, 10.3],
+          metadata: '{}',
+          properties: {},
+        },
+      },
+    };
+    mockUseDesignSync.mockReturnValue({
+      state: stateWithLine,
+      selectedFeatureId: selectedFeature.id,
+      selectFeature: mocks.selectFeature,
+      dispatchEvent: mocks.dispatchEvent,
+      queueEvent: mocks.queueEvent,
+      setDrawingMode: mocks.setDrawingMode,
+      setSelectedGroup: mocks.setSelectedGroup,
+      setActiveParentFeature: mocks.setActiveParentFeature,
+      setPreview: mocks.setPreview,
+      previewMetadata: null,
+      editingFeatureId: null,
+      setEditingFeatureId: mocks.setEditingFeatureId,
+      projectId: 'project-1',
+      selectionSet: new Set<string>(),
+    });
+
+    render(<PropertyPanel />);
+
+    await screen.findByText('Line Metadata');
+    expect(screen.getByText('Intersection Start')).toBeInTheDocument();
+    expect(screen.getByText('Camera End')).toBeInTheDocument();
+    expect(screen.getByLabelText('Cable Type')).toHaveValue('FO-24');
+    expect(screen.getByLabelText('Core Count')).toHaveValue('24');
+    expect(screen.queryByText('node-start')).not.toBeInTheDocument();
+    expect(screen.queryByText('node-end')).not.toBeInTheDocument();
+    expect(screen.queryByText(/snap links/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/direction mode/i)).not.toBeInTheDocument();
+
+    Object.assign(selectedFeature, originalFeature);
+  });
 });

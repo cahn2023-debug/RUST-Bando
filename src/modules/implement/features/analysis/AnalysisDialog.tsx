@@ -16,6 +16,7 @@ import {
   ANALYSIS_EXPORT_COLUMN_ORDER,
   buildAnalysisExportRows,
   getAnalysisUserColumnKeys,
+  getAnalysisSchemaColumnKeys,
   isAllowedAnalysisDynamicColumnKey,
   isAnalysisScalarValue,
   normalizeAnalysisColumnKey,
@@ -23,6 +24,7 @@ import {
 import {
   buildAnalysisHierarchyRows,
 } from '@IMPLEMENT/features/analysis/analysisHierarchy';
+import { getAnalysisTemplateGroups, normalizeProjectSettings } from '@TOOL/utils/objectDataTemplates';
 import { compareAnalysisHierarchyRows } from '@IMPLEMENT/features/analysis/analysisHierarchy';
 import { cn } from '@TOOL/utils/cn';
 import { getLineCoordinates, getPointCoordinates, getPolygonCoordinates } from '@TOOL/utils/featureUtils';
@@ -80,7 +82,7 @@ const CORE_COLUMN_TITLES: Record<string, string> = {
 
 const ANALYSIS_COLUMN_TITLES: Record<string, string> = {
   ...CORE_COLUMN_TITLES,
-  junction_scope: 'NUT GIAO',
+  junction_scope: 'NÚT GIAO',
 };
 
 const NON_EDITABLE_FIELDS = new Set([
@@ -135,6 +137,107 @@ const hasKeyInRows = (rows: FlatFeature[], key: string) => rows.some((row) => ke
 const hierarchySortingFn: SortingFn<FlatFeature> = (rowA, rowB, columnId) => (
   compareAnalysisHierarchyRows(rowA.original, rowB.original, columnId)
 );
+
+const buildAnalysisFieldColumn = (
+  key: string,
+  handleUpdate: (id: string, field: string, value: any) => Promise<void>,
+  options?: string[],
+): ColumnDef<FlatFeature> => {
+  if (key === 'name') {
+    return {
+      header: toColumnLabel(key),
+      accessorKey: key,
+      size: 220,
+      sortingFn: hierarchySortingFn,
+      cell: (info) => (
+        <div
+          className="flex items-center gap-2"
+          style={{ paddingLeft: `${(info.row.original.__analysis_depth || 0) * 16}px` }}
+        >
+          {info.row.original.__analysis_is_intersection && (
+            <span className="shrink-0 rounded border border-cad-accent/40 bg-cad-accent/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cad-accent">
+              Nút giao
+            </span>
+          )}
+          {!!info.row.original.__analysis_parent_id && (
+            <span className="shrink-0 rounded border border-cad-border bg-cad-surface/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-cad-text-muted">
+              Thuộc nút giao
+            </span>
+          )}
+          <EditableCell
+            value={info.getValue()}
+            row={info.row}
+            column={info.column}
+            onUpdate={handleUpdate}
+            className="font-bold text-cad-accent"
+          />
+        </div>
+      ),
+    };
+  }
+
+  if (key === 'geom_type') {
+    return {
+      header: toColumnLabel(key),
+      accessorKey: key,
+      size: getColumnWidth(key),
+      sortingFn: hierarchySortingFn,
+      meta: { options: GEOM_TYPES_OPTIONS },
+      cell: (info) => (
+        <DropdownCell
+          value={String(info.getValue() ?? '')}
+          options={GEOM_TYPES_OPTIONS}
+          row={info.row}
+          column={info.column}
+          onUpdate={handleUpdate}
+        />
+      ),
+    };
+  }
+
+  if (options && options.length > 0) {
+    return {
+      header: toColumnLabel(key),
+      accessorKey: key,
+      size: getColumnWidth(key),
+      sortingFn: hierarchySortingFn,
+      meta: { options },
+      cell: (info) => (
+        <DropdownCell
+          value={String(info.getValue() ?? '')}
+          options={options}
+          row={info.row}
+          column={info.column}
+          onUpdate={handleUpdate}
+        />
+      ),
+    };
+  }
+
+  if (ANALYSIS_NON_EDITABLE_FIELDS.has(key)) {
+    return {
+      header: toColumnLabel(key),
+      accessorKey: key,
+      size: getColumnWidth(key),
+      sortingFn: hierarchySortingFn,
+    };
+  }
+
+  return {
+    header: toColumnLabel(key),
+    accessorKey: key,
+    size: getColumnWidth(key),
+    sortingFn: hierarchySortingFn,
+    cell: (info) => (
+      <EditableCell
+        value={buildDisplayValue(info.getValue())}
+        row={info.row}
+        column={info.column}
+        onUpdate={handleUpdate}
+      />
+    ),
+  };
+};
 
 const getGeomIconValue = (value: unknown) => {
   const lowerVal = String(value ?? '').toLowerCase();
@@ -196,15 +299,18 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
     });
   }, [allData, filterGroup, filterLayer, filterRegion, filterGeomType]);
 
+  const projectSettings = useMemo(() => normalizeProjectSettings(state?.settings), [state?.settings]);
+  const schemaColumnKeys = useMemo(() => getAnalysisSchemaColumnKeys(projectSettings), [projectSettings]);
   const userColumnKeys = useMemo(() => (
     getAnalysisUserColumnKeys(Object.values(state?.features || {}), manualColumnKeys)
   ), [manualColumnKeys, state]);
 
   const analysisColumnKeys = useMemo(() => {
     const coreKeys = ANALYSIS_CORE_COLUMN_ORDER.filter((key) => hasKeyInRows(allData, key));
+    const schemaKeys = schemaColumnKeys.filter((key) => hasKeyInRows(allData, key));
     const dynamicKeys = userColumnKeys.filter((key) => !coreKeys.includes(key as (typeof coreKeys)[number]));
-    return [...coreKeys, ...dynamicKeys];
-  }, [allData, userColumnKeys]);
+    return [...coreKeys, ...schemaKeys, ...dynamicKeys];
+  }, [allData, schemaColumnKeys, userColumnKeys]);
 
   const exportColumnKeys = useMemo(() => (
     [
@@ -428,84 +534,41 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
   };
 
   const columns = useMemo<ColumnDef<FlatFeature>[]>(() => {
-    const detailColumns: ColumnDef<FlatFeature>[] = ANALYSIS_CORE_COLUMN_ORDER
+    const coreColumns: ColumnDef<FlatFeature>[] = ANALYSIS_CORE_COLUMN_ORDER
       .filter((key) => hasKeyInRows(allData, key))
-      .map((key) => {
-        if (key === 'name') {
-          return {
-            header: toColumnLabel(key),
-            accessorKey: key,
-            size: 220,
-            sortingFn: hierarchySortingFn,
-            cell: (info) => (
-              <div
-                className="flex items-center gap-2"
-                style={{ paddingLeft: `${(info.row.original.__analysis_depth || 0) * 16}px` }}
-              >
-                {info.row.original.__analysis_is_intersection && (
-                  <span className="shrink-0 rounded border border-cad-accent/40 bg-cad-accent/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cad-accent">
-                    Nut giao
-                  </span>
-                )}
-                {!!info.row.original.__analysis_parent_id && (
-                  <span className="shrink-0 rounded border border-cad-border bg-cad-surface/80 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-cad-text-muted">
-                    Thuoc nut giao
-                  </span>
-                )}
-                <EditableCell
-                  value={info.getValue()}
-                  row={info.row}
-                  column={info.column}
-                  onUpdate={handleUpdate}
-                  className="font-bold text-cad-accent"
-                />
-              </div>
-            ),
-          };
-        }
+      .map((key) => buildAnalysisFieldColumn(
+        key,
+        handleUpdate,
+        key === 'geom_type' ? GEOM_TYPES_OPTIONS : key === 'note' ? BATCH_NOTE_OPTIONS : undefined
+      ));
 
-        if (key === 'geom_type') {
-          return {
-            header: toColumnLabel(key),
-            accessorKey: key,
-            size: getColumnWidth(key),
-            sortingFn: hierarchySortingFn,
-            meta: { options: GEOM_TYPES_OPTIONS },
-            cell: (info) => (
-              <DropdownCell
-                value={String(info.getValue() ?? '')}
-                options={GEOM_TYPES_OPTIONS}
-                row={info.row}
-                column={info.column}
-                onUpdate={handleUpdate}
-              />
-            ),
-          };
-        }
+    const schemaColumns: ColumnDef<FlatFeature>[] = getAnalysisTemplateGroups(projectSettings)
+      .flatMap((typeGroup) => {
+        const groupColumns = typeGroup.groups
+          .map((group) => {
+            const fields = typeGroup.fields
+              .filter((field) => field.groupId === group.id && hasKeyInRows(allData, field.key))
+              .sort((left, right) => left.order - right.order);
 
-        if (ANALYSIS_NON_EDITABLE_FIELDS.has(key)) {
-          return {
-            header: toColumnLabel(key),
-            accessorKey: key,
-            size: getColumnWidth(key),
-            sortingFn: hierarchySortingFn,
-          };
-        }
+            if (fields.length === 0) return null;
 
-        return {
-          header: toColumnLabel(key),
-          accessorKey: key,
-          size: getColumnWidth(key),
-          sortingFn: hierarchySortingFn,
-          cell: (info) => (
-            <EditableCell
-              value={buildDisplayValue(info.getValue())}
-              row={info.row}
-              column={info.column}
-              onUpdate={handleUpdate}
-            />
-          ),
-        };
+            return {
+              header: group.label,
+              columns: fields.map((field) => buildAnalysisFieldColumn(
+                field.key,
+                handleUpdate,
+                field.type === 'select' ? field.options : undefined
+              )),
+            } as { header: string; columns: ColumnDef<FlatFeature>[] };
+          })
+          .filter(Boolean) as Array<{ header: string; columns: ColumnDef<FlatFeature>[] }>;
+
+        if (groupColumns.length === 0) return [];
+
+        return [{
+          header: typeGroup.label,
+          columns: groupColumns,
+        } as ColumnDef<FlatFeature>];
       });
 
     const extraColumns: ColumnDef<FlatFeature>[] = userColumnKeys.map((key) => ({
@@ -571,12 +634,19 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
           </div>
         ),
       },
-      ...detailColumns,
-      ...extraColumns,
+      {
+        header: 'Core',
+        columns: coreColumns,
+      },
+      ...schemaColumns,
+      {
+        header: 'Custom',
+        columns: extraColumns,
+      },
       {
         id: 'Action',
         size: 80,
-        header: 'XÓA',
+        header: 'XOA',
         cell: ({ row }) => (
           <button onClick={() => deleteFeature(row.original.id)} className="p-1 hover:text-rose-500 transition-colors">
             <Trash2 size={14} />
@@ -584,7 +654,7 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
         ),
       },
     ];
-  }, [allData, userColumnKeys, handleUpdate, deleteFeature]);
+  }, [allData, deleteFeature, handleUpdate, projectSettings, userColumnKeys]);
 
   const activeFiltersCount = [filterGroup, filterLayer, filterRegion, filterGeomType].filter((value) => value !== 'ALL').length;
 
@@ -750,3 +820,4 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
     </>
   );
 };
+

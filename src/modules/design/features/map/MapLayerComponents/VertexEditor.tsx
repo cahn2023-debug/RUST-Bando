@@ -3,7 +3,8 @@ import { Marker, Polyline, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { useSnap } from '@IMPLEMENT/hooks/useSnap';
-import { getParsedCoordinates } from '@TOOL/utils/featureUtils';
+import { getParsedCoordinates, getParsedMetadata, getPointCoordinates } from '@TOOL/utils/featureUtils';
+import { isPointInPolygon, getIntersectionScope, isSignalLineFeature } from '../stores/drawingSlice';
 
 /**
  * Enhanced Logging Helper
@@ -61,6 +62,7 @@ export const VertexEditor = () => {
     const state = useDesignSync(s => s.state);
     const setDrawingPoint = useDesignSync(s => s.setDrawingPoint);
     const insertDrawingPoint = useDesignSync(s => s.insertDrawingPoint);
+    const activeParentFeatureId = useDesignSync(s => s.activeParentFeatureId);
     const { performSnap, snapNow, clearSnap, snappedPointRef } = useSnap();
     const map = useMap();
 
@@ -130,6 +132,32 @@ export const VertexEditor = () => {
             const finalLng = snapped ? snapped.x : pos.lng;
             const snapId = snapped?.id || null;
 
+            // ponytail: restrict SignalLine commit to intersection scope
+            if (feature && isSignalLineFeature(feature)) {
+                const parentId = activeParentFeatureId || (getParsedMetadata(feature).parent_feature_id as string | undefined);
+                if (parentId) {
+                    const scope = getIntersectionScope(parentId, state?.features || {});
+                    if (scope) {
+                        let checkLng = finalLng;
+                        let checkLat = finalLat;
+                        if (snapId && state?.features[snapId]) {
+                            const targetFeature = state.features[snapId];
+                            const targetCoords = getPointCoordinates(targetFeature);
+                            if (targetCoords) {
+                                checkLng = targetCoords[0];
+                                checkLat = targetCoords[1];
+                            }
+                        }
+                        if (!isPointInPolygon([checkLng, checkLat], scope)) {
+                            logEditor(`Sync blocked: outside intersection scope`);
+                            setPreviewCoords(null);
+                            clearSnap();
+                            return;
+                        }
+                    }
+                }
+            }
+
             try {
                 if (dragType === 'insert') {
                     await insertDrawingPoint(i, finalLat, finalLng);
@@ -166,6 +194,31 @@ export const VertexEditor = () => {
                 const finalLat = snapped ? snapped.y : lat;
                 const finalLng = snapped ? snapped.x : lng;
                 const snapId = snapped?.id || null;
+
+                // ponytail: restrict SignalLine commit to intersection scope
+                if (feature && isSignalLineFeature(feature)) {
+                    const parentId = activeParentFeatureId || (getParsedMetadata(feature).parent_feature_id as string | undefined);
+                    if (parentId) {
+                        const scope = getIntersectionScope(parentId, state?.features || {});
+                        if (scope) {
+                            let checkLng = finalLng;
+                            let checkLat = finalLat;
+                            if (snapId && state?.features[snapId]) {
+                                const targetFeature = state.features[snapId];
+                                const targetCoords = getPointCoordinates(targetFeature);
+                                if (targetCoords) {
+                                    checkLng = targetCoords[0];
+                                    checkLat = targetCoords[1];
+                                }
+                            }
+                            if (!isPointInPolygon([checkLng, checkLat], scope)) {
+                                setPreviewCoords(null);
+                                clearSnap();
+                                return;
+                            }
+                        }
+                    }
+                }
 
                 try {
                     if (dragType === 'insert') {

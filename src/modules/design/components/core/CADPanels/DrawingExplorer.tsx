@@ -8,6 +8,7 @@ import { TreeItem } from "@DESIGN/components/core/CADPanels/TreeItem";
 import { FeatureItem } from "@DESIGN/components/core/CADPanels/FeatureItem";
 import { useDesignSync, EMPTY_OBJ } from "@IMPLEMENT/stores/useDesignSync";
 import { importFromExcel, importFromKML, getExcelHeaders, applyImportedRecords, type ImportMapping } from "@IMPLEMENT/services/importService";
+import { ImportReviewDialog } from "@IMPLEMENT/components/import/ImportReviewDialog";
 import {
   ExplorerHeader,
   ExplorerFilterBar,
@@ -25,6 +26,13 @@ interface MappingData {
   filename: string;
   groupId: string;
   filePath: string;
+}
+
+interface ReviewData {
+  fileName: string;
+  groupId: string;
+  sourceLabel: string;
+  records: Awaited<ReturnType<typeof importFromExcel>>;
 }
 
 interface DeleteModalState {
@@ -207,6 +215,7 @@ export function DrawingExplorer() {
   const [themeGroupId, setThemeGroupId] = useState<string | null>(null);
   const [themeTargetFeatureIds, setThemeTargetFeatureIds] = useState<string[] | undefined>(undefined);
   const [mappingData, setMappingData] = useState<MappingData | null>(null);
+  const [reviewData, setReviewData] = useState<ReviewData | null>(null);
   const [deleteModal, setDeleteModal] = useState<DeleteModalState>({ isOpen: false, type: null, id: '', name: '' });
 
   useEffect(() => {
@@ -291,17 +300,23 @@ export function DrawingExplorer() {
       const headers = await getExcelHeaders(filePath);
       setMappingData({ headers, filename: fileName, groupId, filePath });
     } else if (['kml', 'kmz'].includes(ext!)) {
-      await importFromKML(filePath);
-      setSelectedGroup(groupId);
+      const records = await importFromKML(filePath);
+      setReviewData({ fileName, groupId, sourceLabel: 'KML/KMZ', records });
     }
   };
 
   const handleMappingConfirm = async (mapping: ImportMapping) => {
     if (!mappingData) return;
     const records = await importFromExcel(mappingData.filePath, mapping);
-    await applyImportedRecords(records, mappingData.groupId);
-    setSelectedGroup(mappingData.groupId);
     setMappingData(null);
+    setReviewData({ fileName: mappingData.filename, groupId: mappingData.groupId, sourceLabel: 'Excel', records });
+  };
+
+  const handleReviewConfirm = async (records: ReviewData['records']) => {
+    if (!reviewData) return;
+    await applyImportedRecords(records, reviewData.groupId);
+    setSelectedGroup(reviewData.groupId);
+    setReviewData(null);
   };
 
   const handleToggleVisible = (type: 'region' | 'group' | 'feature', id: string, _data: any, e: React.MouseEvent) => {
@@ -545,6 +560,16 @@ export function DrawingExplorer() {
         setDeleteModal={setDeleteModal}
         confirmDelete={confirmDelete}
       />
+      {reviewData && (
+        <ImportReviewDialog
+          open={true}
+          fileName={reviewData.fileName}
+          sourceLabel={reviewData.sourceLabel}
+          records={reviewData.records}
+          onClose={() => setReviewData(null)}
+          onConfirm={handleReviewConfirm}
+        />
+      )}
       
       {/* Context Menu Overlay */}
       {contextMenu && (

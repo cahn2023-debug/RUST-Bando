@@ -2,7 +2,7 @@ import { StateCreator } from 'zustand';
 import { DrawingSlice, DesignSyncStore } from './types';
 import { emit } from '@tauri-apps/api/event';
 import { getParsedCoordinates, getParsedMetadata, getPointCoordinates } from '../../../../tool/utils/featureUtils';
-import type { LineStringCoordinates, PolygonCoordinates } from '@CONTRACT/types';
+import type { LineStringCoordinates, PolygonCoordinates, FeatureState } from '@CONTRACT/types';
 import { buildSnapLinks, isPolylineEndpointIndex } from '../network/networkTopology';
 
 const isPolygonCoordinates = (coords: unknown): coords is PolygonCoordinates =>
@@ -14,6 +14,63 @@ const isLineCoordinates = (coords: unknown): coords is LineStringCoordinates =>
     Array.isArray(coords) &&
     Array.isArray(coords[0]) &&
     !Array.isArray((coords[0] as unknown[])[0]);
+
+export const isPointInPolygon = (point: [number, number], polygon: PolygonCoordinates): boolean => {
+    const ring = polygon[0];
+    if (!ring || ring.length < 3) return false;
+
+    const x = point[0]; // lng
+    const y = point[1]; // lat
+    let inside = false;
+
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const xi = ring[i][0];
+        const yi = ring[i][1];
+        const xj = ring[j][0];
+        const yj = ring[j][1];
+
+        const intersect = ((yi > y) !== (yj > y))
+            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+
+    return inside;
+};
+
+export const getIntersectionScope = (
+    parentId: string | null,
+    features: Record<string, FeatureState>
+): PolygonCoordinates | null => {
+    if (!parentId || !features) return null;
+
+    const parentFeature = features[parentId];
+    if (parentFeature && (parentFeature.geom_type || '').toLowerCase() === 'polygon') {
+        const coords = getParsedCoordinates(parentFeature);
+        if (isPolygonCoordinates(coords)) {
+            return coords;
+        }
+    }
+
+    for (const f of Object.values(features)) {
+        const fMeta = getParsedMetadata(f);
+        if (fMeta.parent_feature_id === parentId && (f.geom_type || '').toLowerCase() === 'polygon') {
+            const coords = getParsedCoordinates(f);
+            if (isPolygonCoordinates(coords)) {
+                return coords;
+            }
+        }
+    }
+
+    return null;
+};
+
+export const isSignalLineFeature = (feature: FeatureState): boolean => {
+    if (!feature) return false;
+    const metadata = getParsedMetadata(feature);
+    const geomType = (feature.geom_type || '').toLowerCase();
+    const infra = metadata.infrastructure as Record<string, unknown> | undefined;
+    return geomType.includes('line') && infra?.type === 'SignalLine';
+};
 
 export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSlice> = (set, get) => ({
     drawingMode: 'none',
@@ -45,10 +102,34 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
     clearNetworkConnectionDraft: () => set({ networkConnectionDraft: null }),
 
     setDrawingPoint: async (index, lat, lng, snapId = null) => {
-        const { state, editingFeatureId, dispatchEvent } = get();
+        const { state, editingFeatureId, dispatchEvent, activeParentFeatureId } = get();
         if (!editingFeatureId || !state?.features[editingFeatureId]) return;
 
         const feature = state.features[editingFeatureId];
+
+        // ponytail: validate intersection scope boundary check for SignalLine edits
+        if (isSignalLineFeature(feature)) {
+            const parentId = activeParentFeatureId || (getParsedMetadata(feature).parent_feature_id as string | undefined);
+            if (parentId) {
+                const scope = getIntersectionScope(parentId, state.features);
+                if (scope) {
+                    let actualLng = lng;
+                    let latVal = lat;
+                    if (snapId && state.features[snapId]) {
+                        const targetFeature = state.features[snapId];
+                        const targetCoords = getPointCoordinates(targetFeature);
+                        if (targetCoords) {
+                            actualLng = targetCoords[0];
+                            latVal = targetCoords[1];
+                        }
+                    }
+                    if (!isPointInPolygon([actualLng, latVal], scope)) {
+                        throw new Error("Point is outside intersection scope");
+                    }
+                }
+            }
+        }
+
         const coords = getParsedCoordinates(feature);
         if (!coords || !Array.isArray(coords)) return;
 
@@ -86,6 +167,13 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
         const currentMeta = { ...getParsedMetadata(feature) };
         let metaChanged = false;
         const isPolyline = (feature.geom_type || '').toUpperCase() === 'LINESTRING' || (feature.geom_type || '').toUpperCase() === 'POLYLINE';
+
+        if (isPolyline) {
+            if (currentMeta.manual_override !== true) {
+                currentMeta.manual_override = true;
+                metaChanged = true;
+            }
+        }
 
         if (isPolyline) {
             const isEndpoint = isPolylineEndpointIndex(feature, index);
@@ -161,10 +249,22 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
     },
 
     insertDrawingPoint: async (index, lat, lng) => {
-        const { editingFeatureId, state, dispatchEvent } = get();
+        const { editingFeatureId, state, dispatchEvent, activeParentFeatureId } = get();
         if (!editingFeatureId || !state?.features[editingFeatureId]) return;
 
         const feature = state.features[editingFeatureId];
+
+        // ponytail: validate intersection scope boundary check for SignalLine inserts
+        if (isSignalLineFeature(feature)) {
+            const parentId = activeParentFeatureId || (getParsedMetadata(feature).parent_feature_id as string | undefined);
+            if (parentId) {
+                const scope = getIntersectionScope(parentId, state.features);
+                if (scope && !isPointInPolygon([lng, lat], scope)) {
+                    throw new Error("Point is outside intersection scope");
+                }
+            }
+        }
+
         let coords = getParsedCoordinates(feature);
         if (!coords) return;
 
@@ -183,13 +283,22 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
             (newCoords as LineStringCoordinates).splice(index, 0, [lng, lat]);
         }
 
+        const isPolyline = (feature.geom_type || '').toUpperCase() === 'LINESTRING' || (feature.geom_type || '').toUpperCase() === 'POLYLINE';
+        const payload: any = {
+            id: editingFeatureId,
+            geom_type: feature.geom_type,
+            coordinates: newCoords
+        };
+        if (isPolyline) {
+            payload.metadata = JSON.stringify({
+                ...getParsedMetadata(feature),
+                manual_override: true
+            });
+        }
+
         await dispatchEvent({
             type: 'FeatureUpdated',
-            payload: {
-                id: editingFeatureId,
-                geom_type: feature.geom_type,
-                coordinates: newCoords
-            }
+            payload
         });
     },
 
@@ -219,13 +328,22 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
             (newCoords as LineStringCoordinates).splice(index, 1);
         }
 
+        const isPolyline = (feature.geom_type || '').toUpperCase() === 'LINESTRING' || (feature.geom_type || '').toUpperCase() === 'POLYLINE';
+        const payload: any = {
+            id: editingFeatureId,
+            geom_type: feature.geom_type,
+            coordinates: newCoords
+        };
+        if (isPolyline) {
+            payload.metadata = JSON.stringify({
+                ...getParsedMetadata(feature),
+                manual_override: true
+            });
+        }
+
         await dispatchEvent({
             type: 'FeatureUpdated',
-            payload: {
-                id: editingFeatureId,
-                geom_type: feature.geom_type,
-                coordinates: newCoords
-            }
+            payload
         });
     }
 });

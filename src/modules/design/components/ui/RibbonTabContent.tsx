@@ -20,11 +20,10 @@ interface CommonRibbonProps {
     onForceSave?: () => void;
 }
 
-export const HomeRibbonTools = ({ enableAi, setEnableAi, onReleaseAiMemory, onImport, onForceSave }: CommonRibbonProps & { onImport: () => void }) => (
+export const HomeRibbonTools = ({ enableAi, setEnableAi, onReleaseAiMemory, onForceSave }: CommonRibbonProps) => (
     <>
         <ToolGroup label="FILE SYSTEM">
             <ToolButton icon={Save} label="SAVE" onClick={onForceSave} />
-            <ToolButton icon={FolderUp} label="IMPORT" onClick={onImport} />
             <ToolButton icon={RefreshCw} label="SYNC" />
         </ToolGroup>
         <RibbonSeparator />
@@ -53,6 +52,7 @@ export const HomeRibbonTools = ({ enableAi, setEnableAi, onReleaseAiMemory, onIm
 
 export const DesignRibbonTools = ({
     enableAi, setEnableAi, onReleaseAiMemory,
+    onImport,
     undo, redo,
     showSystemConfig, setShowSystemConfig, systemConfigRef,
     togglePalette, activePaletteId,
@@ -60,6 +60,7 @@ export const DesignRibbonTools = ({
     toggleCoordinatePanel, isCoordinatePanelOpen,
     onOpenStandalone, onExport, onOpenReport
 }: CommonRibbonProps & {
+    onImport: () => void;
     undo: () => void; redo: () => void;
     showSystemConfig: boolean; setShowSystemConfig: (v: boolean) => void; systemConfigRef: React.RefObject<HTMLDivElement | null>;
     togglePalette: (id: string) => void; activePaletteId: string | null;
@@ -86,6 +87,7 @@ export const DesignRibbonTools = ({
     return (
     <>
         <ToolGroup label="HISTORY">
+            <ToolButton onClick={onImport} icon={FolderUp} label="IMPORT" />
             <ToolButton onClick={undo} icon={Undo2} label="UNDO" />
             <ToolButton onClick={redo} icon={Redo2} label="REDO" />
         </ToolGroup>
@@ -101,11 +103,14 @@ export const DesignRibbonTools = ({
                 {showSystemConfig && (
                     <Portal>
                         <div
-                            className="fixed z-[9999] shadow-2xl max-h-[calc(100vh-140px)] flex flex-col min-w-[450px]"
+                            className="fixed z-[9999] shadow-2xl flex flex-col min-w-[450px] overflow-hidden rounded-xl"
                             onMouseDown={(e) => e.stopPropagation()}
                             style={{
                                 top: systemConfigRef.current?.getBoundingClientRect().bottom ? systemConfigRef.current.getBoundingClientRect().bottom + 8 : '100px',
-                                left: systemConfigRef.current?.getBoundingClientRect().left || '20px'
+                                left: systemConfigRef.current?.getBoundingClientRect().left || '20px',
+                                maxHeight: systemConfigRef.current?.getBoundingClientRect().bottom 
+                                    ? `calc(100vh - ${systemConfigRef.current.getBoundingClientRect().bottom + 24}px)` 
+                                    : 'calc(100vh - 140px)'
                             }}
                         >
                             <PaletteProvider value={{

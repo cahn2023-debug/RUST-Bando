@@ -1,41 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Activity, Cpu, Zap, X } from 'lucide-react';
-import { safeListen as listen } from '@IMPLEMENT/lib/tauri';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
 
 export const PerformanceOverlay: React.FC = () => {
-    const [latency, setLatency] = useState<number>(0.0012); // Initial "Pro Max" value
-    const { state } = useDesignSync();
+    const isSaving = useDesignSync(s => s.isSaving);
+    const pendingSync = useDesignSync(s => s.pendingSync);
+    const lastSync = useDesignSync(s => s.lastSync);
+    const syncError = useDesignSync(s => s.error);
     const showPerformanceOverlay = useLayoutStore(s => s.showPerformanceOverlay);
     const setShowPerformanceOverlay = useLayoutStore(s => s.setShowPerformanceOverlay);
 
-    useEffect(() => {
-        let unlisten: (() => void) | undefined;
-
-        const setup = async () => {
-            unlisten = await listen<any>('sync-map-state', () => {
-                // High precision simulation for binary IPC
-                const simulated = 0.001 + (Math.random() * 0.0008);
-                setLatency(simulated);
-            });
-        };
-
-        setup();
-        return () => {
-            if (unlisten) unlisten();
-        };
-    }, []);
-
-    // Also update latency slightly when local state changes to show "liveness"
-    useEffect(() => {
-        if (state) {
-            const jitter = 0.001 + (Math.random() * 0.0005);
-            setLatency(jitter);
-        }
-    }, [state]);
-
     if (!showPerformanceOverlay) return null;
+
+    const syncLabel = syncError ? 'Error' : pendingSync || isSaving ? 'Saving' : 'Idle';
+    const syncTone = syncError ? 'text-red-400' : pendingSync || isSaving ? 'text-yellow-300' : 'text-green-400';
+    const lastSyncLabel = lastSync ? `${Math.max(0, Math.round((Date.now() - lastSync) / 1000))}s` : '--';
 
     return (
         <div
@@ -44,7 +24,7 @@ export const PerformanceOverlay: React.FC = () => {
         >
             <div className="flex items-center justify-between border-b border-white/10 pb-1.5 mb-0.5">
                 <span className="text-[10px] font-black text-cad-accent italic uppercase tracking-tighter flex items-center gap-1.5">
-                    <Zap size={11} fill="currentColor" className="animate-pulse" /> Pro Max Performance
+                    <Zap size={11} fill="currentColor" className={pendingSync || isSaving ? 'animate-pulse' : ''} /> Performance
                 </span>
                 <div className="flex gap-1.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_#22c55e]" />
@@ -61,19 +41,19 @@ export const PerformanceOverlay: React.FC = () => {
             <div className="space-y-1">
                 <div className="flex items-center justify-between group">
                     <span className="text-[9px] text-white/60 uppercase font-mono tracking-widest flex items-center gap-1.5">
-                        <Cpu size={10} className="text-cad-accent/70" /> IPC Latency
+                        <Cpu size={10} className="text-cad-accent/70" /> Sync State
                     </span>
-                    <span className="text-xs font-mono text-green-400 font-bold tabular-nums">
-                        {latency.toFixed(4)} <span className="text-[8px] opacity-50">ms</span>
+                    <span className={`text-xs font-mono font-bold tabular-nums ${syncTone}`}>
+                        {syncLabel}
                     </span>
                 </div>
 
                 <div className="flex items-center justify-between">
                     <span className="text-[9px] text-white/60 uppercase font-mono tracking-widest flex items-center gap-1.5">
-                        <Activity size={10} className="text-blue-400/70" /> AI Accuracy
+                        <Activity size={10} className="text-blue-400/70" /> Last Sync
                     </span>
                     <span className="text-xs font-mono text-blue-400 font-bold tabular-nums">
-                        99.50%
+                        {lastSyncLabel}
                     </span>
                 </div>
             </div>
@@ -82,12 +62,12 @@ export const PerformanceOverlay: React.FC = () => {
                 <div className="h-1 bg-white/5 rounded-full overflow-hidden">
                     <div
                         className="h-full bg-gradient-to-r from-green-500 to-cad-accent transition-all duration-300 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
-                        style={{ width: `${85 + Math.random() * 14}%` }}
+                        style={{ width: pendingSync || isSaving ? '65%' : syncError ? '20%' : '100%' }}
                     />
                 </div>
                 <div className="flex justify-between items-center text-[7px] font-mono uppercase tracking-tighter text-white/30 italic">
-                    <span>Binary Mode</span>
-                    <span>Active</span>
+                    <span>Design Sync</span>
+                    <span>{syncError ? 'Check' : 'Active'}</span>
                 </div>
             </div>
 

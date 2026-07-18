@@ -1,6 +1,11 @@
-import { safeInvoke as invoke } from "@IMPLEMENT/lib/tauri";
-import type { DesignEventType } from "@CONTRACT/designTypes";
-import { syncDisplayOrderAliases } from "@TOOL/utils/featureMapping";
+import JSZip from 'jszip';
+import { safeInvoke as invoke } from '@IMPLEMENT/lib/tauri';
+import type { DesignEventType } from '@CONTRACT/designTypes';
+import type { FeatureMetadata, FeatureState } from '@CONTRACT/types';
+import { getPointCoordinates, syncDisplayOrderAliases } from '@TOOL/utils/featureMapping';
+import { getParsedMetadata } from '@TOOL/utils/featureMetadata';
+import { createFeatureEndpointRef } from '@DESIGN/features/map/network/NetworkEndpoint';
+import { buildSnapLinks, getPolylineSnapCoordinate, isLineFeature, isNetworkEdgeFeature, resolveNetworkNodeIdFromSnap } from '@DESIGN/features/map/network/networkTopology';
 
 export interface FieldMeta {
   name: string;
@@ -17,12 +22,14 @@ export interface DatasetMeta {
 
 export interface FeatureRecord {
   id: string;
-  geom_type: "Point" | "LineString" | "Polygon";
-  geometry: any; // GeoJSON geometry
+  geom_type: 'Point' | 'LineString' | 'Polygon';
+  geometry: any;
   center_lat: number;
   center_lon: number;
   tile_id: string;
   properties: Record<string, string>;
+  metadata?: Record<string, unknown>;
+  source_format?: 'excel' | 'kml' | 'kmz';
 }
 
 export interface ImportMapping {
@@ -33,10 +40,39 @@ export interface ImportMapping {
   order_column?: string;
 }
 
+export interface PmpImportPreview {
+  sourceProjectName: string;
+  regions: number;
+  layers: number;
+  groups: number;
+  features: number;
+  mediaAssets: number;
+  warnings: string[];
+}
+
+export interface PmpImportResult {
+  importedRegions: number;
+  importedLayers: number;
+  importedGroups: number;
+  importedFeatures: number;
+  importedMediaAssets: number;
+  skippedMediaAssets: number;
+  importedAt: string;
+}
+
+interface BuildFeatureCreatedEventsOptions {
+  featuresById?: Record<string, FeatureState>;
+  snapThreshold?: number;
+}
+
+type PointLikeCoordinate = [number, number];
+
+const DEFAULT_IMPORT_SNAP_THRESHOLD = 0.00009;
+
 const ensureAbsolutePath = (filePath: string): string => {
   const normalized = filePath?.trim();
   if (!normalized) {
-    throw new Error("Import file path is empty.");
+    throw new Error('Import file path is empty.');
   }
   if (!/^(?:[A-Za-z]:[\\/]|\/)/.test(normalized)) {
     throw new Error(`Import requires an absolute file path. Received: ${filePath}`);
@@ -44,117 +80,551 @@ const ensureAbsolutePath = (filePath: string): string => {
   return normalized;
 };
 
+const getFileName = (filePath: string) => filePath.split(/[\\/]/).pop() || filePath;
+
+const getFileExtension = (filePath: string) => getFileName(filePath).split('.').pop()?.toLowerCase() || '';
+
+const createImportRecordId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `import-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const ensureUuidLikeId = (value: string) => (UUID_PATTERN.test(value) ? value : createImportRecordId());
+
+const isPointLikeCoordinate = (value: unknown): value is PointLikeCoordinate =>
+  Array.isArray(value) &&
+  value.length >= 2 &&
+  typeof value[0] === 'number' &&
+  Number.isFinite(value[0]) &&
+  typeof value[1] === 'number' &&
+  Number.isFinite(value[1]);
+
+const isLineStringCoordinates = (value: unknown): value is PointLikeCoordinate[] =>
+  Array.isArray(value) &&
+  value.length >= 2 &&
+  value.every(isPointLikeCoordinate);
+
+const distanceBetween = (a: PointLikeCoordinate, b: PointLikeCoordinate) =>
+  Math.hypot(a[0] - b[0], a[1] - b[1]);
+
+const createImportedFeatureMetadata = (record: FeatureRecord) => syncDisplayOrderAliases(
+  {
+    ...(record.metadata || {}),
+    ...(record.properties.description ? { description: record.properties.description } : {}),
+    ...(record.properties.display_order ? { display_order: record.properties.display_order } : {}),
+    imported_from: record.source_format || 'excel',
+    imported_tile_id: record.tile_id,
+    source_properties: record.properties,
+  },
+  record.properties.display_order,
+  record.properties
+);
+
+const createImportedFeatureDraft = (
+  record: FeatureRecord,
+  index: number,
+  groupId: string,
+  layerId: string
+): FeatureState => ({
+  id: ensureUuidLikeId(record.id),
+  layer_id: layerId,
+  group_id: groupId,
+  name: record.properties.name || record.properties.label || `Point ${index + 1}`,
+  geom_type: record.geom_type,
+  metadata: createImportedFeatureMetadata(record),
+  coordinates: record.geometry,
+  properties: record.properties,
+});
+
+const findNearestSnapTarget = (
+  coordinate: PointLikeCoordinate,
+  featuresById: Record<string, FeatureState>,
+  excludedFeatureId: string,
+  threshold: number
+): { snapId: string; snappedCoordinate: PointLikeCoordinate } | null => {
+  let bestMatch: { snapId: string; snappedCoordinate: PointLikeCoordinate } | null = null;
+  let bestDistance = threshold;
+
+  for (const feature of Object.values(featuresById)) {
+    if (feature.id === excludedFeatureId) continue;
+
+    const metadata = getParsedMetadata(feature) as FeatureMetadata;
+    if (isLineFeature(feature) || isNetworkEdgeFeature(feature, metadata)) {
+      const snappedCoordinate = getPolylineSnapCoordinate(feature, coordinate[0], coordinate[1]);
+      if (!snappedCoordinate) continue;
+      const distance = distanceBetween(snappedCoordinate, coordinate);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestMatch = { snapId: feature.id, snappedCoordinate };
+      }
+      continue;
+    }
+
+    const pointCoordinate = getPointCoordinates(feature);
+    if (!pointCoordinate) continue;
+    const distance = distanceBetween(pointCoordinate, coordinate);
+    if (distance <= bestDistance) {
+      bestDistance = distance;
+      bestMatch = { snapId: feature.id, snappedCoordinate: pointCoordinate };
+    }
+  }
+
+  return bestMatch;
+};
+
+const enrichImportedLineFeature = (
+  feature: FeatureState,
+  featuresById: Record<string, FeatureState>,
+  threshold: number
+): FeatureState => {
+  if (!isLineStringCoordinates(feature.coordinates)) {
+    return feature;
+  }
+
+  const snapIds = feature.coordinates.map((coordinate) =>
+    findNearestSnapTarget(coordinate, featuresById, feature.id, threshold)?.snapId || null
+  );
+  const nextMetadata = {
+    ...(getParsedMetadata(feature) as FeatureMetadata),
+  } as FeatureMetadata & Record<string, unknown>;
+  const snapLinks = buildSnapLinks(snapIds);
+
+  if (snapLinks) {
+    nextMetadata.snap_links = snapLinks;
+  } else {
+    delete nextMetadata.snap_links;
+  }
+
+  const startSnapId = snapIds[0] || null;
+  const endSnapId = snapIds[snapIds.length - 1] || null;
+
+  if (startSnapId) {
+    nextMetadata.start_node_id = startSnapId;
+  } else {
+    delete nextMetadata.start_node_id;
+  }
+
+  if (endSnapId) {
+    nextMetadata.end_node_id = endSnapId;
+  } else {
+    delete nextMetadata.end_node_id;
+  }
+
+  const resolvedFrom = resolveNetworkNodeIdFromSnap(featuresById, startSnapId, feature.coordinates[0]);
+  const resolvedTo = resolveNetworkNodeIdFromSnap(featuresById, endSnapId, feature.coordinates[feature.coordinates.length - 1]);
+
+  if (resolvedFrom && resolvedTo && resolvedFrom !== resolvedTo) {
+    nextMetadata.infrastructure = {
+      ...(typeof nextMetadata.infrastructure === 'object' && nextMetadata.infrastructure ? nextMetadata.infrastructure as Record<string, unknown> : {}),
+      type: 'SignalLine',
+    };
+    nextMetadata.network = {
+      ...(typeof nextMetadata.network === 'object' && nextMetadata.network ? nextMetadata.network as Record<string, unknown> : {}),
+      from_feature_id: resolvedFrom,
+      to_feature_id: resolvedTo,
+      from_endpoint: createFeatureEndpointRef(resolvedFrom),
+      to_endpoint: createFeatureEndpointRef(resolvedTo),
+      direction_mode: 'auto',
+    };
+  }
+
+  return {
+    ...feature,
+    metadata: nextMetadata,
+  };
+};
+
+const preserveManualNetworkMetadata = (
+  importedMetadata: Record<string, unknown>,
+  existingMetadata: Record<string, unknown>
+) => {
+  const preservedMetadata: Record<string, unknown> = {
+    ...importedMetadata,
+    manual_override: true,
+  };
+
+  (['start_node_id', 'end_node_id', 'snap_links', 'network', 'infrastructure'] as const).forEach((key) => {
+    if (Object.prototype.hasOwnProperty.call(existingMetadata, key)) {
+      preservedMetadata[key] = existingMetadata[key];
+    }
+  });
+
+  return preservedMetadata;
+};
+
+const decodeBytes = (bytes: number[] | Uint8Array) => {
+  const buffer = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  return new TextDecoder('utf-8').decode(buffer);
+};
+
+const readBinaryFile = async (filePath: string) => {
+  const normalizedPath = ensureAbsolutePath(filePath);
+  return await invoke<number[]>('read_binary_file', { path: normalizedPath });
+};
+
+const inferFieldType = (value: unknown): string => {
+  if (typeof value === 'number') return 'number';
+  if (typeof value === 'boolean') return 'boolean';
+  return 'string';
+};
+
+const buildDatasetMetaFromRecords = (records: FeatureRecord[]): DatasetMeta => {
+  const sample = records.slice(0, 5).map((record) => record.properties);
+  const fieldMap = new Map<string, FieldMeta>();
+
+  records.forEach((record) => {
+    Object.entries(record.properties).forEach(([key, value]) => {
+      if (!fieldMap.has(key)) {
+        fieldMap.set(key, {
+          name: key,
+          display_name: key,
+          field_type: inferFieldType(value),
+          required: false,
+        });
+      }
+    });
+  });
+
+  return {
+    dataset_id: `import-${Date.now()}`,
+    fields: Array.from(fieldMap.values()).sort((a, b) => a.name.localeCompare(b.name)),
+    sample_data: sample,
+  };
+};
+
+const parseCoordinatesText = (coordinatesText: string): Array<[number, number, number?]> => (
+  coordinatesText
+    .trim()
+    .split(/\s+/)
+    .map((pair) => pair.split(',').map((value) => Number.parseFloat(value.trim())))
+    .filter((parts) => parts.length >= 2 && Number.isFinite(parts[0]) && Number.isFinite(parts[1]))
+    .map((parts) => [parts[0], parts[1], Number.isFinite(parts[2]) ? parts[2] : undefined])
+);
+
+const averageCoordinate = (coords: Array<[number, number, number?]>) => {
+  if (coords.length === 0) return { lon: 0, lat: 0 };
+  const total = coords.reduce((acc, coord) => ({
+    lon: acc.lon + coord[0],
+    lat: acc.lat + coord[1],
+  }), { lon: 0, lat: 0 });
+  return {
+    lon: total.lon / coords.length,
+    lat: total.lat / coords.length,
+  };
+};
+
+const readKmlText = async (filePath: string): Promise<string> => {
+  const extension = getFileExtension(filePath);
+  if (extension === 'kmz') {
+    const bytes = await readBinaryFile(filePath);
+    const zip = await JSZip.loadAsync(new Uint8Array(bytes));
+    const kmlFileName = Object.keys(zip.files).find((name) => name.toLowerCase().endsWith('.kml'));
+    if (!kmlFileName) {
+      throw new Error('KMZ file does not contain a KML document.');
+    }
+    const file = zip.file(kmlFileName);
+    if (!file) {
+      throw new Error('Unable to read KML document from KMZ archive.');
+    }
+    return await file.async('text');
+  }
+
+  const bytes = await readBinaryFile(filePath);
+  return decodeBytes(bytes);
+};
+
+const getElementText = (parent: Element | null, selector: string) => {
+  const text = parent?.querySelector(selector)?.textContent?.trim();
+  return text || '';
+};
+
+const parseKmlRecords = async (filePath: string): Promise<FeatureRecord[]> => {
+  const xmlText = await readKmlText(filePath);
+  const document = new DOMParser().parseFromString(xmlText, 'text/xml');
+  const placemarks = Array.from(document.getElementsByTagName('Placemark'));
+  const baseName = getFileName(filePath).replace(/\.(kml|kmz)$/i, '');
+
+  const records: Array<FeatureRecord | null> = placemarks.map((placemark, index) => {
+    const recordId = createImportRecordId();
+    const name = getElementText(placemark, 'name') || `Placemark ${index + 1}`;
+    const description = getElementText(placemark, 'description');
+    const properties: Record<string, string> = {
+      name,
+      ...(description ? { description } : {}),
+    };
+
+    Array.from(placemark.querySelectorAll('ExtendedData > Data')).forEach((data) => {
+      const key = data.getAttribute('name')?.trim();
+      const value = data.querySelector('value')?.textContent?.trim();
+      if (key && value) properties[key] = value;
+    });
+
+    Array.from(placemark.querySelectorAll('ExtendedData > SchemaData > SimpleData')).forEach((data) => {
+      const key = data.getAttribute('name')?.trim();
+      const value = data.textContent?.trim();
+      if (key && value) properties[key] = value;
+    });
+
+    const pointText = placemark.querySelector('Point > coordinates')?.textContent?.trim();
+    if (pointText) {
+      const coords = parseCoordinatesText(pointText);
+      const first = coords[0] || [0, 0];
+      return {
+        id: recordId,
+        geom_type: 'Point' as const,
+        geometry: [first[0], first[1]],
+        center_lat: first[1],
+        center_lon: first[0],
+        tile_id: `${baseName}-${index + 1}`,
+        properties,
+        metadata: { imported_from: 'kml' },
+        source_format: 'kml' as const,
+      };
+    }
+
+    const lineText = placemark.querySelector('LineString > coordinates')?.textContent?.trim();
+    if (lineText) {
+      const coords = parseCoordinatesText(lineText).map((coord) => [coord[0], coord[1]]);
+      const center = averageCoordinate(coords.map((coord) => [coord[0], coord[1]]));
+      return {
+        id: recordId,
+        geom_type: 'LineString' as const,
+        geometry: coords,
+        center_lat: center.lat,
+        center_lon: center.lon,
+        tile_id: `${baseName}-${index + 1}`,
+        properties,
+        metadata: { imported_from: 'kml' },
+        source_format: 'kml' as const,
+      };
+    }
+
+    const polygonText = placemark.querySelector('Polygon > outerBoundaryIs > LinearRing > coordinates')?.textContent?.trim()
+      || placemark.querySelector('Polygon > coordinates')?.textContent?.trim();
+    if (polygonText) {
+      const coords = parseCoordinatesText(polygonText).map((coord) => [coord[0], coord[1]]);
+      const center = averageCoordinate(coords.map((coord) => [coord[0], coord[1]]));
+      return {
+        id: recordId,
+        geom_type: 'Polygon' as const,
+        geometry: [coords],
+        center_lat: center.lat,
+        center_lon: center.lon,
+        tile_id: `${baseName}-${index + 1}`,
+        properties,
+        metadata: { imported_from: 'kml' },
+        source_format: 'kml' as const,
+      };
+    }
+
+    return null;
+  });
+
+  return records.filter((record): record is FeatureRecord => record !== null);
+};
+
 export const buildFeatureCreatedEvents = (
   records: FeatureRecord[],
   groupId: string,
-  layerId: string
+  layerId: string,
+  options: BuildFeatureCreatedEventsOptions = {}
 ): DesignEventType[] => {
-  return records.map((record, index) => {
-    const name = record.properties.name || record.properties.label || `Point ${index + 1}`;
-    const metadata = syncDisplayOrderAliases({
-      ...(record.properties.description ? { description: record.properties.description } : {}),
-      ...(record.properties.display_order ? { display_order: record.properties.display_order } : {}),
-      imported_from: "excel",
-      imported_tile_id: record.tile_id,
-      source_properties: record.properties,
-    }, record.properties.display_order, record.properties);
+  const importedFeatures = records.map((record, index) =>
+    createImportedFeatureDraft(record, index, groupId, layerId)
+  );
+  const featuresById = {
+    ...(options.featuresById || {}),
+    ...Object.fromEntries(importedFeatures.map((feature) => [feature.id, feature])),
+  };
+  const snapThreshold = options.snapThreshold ?? DEFAULT_IMPORT_SNAP_THRESHOLD;
+
+  return importedFeatures.map((feature) => {
+    let enrichedFeature = feature;
+    if (feature.geom_type === 'LineString') {
+      const existingFeature = options.featuresById?.[feature.id];
+      const existingMetadata = existingFeature ? getParsedMetadata(existingFeature) : null;
+      if (existingMetadata?.manual_override === true) {
+        enrichedFeature = {
+          ...feature,
+          metadata: preserveManualNetworkMetadata(
+            getParsedMetadata(feature) as FeatureMetadata & Record<string, unknown>,
+            existingMetadata
+          ),
+        };
+      } else {
+        enrichedFeature = enrichImportedLineFeature(feature, featuresById, snapThreshold);
+      }
+    }
 
     return {
-      type: "FeatureCreated",
+      type: 'FeatureCreated',
       payload: {
-        id: record.id,
+        id: enrichedFeature.id,
         layer_id: layerId,
         group_id: groupId,
-        name,
-        geom_type: "Point",
-        metadata: JSON.stringify(metadata),
-        coordinates: record.geometry,
-        properties: record.properties,
+        name: enrichedFeature.name,
+        geom_type: enrichedFeature.geom_type,
+        metadata: JSON.stringify(enrichedFeature.metadata),
+        coordinates: enrichedFeature.coordinates,
+        properties: enrichedFeature.properties,
       },
     };
   });
 };
 
 export const importService = {
-  /**
-   * Analyzes an import file to infer metadata using the Tauri backend.
-   * @param filePath The absolute path to the file.
-   * @returns Inferred DatasetMeta.
-   */
   async analyzeFile(filePath: string): Promise<DatasetMeta> {
-    try {
-      const normalizedPath = ensureAbsolutePath(filePath);
-      const result = await invoke<DatasetMeta>("analyze_import_file", { path: normalizedPath });
-      if (!result?.fields?.length) {
-        throw new Error("Import analysis returned no usable field metadata.");
+    const normalizedPath = ensureAbsolutePath(filePath);
+    const extension = getFileExtension(normalizedPath);
+
+    if (['xlsx', 'xls', 'xlsm', 'xlsb'].includes(extension)) {
+      try {
+        const result = await invoke<DatasetMeta>('analyze_import_file', { path: normalizedPath });
+        if (!result?.fields?.length) {
+          throw new Error('Import analysis returned no usable field metadata.');
+        }
+        return result;
+      } catch (error) {
+        console.error('Failed to analyze file via Tauri:', error);
+        throw error;
       }
-      return result;
-    } catch (error) {
-      console.error("Failed to analyze file via Tauri:", error);
-      throw error;
     }
+
+    if (['kml', 'kmz'].includes(extension)) {
+      const records = await parseKmlRecords(normalizedPath);
+      return buildDatasetMetaFromRecords(records);
+    }
+
+    throw new Error(`Unsupported import format: ${extension}`);
   },
 
-  /**
-   * Starts the high-performance import task for a given file via the Tauri backend.
-   * @param filePath The absolute path to the file.
-   * @returns The list of parsed features.
-   */
   async startImport(filePath: string, mapping?: ImportMapping): Promise<FeatureRecord[]> {
-    try {
-      const normalizedPath = ensureAbsolutePath(filePath);
-      const result = await invoke<FeatureRecord[]>("start_import_task", {
-        path: normalizedPath,
-        mapping: mapping || null
-      });
-      if (!Array.isArray(result) || result.length === 0) {
-        throw new Error("Import did not return any valid feature records.");
+    const normalizedPath = ensureAbsolutePath(filePath);
+    const extension = getFileExtension(normalizedPath);
+
+    if (['xlsx', 'xls', 'xlsm', 'xlsb'].includes(extension)) {
+      try {
+        const result = await invoke<FeatureRecord[]>('start_import_task', {
+          path: normalizedPath,
+          mapping: mapping || null
+        });
+        if (!Array.isArray(result) || result.length === 0) {
+          throw new Error('Import did not return any valid feature records.');
+        }
+        return result;
+      } catch (error) {
+        console.error('Failed to start import task via Tauri:', error);
+        throw error;
       }
-      return result;
-    } catch (error) {
-      console.error("Failed to start import task via Tauri:", error);
-      throw error;
     }
+
+    if (['kml', 'kmz'].includes(extension)) {
+      return await parseKmlRecords(normalizedPath);
+    }
+
+    throw new Error(`Unsupported import format: ${extension}`);
+  },
+
+  async analyzePmpImport(filePath: string): Promise<PmpImportPreview> {
+    const normalizedPath = ensureAbsolutePath(filePath);
+    if (getFileExtension(normalizedPath) !== 'pmp') {
+      throw new Error('PMP import preview requires a .pmp file.');
+    }
+
+    const result = await invoke<PmpImportPreview>('analyze_pmp_import', {
+      sourcePath: normalizedPath,
+    });
+    if (!result || typeof result !== 'object') {
+      throw new Error('PMP import preview did not return usable data.');
+    }
+    return {
+      sourceProjectName: result.sourceProjectName || getFileName(normalizedPath),
+      regions: Number(result.regions || 0),
+      layers: Number(result.layers || 0),
+      groups: Number(result.groups || 0),
+      features: Number(result.features || 0),
+      mediaAssets: Number(result.mediaAssets || 0),
+      warnings: Array.isArray(result.warnings) ? result.warnings : [],
+    };
+  },
+
+  async importPmpIntoProject(filePath: string, targetProjectId: string): Promise<PmpImportResult> {
+    const normalizedPath = ensureAbsolutePath(filePath);
+    if (getFileExtension(normalizedPath) !== 'pmp') {
+      throw new Error('PMP import requires a .pmp file.');
+    }
+    if (!targetProjectId) {
+      throw new Error('Target project is missing for PMP import.');
+    }
+
+    const result = await invoke<PmpImportResult>('import_pmp_into_project', {
+      sourcePath: normalizedPath,
+      targetProjectId,
+    });
+    if (!result || typeof result !== 'object') {
+      throw new Error('PMP import did not return a usable result.');
+    }
+    return {
+      importedRegions: Number(result.importedRegions || 0),
+      importedLayers: Number(result.importedLayers || 0),
+      importedGroups: Number(result.importedGroups || 0),
+      importedFeatures: Number(result.importedFeatures || 0),
+      importedMediaAssets: Number(result.importedMediaAssets || 0),
+      skippedMediaAssets: Number(result.skippedMediaAssets || 0),
+      importedAt: String(result.importedAt || ''),
+    };
   }
 };
 
 export const applyImportedRecords = async (records: FeatureRecord[], preferredGroupId?: string): Promise<number> => {
   if (!records.length) {
-    throw new Error("There are no imported records to apply.");
+    throw new Error('There are no imported records to apply.');
   }
 
-  const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
+  const { useDesignSync } = await import('@IMPLEMENT/stores/useDesignSync');
   const store = useDesignSync.getState();
   const targetGroupId = preferredGroupId || store.selectedGroupId;
   if (!targetGroupId) {
-    throw new Error("Vui lòng chọn một nhóm đích trước khi import dữ liệu Excel.");
+    throw new Error('Vui long chon mot nhom dich truoc khi import du lieu.');
   }
 
   const targetGroup = store.state?.feature_groups?.[targetGroupId];
   if (!targetGroup?.layer_id) {
-    throw new Error("Nhóm đích không hợp lệ hoặc chưa có layer để chứa dữ liệu import.");
+    throw new Error('Nhom dich khong hop le hoac chua co layer de chua du lieu import.');
   }
 
-  const events = buildFeatureCreatedEvents(records, targetGroupId, targetGroup.layer_id);
+  const events = buildFeatureCreatedEvents(records, targetGroupId, targetGroup.layer_id, {
+    featuresById: store.state?.features || {},
+  });
+  if (records.some((record) => record.source_format === 'kml' || record.source_format === 'kmz')) {
+    console.info('[Import] Applying KML/KMZ records', {
+      count: records.length,
+      groupId: targetGroupId,
+      layerId: targetGroup.layer_id,
+      firstId: records[0]?.id,
+    });
+  }
   await store.dispatchEvents(events);
   store.setSelectedGroup(targetGroupId);
   if (records[0]) {
-    store.zoomTo(records[0].id, "location", [records[0].center_lat, records[0].center_lon]);
+    store.zoomTo(records[0].id, 'location', [records[0].center_lat, records[0].center_lon]);
   }
   return events.length;
 };
 
-// Compatibility bridges for legacy components
 export const importFromExcel = async (filePath: string, mapping?: ImportMapping) => {
   return await importService.startImport(filePath, mapping);
 };
 
 export const importFromKML = async (filePath: string) => {
-  ensureAbsolutePath(filePath);
-  throw new Error("KML/KMZ import is not implemented in this Excel-focused import flow yet.");
+  return await importService.startImport(filePath);
 };
 
 export const getExcelHeaders = async (filePath: string): Promise<string[]> => {
   const meta = await importService.analyzeFile(filePath);
-  return meta.fields.map(f => f.name);
+  return meta.fields.map((f) => f.name);
 };

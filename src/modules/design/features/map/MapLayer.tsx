@@ -99,8 +99,6 @@ export function MapLayer({
 }: MapLayerProps) {
     const [selectedBasemapName, setSelectedBasemapName] = useState<BasemapName>(getSavedBasemapName);
     const {
-        isGrayscale,
-        setIsGrayscale,
         mapFeatures,
         setMapFeatures,
         getStyledUrl,
@@ -119,46 +117,50 @@ export function MapLayer({
             zoomControl={false}
             attributionControl={false}
             boxZoom={false}
-            className={isGrayscale ? 'grayscale-basemap' : ''}
+            className="design-map-container"
         >
             <LayersControl position="topright">
                 <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Streets'} name="Google Streets">
                     <TileLayer
-                        key={`r-${mapKey}`}
-                        url={getStyledUrl('r')}
+                        className="design-basemap-tile"
+                        key={`m-${mapKey}`}
+                        url={getStyledUrl('m')}
                         maxZoom={36}
                         maxNativeZoom={20}
+                        referrerPolicy="no-referrer"
                     />
                 </LayersControl.BaseLayer>
                 <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Satellite (Hybrid)'} name="Google Satellite (Hybrid)">
                     <TileLayer
+                        className="design-basemap-tile"
                         key={`y-${mapKey}`}
                         url={getStyledUrl('y')}
                         maxZoom={36}
                         maxNativeZoom={20}
+                        referrerPolicy="no-referrer"
                     />
                 </LayersControl.BaseLayer>
                 <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Satellite (Trắng đen)'} name="Google Satellite (Trắng đen)">
                     <TileLayer
-                        className="grayscale-tile"
+                        className="design-basemap-tile"
                         key={`sbw-${mapKey}`}
                         url={getStyledUrl('y')}
                         maxZoom={36}
                         maxNativeZoom={20}
+                        referrerPolicy="no-referrer"
                     />
                 </LayersControl.BaseLayer>
                 <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Terrain'} name="Google Terrain">
                     <TileLayer
+                        className="design-basemap-tile"
                         key={`p-${mapKey}`}
                         url={getStyledUrl('p')}
                         maxZoom={36}
                         maxNativeZoom={20}
+                        referrerPolicy="no-referrer"
                     />
                 </LayersControl.BaseLayer>
 
-                <LayersControl.Overlay name="Chế độ Đen Trắng (Toàn bộ)">
-                    <TileLayer url="" eventHandlers={{ add: () => setIsGrayscale(true), remove: () => setIsGrayscale(false) }} />
-                </LayersControl.Overlay>
             </LayersControl>
             <BasemapPersistence onBasemapChange={setSelectedBasemapName} />
 

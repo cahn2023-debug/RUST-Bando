@@ -104,4 +104,47 @@ describe('InteractiveStreetViewPreview', () => {
 
         expect(screen.getByText('HUD Fallback Active')).toBeInTheDocument();
     });
+
+    it('can switch between valid and invalid coordinates without changing hook order', () => {
+        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        const { rerender } = render(
+            <InteractiveStreetViewPreview
+                lat={10.76}
+                lng={106.66}
+                heading={90}
+                fov={70}
+                fallback={<div>HUD Fallback Active</div>}
+            />
+        );
+
+        expect(screen.getByTitle('Street View Public Preview')).toBeInTheDocument();
+
+        rerender(
+            <InteractiveStreetViewPreview
+                lat={Number.NaN}
+                lng={Number.NaN}
+                heading={90}
+                fov={70}
+                fallback={<div>HUD Fallback Active</div>}
+            />
+        );
+
+        expect(screen.getByText('HUD Fallback Active')).toBeInTheDocument();
+
+        rerender(
+            <InteractiveStreetViewPreview
+                lat={10.77}
+                lng={106.67}
+                heading={180}
+                fov={70}
+                fallback={<div>HUD Fallback Active</div>}
+            />
+        );
+
+        const iframe = screen.getByTitle('Street View Public Preview');
+        expect(iframe.getAttribute('src')).toContain('cbll=10.77%2C106.67');
+        expect(iframe.getAttribute('src')).toContain('cbp=12%2C180.0%2C0%2C0%2C0');
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
+        consoleErrorSpy.mockRestore();
+    });
 });

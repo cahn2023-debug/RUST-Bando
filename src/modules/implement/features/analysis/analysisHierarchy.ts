@@ -1,6 +1,6 @@
 import type { FeatureState, MapState } from '@CONTRACT/types';
 import { flattenFeature } from '@TOOL/utils/dataFlattening';
-import { getFeatureDisplayInfo } from '@TOOL/utils/featureDisplay';
+import { getFeatureDisplayInfo, isNetworkLinkFeature } from '@TOOL/utils/featureDisplay';
 import { calculateFeatureNumbers } from '@TOOL/utils/featureMapping';
 
 type ComparableValue = string | number | boolean | null | undefined;
@@ -116,7 +116,9 @@ export const buildAnalysisHierarchyRows = (state: MapState): AnalysisHierarchyRo
     state.features || {},
   );
 
-  const processedFeatures = Object.values(state.features || {}).map((feature) => {
+  const processedFeatures = Object.values(state.features || {})
+    .filter((feature) => !isNetworkLinkFeature(feature))
+    .map((feature) => {
     const metadata = parseMetadata(feature);
     const group = feature.group_id ? state.feature_groups?.[feature.group_id] : null;
     const displayInfo = getFeatureDisplayInfo(feature, group?.type || group?.group_type, group?.name, metadata);

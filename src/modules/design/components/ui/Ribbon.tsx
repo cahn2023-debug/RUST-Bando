@@ -191,13 +191,13 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
             enableAi={enableAi}
             setEnableAi={setEnableAi}
             onReleaseAiMemory={onReleaseAiMemory}
-            onImport={() => setIsImportOpen(true)}
             onForceSave={onForceSave}
           />
         ) : activeTab === 'DESIGN' ? (
           <DesignRibbonTools
             enableAi={enableAi} setEnableAi={setEnableAi} onReleaseAiMemory={onReleaseAiMemory}
             onForceSave={onForceSave}
+            onImport={() => setIsImportOpen(true)}
             undo={undo} redo={redo}
             showSystemConfig={showSystemConfig} setShowSystemConfig={setShowSystemConfig} systemConfigRef={systemConfigRef}
             togglePalette={togglePalette} activePaletteId={activePaletteId}
@@ -222,6 +222,7 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
 
       {isImportOpen && (
         <ImportDialog
+          project={project}
           onClose={() => setIsImportOpen(false)}
           onSuccess={(id) => console.log("Imported dataset:", id)}
         />

@@ -82,8 +82,6 @@ describe("useProjectManager", () => {
           return null;
         case "get_recent_projects":
           return [backendProject];
-        case "get_app_config":
-          return { recent_pmps: [backendProject] };
         default:
           return null;
       }
@@ -97,6 +95,7 @@ describe("useProjectManager", () => {
     });
 
     expect(mockLoadSettings).toHaveBeenCalled();
+    expect(mockInvoke).not.toHaveBeenCalledWith("get_app_config");
   });
 
   it("opens a direct .pmp path and persists recent projects only after backend success", async () => {
@@ -159,8 +158,6 @@ describe("useProjectManager", () => {
           return null;
         case "get_recent_projects":
           return [backendProject];
-        case "get_app_config":
-          return { recent_pmps: [backendProject] };
         case "load_pmp_file":
           expect(args).toEqual({ path: backendProject.path });
           return loadDeferred.promise;
@@ -215,8 +212,6 @@ describe("useProjectManager", () => {
           return null;
         case "get_recent_projects":
           return [backendProject];
-        case "get_app_config":
-          return { recent_pmps: [backendProject] };
         case "load_pmp_file":
           return loadDeferred.promise;
         case "save_recent_projects":

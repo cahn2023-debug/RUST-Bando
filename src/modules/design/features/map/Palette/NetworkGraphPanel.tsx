@@ -5,6 +5,7 @@ import {
     Connection,
     Controls,
     MiniMap,
+    Position,
     ReactFlow,
     ReactFlowProvider,
     useReactFlow,
@@ -137,6 +138,11 @@ const rankNode = (node: NetworkNode) => {
     return 2;
 };
 
+const compareTreeNodes = (left: NetworkNode, right: NetworkNode) =>
+    rankNode(left) - rankNode(right) ||
+    left.label.localeCompare(right.label, undefined, { numeric: true, sensitivity: 'base' }) ||
+    left.id.localeCompare(right.id);
+
 const isSourceNode = (node: NetworkNode | undefined | null) => node?.role === 'cabinet' || node?.role === 'intersection';
 
 const getNodeScopeOwnerId = (node: NetworkNode | undefined): string | undefined => {
@@ -211,7 +217,7 @@ const layoutGraphNodes = (
     if (nodes.length === 0) return positions;
 
     const nodeIds = new Set(nodes.map(n => n.id));
-    const sortedNodes = [...nodes].sort((a, b) => rankNode(a) - rankNode(b) || a.label.localeCompare(b.label) || a.id.localeCompare(b.id));
+    const sortedNodes = [...nodes].sort((a, b) => compareTreeNodes(a, b));
 
     // If tab is 'route' (Toan tuyen), use geographic-based layout
     if (tab === 'route') {
@@ -399,45 +405,67 @@ const layoutGraphNodes = (
 
     if (layoutMode === 'tree') {
         // Elegant tree layout positioning
-        const nextYForColumn = new Map<number, number>();
+        const subtreeHeightCache = new Map<string, number>();
+        const getOrderedChildren = (nodeId: string, currentLevel: number) =>
+            (adj.get(nodeId) || [])
+                .filter(c => levels.get(c) === currentLevel + 1)
+                .map(id => nodes.find(node => node.id === id))
+                .filter((node): node is NetworkNode => !!node)
+                .sort((a, b) => compareTreeNodes(a, b))
+                .map(node => node.id);
 
-        const layoutSubtree = (nodeId: string, currentLevel: number): number => {
-            const children = (adj.get(nodeId) || []).filter(c => levels.get(c) === currentLevel + 1);
+        const getSubtreeHeight = (nodeId: string, currentLevel: number): number => {
+            const cached = subtreeHeightCache.get(nodeId);
+            if (cached) return cached;
+
+            const children = getOrderedChildren(nodeId, currentLevel);
+            const height = children.length === 0
+                ? rowHeight
+                : Math.max(
+                    rowHeight,
+                    children.reduce((sum, childId, index) => {
+                        const childHeight = getSubtreeHeight(childId, currentLevel + 1);
+                        return sum + childHeight + (index > 0 ? rowHeight * 0.6 : 0);
+                    }, 0)
+                );
+            subtreeHeightCache.set(nodeId, height);
+            return height;
+        };
+
+        const layoutSubtree = (nodeId: string, currentLevel: number, topY: number): number => {
+            const children = getOrderedChildren(nodeId, currentLevel);
             const x = currentLevel * levelWidth + 40;
 
             if (children.length === 0) {
-                const yStart = nextYForColumn.get(currentLevel) || 40;
-                positions[nodeId] = { x, y: yStart };
-                nextYForColumn.set(currentLevel, yStart + rowHeight);
-                return yStart;
+                positions[nodeId] = { x, y: topY };
+                return rowHeight;
             }
 
-            const childYPositions: number[] = [];
-            children.forEach(childId => {
-                const childY = layoutSubtree(childId, currentLevel + 1);
-                childYPositions.push(childY);
+            const childHeights = children.map(childId => getSubtreeHeight(childId, currentLevel + 1));
+            const childrenSpan = childHeights.reduce((sum, height) => sum + height, 0) + (children.length - 1) * rowHeight * 0.6;
+            const parentY = topY + childrenSpan / 2 - rowHeight / 2;
+            positions[nodeId] = { x, y: parentY };
+
+            let nextChildTop = topY;
+            children.forEach((childId, index) => {
+                layoutSubtree(childId, currentLevel + 1, nextChildTop);
+                nextChildTop += childHeights[index] + rowHeight * 0.6;
             });
 
-            const avgChildY = childYPositions.reduce((a, b) => a + b, 0) / childYPositions.length;
-            const currentYLimit = nextYForColumn.get(currentLevel) || 40;
-            const parentY = Math.max(avgChildY, currentYLimit);
-
-            positions[nodeId] = { x, y: parentY };
-            nextYForColumn.set(currentLevel, parentY + rowHeight);
-            return parentY;
+            return Math.max(rowHeight, childrenSpan);
         };
 
-        roots.forEach(r => {
-            layoutSubtree(r, 0);
+        let nextRootTop = 40;
+        roots.forEach(rootId => {
+            const subtreeHeight = layoutSubtree(rootId, 0, nextRootTop);
+            nextRootTop += subtreeHeight + rowHeight * 0.8;
         });
 
         sortedNodes.forEach(n => {
             if (!positions[n.id]) {
                 const level = levels.get(n.id) || 0;
-                const x = level * levelWidth + 40;
-                const yLimit = nextYForColumn.get(level) || 40;
-                positions[n.id] = { x, y: yLimit };
-                nextYForColumn.set(level, yLimit + rowHeight);
+                positions[n.id] = { x: level * levelWidth + 40, y: nextRootTop };
+                nextRootTop += rowHeight;
             }
         });
 
@@ -476,9 +504,10 @@ interface NetworkGraphFlowProps {
     tab: NetworkTab;
     layoutMode: LayoutMode;
     fitVersion: number;
+    treeArrangeVersion: number;
 }
 
-const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps) => {
+const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: NetworkGraphFlowProps) => {
     const reactFlow = useReactFlow();
     const state = useDesignSync(s => s.state);
     const projectId = useDesignSync(s => s.projectId);
@@ -666,15 +695,21 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
 
     useEffect(() => {
         window.requestAnimationFrame(() => reactFlow.fitView({ padding: 0.2, duration: 250 }));
-    }, [layoutMode, reactFlow, scopedEdges.length, scopedNodes.length, selectedIntersectionId]);
+    }, [layoutMode, reactFlow, scopedEdges.length, scopedNodes.length, selectedIntersectionId, treeArrangeVersion]);
 
     useEffect(() => {
+        if (layoutMode === 'tree') {
+            setLayoutPositions({});
+            return;
+        }
+
         setLayoutPositions(readLayoutPositions(layoutStorageKey));
-    }, [layoutStorageKey]);
+    }, [layoutMode, layoutStorageKey]);
 
     useEffect(() => {
+        if (layoutMode === 'tree') return;
         writeLayoutPositions(layoutStorageKey, layoutPositions);
-    }, [layoutPositions, layoutStorageKey]);
+    }, [layoutMode, layoutPositions, layoutStorageKey]);
 
     const { reactFlowNodes, reactFlowEdges } = useMemo(() => {
         const positions = layoutGraphNodes(scopedNodes, scopedEdges, layoutMode, tab, selectedIntersectionId);
@@ -693,11 +728,15 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
             const isSelected = selectedFeatureId !== null
                 ? displayNode.memberIds.includes(selectedFeatureId) || selectedEntity?.id === node.id
                 : selectedEntity?.id === node.id;
+            const isTreeLayout = layoutMode === 'tree';
 
             return {
                 id: displayNode.id,
                 type: 'networkNode',
-                position: layoutPositions[displayNode.id] || positions[node.id] || { x: 40, y: 40 },
+                position: (!isTreeLayout && layoutPositions[displayNode.id]) || positions[node.id] || { x: 40, y: 40 },
+                sourcePosition: Position.Right,
+                targetPosition: Position.Left,
+                draggable: !isTreeLayout,
                 style: {
                     opacity: isDimmed ? 0.35 : 1,
                     transition: 'opacity 300ms ease-out',
@@ -740,7 +779,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                 id: edge.id,
                 source: displayEdge.from,
                 target: displayEdge.to,
-                type: 'smoothstep',
+                type: layoutMode === 'tree' ? 'step' : 'smoothstep',
                 animated: edge.kind === 'signal' && edgeStatus === 'online' && edge.directionState === 'confirmed' && !isDimmed,
                 selectable: edge.kind === 'signal',
                 interactionWidth: edge.kind === 'signal' ? 18 : 8,
@@ -775,7 +814,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
         });
 
         return { reactFlowNodes: nodes, reactFlowEdges: edges };
-    }, [dimmedNodeIds, displayGraph.edges, displayGraph.nodes, evaluation.nodeStates, layoutMode, tab, layoutPositions, scopedEdges, scopedNodes, selectedEntity?.id, selectedFeatureId, selectedIntersectionId, snapshot.edges]);
+    }, [dimmedNodeIds, displayGraph.edges, displayGraph.nodes, evaluation.nodeStates, layoutMode, tab, layoutPositions, scopedEdges, scopedNodes, selectedEntity?.id, selectedFeatureId, selectedIntersectionId, snapshot.edges, treeArrangeVersion]);
 
     useEffect(() => {
         if (!selectedFeatureId) return;
@@ -1045,7 +1084,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion }: NetworkGraphFlowProps
                     nodes={reactFlowNodes}
                     edges={reactFlowEdges}
                     nodeTypes={nodeTypes}
-                    nodesDraggable
+                    nodesDraggable={layoutMode !== 'tree'}
                     onNodeClick={handleNodeClick}
                     onNodeDragStop={handleNodeDragStop}
                     onEdgeClick={handleEdgeClick}
@@ -1380,6 +1419,7 @@ export const NetworkGraphPanel: React.FC = () => {
     const [tab, setTab] = useState<NetworkTab>('intersection');
     const [layoutMode, setLayoutMode] = useState<LayoutMode>('graph');
     const [fitVersion, setFitVersion] = useState(0);
+    const [treeArrangeVersion, setTreeArrangeVersion] = useState(0);
     const mode = useNetworkStatusStore(s => s.mode);
     const isStale = useNetworkStatusStore(s => s.isStale);
     const setMode = useNetworkStatusStore(s => s.setMode);
@@ -1439,6 +1479,18 @@ export const NetworkGraphPanel: React.FC = () => {
                         <button className={cn('rounded px-3 py-1', layoutMode === 'tree' ? 'bg-cyan-400 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setLayoutMode('tree')}>
                             Tree
                         </button>
+                        {layoutMode === 'tree' && (
+                            <button
+                                className="ml-1 inline-flex items-center gap-1 rounded px-3 py-1 text-zinc-300 hover:bg-white/10"
+                                onClick={() => {
+                                    setTreeArrangeVersion(version => version + 1);
+                                    setFitVersion(version => version + 1);
+                                }}
+                                title="Auto arrange tree"
+                            >
+                                Sắp xếp
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -1464,7 +1516,7 @@ export const NetworkGraphPanel: React.FC = () => {
             </div>
 
             <ReactFlowProvider>
-                <NetworkGraphFlow tab={tab} layoutMode={layoutMode} fitVersion={fitVersion} />
+                <NetworkGraphFlow tab={tab} layoutMode={layoutMode} fitVersion={fitVersion} treeArrangeVersion={treeArrangeVersion} />
             </ReactFlowProvider>
         </div>
     );

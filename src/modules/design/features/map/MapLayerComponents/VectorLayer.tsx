@@ -55,39 +55,6 @@ export const VectorLayer = React.memo(({
         }
     }), [zoomTo]);
 
-    // Debug logging for vector features
-    React.useEffect(() => {
-        console.log(`[VectorLayer] Rendering ${features.length} vector features`);
-        const lineFeatures = features.filter((f: any) => {
-            const geomType = (f.geom_type || '').toLowerCase();
-            return geomType === 'linestring' || geomType === 'polyline' || geomType === 'line';
-        });
-        console.log(`[VectorLayer] ${lineFeatures.length} are lines`);
-
-        // CRITICAL: Log metadata for each polyline
-        lineFeatures.forEach((f: any) => {
-            const metadata = getParsedMetadata(f, previewMetadata, groupThemePreview);
-            console.log(`[VectorLayer] 🔍 Feature: ${f.name || f.id}`);
-            console.log(`[VectorLayer]   metadata.size:`, metadata.size);
-            console.log(`[VectorLayer]   metadata.weight:`, metadata.weight);
-            console.log(`[VectorLayer]   metadata.stroke:`, metadata.stroke);
-            console.log(`[VectorLayer]   Calculated weight:`, Number(metadata.weight || metadata.size) || 5);
-        });
-
-        if (lineFeatures.length > 0) {
-            lineFeatures.slice(0, 3).forEach((f: any) => {
-                const coords = getParsedCoordinates(f);
-                console.log(`[VectorLayer] Line feature ${f.name || f.id}:`, {
-                    geom_type: f.geom_type,
-                    coords_type: typeof coords,
-                    coords_is_array: Array.isArray(coords),
-                    coords_length: coords?.length,
-                    coords_sample: coords?.slice(0, 2)
-                });
-            });
-        }
-    }, [features, previewMetadata, groupThemePreview]);
-
     return (
         <>
             {features.map((f: any) => {
@@ -132,7 +99,6 @@ export const VectorLayer = React.memo(({
                         coords = children
                             .map((child: any) => getRepresentativePoint(child))
                             .filter((c: any) => Array.isArray(c) && c.length >= 2) as any;
-                        console.log(`[VectorLayer] Aggregated ${coords?.length || 0} points for parent ${f.name || f.id}`);
                     }
                 }
 
@@ -175,21 +141,6 @@ export const VectorLayer = React.memo(({
                     const weight = isSelected
                         ? (baseWeight ? baseWeight + 4 : 8)
                         : (baseWeight ? baseWeight : 5); // Increased default from 2 to 5
-
-                    console.log(`[VectorLayer] 🔍 Metadata check for ${f.name || f.id}:`, {
-                        'metadata.weight': metadata.weight,
-                        'metadata.size': metadata.size,
-                        'metadata.stroke': metadata.stroke,
-                        baseWeight,
-                        finalWeight: weight,
-                        raw_metadata: metadata
-                    });
-
-                    console.log(`[VectorLayer] ✅ Rendering polyline ${f.name || f.id} with ${latLngs.length} points`, {
-                        color: displayInfo.color,
-                        weight,
-                        isSelected
-                    });
 
                     if (latLngs.length === 1) {
                         return (

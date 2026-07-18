@@ -38,7 +38,6 @@ const getSavedMapFeatures = (): MapFeatures => {
 };
 
 export function useMapStyles() {
-    const [isGrayscale, setIsGrayscale] = useState(false);
     const [mapFeatures, setMapFeatures] = useState<MapFeatures>(getSavedMapFeatures);
 
     useEffect(() => {
@@ -50,6 +49,10 @@ export function useMapStyles() {
     }, [mapFeatures]);
 
     const getStyledUrl = (lyr: string) => {
+        if (lyr === 'm') {
+            return 'https://mt1.google.com/vt/lyrs=m&hl=vi&gl=vn&x={x}&y={y}&z={z}';
+        }
+
         const rules: string[] = [];
         // Road Geometry (the lines)
         if (!mapFeatures.roads) rules.push('s.t:3|s.e:g|p.v:off');
@@ -63,14 +66,12 @@ export function useMapStyles() {
         if (!mapFeatures.labels) rules.push('s.t:1|s.e:l|p.v:off', 's.t:2|s.e:l|p.v:off', 's.t:4|s.e:l|p.v:off', 's.t:6|s.e:l|p.v:off');
 
         const styleParam = rules.length > 0 ? `&apistyle=${encodeURIComponent(rules.join(','))}` : '';
-        return `https://mt1.google.com/vt/lyrs=${lyr}&hl=vi&x={x}&y={y}&z={z}${styleParam}`;
+        return `https://mt1.google.com/vt/lyrs=${lyr}&hl=vi&gl=vn&x={x}&y={y}&z={z}${styleParam}`;
     };
 
     const mapKey = useMemo(() => JSON.stringify(mapFeatures), [mapFeatures]);
 
     return {
-        isGrayscale,
-        setIsGrayscale,
         mapFeatures,
         setMapFeatures,
         getStyledUrl,

@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from "react";
-import { getFeatureDisplayInfo, getParsedMetadata, calculateFeatureNumbers, isMatchSearch } from "@TOOL/utils/featureUtils";
+import { getFeatureDisplayInfo, getParsedMetadata, calculateFeatureNumbers, isMatchSearch, isNetworkLinkFeature } from "@TOOL/utils/featureUtils";
 import type { RegionState, LayerState, FeatureGroupState, FeatureState } from "@CONTRACT/types";
 
 type TreeNodeData = RegionState | FeatureGroupState | FeatureState;
@@ -9,13 +9,6 @@ const getGroupKind = (group: FeatureGroupState): string =>
 
 const hasStringId = (value: unknown): value is string =>
     typeof value === 'string' && value.length > 0;
-
-const isNetworkLinkFeature = (feature: FeatureState): boolean => {
-    const metadata = getParsedMetadata(feature);
-    return !!metadata.infrastructure &&
-        typeof metadata.infrastructure === 'object' &&
-        (metadata.infrastructure as Record<string, unknown>).type === 'NetworkLink';
-};
 
 export interface FlatTreeItem {
     type: 'region' | 'group' | 'feature' | 'intersection-children-group';

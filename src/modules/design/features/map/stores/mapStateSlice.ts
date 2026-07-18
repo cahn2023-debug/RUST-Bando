@@ -2,9 +2,12 @@ import { StateCreator } from 'zustand';
 import { MapStateSlice, DesignSyncStore } from './types';
 import { MapState } from '@CONTRACT/types';
 import { DesignEventType } from '@CONTRACT/designTypes';
+import { normalizeMapStateForDisplay } from '../../../../tool/utils/normalizeDisplay';
+
 
 
 const UPDATE_THROTTLE_MS = 100;
+const IS_DEV = import.meta.env.DEV;
 let inboundUpdateTimer: any = null;
 let inboundStateBuffer: MapState | null = null;
 let lastUpdateTimestamp = 0;
@@ -125,7 +128,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 case 'FeatureCreated':
                 case 'FeatureUpdated':
                     const currentFeature = newState.features[payload.id];
-                    if (type === 'FeatureUpdated') {
+                    if (IS_DEV && type === 'FeatureUpdated') {
                         console.groupCollapsed(`[Sync] applyPatchToState FeatureUpdated ${payload.id}`);
                         console.log('incoming payload:', payload);
                         console.log('before metadata:', currentFeature?.metadata);
@@ -218,8 +221,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
             response.side_effects?.forEach(applySingle);
         }
 
-        set({ state: newState });
-        console.log(`[Sync] ✅ Patch applied for ${newState.lastEventId}`);
+        const normalizedState = normalizeMapStateForDisplay(newState);
+        set({ state: normalizedState });
+        if (IS_DEV) {
+            console.log(`[Sync] Patch applied for ${normalizedState.lastEventId}`);
+        }
     },
 
     applyQueuedAckToState: (response) => {
@@ -233,7 +239,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
             switch (type) {
                 case 'FeatureCreated':
                 case 'FeatureUpdated':
-                    if (type === 'FeatureUpdated') {
+                    if (IS_DEV && type === 'FeatureUpdated') {
                         console.groupCollapsed(`[Sync] applyQueuedAckToState FeatureUpdated ${payload.id}`);
                         console.log('incoming payload:', payload);
                         console.log('before metadata:', newState.features[payload.id]?.metadata);
@@ -314,8 +320,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
             response.side_effects?.forEach(applySingle);
         }
 
-        set({ state: newState });
-        console.log(`[Sync] Queued ack applied for ${newState.lastEventId}`);
+        const normalizedState = normalizeMapStateForDisplay(newState);
+        set({ state: normalizedState });
+        if (IS_DEV) {
+            console.log(`[Sync] Queued ack applied for ${normalizedState.lastEventId}`);
+        }
     },
 
     applyEventsOptimistically: (events) => {
@@ -335,7 +344,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                     const fPayload = { ...payload };
                     if (fPayload.group_id === '') fPayload.group_id = null;
                     const currentFeature = newState.features[payload.id];
-                    if (type === 'FeatureUpdated') {
+                    if (IS_DEV && type === 'FeatureUpdated') {
                         console.groupCollapsed(`[Sync] applyEventsOptimistically FeatureUpdated ${payload.id}`);
                         console.log('incoming payload:', fPayload);
                         console.log('before metadata:', currentFeature?.metadata);
@@ -417,8 +426,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         };
 
         events?.forEach(apply);
-        set({ state: newState });
-        console.log(`[Sync] 🚀 Optimistic update applied for ${events?.length || 0} events`);
+        const normalizedState = normalizeMapStateForDisplay(newState);
+        set({ state: normalizedState });
+        if (IS_DEV) {
+            console.log(`[Sync] Optimistic update applied for ${events?.length || 0} events`);
+        }
     },
 
     updateSettings: async (settings) => {

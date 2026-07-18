@@ -1,3 +1,6 @@
+import type { ProjectSettingsSchema } from '@TOOL/utils/objectDataTemplates';
+import { getAnalysisTemplateColumnKeys } from '@TOOL/utils/objectDataTemplates';
+
 export type AnalysisScalarValue = string | number | boolean;
 
 type AnalysisFeatureLike = {
@@ -146,6 +149,10 @@ export const getAnalysisUserColumnKeys = (
 
   return Array.from(keys).sort((a, b) => a.localeCompare(b));
 };
+
+export const getAnalysisSchemaColumnKeys = (settings?: ProjectSettingsSchema | null) => (
+  settings ? getAnalysisTemplateColumnKeys(settings) : []
+);
 
 export const buildAnalysisExportRows = (
   rows: Record<string, unknown>[],

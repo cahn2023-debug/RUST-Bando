@@ -6,3 +6,5 @@
 export * from './featureMetadata';
 export * from './featureDisplay';
 export * from './featureMapping';
+export * from './normalizeDisplay';
+

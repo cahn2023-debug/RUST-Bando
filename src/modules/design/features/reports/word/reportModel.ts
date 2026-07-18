@@ -1,5 +1,5 @@
 import type { FeatureState, FeatureGroupState, MapState, RegionState } from "@CONTRACT/types";
-import { getFeatureDisplayInfo, getParsedMetadata, getFeatureMetadataValue, safeString } from "@TOOL/utils/featureUtils";
+import { getFeatureDisplayInfo, getParsedMetadata, getFeatureMetadataValue, safeString, isNetworkLinkFeature } from "@TOOL/utils/featureUtils";
 
 export type ReportSelection =
   | { type: "region"; id: string }
@@ -155,7 +155,9 @@ export const expandReportSelections = (state: MapState, selections: ReportSelect
     });
   });
 
-  return Array.from(selectedFeatures.values()).sort(compareFeatures);
+  return Array.from(selectedFeatures.values())
+    .filter((feature) => !isNetworkLinkFeature(feature))
+    .sort(compareFeatures);
 };
 
 export const getDefaultReportSelections = (state: MapState, options: {
@@ -164,10 +166,10 @@ export const getDefaultReportSelections = (state: MapState, options: {
   selectedGroupId?: string | null;
 }): ReportSelection[] => {
   const explicitSelections = Array.from(options.selectionSet || [])
-    .filter((id) => state.features?.[id])
+    .filter((id) => state.features?.[id] && !isNetworkLinkFeature(state.features[id]))
     .map((id) => ({ type: "feature", id } as ReportSelection));
   if (explicitSelections.length > 0) return explicitSelections;
-  if (options.selectedFeatureId && state.features?.[options.selectedFeatureId]) {
+  if (options.selectedFeatureId && state.features?.[options.selectedFeatureId] && !isNetworkLinkFeature(state.features[options.selectedFeatureId])) {
     return [{ type: "feature", id: options.selectedFeatureId }];
   }
   if (options.selectedGroupId && state.feature_groups?.[options.selectedGroupId]) {
@@ -429,6 +431,7 @@ export const getSelectableReportItems = (state: MapState): Array<{
   const childrenMap = getFeatureChildrenMap(state);
 
   const addFeature = (feature: FeatureState, level: number) => {
+    if (isNetworkLinkFeature(feature)) return;
     items.push({
       key: `feature:${feature.id}`,
       selection: { type: "feature", id: feature.id },

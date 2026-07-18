@@ -101,15 +101,6 @@
     border-radius: 10px;
 }
 
-/* Grayscale Tile Class (for specific layers) */
-.grayscale-tile {
-    filter: grayscale(100%) brightness(1.2) contrast(1.1) !important;
-}
-
-/* Grayscale Basemap Class (global toggle) */
-.grayscale-basemap .leaflet-tile-pane {
-    filter: grayscale(100%) brightness(1.2) contrast(1.1);
-}
 
 /* Map Settings Control Style inside LayersControl */
 .custom-map-settings-wrapper {
@@ -185,6 +176,29 @@
 
 .leaflet-container {
     background: transparent !important;
+}
+
+.design-map-container,
+.design-map-container .leaflet-pane,
+.design-map-container .leaflet-layer,
+.design-map-container .leaflet-tile-pane {
+    color-scheme: light;
+    forced-color-adjust: none;
+}
+
+.design-map-container .leaflet-tile-pane {
+    background: #f3f4f6;
+    isolation: isolate;
+}
+
+.design-map-container .leaflet-tile,
+.design-map-container .leaflet-tile-pane img,
+.design-basemap-tile {
+    filter: none !important;
+    -webkit-filter: none !important;
+    mix-blend-mode: normal !important;
+    opacity: 1 !important;
+    forced-color-adjust: none;
 }
 
 .leaflet-control-attribution {

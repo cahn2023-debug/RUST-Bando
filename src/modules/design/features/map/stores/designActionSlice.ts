@@ -1,13 +1,8 @@
 import { StateCreator } from 'zustand';
 import { DesignActionSlice, DesignSyncStore } from './types';
 import { invoke } from '@tauri-apps/api/core';
-import { emit } from '@tauri-apps/api/event';
 import { logger } from '../../../../tool/utils/logger';
-import {
-    invoke_design_event_batch,
-    savePalettePersist,
-    WINDOW_SYNC_SOURCE_ID
-} from '../../../../tool/utils/designIpc';
+import { invoke_design_event_batch } from '../../../../tool/utils/designIpc';
 import { enrichEventBeforeDispatch } from '../../../../tool/utils/designEvents';
 import { DesignEventType } from '@CONTRACT/designTypes';
 
@@ -17,6 +12,7 @@ let consecutiveSyncFailures = 0;
 let firstFailureAt = 0;
 const SYNC_FAILURE_WINDOW_MS = 30000;
 const MAX_SYNC_FAILURES_BEFORE_BREAKER = 3;
+const IS_DEV = import.meta.env.DEV;
 
 const shouldRecoverByInitialize = (): boolean => {
     const now = Date.now();
@@ -68,14 +64,15 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
             get().applyEventsOptimistically([incomingEvent]);
             set({ pendingSync: true, error: null });
 
-            console.log(`[Sync] 🚀 Dispatching ${event.type} to Rust (Incremental)...`, event.payload);
+            if (IS_DEV) {
+                console.log(`[Sync] Dispatching ${event.type} to Rust (Incremental)...`, event.payload);
+            }
 
             return invoke_design_event_batch(projectId, [event])
                 .then((response) => {
                     markSyncRecovered();
                     if (response) {
                         get().applyPatchToState(response);
-                        void emit('sync-design-patch', { response, sourceId: WINDOW_SYNC_SOURCE_ID });
                     }
                     if (event.type === 'FeatureCreated' || (event.type === 'FeatureUpdated' && (event.payload as any).metadata)) {
                         get().syncDisplayOrderWithSTT();
@@ -117,7 +114,6 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
                     markSyncRecovered();
                     if (response) {
                         get().applyPatchToState(response);
-                        void emit('sync-design-patch', { response, sourceId: WINDOW_SYNC_SOURCE_ID });
                     }
                 })
                 .catch((e: any) => {
@@ -143,34 +139,29 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
 
     queueEvents: async (events) => {
         const { projectId: queuedProjectId, projectKey: queuedProjectKey } = get();
-        if (!queuedProjectId) return;
+        if (!queuedProjectId || events.length === 0) return;
 
         const preparedEvents = events.map(enrichEventBeforeDispatch);
         get().applyEventsOptimistically(events);
         set({ pendingSync: true });
 
         try {
-            const response = await savePalettePersist(queuedProjectId, preparedEvents);
+            const response = await get()._internalBufferedSyncEvents(preparedEvents);
             const currentStore = get();
 
             if (
+                response &&
                 currentStore.projectId === queuedProjectId &&
                 (currentStore.projectKey ?? `id:${queuedProjectId}`) === queuedProjectKey
             ) {
                 currentStore.applyQueuedAckToState(response);
             }
-            void emit('sync-design-patch', { response, sourceId: WINDOW_SYNC_SOURCE_ID });
         } catch (error) {
             console.error('[Sync] Direct sync failed for palette/settings:', error);
             throw error;
         } finally {
             set({ pendingSync: false });
         }
-    },
-
-    flushPendingPersists: async () => {
-        // Legacy method, no longer needed as there is no client-side queue
-        set({ pendingSync: false });
     },
 
     undo: async () => {

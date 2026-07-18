@@ -79,6 +79,30 @@ pub struct ImportFeatureRecord {
     pub properties: BTreeMap<String, String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PmpImportPreview {
+    pub source_project_name: String,
+    pub regions: i64,
+    pub layers: i64,
+    pub groups: i64,
+    pub features: i64,
+    pub media_assets: i64,
+    pub warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct PmpImportResult {
+    pub imported_regions: i64,
+    pub imported_layers: i64,
+    pub imported_groups: i64,
+    pub imported_features: i64,
+    pub imported_media_assets: i64,
+    pub skipped_media_assets: i64,
+    pub imported_at: String,
+}
+
 fn ensure_absolute_path(path: &Path) -> Result<(), String> {
     if path.is_absolute() {
         return Ok(());
@@ -946,7 +970,7 @@ fn load_app_state(app: &AppHandle) -> Result<(PathBuf, AppState), String> {
     Ok((app_data_dir, state))
 }
 
-fn persist_app_state(app_data_dir: &PathBuf, state: &AppState) -> Result<(), String> {
+fn persist_app_state(app_data_dir: &std::path::Path, state: &AppState) -> Result<(), String> {
     hydrator::save_state(app_data_dir, state)
 }
 
@@ -1038,7 +1062,7 @@ fn sanitize_recent_projects(mut projects: Vec<StoredRecentProject>) -> Vec<Store
 }
 
 fn write_recent_projects(
-    app_data_dir: &PathBuf,
+    app_data_dir: &std::path::Path,
     state: &mut AppState,
     projects: Vec<StoredRecentProject>,
 ) -> Result<Vec<StoredRecentProject>, String> {
@@ -1959,6 +1983,50 @@ pub async fn import_media_asset(
 
 #[tauri::command]
 #[allow(non_snake_case)]
+pub async fn analyze_pmp_import(
+    state: State<'_, ActorState>,
+    sourcePath: String,
+) -> Result<Value, String> {
+    let source_path = PathBuf::from(&sourcePath);
+    ensure_absolute_path(&source_path)?;
+    ensure_pmp_extension(&source_path)?;
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::AnalyzePmpImport {
+            source_path,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn import_pmp_into_project(
+    state: State<'_, ActorState>,
+    sourcePath: String,
+    targetProjectId: String,
+) -> Result<Value, String> {
+    let source_path = PathBuf::from(&sourcePath);
+    ensure_absolute_path(&source_path)?;
+    ensure_pmp_extension(&source_path)?;
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::ImportPmpIntoProject {
+            source_path,
+            target_project_id: targetProjectId,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
 pub async fn delete_media_asset(
     state: State<'_, ActorState>,
     projectId: String,
@@ -2396,12 +2464,22 @@ mod tests {
             )
             .expect("project metadata");
         let metadata: Value = serde_json::from_str(&metadata_json).expect("metadata parse");
+        let snapshot_json: String = reopened
+            .conn
+            .query_row(
+                "SELECT state_json FROM project_snapshots WHERE project_id = ?1",
+                rusqlite::params![project_id.clone()],
+                |r| r.get(0),
+            )
+            .expect("project snapshot");
+        let snapshot: Value = serde_json::from_str(&snapshot_json).expect("snapshot parse");
 
         assert_eq!(active_id, project_id);
         assert_eq!(active_path, pmp_path_str);
-        assert!(metadata.get("features").is_some());
-        assert!(metadata.get("layers").is_some());
-        assert!(metadata.get("regions").is_some());
+        assert!(metadata.get("storage").is_some());
+        assert!(snapshot.get("features").is_some());
+        assert!(snapshot.get("layers").is_some());
+        assert!(snapshot.get("regions").is_some());
     }
 
     #[test]
