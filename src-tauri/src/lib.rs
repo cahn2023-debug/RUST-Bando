@@ -33,7 +33,9 @@ pub fn run() {
             app.manage(state);
             let ai_state = crate::domain::implement::modules::v2::ai::AiState::default();
             let app_handle = app.handle().clone();
-            tauri::async_runtime::block_on(crate::domain::implement::modules::v2::ai::init_from_disk(&app_handle, &ai_state));
+            tauri::async_runtime::block_on(
+                crate::domain::implement::modules::v2::ai::init_from_disk(&app_handle, &ai_state),
+            );
             app.manage(ai_state);
             Ok(())
         })
@@ -73,6 +75,7 @@ pub fn run() {
             crate::domain::implement::commands::v2::read_binary_file,
             crate::domain::implement::commands::v2::copy_text_to_system_clipboard,
             crate::domain::implement::commands::v2::fetch_url_as_data_url,
+            crate::domain::implement::commands::v2::post_collaboration_json,
             crate::domain::implement::commands::v2::start_import_task,
             crate::domain::implement::commands::v2::sync_v2_get_status,
             crate::domain::implement::commands::v2::sync_v2_is_online,

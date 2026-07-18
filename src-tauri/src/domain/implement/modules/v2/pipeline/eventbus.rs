@@ -91,6 +91,17 @@ pub enum StorageCommand {
         project_id: String,
         reply: oneshot::Sender<Result<serde_json::Value, String>>,
     },
+    GetPendingSyncOutbox {
+        project_id: String,
+        reply: oneshot::Sender<Result<Vec<serde_json::Value>, String>>,
+    },
+    MarkOutboxSynced {
+        event_ids: Vec<String>,
+        server_seq_start: Option<i64>,
+        ledger_hash: Option<String>,
+        server_time: Option<String>,
+        reply: oneshot::Sender<Result<usize, String>>,
+    },
     // Queries
     Query {
         sql: String,

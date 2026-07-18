@@ -7,7 +7,11 @@ import {
 } from '@CONTRACT/designTypes';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { invoke_design_event_batch } from '@TOOL/utils/designIpc';
+import {
+    invoke_design_event_batch,
+    isCollaborationCoordinatorEnabled,
+    pull_collaboration_events
+} from '@TOOL/utils/designIpc';
 
 const DESIGN_PERSIST_BATCH_DELAY_MS = 150;
 const IS_DEV = import.meta.env.DEV;
@@ -25,6 +29,9 @@ let consecutiveUiSyncFailures = 0;
 let firstUiFailureAt = 0;
 const UI_SYNC_FAILURE_WINDOW_MS = 30000;
 const UI_MAX_SYNC_FAILURES_BEFORE_BREAKER = 3;
+const COLLAB_PULL_INTERVAL_MS = 5000;
+let collabPullInterval: ReturnType<typeof setInterval> | null = null;
+let collabPullInFlight = false;
 
 const onUiSyncSuccess = () => {
     consecutiveUiSyncFailures = 0;
@@ -72,10 +79,45 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);
 
+        if (isCollaborationCoordinatorEnabled() && !collabPullInterval) {
+            collabPullInterval = setInterval(async () => {
+                const st = get();
+                if (
+                    collabPullInFlight ||
+                    !st.projectId ||
+                    !st.isOnline ||
+                    st.isSaving ||
+                    st.pendingSync ||
+                    st.isHydrating
+                ) {
+                    return;
+                }
+
+                collabPullInFlight = true;
+                try {
+                    const response = await pull_collaboration_events(st.projectId);
+                    if (response.applied_events?.length) {
+                        get().applyPatchToState(response);
+                        set({ lastSync: Date.now(), error: null });
+                    }
+                } catch (error: any) {
+                    const message = typeof error === 'string' ? error : error?.message || String(error);
+                    console.warn('[Sync] Collaboration pull failed:', message);
+                    set({ error: `Collaboration pull failed: ${message}` });
+                } finally {
+                    collabPullInFlight = false;
+                }
+            }, COLLAB_PULL_INTERVAL_MS);
+        }
+
         set({
             unsubscribeFirestore: () => {
                 window.removeEventListener('online', handleOnline);
                 window.removeEventListener('offline', handleOffline);
+                if (collabPullInterval) {
+                    clearInterval(collabPullInterval);
+                    collabPullInterval = null;
+                }
                 unlistenSync();
                 unlistenBridge();
             }

@@ -15,6 +15,10 @@ const firebaseConfig = {
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope("https://www.googleapis.com/auth/drive.file");
+googleProvider.addScope("https://www.googleapis.com/auth/drive.metadata.readonly");
+googleProvider.addScope("https://www.googleapis.com/auth/script.projects");
+googleProvider.addScope("https://www.googleapis.com/auth/script.scriptapp");
 
 // Initialize Firestore
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";

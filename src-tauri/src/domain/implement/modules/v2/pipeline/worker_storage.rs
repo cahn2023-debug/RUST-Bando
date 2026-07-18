@@ -4,13 +4,16 @@ use crate::domain::implement::modules::v2::storage::path_meta::compute_rel_path;
 use crate::domain::implement::modules::v2::storage::schema::CURRENT_SCHEMA_VERSION;
 use crate::domain::models::v2::{AppEvent, EventEnvelope};
 use base64::{engine::general_purpose, Engine as _};
-use rusqlite::{params, Connection, OpenFlags, OptionalExtension, Transaction};
+use rusqlite::{
+    backup::Backup, params, Connection, DatabaseName, OpenFlags, OptionalExtension, Transaction,
+};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use tokio::sync::mpsc;
 
 const MAX_EVENT_PAYLOAD_BYTES: usize = 256 * 1024;
@@ -319,6 +322,21 @@ impl StorageWorker {
                 })();
                 let _ = reply.send(res);
             }
+            StorageCommand::GetPendingSyncOutbox { project_id, reply } => {
+                let res = self.get_pending_sync_outbox(&project_id);
+                let _ = reply.send(res);
+            }
+            StorageCommand::MarkOutboxSynced {
+                event_ids,
+                server_seq_start,
+                ledger_hash,
+                server_time,
+                reply,
+            } => {
+                let res =
+                    self.mark_outbox_synced(event_ids, server_seq_start, ledger_hash, server_time);
+                let _ = reply.send(res);
+            }
             _ => {
                 if let Err(e) = self.commit_tx_batch(vec![cmd]) {
                     log::error!("[StorageWorker] Batch transaction error: {}", e);
@@ -345,6 +363,8 @@ impl StorageWorker {
                     | StorageCommand::RestoreProject { .. }
                     | StorageCommand::VerifyIntegrity { .. }
                     | StorageCommand::GetProjectHealth { .. }
+                    | StorageCommand::GetPendingSyncOutbox { .. }
+                    | StorageCommand::MarkOutboxSynced { .. }
                     | StorageCommand::ImportMediaAsset { .. }
                     | StorageCommand::AnalyzePmpImport { .. }
                     | StorageCommand::ImportPmpIntoProject { .. }
@@ -476,13 +496,9 @@ impl StorageWorker {
         ensure_target_project_exists(&self.db.conn, target_project_id)?;
 
         let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
-        let remap = import_source_design_tables(
-            &tx,
-            &source.conn,
-            &source.project_id,
-            target_project_id,
-        )
-        .map_err(|e| format!("Import design tables failed: {e}"))?;
+        let remap =
+            import_source_design_tables(&tx, &source.conn, &source.project_id, target_project_id)
+                .map_err(|e| format!("Import design tables failed: {e}"))?;
         let media_counts = import_source_media_assets(
             &tx,
             &source,
@@ -846,6 +862,8 @@ impl StorageWorker {
                 | StorageCommand::RestoreProject { .. }
                 | StorageCommand::VerifyIntegrity { .. }
                 | StorageCommand::GetProjectHealth { .. }
+                | StorageCommand::GetPendingSyncOutbox { .. }
+                | StorageCommand::MarkOutboxSynced { .. }
                 | StorageCommand::ImportMediaAsset { .. }
                 | StorageCommand::AnalyzePmpImport { .. }
                 | StorageCommand::ImportPmpIntoProject { .. }
@@ -924,14 +942,17 @@ fn inspect_source_pmp(
     active_pmp_path: Option<&Path>,
 ) -> Result<SourcePmpContext, String> {
     if !source_path.exists() {
-        return Err(format!("Source .pmp file does not exist: {}", source_path.display()));
+        return Err(format!(
+            "Source .pmp file does not exist: {}",
+            source_path.display()
+        ));
     }
 
-    let canonical_source =
-        fs::canonicalize(source_path).map_err(|e| format!("Failed to resolve source .pmp path: {e}"))?;
+    let canonical_source = fs::canonicalize(source_path)
+        .map_err(|e| format!("Failed to resolve source .pmp path: {e}"))?;
     if let Some(active_path) = active_pmp_path {
-        let canonical_active = fs::canonicalize(active_path)
-            .unwrap_or_else(|_| active_path.to_path_buf());
+        let canonical_active =
+            fs::canonicalize(active_path).unwrap_or_else(|_| active_path.to_path_buf());
         if canonical_source == canonical_active {
             return Err("Cannot import the currently opened .pmp file into itself.".to_string());
         }
@@ -1058,7 +1079,9 @@ fn ensure_target_project_exists(conn: &Connection, project_id: &str) -> Result<(
         )
         .map_err(|e| format!("Failed to verify target project: {e}"))?;
     if exists == 0 {
-        return Err(format!("Target project was not found in the active workspace: {project_id}"));
+        return Err(format!(
+            "Target project was not found in the active workspace: {project_id}"
+        ));
     }
     Ok(())
 }
@@ -1332,10 +1355,8 @@ fn import_source_design_tables(
                 .as_ref()
                 .and_then(|id| remap.group_ids.get(id))
                 .cloned();
-            let rewritten_metadata = rewrite_imported_feature_metadata(
-                metadata_json.as_deref(),
-                &remap.feature_ids,
-            );
+            let rewritten_metadata =
+                rewrite_imported_feature_metadata(metadata_json.as_deref(), &remap.feature_ids);
             tx.execute(
                 "INSERT INTO features (id, project_id, layer_id, group_id, name, geom_type, coordinates_json,
                                        properties_json, metadata_json, bbox_json, is_visible, note)
@@ -1380,7 +1401,9 @@ fn import_source_media_assets(
             source.base_dir.join(&asset.rel_path)
         };
         if !source_file_path.exists() {
-            if let Some(found) = find_media_asset_file(&source.base_dir, &source.pmp_path, &asset.sha256) {
+            if let Some(found) =
+                find_media_asset_file(&source.base_dir, &source.pmp_path, &asset.sha256)
+            {
                 source_file_path = found;
             } else {
                 counts.skipped_media_assets += 1;
@@ -1388,8 +1411,12 @@ fn import_source_media_assets(
             }
         }
 
-        let bytes = fs::read(&source_file_path)
-            .map_err(|e| format!("Failed to read source media asset {}: {e}", source_file_path.display()))?;
+        let bytes = fs::read(&source_file_path).map_err(|e| {
+            format!(
+                "Failed to read source media asset {}: {e}",
+                source_file_path.display()
+            )
+        })?;
         let new_asset_id = uuid::Uuid::new_v4().to_string();
         let rel_path = next_imported_media_rel_path(
             tx,
@@ -1541,7 +1568,11 @@ fn rewrite_imported_feature_metadata(
     let parsed = metadata_json
         .and_then(|text| serde_json::from_str::<Value>(text).ok())
         .unwrap_or_else(|| json!({}));
-    let mut metadata = if parsed.is_object() { parsed } else { json!({}) };
+    let mut metadata = if parsed.is_object() {
+        parsed
+    } else {
+        json!({})
+    };
     rewrite_feature_reference_values(&mut metadata, feature_id_map);
     if let Some(media) = metadata.get_mut("media").and_then(Value::as_object_mut) {
         media.remove("imageAssetIds");
@@ -2198,15 +2229,8 @@ fn backup_project_storage_optimization(
         safe_path_segment(stem, project_id),
         chrono::Local::now().format("%Y%m%d_%H%M%S")
     ));
-    fs::copy(pmp_path, &backup_path)
+    backup_database_snapshot(pmp_path, &backup_path)
         .map_err(|e| format!("Failed to backup .pmp before optimization: {e}"))?;
-
-    let wal_path = wal_path_for(pmp_path);
-    if wal_path.exists() {
-        let wal_backup = PathBuf::from(format!("{}-wal", backup_path.to_string_lossy()));
-        fs::copy(&wal_path, wal_backup)
-            .map_err(|e| format!("Failed to backup .pmp-wal before optimization: {e}"))?;
-    }
     Ok(backup_path)
 }
 
@@ -2581,15 +2605,39 @@ fn sync_feature_media_metadata(tx: &Transaction<'_>, project_id: &str) -> Result
 
 fn backup_legacy_media_migration(pmp_path: &Path) -> Result<(), String> {
     let backup_path = next_legacy_backup_path(pmp_path);
-    fs::copy(pmp_path, &backup_path)
+    backup_database_snapshot(pmp_path, &backup_path)
         .map_err(|e| format!("Failed to backup .pmp before media migration: {e}"))?;
+    Ok(())
+}
 
-    let wal_path = wal_path_for(pmp_path);
-    if wal_path.exists() {
-        let wal_backup = PathBuf::from(format!("{}-wal", backup_path.to_string_lossy()));
-        fs::copy(&wal_path, wal_backup)
-            .map_err(|e| format!("Failed to backup .pmp-wal before media migration: {e}"))?;
+fn backup_database_snapshot(source_path: &Path, backup_path: &Path) -> Result<(), String> {
+    let source = Connection::open_with_flags(
+        source_path,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .map_err(|e| e.to_string())?;
+    let mut destination = Connection::open_with_flags(
+        backup_path,
+        OpenFlags::SQLITE_OPEN_READ_WRITE
+            | OpenFlags::SQLITE_OPEN_CREATE
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .map_err(|e| e.to_string())?;
+    {
+        let backup = Backup::new_with_names(
+            &source,
+            DatabaseName::Main,
+            &mut destination,
+            DatabaseName::Main,
+        )
+        .map_err(|e| e.to_string())?;
+        backup
+            .run_to_completion(64, Duration::from_millis(10), None)
+            .map_err(|e| e.to_string())?;
     }
+    destination
+        .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -2904,9 +2952,13 @@ fn persist_event(tx: &Transaction<'_>, envelope: &EventEnvelope) -> Result<(), S
     }
     let meta = serde_json::to_string(&envelope.metadata.clone().unwrap_or_else(|| json!({})))
         .map_err(|e| e.to_string())?;
+    let hash = envelope
+        .hash
+        .clone()
+        .unwrap_or_else(|| envelope.calculate_hash());
     tx.execute(
-        "INSERT INTO events (id, project_id, entity_type, entity_id, event_type, payload_json, metadata_json, device_id, hash)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        "INSERT INTO events (id, project_id, entity_type, entity_id, event_type, payload_json, metadata_json, device_id, entity_version, sync_status, hash)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'local', ?10)",
         params![
             envelope.id.to_string(),
             envelope.project_id.to_string(),
@@ -2916,11 +2968,127 @@ fn persist_event(tx: &Transaction<'_>, envelope: &EventEnvelope) -> Result<(), S
             payload,
             meta,
             envelope.device_id,
-            envelope.hash
+            envelope.version,
+            hash,
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    persist_sync_outbox(tx, envelope)?;
+    Ok(())
+}
+
+fn persist_sync_outbox(tx: &Transaction<'_>, envelope: &EventEnvelope) -> Result<(), String> {
+    let request_json = serde_json::to_string(envelope).map_err(|e| e.to_string())?;
+    let payload_json = serde_json::to_string(&envelope.event).map_err(|e| e.to_string())?;
+    let batch_id = envelope
+        .correlation_id
+        .map(|id| id.to_string())
+        .unwrap_or_else(|| envelope.id.to_string());
+    tx.execute(
+        "INSERT OR REPLACE INTO sync_outbox (
+            event_id, batch_id, project_id, entity_type, entity_id, base_entity_version,
+            request_json, payload_json, status, retry_count, created_at, updated_at
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending', 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+        params![
+            envelope.id.to_string(),
+            batch_id,
+            envelope.project_id.to_string(),
+            envelope.entity_type,
+            envelope.entity_id.to_string(),
+            envelope.version,
+            request_json,
+            payload_json,
         ],
     )
     .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+impl StorageWorker {
+    fn get_pending_sync_outbox(&self, project_id: &str) -> Result<Vec<Value>, String> {
+        let mut stmt = self
+            .db
+            .conn
+            .prepare(
+                "SELECT event_id, batch_id, entity_type, entity_id, base_entity_version, payload_json, status, retry_count, last_error, created_at, updated_at
+                 FROM sync_outbox
+                 WHERE project_id = ?1 AND status IN ('pending', 'failed', 'conflicted')
+                 ORDER BY created_at ASC",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![project_id], |row| {
+                Ok(json!({
+                    "eventId": row.get::<_, String>(0)?,
+                    "batchId": row.get::<_, String>(1)?,
+                    "entityType": row.get::<_, String>(2)?,
+                    "entityId": row.get::<_, String>(3)?,
+                    "baseEntityVersion": row.get::<_, i64>(4)?,
+                    "payload": serde_json::from_str::<Value>(&row.get::<_, String>(5)?).unwrap_or(Value::Null),
+                    "status": row.get::<_, String>(6)?,
+                    "retryCount": row.get::<_, i64>(7)?,
+                    "lastError": row.get::<_, Option<String>>(8)?,
+                    "createdAt": row.get::<_, String>(9)?,
+                    "updatedAt": row.get::<_, String>(10)?,
+                }))
+            })
+            .map_err(|e| e.to_string())?;
+        let mut out = Vec::new();
+        for row in rows {
+            out.push(row.map_err(|e| e.to_string())?);
+        }
+        Ok(out)
+    }
+
+    fn mark_outbox_synced(
+        &mut self,
+        event_ids: Vec<String>,
+        server_seq_start: Option<i64>,
+        ledger_hash: Option<String>,
+        server_time: Option<String>,
+    ) -> Result<usize, String> {
+        if event_ids.is_empty() {
+            return Ok(0);
+        }
+        let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
+        let mut updated = 0usize;
+        for (offset, event_id) in event_ids.into_iter().enumerate() {
+            let server_seq = server_seq_start.map(|seq| seq + offset as i64);
+            let ledger_hash_value = ledger_hash.clone();
+            let server_time_value = server_time.clone();
+            tx.execute(
+                "UPDATE sync_outbox
+                 SET status = 'acked',
+                     acked_at = COALESCE(acked_at, CURRENT_TIMESTAMP),
+                     updated_at = CURRENT_TIMESTAMP,
+                     server_seq = COALESCE(?2, server_seq),
+                     server_hash = COALESCE(?3, server_hash),
+                     server_time = COALESCE(?4, server_time)
+                 WHERE event_id = ?1",
+                params![event_id, server_seq, ledger_hash_value, server_time_value],
+            )
+            .map_err(|e| e.to_string())?;
+            tx.execute(
+                "UPDATE events
+                 SET sync_status = 'acked',
+                     acked_at = COALESCE(acked_at, CURRENT_TIMESTAMP),
+                     server_seq = COALESCE(?2, server_seq),
+                     ledger_hash = COALESCE(?3, ledger_hash),
+                     server_time = COALESCE(?4, server_time)
+                 WHERE id = ?1",
+                params![
+                    event_id,
+                    server_seq,
+                    ledger_hash.clone(),
+                    server_time.clone()
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+            updated += 1;
+        }
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok(updated)
+    }
 }
 
 fn apply_event_to_read_models(
@@ -3977,12 +4145,30 @@ mod tests {
             .import_pmp_into_project(&source_path, "target-project")
             .expect("import pmp");
 
-        assert_eq!(result.get("importedRegions").and_then(Value::as_i64), Some(1));
-        assert_eq!(result.get("importedLayers").and_then(Value::as_i64), Some(1));
-        assert_eq!(result.get("importedGroups").and_then(Value::as_i64), Some(1));
-        assert_eq!(result.get("importedFeatures").and_then(Value::as_i64), Some(2));
-        assert_eq!(result.get("importedMediaAssets").and_then(Value::as_i64), Some(1));
-        assert_eq!(result.get("skippedMediaAssets").and_then(Value::as_i64), Some(0));
+        assert_eq!(
+            result.get("importedRegions").and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            result.get("importedLayers").and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            result.get("importedGroups").and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            result.get("importedFeatures").and_then(Value::as_i64),
+            Some(2)
+        );
+        assert_eq!(
+            result.get("importedMediaAssets").and_then(Value::as_i64),
+            Some(1)
+        );
+        assert_eq!(
+            result.get("skippedMediaAssets").and_then(Value::as_i64),
+            Some(0)
+        );
 
         let feature_count: i64 = worker
             .db
@@ -4087,9 +4273,18 @@ mod tests {
             .import_pmp_into_project(&source_path, "target-project")
             .expect("import pmp");
 
-        assert_eq!(result.get("importedFeatures").and_then(Value::as_i64), Some(2));
-        assert_eq!(result.get("importedMediaAssets").and_then(Value::as_i64), Some(0));
-        assert_eq!(result.get("skippedMediaAssets").and_then(Value::as_i64), Some(1));
+        assert_eq!(
+            result.get("importedFeatures").and_then(Value::as_i64),
+            Some(2)
+        );
+        assert_eq!(
+            result.get("importedMediaAssets").and_then(Value::as_i64),
+            Some(0)
+        );
+        assert_eq!(
+            result.get("skippedMediaAssets").and_then(Value::as_i64),
+            Some(1)
+        );
     }
 
     #[test]

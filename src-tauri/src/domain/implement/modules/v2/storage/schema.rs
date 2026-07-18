@@ -1,27 +1,27 @@
 use rusqlite::Connection;
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 5;
-pub const CURRENT_SCHEMA_LABEL: &str = "5.0.0";
+pub const CURRENT_SCHEMA_VERSION: i32 = 6;
+pub const CURRENT_SCHEMA_LABEL: &str = "6.0.0";
 
 pub const V4_SCHEMA_SQL: &str = r#"
     PRAGMA journal_mode=WAL;
     PRAGMA synchronous=NORMAL;
     PRAGMA foreign_keys=ON;
-    PRAGMA user_version = 5;
+    PRAGMA user_version = 6;
 
     CREATE TABLE IF NOT EXISTS sys_config (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     );
-    INSERT OR REPLACE INTO sys_config (key, value) VALUES ('schema_version', '5.0.0');
+    INSERT OR REPLACE INTO sys_config (key, value) VALUES ('schema_version', '6.0.0');
 
     CREATE TABLE IF NOT EXISTS schema_migrations (
         version INTEGER PRIMARY KEY,
         label TEXT NOT NULL,
         applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     );
-    INSERT OR REPLACE INTO schema_migrations (version, label) VALUES (5, '5.0.0');
+    INSERT OR REPLACE INTO schema_migrations (version, label) VALUES (6, '6.0.0');
 
     CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY,
@@ -169,10 +169,75 @@ pub const V4_SCHEMA_SQL: &str = r#"
         payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
         metadata_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json) AND json_type(metadata_json) = 'object'),
         device_id TEXT,
+        server_seq INTEGER,
+        entity_version INTEGER NOT NULL DEFAULT 1,
+        sync_batch_id TEXT,
+        sync_status TEXT NOT NULL DEFAULT 'local',
+        acked_at TEXT,
+        server_time TEXT,
+        ledger_hash TEXT,
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         hash TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_events_project ON events (project_id, global_seq);
+
+    CREATE TABLE IF NOT EXISTS sync_outbox (
+        event_id TEXT PRIMARY KEY,
+        batch_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        base_entity_version INTEGER NOT NULL DEFAULT 1,
+        request_json TEXT NOT NULL CHECK (json_valid(request_json)),
+        payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'acked', 'failed', 'conflicted')),
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT,
+        server_seq INTEGER,
+        server_hash TEXT,
+        server_time TEXT,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        acked_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_sync_outbox_project_status ON sync_outbox (project_id, status, created_at);
+
+    CREATE TABLE IF NOT EXISTS sync_cursor (
+        project_id TEXT PRIMARY KEY,
+        last_server_seq INTEGER NOT NULL DEFAULT 0,
+        last_event_id TEXT,
+        last_ledger_hash TEXT,
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS cached_leases (
+        project_id TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        holder TEXT,
+        lease_token TEXT,
+        entity_version INTEGER NOT NULL DEFAULT 0,
+        expires_at TEXT,
+        renewed_at TEXT,
+        status TEXT NOT NULL DEFAULT 'cached' CHECK (status IN ('cached', 'leased', 'expired')),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        PRIMARY KEY (project_id, entity_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS sync_conflicts (
+        conflict_id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        base_entity_version INTEGER NOT NULL DEFAULT 0,
+        local_event_json TEXT NOT NULL CHECK (json_valid(local_event_json)),
+        server_event_json TEXT NOT NULL CHECK (json_valid(server_event_json)),
+        resolution_status TEXT NOT NULL DEFAULT 'open' CHECK (resolution_status IN ('open', 'local_wins', 'server_wins', 'merged', 'resolved')),
+        resolved_by TEXT,
+        resolved_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_sync_conflicts_project_status ON sync_conflicts (project_id, resolution_status, created_at);
 
     CREATE TABLE IF NOT EXISTS tags (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

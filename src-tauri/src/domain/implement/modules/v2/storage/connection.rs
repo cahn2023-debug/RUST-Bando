@@ -1,9 +1,10 @@
 use crate::domain::implement::modules::v2::storage::schema::{
     apply_v2_schema, CURRENT_SCHEMA_LABEL, CURRENT_SCHEMA_VERSION,
 };
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::{backup::Backup, Connection, DatabaseName, OpenFlags};
 use serde_json::json;
 use std::path::PathBuf;
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct PmpDatabase {
@@ -44,6 +45,7 @@ impl PmpDatabase {
         if version < CURRENT_SCHEMA_VERSION {
             apply_v2_schema(&conn)?;
             migrate_foundational_v4_state(&conn)?;
+            migrate_sync_state(&conn)?;
         }
 
         Ok(Self {
@@ -94,7 +96,8 @@ impl PmpDatabase {
     }
 
     pub fn checkpoint_wal(&self) -> Result<(), rusqlite::Error> {
-        self.conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
+        self.conn
+            .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
         Ok(())
     }
 
@@ -106,10 +109,45 @@ impl PmpDatabase {
         let ts = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
         let backup_id = format!("{}_{}", project_id, ts);
         let backup_path = backup_dir.join(format!("{backup_id}.pmp"));
-        std::fs::copy(&self.pmp_path, &backup_path).map_err(|e| e.to_string())?;
+        let mut dst = Connection::open_with_flags(
+            &backup_path,
+            OpenFlags::SQLITE_OPEN_READ_WRITE
+                | OpenFlags::SQLITE_OPEN_CREATE
+                | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .map_err(|e| e.to_string())?;
+        {
+            let backup = Backup::new_with_names(
+                &self.conn,
+                DatabaseName::Main,
+                &mut dst,
+                DatabaseName::Main,
+            )
+            .map_err(|e| e.to_string())?;
+            backup
+                .run_to_completion(64, Duration::from_millis(10), None)
+                .map_err(|e| e.to_string())?;
+        }
+        dst.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+            .map_err(|e| e.to_string())?;
         let size = std::fs::metadata(&backup_path)
             .map_err(|e| e.to_string())?
             .len();
+        let integrity = Connection::open(&backup_path)
+            .and_then(|conn| {
+                conn.query_row("PRAGMA integrity_check", [], |row| row.get::<_, String>(0))
+            })
+            .unwrap_or_else(|_| "failed".to_string());
+        if integrity != "ok" {
+            return Err(format!("Backup integrity check failed: {integrity}"));
+        }
+        let hash = {
+            let bytes = std::fs::read(&backup_path).map_err(|e| e.to_string())?;
+            let mut hasher = sha2::Sha256::new();
+            use sha2::Digest;
+            hasher.update(bytes);
+            format!("{:x}", hasher.finalize())
+        };
 
         self.conn
             .execute(
@@ -122,6 +160,8 @@ impl PmpDatabase {
             "backupId": backup_id,
             "path": backup_path.to_string_lossy().to_string(),
             "sizeBytes": size,
+            "sha256": hash,
+            "integrityStatus": integrity,
             "createdAt": chrono::Local::now().to_rfc3339(),
         }))
     }
@@ -238,6 +278,111 @@ fn migrate_foundational_v4_state(conn: &Connection) -> Result<(), rusqlite::Erro
          WHERE json_valid(metadata_json)
            AND json_type(metadata_json, '$.features') = 'object'",
         [CURRENT_SCHEMA_LABEL],
+    )?;
+
+    Ok(())
+}
+
+fn migrate_sync_state(conn: &Connection) -> Result<(), rusqlite::Error> {
+    let events_info: Vec<String> = conn
+        .prepare("PRAGMA table_info('events')")?
+        .query_map([], |row| row.get(1))?
+        .collect::<Result<Vec<String>, _>>()?;
+
+    for (column, ddl) in [
+        (
+            "server_seq",
+            "ALTER TABLE events ADD COLUMN server_seq INTEGER",
+        ),
+        (
+            "entity_version",
+            "ALTER TABLE events ADD COLUMN entity_version INTEGER NOT NULL DEFAULT 1",
+        ),
+        (
+            "sync_batch_id",
+            "ALTER TABLE events ADD COLUMN sync_batch_id TEXT",
+        ),
+        (
+            "sync_status",
+            "ALTER TABLE events ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'local'",
+        ),
+        ("acked_at", "ALTER TABLE events ADD COLUMN acked_at TEXT"),
+        (
+            "server_time",
+            "ALTER TABLE events ADD COLUMN server_time TEXT",
+        ),
+        (
+            "ledger_hash",
+            "ALTER TABLE events ADD COLUMN ledger_hash TEXT",
+        ),
+    ] {
+        if !events_info.contains(&column.to_string()) {
+            conn.execute(ddl, [])?;
+        }
+    }
+
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS sync_outbox (
+            event_id TEXT PRIMARY KEY,
+            batch_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            entity_type TEXT NOT NULL,
+            entity_id TEXT NOT NULL,
+            base_entity_version INTEGER NOT NULL DEFAULT 1,
+            request_json TEXT NOT NULL CHECK (json_valid(request_json)),
+            payload_json TEXT NOT NULL CHECK (json_valid(payload_json)),
+            status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'acked', 'failed', 'conflicted')),
+            retry_count INTEGER NOT NULL DEFAULT 0,
+            last_error TEXT,
+            server_seq INTEGER,
+            server_hash TEXT,
+            server_time TEXT,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            acked_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_sync_outbox_project_status ON sync_outbox (project_id, status, created_at);
+        CREATE TABLE IF NOT EXISTS sync_cursor (
+            project_id TEXT PRIMARY KEY,
+            last_server_seq INTEGER NOT NULL DEFAULT 0,
+            last_event_id TEXT,
+            last_ledger_hash TEXT,
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+        );
+        CREATE TABLE IF NOT EXISTS cached_leases (
+            project_id TEXT NOT NULL,
+            entity_id TEXT NOT NULL,
+            holder TEXT,
+            lease_token TEXT,
+            entity_version INTEGER NOT NULL DEFAULT 0,
+            expires_at TEXT,
+            renewed_at TEXT,
+            status TEXT NOT NULL DEFAULT 'cached' CHECK (status IN ('cached', 'leased', 'expired')),
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            PRIMARY KEY (project_id, entity_id)
+        );
+        CREATE TABLE IF NOT EXISTS sync_conflicts (
+            conflict_id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            entity_id TEXT NOT NULL,
+            base_entity_version INTEGER NOT NULL DEFAULT 0,
+            local_event_json TEXT NOT NULL CHECK (json_valid(local_event_json)),
+            server_event_json TEXT NOT NULL CHECK (json_valid(server_event_json)),
+            resolution_status TEXT NOT NULL DEFAULT 'open' CHECK (resolution_status IN ('open', 'local_wins', 'server_wins', 'merged', 'resolved')),
+            resolved_by TEXT,
+            resolved_at TEXT,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_sync_conflicts_project_status ON sync_conflicts (project_id, resolution_status, created_at);
+        "#,
+    )?;
+
+    conn.execute(
+        "UPDATE events SET entity_version = COALESCE(entity_version, 1), sync_status = COALESCE(sync_status, 'local')",
+        [],
     )?;
 
     Ok(())
