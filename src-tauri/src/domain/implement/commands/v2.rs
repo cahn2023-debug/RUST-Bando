@@ -1683,6 +1683,7 @@ pub async fn send_ai_message(
 
     // 4. Save Proposed Actions
     for proposal in &result.action_proposals {
+        validate_ai_action_target(&proposal.action_type, &proposal.target_table)?;
         let mut base_version = String::new();
         if let Some(target_id) = &proposal.target_id {
             if let Ok(ver_rows) = exec_query(
@@ -1707,7 +1708,7 @@ pub async fn send_ai_message(
                 proposal.action_type.clone(),
                 proposal.target_table.clone(),
                 proposal.target_id.clone().unwrap_or_default(),
-                proposal.diff.to_string(),
+                serde_json::to_string(proposal).map_err(|e| e.to_string())?,
                 base_version,
             ],
         ).await?;
@@ -1741,17 +1742,20 @@ pub async fn cancel_ai_request(
 pub async fn execute_action(
     state: &ActorState,
     action_type: &str,
-    _target_table: &str,
+    target_table: &str,
     target_id: Option<&str>,
     proposal_json: &Value,
     project_id: &str,
 ) -> Result<(), String> {
+    validate_ai_action_target(action_type, target_table)?;
+    let payload = proposal_json.get("diff").unwrap_or(proposal_json);
+
     match action_type {
         "create_task" => {
             let file_id = Uuid::new_v4().to_string();
-            let filename = proposal_json.get("filename").and_then(Value::as_str).unwrap_or("New Task");
+            let filename = payload.get("filename").and_then(Value::as_str).unwrap_or("New Task");
             let rel_path = format!("tasks/{}.task", file_id);
-            let metadata = proposal_json.get("metadata").cloned().unwrap_or(json!({ "type": "task" }));
+            let metadata = payload.get("metadata").cloned().unwrap_or(json!({ "type": "task" }));
             
             exec_query(
                 state,
@@ -1774,13 +1778,13 @@ pub async fn execute_action(
                 .unwrap_or("{}");
             let mut old_meta: Value = serde_json::from_str(old_meta_str).unwrap_or(json!({}));
             
-            if let Some(diff_obj) = proposal_json.get("diff").and_then(Value::as_object) {
+            if let Some(diff_obj) = payload.as_object() {
                 if let Some(old_obj) = old_meta.as_object_mut() {
                     for (k, v) in diff_obj {
                         old_obj.insert(k.clone(), v.clone());
                     }
                 }
-            } else if let Some(new_meta) = proposal_json.get("metadata") {
+            } else if let Some(new_meta) = payload.get("metadata") {
                 old_meta = new_meta.clone();
             }
             
@@ -1803,7 +1807,7 @@ pub async fn execute_action(
                 .unwrap_or("{}");
             let mut old_meta: Value = serde_json::from_str(old_meta_str).unwrap_or(json!({}));
             
-            if let Some(diff_obj) = proposal_json.get("diff").and_then(Value::as_object) {
+            if let Some(diff_obj) = payload.as_object() {
                 if let Some(old_obj) = old_meta.as_object_mut() {
                     for (k, v) in diff_obj {
                         old_obj.insert(k.clone(), v.clone());
@@ -1831,7 +1835,7 @@ pub async fn execute_action(
                 .unwrap_or("{}");
             let mut old_meta: Value = serde_json::from_str(old_meta_str).unwrap_or(json!({}));
             
-            if let Some(diff_obj) = proposal_json.get("diff").and_then(Value::as_object) {
+            if let Some(diff_obj) = payload.as_object() {
                 if let Some(old_obj) = old_meta.as_object_mut() {
                     for (k, v) in diff_obj {
                         old_obj.insert(k.clone(), v.clone());
@@ -1848,6 +1852,20 @@ pub async fn execute_action(
         _ => return Err(format!("Unsupported action type: {action_type}")),
     }
     Ok(())
+}
+
+fn validate_ai_action_target(action_type: &str, target_table: &str) -> Result<(), String> {
+    let allowed = ai::allowed_action_targets();
+    let allowed_tables = allowed
+        .get(action_type)
+        .ok_or_else(|| format!("Unsupported action type: {action_type}"))?;
+    if allowed_tables.contains(&target_table) {
+        Ok(())
+    } else {
+        Err(format!(
+            "Action {action_type} cannot target table {target_table}"
+        ))
+    }
 }
 
 #[tauri::command]
@@ -1878,6 +1896,8 @@ pub async fn confirm_ai_action(
     let proposal_json_str = action_obj.get("proposal_json").and_then(Value::as_str).unwrap_or("{}");
     let proposal_json: Value = serde_json::from_str(proposal_json_str).unwrap_or(json!({}));
     let base_version = action_obj.get("base_version").and_then(Value::as_str);
+
+    validate_ai_action_target(action_type, target_table)?;
 
     if let (Some(tid), Some(b_ver)) = (target_id, base_version) {
         let current_ver_rows = exec_query(
@@ -3423,7 +3443,7 @@ mod tests {
             "metadata": { "type": "task", "duration": 12i64 }
         });
 
-        execute_action(&actor_state, "create_task", "files", None, &proposal, &project_id)
+        execute_action(&actor_state, "create_task", "tasks", None, &proposal, &project_id)
             .await
             .expect("execute_action create_task");
 
@@ -3439,5 +3459,100 @@ mod tests {
         assert_eq!(files_arr.len(), 1);
         assert_eq!(files_arr[0].get("filename").unwrap().as_str().unwrap(), "Verify Grounding Connection");
         assert_eq!(files_arr[0].get("extension").unwrap().as_str().unwrap(), "task");
+    }
+
+    #[tokio::test]
+    async fn test_ai_execute_action_updates_file_metadata_from_full_proposal() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("ai_update.pmp");
+        let db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let project_id = "ai-p2".to_string();
+        let file_id = "file-1".to_string();
+
+        db.conn
+            .execute(
+                "INSERT INTO projects (id, name, title, base_dir_hint) VALUES (?1, ?2, ?3, ?4)",
+                rusqlite::params![
+                    project_id.clone(),
+                    "AI Proj",
+                    "AI Proj",
+                    dir.path().to_string_lossy().to_string()
+                ],
+            )
+            .expect("seed project");
+        db.conn
+            .execute(
+                "INSERT INTO files (id, project_id, rel_path, filename, extension, file_size, metadata_json)
+                 VALUES (?1, ?2, 'contracts/demo.pdf', 'demo.pdf', 'pdf', 10, ?3)",
+                rusqlite::params![file_id.clone(), project_id.clone(), json!({"status":"draft"}).to_string()],
+            )
+            .expect("seed file");
+
+        let (tx, rx) = mpsc::channel(32);
+        let _handle = StorageWorker::spawn(rx, db);
+        let actor_state = ActorState { gateway_tx: tx };
+
+        let proposal = json!({
+            "id": "action-1",
+            "actionType": "update_contract_metadata",
+            "targetTable": "files",
+            "targetId": file_id,
+            "diff": { "status": "approved", "contract_number": "HD-01" }
+        });
+
+        execute_action(
+            &actor_state,
+            "update_contract_metadata",
+            "files",
+            Some("file-1"),
+            &proposal,
+            &project_id,
+        )
+        .await
+        .expect("execute_action update metadata");
+
+        let files_rows = exec_query(
+            &actor_state,
+            "SELECT metadata_json FROM files WHERE id = ?1",
+            vec!["file-1".to_string()],
+        )
+        .await
+        .expect("query file");
+        let metadata_value = files_rows
+            .as_array()
+            .and_then(|rows| rows.first())
+            .and_then(|row| row.get("metadata_json"))
+            .expect("metadata_json");
+        let metadata: Value = if let Some(metadata_str) = metadata_value.as_str() {
+            serde_json::from_str(metadata_str).expect("metadata json")
+        } else {
+            metadata_value.clone()
+        };
+        assert_eq!(metadata.get("status").and_then(Value::as_str), Some("approved"));
+        assert_eq!(metadata.get("contract_number").and_then(Value::as_str), Some("HD-01"));
+    }
+
+    #[tokio::test]
+    async fn test_ai_execute_action_rejects_invalid_target_table() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("ai_invalid_target.pmp");
+        let db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let (tx, rx) = mpsc::channel(32);
+        let _handle = StorageWorker::spawn(rx, db);
+        let actor_state = ActorState { gateway_tx: tx };
+
+        let result = execute_action(
+            &actor_state,
+            "update_project_metadata",
+            "events",
+            None,
+            &json!({"diff": {"unsafe": true}}),
+            "project-1",
+        )
+        .await;
+
+        assert!(result
+            .expect_err("invalid target should fail")
+            .contains("cannot target table"));
     }
 }

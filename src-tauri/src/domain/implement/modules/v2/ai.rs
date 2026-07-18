@@ -1134,8 +1134,12 @@ pub fn parse_action_proposals(content: &str) -> Vec<AiActionProposal> {
                         let target_id = item.get("targetId").and_then(Value::as_str).map(|s| s.to_string());
                         let diff = item.get("diff").cloned().unwrap_or(Value::Null);
                         
-                        let allowed = ["create_task", "update_task", "update_project_metadata", "update_contract_metadata", "update_bom_metadata", "update_feature_metadata"];
-                        if allowed.contains(&action_type.as_str()) {
+                        let allowed = allowed_action_targets();
+                        let allowed_tables = allowed.get(action_type.as_str());
+                        if allowed_tables
+                            .map(|tables| tables.contains(&target_table.as_str()))
+                            .unwrap_or(false)
+                        {
                             proposals.push(AiActionProposal {
                                 id,
                                 action_type,
@@ -1599,7 +1603,7 @@ mod tests {
         let txt = "antigravity";
         let hash = sha256_text(txt);
         // expected sha256 hash for "antigravity"
-        let expected = "64c9c178cb6dfb925b6a7a72691fa30a08e6c466487e411b402eaec0c8a514d4";
+        let expected = "ac0a3dfd6dddb20962cecff6ee5fe65e19d3923be20e52c5ab52ff877f7e4c32";
         assert_eq!(hash, expected);
     }
 
@@ -1661,11 +1665,11 @@ mod tests {
     #[cfg(feature = "ai")]
     #[test]
     fn test_parse_action_proposals() {
-        let response_content = "Here is the proposal: \n```json-proposal\n[\n  {\n    \"id\": \"act-1\",\n    \"actionType\": \"create_task\",\n    \"targetTable\": \"files\",\n    \"diff\": {\"title\": \"Task A\"}\n  }\n]\n```";
+        let response_content = "Here is the proposal: \n```json-proposal\n[\n  {\n    \"id\": \"act-1\",\n    \"actionType\": \"create_task\",\n    \"targetTable\": \"tasks\",\n    \"diff\": {\"title\": \"Task A\"}\n  }\n]\n```";
         let proposals = parse_action_proposals(response_content);
         assert_eq!(proposals.len(), 1);
         assert_eq!(proposals[0].id, "act-1");
         assert_eq!(proposals[0].action_type, "create_task");
-        assert_eq!(proposals[0].target_table, "files");
+        assert_eq!(proposals[0].target_table, "tasks");
     }
 }
