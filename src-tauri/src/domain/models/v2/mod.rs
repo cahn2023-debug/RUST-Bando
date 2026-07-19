@@ -139,6 +139,61 @@ pub enum AppEvent {
     FeatureDeleted {
         id: Uuid,
     },
+    FiberCableUpserted {
+        id: Uuid,
+        project_id: Uuid,
+        feature_id: Uuid,
+        cable_type: Option<String>,
+        fiber_count: Option<i64>,
+        owner: Option<String>,
+        status: Option<String>,
+        source: Option<String>,
+    },
+    FiberCablePointsMaterialized {
+        id: Uuid,
+        project_id: Uuid,
+        cable_id: Uuid,
+        points: Vec<serde_json::Value>,
+    },
+    FiberStrandsInitialized {
+        cable_id: Uuid,
+        fiber_count: i64,
+        strands: Vec<serde_json::Value>,
+    },
+    FiberPortUpserted {
+        id: Uuid,
+        feature_id: Uuid,
+        port_label: String,
+        port_kind: String,
+        direction: Option<String>,
+        status: Option<String>,
+    },
+    FiberSpliceUpserted {
+        id: Uuid,
+        enclosure_feature_id: Uuid,
+        from_strand_id: Uuid,
+        to_strand_id: Uuid,
+        loss_db: Option<f64>,
+    },
+    FiberSpliceDeleted {
+        id: Uuid,
+    },
+    FiberCircuitUpserted {
+        id: Uuid,
+        project_id: Uuid,
+        name: String,
+        service_type: Option<String>,
+        status: Option<String>,
+        a_feature_id: Uuid,
+        z_feature_id: Uuid,
+    },
+    FiberCircuitDeleted {
+        id: Uuid,
+    },
+    FiberCircuitHopsReplaced {
+        circuit_id: Uuid,
+        hops: Vec<serde_json::Value>,
+    },
     FeatureStyleUpdated {
         id: Uuid,
         style_id: Option<Uuid>,
@@ -394,6 +449,15 @@ impl AppEvent {
             AppEvent::FeatureCreated { .. } => "created",
             AppEvent::FeatureUpdated { .. } => "updated",
             AppEvent::FeatureDeleted { .. } => "deleted",
+            AppEvent::FiberCableUpserted { .. } => "upserted",
+            AppEvent::FiberCablePointsMaterialized { .. } => "materialized",
+            AppEvent::FiberStrandsInitialized { .. } => "initialized",
+            AppEvent::FiberPortUpserted { .. } => "upserted",
+            AppEvent::FiberSpliceUpserted { .. } => "upserted",
+            AppEvent::FiberSpliceDeleted { .. } => "deleted",
+            AppEvent::FiberCircuitUpserted { .. } => "upserted",
+            AppEvent::FiberCircuitDeleted { .. } => "deleted",
+            AppEvent::FiberCircuitHopsReplaced { .. } => "replaced",
             AppEvent::PropertyDefinitionCreated { .. } => "created",
             AppEvent::PropertyDefinitionUpdated { .. } => "updated",
             AppEvent::PropertyDefinitionDeleted { .. } => "deleted",
@@ -442,6 +506,15 @@ impl AppEvent {
             AppEvent::FeatureCreated { .. } => "FeatureCreated",
             AppEvent::FeatureUpdated { .. } => "FeatureUpdated",
             AppEvent::FeatureDeleted { .. } => "FeatureDeleted",
+            AppEvent::FiberCableUpserted { .. } => "FiberCableUpserted",
+            AppEvent::FiberCablePointsMaterialized { .. } => "FiberCablePointsMaterialized",
+            AppEvent::FiberStrandsInitialized { .. } => "FiberStrandsInitialized",
+            AppEvent::FiberPortUpserted { .. } => "FiberPortUpserted",
+            AppEvent::FiberSpliceUpserted { .. } => "FiberSpliceUpserted",
+            AppEvent::FiberSpliceDeleted { .. } => "FiberSpliceDeleted",
+            AppEvent::FiberCircuitUpserted { .. } => "FiberCircuitUpserted",
+            AppEvent::FiberCircuitDeleted { .. } => "FiberCircuitDeleted",
+            AppEvent::FiberCircuitHopsReplaced { .. } => "FiberCircuitHopsReplaced",
             AppEvent::FeatureGroupCreated { .. } => "FeatureGroupCreated",
             AppEvent::FeatureGroupUpdated { .. } => "FeatureGroupUpdated",
             AppEvent::FeatureGroupDeleted { .. } => "FeatureGroupDeleted",
@@ -515,6 +588,15 @@ impl AppEvent {
             AppEvent::FeatureCreated { .. }
             | AppEvent::FeatureUpdated { .. }
             | AppEvent::FeatureDeleted { .. } => "feature",
+            AppEvent::FiberCableUpserted { .. }
+            | AppEvent::FiberCablePointsMaterialized { .. }
+            | AppEvent::FiberStrandsInitialized { .. }
+            | AppEvent::FiberPortUpserted { .. }
+            | AppEvent::FiberSpliceUpserted { .. }
+            | AppEvent::FiberSpliceDeleted { .. }
+            | AppEvent::FiberCircuitUpserted { .. }
+            | AppEvent::FiberCircuitDeleted { .. }
+            | AppEvent::FiberCircuitHopsReplaced { .. } => "fiber",
             AppEvent::SettingsUpdated { .. } => "settings",
             AppEvent::ContentItemUpserted { .. } | AppEvent::ContentItemDeleted { .. } => {
                 "content_item"

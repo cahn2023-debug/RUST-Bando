@@ -134,6 +134,164 @@ export interface FeatureMetadata {
     | undefined;
 }
 
+export type FiberCableSource = 'manual' | 'legacy' | 'imported';
+export type FiberCableStatus = 'planned' | 'active' | 'retired' | 'damaged';
+export type FiberStrandStatus = 'available' | 'reserved' | 'active' | 'damaged';
+export type FiberPortDirection = 'input' | 'output' | 'bidirectional';
+export type FiberPortStatus = 'available' | 'reserved' | 'active' | 'damaged';
+export type FiberCircuitServiceType = 'data' | 'voice' | 'video' | 'backhaul' | 'other';
+export type FiberCircuitStatus = 'planned' | 'active' | 'suspended' | 'down' | 'retired';
+export type FiberCablePointKind = 'cable_start' | 'cable_end' | 'splice_enclosure';
+
+export interface FiberCable {
+  id: string;
+  project_id: string;
+  feature_id: string;
+  cable_type: string | null;
+  fiber_count: number | null;
+  owner: string | null;
+  status: FiberCableStatus;
+  source: FiberCableSource;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FiberStrand {
+  id: string;
+  cable_id: string;
+  strand_no: number;
+  color: string | null;
+  status: FiberStrandStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FiberCablePoint {
+  id: string;
+  project_id: string;
+  cable_id: string;
+  feature_id: string;
+  point_kind: FiberCablePointKind;
+  sequence_no: number;
+  vertex_index: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FiberPort {
+  id: string;
+  feature_id: string;
+  port_label: string;
+  port_kind: string;
+  direction: FiberPortDirection;
+  status: FiberPortStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FiberSplice {
+  id: string;
+  enclosure_feature_id: string;
+  from_strand_id: string;
+  to_strand_id: string;
+  loss_db: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FiberCircuit {
+  id: string;
+  project_id: string;
+  name: string;
+  service_type: FiberCircuitServiceType;
+  status: FiberCircuitStatus;
+  a_feature_id: string;
+  z_feature_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FiberCircuitHop {
+  circuit_id: string;
+  sequence_no: number;
+  strand_id: string | null;
+  port_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FiberCapacitySummary {
+  cable_id: string;
+  feature_id: string;
+  cable_type: string | null;
+  fiber_count: number | null;
+  available_count: number;
+  reserved_count: number;
+  active_count: number;
+  damaged_count: number;
+  occupied_count: number;
+  utilization: number;
+}
+
+export interface FiberValidationDiagnostic {
+  type:
+    | 'missing-strand'
+    | 'missing-port'
+    | 'duplicate-splice'
+    | 'invalid-splice-loop'
+    | 'strand-occupied'
+    | 'missing-circuit-endpoint'
+    | 'broken-hop'
+    | 'damaged-strand'
+    | 'endpoint-mismatch'
+    | 'uninitialized-cable'
+    | 'missing-polyline-endpoint'
+    | 'missing-cable-point'
+    | 'invalid-enclosure-location'
+    | 'missing-branch-enclosure'
+    | 'unmaterialized-cable-points'
+    | 'direction-conflict'
+    | 'multiple-origin';
+  message: string;
+  cable_id?: string | null;
+  circuit_id?: string | null;
+  feature_id?: string | null;
+  strand_id?: string | null;
+  port_id?: string | null;
+  edge_id?: string | null;
+}
+
+export interface FiberTraceResult {
+  circuit: FiberCircuit | null;
+  hops: FiberCircuitHop[];
+  strands: FiberStrand[];
+  ports: FiberPort[];
+  splices: FiberSplice[];
+  diagnostics: FiberValidationDiagnostic[];
+}
+
+export interface FiberInventory {
+  project_id: string;
+  scope: {
+    cable_id?: string | null;
+    feature_id?: string | null;
+  };
+  cables: FiberCable[];
+  strands: FiberStrand[];
+  ports: FiberPort[];
+  splices: FiberSplice[];
+  circuits: FiberCircuit[];
+  cable_points?: FiberCablePoint[];
+  summary: {
+    total_strands: number;
+    available_strands: number;
+    reserved_strands: number;
+    active_strands: number;
+    damaged_strands: number;
+    free_strands: number;
+  };
+}
+
 export interface VersionedFeatureMetadata {
   schema_version: number;
   core: FeatureMetadata;
@@ -198,6 +356,92 @@ export type DesignEventType =
       };
     }
   | { type: 'FeatureDeleted'; payload: { id: string } }
+  | {
+      type: 'FiberCableUpserted';
+      payload: {
+        id: string;
+        project_id: string;
+        feature_id: string;
+        cable_type?: string | null;
+        fiber_count?: number | null;
+        owner?: string | null;
+        status?: FiberCableStatus;
+        source?: FiberCableSource;
+      };
+    }
+  | {
+      type: 'FiberStrandsInitialized';
+      payload: {
+        cable_id: string;
+        fiber_count: number;
+        strands?: Array<{
+          strand_no: number;
+          color?: string | null;
+          status?: FiberStrandStatus;
+        }>;
+      };
+    }
+  | {
+      type: 'FiberCablePointsMaterialized';
+      payload: {
+        id: string;
+        project_id: string;
+        cable_id: string;
+        points: Array<{
+          id: string;
+          feature_id: string;
+          point_kind: FiberCablePointKind;
+          sequence_no: number;
+          vertex_index?: number | null;
+        }>;
+      };
+    }
+  | {
+      type: 'FiberPortUpserted';
+      payload: {
+        id: string;
+        feature_id: string;
+        port_label: string;
+        port_kind: string;
+        direction?: FiberPortDirection;
+        status?: FiberPortStatus;
+      };
+    }
+  | {
+      type: 'FiberSpliceUpserted';
+      payload: {
+        id: string;
+        enclosure_feature_id: string;
+        from_strand_id: string;
+        to_strand_id: string;
+        loss_db?: number | null;
+      };
+    }
+  | { type: 'FiberSpliceDeleted'; payload: { id: string } }
+  | {
+      type: 'FiberCircuitUpserted';
+      payload: {
+        id: string;
+        project_id: string;
+        name: string;
+        service_type?: FiberCircuitServiceType;
+        status?: FiberCircuitStatus;
+        a_feature_id: string;
+        z_feature_id: string;
+      };
+    }
+  | { type: 'FiberCircuitDeleted'; payload: { id: string } }
+  | {
+      type: 'FiberCircuitHopsReplaced';
+      payload: {
+        circuit_id: string;
+        hops: Array<{
+          sequence_no: number;
+          strand_id?: string | null;
+          port_id?: string | null;
+        }>;
+      };
+    }
   | {
       type: 'update_metadata';
       payload:

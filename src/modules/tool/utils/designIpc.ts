@@ -171,11 +171,15 @@ const normalizeCollaborativeEvent = (
     payload.id ||
     payload.feature_id ||
     payload.featureId ||
+    payload.circuit_id ||
+    payload.circuitId ||
     obj.entity_id ||
     obj.entityId ||
     `${obj.eventType || obj.type || 'event'}:${index}`;
 
-  const stableEntityId = isUuidLike(obj.entity_id ?? obj.entityId)
+  const stableEntityId = isUuidLike(payloadBasis)
+    ? payloadBasis
+    : isUuidLike(obj.entity_id ?? obj.entityId)
     ? (obj.entity_id ?? obj.entityId)
     : stableUuidFromString(`entity:${projectId}:${payloadBasis}`);
   const stableEventId = isUuidLike(obj.id)

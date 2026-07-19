@@ -1,27 +1,27 @@
 use rusqlite::Connection;
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 6;
-pub const CURRENT_SCHEMA_LABEL: &str = "6.0.0";
+pub const CURRENT_SCHEMA_VERSION: i32 = 7;
+pub const CURRENT_SCHEMA_LABEL: &str = "7.0.0";
 
-pub const V4_SCHEMA_SQL: &str = r#"
+pub const V7_SCHEMA_SQL: &str = r#"
     PRAGMA journal_mode=WAL;
     PRAGMA synchronous=NORMAL;
     PRAGMA foreign_keys=ON;
-    PRAGMA user_version = 6;
+    PRAGMA user_version = 7;
 
     CREATE TABLE IF NOT EXISTS sys_config (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     );
-    INSERT OR REPLACE INTO sys_config (key, value) VALUES ('schema_version', '6.0.0');
+    INSERT OR REPLACE INTO sys_config (key, value) VALUES ('schema_version', '7.0.0');
 
     CREATE TABLE IF NOT EXISTS schema_migrations (
         version INTEGER PRIMARY KEY,
         label TEXT NOT NULL,
         applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     );
-    INSERT OR REPLACE INTO schema_migrations (version, label) VALUES (6, '6.0.0');
+    INSERT OR REPLACE INTO schema_migrations (version, label) VALUES (7, '7.0.0');
 
     CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY,
@@ -344,18 +344,179 @@ pub const V4_SCHEMA_SQL: &str = r#"
         FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_ai_corrections_project ON ai_corrections(project_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS fiber_cables (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        feature_id TEXT NOT NULL UNIQUE,
+        cable_type TEXT,
+        fiber_count INTEGER,
+        owner TEXT,
+        status TEXT NOT NULL DEFAULT 'planned',
+        source TEXT NOT NULL DEFAULT 'manual',
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY(feature_id) REFERENCES features(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_fiber_cables_project ON fiber_cables (project_id);
+    CREATE INDEX IF NOT EXISTS idx_fiber_cables_feature ON fiber_cables (feature_id);
+
+    CREATE TABLE IF NOT EXISTS fiber_strands (
+        id TEXT PRIMARY KEY,
+        cable_id TEXT NOT NULL,
+        strand_no INTEGER NOT NULL,
+        color TEXT,
+        status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'reserved', 'active', 'damaged')),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(cable_id) REFERENCES fiber_cables(id) ON DELETE CASCADE,
+        UNIQUE(cable_id, strand_no)
+    );
+    CREATE INDEX IF NOT EXISTS idx_fiber_strands_cable ON fiber_strands (cable_id);
+    CREATE INDEX IF NOT EXISTS idx_fiber_strands_id ON fiber_strands (id);
+
+    CREATE TABLE IF NOT EXISTS fiber_cable_points (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        cable_id TEXT NOT NULL,
+        feature_id TEXT NOT NULL,
+        point_kind TEXT NOT NULL CHECK (point_kind IN ('cable_start', 'cable_end', 'splice_enclosure')),
+        sequence_no INTEGER NOT NULL DEFAULT 0,
+        vertex_index INTEGER,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY(cable_id) REFERENCES fiber_cables(id) ON DELETE CASCADE,
+        FOREIGN KEY(feature_id) REFERENCES features(id) ON DELETE CASCADE,
+        UNIQUE(cable_id, point_kind, sequence_no)
+    );
+    CREATE INDEX IF NOT EXISTS idx_fiber_cable_points_project ON fiber_cable_points (project_id);
+    CREATE INDEX IF NOT EXISTS idx_fiber_cable_points_cable ON fiber_cable_points (cable_id);
+    CREATE INDEX IF NOT EXISTS idx_fiber_cable_points_feature ON fiber_cable_points (feature_id);
+
+    CREATE TABLE IF NOT EXISTS fiber_ports (
+        id TEXT PRIMARY KEY,
+        feature_id TEXT NOT NULL,
+        port_label TEXT NOT NULL,
+        port_kind TEXT NOT NULL,
+        direction TEXT NOT NULL DEFAULT 'bidirectional' CHECK (direction IN ('input', 'output', 'bidirectional')),
+        status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'reserved', 'active', 'damaged')),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(feature_id) REFERENCES features(id) ON DELETE CASCADE,
+        UNIQUE(feature_id, port_label)
+    );
+    CREATE INDEX IF NOT EXISTS idx_fiber_ports_feature ON fiber_ports (feature_id);
+    CREATE INDEX IF NOT EXISTS idx_fiber_ports_id ON fiber_ports (id);
+
+    CREATE TABLE IF NOT EXISTS fiber_splices (
+        id TEXT PRIMARY KEY,
+        enclosure_feature_id TEXT NOT NULL,
+        from_strand_id TEXT NOT NULL,
+        to_strand_id TEXT NOT NULL,
+        loss_db REAL,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(enclosure_feature_id) REFERENCES features(id) ON DELETE CASCADE,
+        FOREIGN KEY(from_strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE,
+        FOREIGN KEY(to_strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE,
+        CHECK(from_strand_id <> to_strand_id)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_fiber_splices_pair ON fiber_splices (
+        CASE WHEN from_strand_id < to_strand_id THEN from_strand_id ELSE to_strand_id END,
+        CASE WHEN from_strand_id < to_strand_id THEN to_strand_id ELSE from_strand_id END
+    );
+    CREATE INDEX IF NOT EXISTS idx_fiber_splices_enclosure ON fiber_splices (enclosure_feature_id);
+    CREATE INDEX IF NOT EXISTS idx_fiber_splices_from_strand ON fiber_splices (from_strand_id);
+    CREATE INDEX IF NOT EXISTS idx_fiber_splices_to_strand ON fiber_splices (to_strand_id);
+
+    CREATE TABLE IF NOT EXISTS fiber_circuits (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        service_type TEXT NOT NULL DEFAULT 'data',
+        status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned', 'active', 'suspended', 'down', 'retired')),
+        a_feature_id TEXT NOT NULL,
+        z_feature_id TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY(a_feature_id) REFERENCES features(id) ON DELETE CASCADE,
+        FOREIGN KEY(z_feature_id) REFERENCES features(id) ON DELETE CASCADE,
+        UNIQUE(project_id, name)
+    );
+    CREATE INDEX IF NOT EXISTS idx_fiber_circuits_project ON fiber_circuits (project_id);
+    CREATE INDEX IF NOT EXISTS idx_fiber_circuits_a_feature ON fiber_circuits (a_feature_id);
+    CREATE INDEX IF NOT EXISTS idx_fiber_circuits_z_feature ON fiber_circuits (z_feature_id);
+
+    CREATE TABLE IF NOT EXISTS fiber_circuit_hops (
+        circuit_id TEXT NOT NULL,
+        sequence_no INTEGER NOT NULL,
+        strand_id TEXT,
+        port_id TEXT,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        PRIMARY KEY (circuit_id, sequence_no),
+        FOREIGN KEY(circuit_id) REFERENCES fiber_circuits(id) ON DELETE CASCADE,
+        FOREIGN KEY(strand_id) REFERENCES fiber_strands(id) ON DELETE SET NULL,
+        FOREIGN KEY(port_id) REFERENCES fiber_ports(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_fiber_circuit_hops_circuit ON fiber_circuit_hops (circuit_id);
+    CREATE INDEX IF NOT EXISTS idx_fiber_circuit_hops_strand ON fiber_circuit_hops (strand_id);
+    CREATE INDEX IF NOT EXISTS idx_fiber_circuit_hops_port ON fiber_circuit_hops (port_id);
+
+    INSERT OR IGNORE INTO fiber_cables (
+        id,
+        project_id,
+        feature_id,
+        cable_type,
+        fiber_count,
+        owner,
+        status,
+        source
+    )
+    SELECT
+        f.id,
+        f.project_id,
+        f.id,
+        COALESCE(
+            NULLIF(json_extract(f.metadata_json, '$.infrastructure.cable_type'), ''),
+            NULLIF(json_extract(f.metadata_json, '$.infrastructure.type'), ''),
+            NULLIF(f.geom_type, '')
+        ),
+        CAST(json_extract(f.metadata_json, '$.infrastructure.core_count') AS INTEGER),
+        NULLIF(json_extract(f.metadata_json, '$.infrastructure.owner'), ''),
+        CASE
+            WHEN LOWER(COALESCE(NULLIF(json_extract(f.metadata_json, '$.infrastructure.status'), ''), 'planned')) IN ('planned', 'active', 'retired', 'damaged')
+                THEN LOWER(COALESCE(NULLIF(json_extract(f.metadata_json, '$.infrastructure.status'), ''), 'planned'))
+            ELSE 'planned'
+        END,
+        'legacy'
+    FROM features f
+    WHERE LOWER(f.geom_type) = 'networklink'
+       OR LOWER(COALESCE(json_extract(f.metadata_json, '$.infrastructure.type'), json_extract(f.metadata_json, '$.type'), '')) IN ('signalline', 'networklink')
+       OR (
+            LOWER(COALESCE(f.geom_type, '')) LIKE '%line%'
+            AND (
+                (json_extract(f.metadata_json, '$.network.from_feature_id') IS NOT NULL AND json_extract(f.metadata_json, '$.network.to_feature_id') IS NOT NULL)
+                OR (json_extract(f.metadata_json, '$.network.from_endpoint.id') IS NOT NULL AND json_extract(f.metadata_json, '$.network.to_endpoint.id') IS NOT NULL)
+                OR (json_extract(f.metadata_json, '$.start_node_id') IS NOT NULL AND json_extract(f.metadata_json, '$.end_node_id') IS NOT NULL)
+            )
+       );
 "#;
 
 pub fn apply_v2_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
-    conn.execute_batch(V4_SCHEMA_SQL)
+    conn.execute_batch(V7_SCHEMA_SQL)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rusqlite::params;
 
     #[test]
-    fn apply_schema_sets_v5_and_creates_ai_tables() {
+    fn apply_schema_sets_v7_and_creates_fiber_tables() {
         let conn = Connection::open_in_memory().expect("in-memory db");
         apply_v2_schema(&conn).expect("schema applied");
 
@@ -390,5 +551,84 @@ mod tests {
             )
             .expect("schema migration label");
         assert_eq!(migration_label, CURRENT_SCHEMA_LABEL);
+
+        let fiber_table: String = conn
+            .query_row(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'fiber_cables'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("fiber_cables table");
+        assert_eq!(fiber_table, "fiber_cables");
+
+        let cable_points_table: String = conn
+            .query_row(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'fiber_cable_points'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("fiber_cable_points table");
+        assert_eq!(cable_points_table, "fiber_cable_points");
+    }
+
+    #[test]
+    fn apply_schema_backfills_network_lines_into_fiber_cables() {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+        apply_v2_schema(&conn).expect("schema applied");
+
+        conn.execute(
+            "INSERT INTO projects (id, name, title) VALUES (?1, ?2, ?3)",
+            params!["project-1", "Project 1", "Project 1"],
+        )
+        .expect("project");
+        conn.execute(
+            "INSERT INTO layers (id, project_id, region_id, name, is_visible, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["layer-1", "project-1", Option::<String>::None, "Layer 1", 1, "{}"],
+        )
+        .expect("layer");
+        conn.execute(
+            "INSERT INTO features (id, project_id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                "feature-1",
+                "project-1",
+                "layer-1",
+                Option::<String>::None,
+                "Line 1",
+                "LineString",
+                "[[0,0],[1,1]]",
+                "{}",
+                r#"{"network":{"from_feature_id":"node-a","to_feature_id":"node-b"},"infrastructure":{"type":"SignalLine","core_count":12,"status":"legacy"}}"#,
+            ],
+        )
+        .expect("feature");
+
+        apply_v2_schema(&conn).expect("schema reapplied");
+
+        let cable_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_cables WHERE id = ?1",
+                ["feature-1"],
+                |row| row.get(0),
+            )
+            .expect("fiber cable count");
+        assert_eq!(cable_count, 1);
+
+        let cable_status: String = conn
+            .query_row(
+                "SELECT status FROM fiber_cables WHERE id = ?1",
+                ["feature-1"],
+                |row| row.get(0),
+            )
+            .expect("fiber cable status");
+        assert_eq!(cable_status, "planned");
+
+        let strand_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_strands WHERE cable_id = ?1",
+                ["feature-1"],
+                |row| row.get(0),
+            )
+            .expect("fiber strand count");
+        assert_eq!(strand_count, 0);
     }
 }

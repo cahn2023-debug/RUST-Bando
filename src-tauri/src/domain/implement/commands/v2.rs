@@ -747,6 +747,8 @@ fn infer_entity_type(event_type: &str) -> &'static str {
         "feature_group"
     } else if event_type.starts_with("Feature") {
         "feature"
+    } else if event_type.starts_with("Fiber") {
+        "fiber"
     } else if event_type.starts_with("Settings") {
         "settings"
     } else {
@@ -941,6 +943,124 @@ fn frontend_event_to_envelope(
         "FeatureDeleted" => crate::domain::models::v2::AppEvent::FeatureDeleted {
             id: parse_uuid_value(payload.get("id"), "payload.id")?,
         },
+        "FiberCableUpserted" => crate::domain::models::v2::AppEvent::FiberCableUpserted {
+            id: parse_uuid_value(payload.get("id"), "payload.id")?,
+            project_id: parse_uuid_value(payload.get("project_id"), "payload.project_id")?,
+            feature_id: parse_uuid_value(payload.get("feature_id"), "payload.feature_id")?,
+            cable_type: payload
+                .get("cable_type")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string()),
+            fiber_count: payload.get("fiber_count").and_then(Value::as_i64),
+            owner: payload
+                .get("owner")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string()),
+            status: payload
+                .get("status")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string()),
+            source: payload
+                .get("source")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string()),
+        },
+        "FiberCablePointsMaterialized" => {
+            let points = payload
+                .get("points")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            crate::domain::models::v2::AppEvent::FiberCablePointsMaterialized {
+                id: parse_uuid_value(payload.get("id"), "payload.id")?,
+                project_id: parse_uuid_value(payload.get("project_id"), "payload.project_id")?,
+                cable_id: parse_uuid_value(payload.get("cable_id"), "payload.cable_id")?,
+                points,
+            }
+        }
+        "FiberStrandsInitialized" => {
+            let strands = payload
+                .get("strands")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            crate::domain::models::v2::AppEvent::FiberStrandsInitialized {
+                cable_id: parse_uuid_value(payload.get("cable_id"), "payload.cable_id")?,
+                fiber_count: payload
+                    .get("fiber_count")
+                    .and_then(Value::as_i64)
+                    .unwrap_or(0),
+                strands,
+            }
+        }
+        "FiberPortUpserted" => crate::domain::models::v2::AppEvent::FiberPortUpserted {
+            id: parse_uuid_value(payload.get("id"), "payload.id")?,
+            feature_id: parse_uuid_value(payload.get("feature_id"), "payload.feature_id")?,
+            port_label: payload
+                .get("port_label")
+                .and_then(Value::as_str)
+                .unwrap_or("P1")
+                .to_string(),
+            port_kind: payload
+                .get("port_kind")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+                .to_string(),
+            direction: payload
+                .get("direction")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string()),
+            status: payload
+                .get("status")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string()),
+        },
+        "FiberSpliceUpserted" => crate::domain::models::v2::AppEvent::FiberSpliceUpserted {
+            id: parse_uuid_value(payload.get("id"), "payload.id")?,
+            enclosure_feature_id: parse_uuid_value(
+                payload.get("enclosure_feature_id"),
+                "payload.enclosure_feature_id",
+            )?,
+            from_strand_id: parse_uuid_value(payload.get("from_strand_id"), "payload.from_strand_id")?,
+            to_strand_id: parse_uuid_value(payload.get("to_strand_id"), "payload.to_strand_id")?,
+            loss_db: payload.get("loss_db").and_then(Value::as_f64),
+        },
+        "FiberSpliceDeleted" => crate::domain::models::v2::AppEvent::FiberSpliceDeleted {
+            id: parse_uuid_value(payload.get("id"), "payload.id")?,
+        },
+        "FiberCircuitUpserted" => crate::domain::models::v2::AppEvent::FiberCircuitUpserted {
+            id: parse_uuid_value(payload.get("id"), "payload.id")?,
+            project_id: parse_uuid_value(payload.get("project_id"), "payload.project_id")?,
+            name: payload
+                .get("name")
+                .and_then(Value::as_str)
+                .unwrap_or("Untitled Circuit")
+                .to_string(),
+            service_type: payload
+                .get("service_type")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string()),
+            status: payload
+                .get("status")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string()),
+            a_feature_id: parse_uuid_value(payload.get("a_feature_id"), "payload.a_feature_id")?,
+            z_feature_id: parse_uuid_value(payload.get("z_feature_id"), "payload.z_feature_id")?,
+        },
+        "FiberCircuitDeleted" => crate::domain::models::v2::AppEvent::FiberCircuitDeleted {
+            id: parse_uuid_value(payload.get("id"), "payload.id")?,
+        },
+        "FiberCircuitHopsReplaced" => {
+            let hops = payload
+                .get("hops")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default();
+            crate::domain::models::v2::AppEvent::FiberCircuitHopsReplaced {
+                circuit_id: parse_uuid_value(payload.get("circuit_id"), "payload.circuit_id")?,
+                hops,
+            }
+        }
         "SettingsUpdated" => crate::domain::models::v2::AppEvent::SettingsUpdated {
             changes: payload
                 .get("settings")

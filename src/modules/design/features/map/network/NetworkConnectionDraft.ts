@@ -10,7 +10,7 @@ export interface PrepareNetworkConnectionDraftResult {
 export const prepareNetworkConnectionDraft = (
     sourceNode: DisplayNetworkNode | null | undefined,
     targetNode: DisplayNetworkNode | null | undefined,
-    tab: 'intersection' | 'route'
+    tab: 'intersection' | 'route' | 'fiber'
 ): PrepareNetworkConnectionDraftResult | null => {
     if (!sourceNode || !targetNode) return null;
 

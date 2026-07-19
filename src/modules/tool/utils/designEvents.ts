@@ -33,6 +33,7 @@ export const enrichEventBeforeDispatch = (incomingEvent: DesignEventType): any =
   if (event.type.startsWith('Region')) entityType = 'region';
   else if (event.type.startsWith('Layer')) entityType = 'layer';
   else if (event.type.startsWith('FeatureGroup')) entityType = 'group';
+  else if (event.type.startsWith('Fiber')) entityType = 'fiber';
 
   const payload = { ...(event.payload as any) };
 
@@ -41,6 +42,8 @@ export const enrichEventBeforeDispatch = (incomingEvent: DesignEventType): any =
     payload.id ||
     (payload as any).feature_id ||
     (payload as any).featureId ||
+    (payload as any).circuit_id ||
+    (payload as any).circuitId ||
     (payload as any).layerId ||
     (payload as any).regionId ||
     '';

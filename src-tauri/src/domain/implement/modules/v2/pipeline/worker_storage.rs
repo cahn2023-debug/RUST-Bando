@@ -3241,7 +3241,7 @@ fn apply_event_to_read_models(
             note,
             bbox,
             metadata,
-            ..
+            .. 
         } => {
             tx.execute(
                 "INSERT OR REPLACE INTO features (id, project_id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json, is_visible, note, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, CURRENT_TIMESTAMP)",
@@ -3261,6 +3261,7 @@ fn apply_event_to_read_models(
                 ],
             )
             .map_err(|e| e.to_string())?;
+            project_fiber_cable_if_eligible(tx, &project_id, &id.to_string(), geom_type, &metadata)?;
         }
         AppEvent::FeatureUpdated { id, changes } => {
             let mut current = fetch_feature_snapshot(tx, &id.to_string())?.unwrap_or_else(|| {
@@ -3278,6 +3279,9 @@ fn apply_event_to_read_models(
             });
             merge_objects(&mut current, changes);
             write_feature_snapshot(tx, &project_id, &current)?;
+            let geom_type = current.get("geom_type").and_then(Value::as_str).unwrap_or("Point");
+            let metadata = parse_json_field(current.get("metadata").unwrap_or(&Value::Null), json!({}));
+            project_fiber_cable_if_eligible(tx, &project_id, &id.to_string(), geom_type, &metadata)?;
         }
         AppEvent::FeatureDeleted { id } => {
             tx.execute(
@@ -3285,6 +3289,307 @@ fn apply_event_to_read_models(
                 params![id.to_string()],
             )
             .map_err(|e| e.to_string())?;
+        }
+        AppEvent::FiberCableUpserted {
+            id,
+            project_id,
+            feature_id,
+            cable_type,
+            fiber_count,
+            owner,
+            status,
+            source,
+        } => {
+            tx.execute(
+                "INSERT INTO fiber_cables (id, project_id, feature_id, cable_type, fiber_count, owner, status, source, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, COALESCE(?7, 'planned'), COALESCE(?8, 'manual'), CURRENT_TIMESTAMP)
+                 ON CONFLICT(id) DO UPDATE SET
+                    project_id = excluded.project_id,
+                    feature_id = excluded.feature_id,
+                    cable_type = excluded.cable_type,
+                    fiber_count = excluded.fiber_count,
+                    owner = excluded.owner,
+                    status = excluded.status,
+                    source = excluded.source,
+                    updated_at = CURRENT_TIMESTAMP",
+                params![
+                    id.to_string(),
+                    project_id.to_string(),
+                    feature_id.to_string(),
+                    cable_type.as_deref(),
+                    fiber_count,
+                    owner.as_deref(),
+                    status.as_deref(),
+                    source.as_deref(),
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        AppEvent::FiberCablePointsMaterialized {
+            project_id,
+            cable_id,
+            points,
+            ..
+        } => {
+            tx.execute(
+                "DELETE FROM fiber_cable_points WHERE cable_id = ?1",
+                params![cable_id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
+
+            for point in points {
+                let id = point
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| "Fiber cable point missing id".to_string())?;
+                let feature_id = point
+                    .get("feature_id")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| "Fiber cable point missing feature_id".to_string())?;
+                let point_kind = point
+                    .get("point_kind")
+                    .and_then(Value::as_str)
+                    .unwrap_or("splice_enclosure");
+                let sequence_no = point
+                    .get("sequence_no")
+                    .and_then(Value::as_i64)
+                    .unwrap_or(0);
+                let vertex_index = point.get("vertex_index").and_then(Value::as_i64);
+
+                tx.execute(
+                    "INSERT INTO fiber_cable_points (
+                        id, project_id, cable_id, feature_id, point_kind, sequence_no, vertex_index, updated_at
+                     )
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)
+                     ON CONFLICT(id) DO UPDATE SET
+                        project_id = excluded.project_id,
+                        cable_id = excluded.cable_id,
+                        feature_id = excluded.feature_id,
+                        point_kind = excluded.point_kind,
+                        sequence_no = excluded.sequence_no,
+                        vertex_index = excluded.vertex_index,
+                        updated_at = CURRENT_TIMESTAMP",
+                    params![
+                        id,
+                        project_id.to_string(),
+                        cable_id.to_string(),
+                        feature_id,
+                        point_kind,
+                        sequence_no,
+                        vertex_index,
+                    ],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+        }
+        AppEvent::FiberStrandsInitialized { cable_id, fiber_count, strands } => {
+            tx.execute(
+                "UPDATE fiber_cables SET fiber_count = ?2, updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
+                params![cable_id.to_string(), fiber_count],
+            )
+            .map_err(|e| e.to_string())?;
+            tx.execute(
+                "DELETE FROM fiber_strands WHERE cable_id = ?1",
+                params![cable_id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
+
+            if strands.is_empty() && *fiber_count > 0 {
+                for strand_no in 1..=*fiber_count {
+                    tx.execute(
+                        "INSERT INTO fiber_strands (id, cable_id, strand_no, color, status, updated_at)
+                         VALUES (?1, ?2, ?3, NULL, 'available', CURRENT_TIMESTAMP)
+                         ON CONFLICT(id) DO UPDATE SET
+                            cable_id = excluded.cable_id,
+                            strand_no = excluded.strand_no,
+                            color = excluded.color,
+                            status = excluded.status,
+                            updated_at = CURRENT_TIMESTAMP",
+                        params![
+                            format!("{}:strand:{}", cable_id, strand_no),
+                            cable_id.to_string(),
+                            strand_no,
+                        ],
+                    )
+                    .map_err(|e| e.to_string())?;
+                }
+            } else {
+                for strand in strands {
+                    let strand_no = strand
+                        .get("strand_no")
+                        .and_then(Value::as_i64)
+                        .unwrap_or(0);
+                    let color = strand
+                        .get("color")
+                        .and_then(Value::as_str)
+                        .map(|value| value.to_string());
+                    let status = strand
+                        .get("status")
+                        .and_then(Value::as_str)
+                        .unwrap_or("available")
+                        .to_string();
+                    tx.execute(
+                        "INSERT INTO fiber_strands (id, cable_id, strand_no, color, status, updated_at)
+                         VALUES (?1, ?2, ?3, ?4, ?5, CURRENT_TIMESTAMP)
+                         ON CONFLICT(id) DO UPDATE SET
+                            cable_id = excluded.cable_id,
+                            strand_no = excluded.strand_no,
+                            color = excluded.color,
+                            status = excluded.status,
+                            updated_at = CURRENT_TIMESTAMP",
+                        params![
+                            format!("{}:strand:{}", cable_id, strand_no),
+                            cable_id.to_string(),
+                            strand_no,
+                            color,
+                            status,
+                        ],
+                    )
+                    .map_err(|e| e.to_string())?;
+                }
+            }
+        }
+        AppEvent::FiberPortUpserted {
+            id,
+            feature_id,
+            port_label,
+            port_kind,
+            direction,
+            status,
+        } => {
+            tx.execute(
+                "INSERT INTO fiber_ports (id, feature_id, port_label, port_kind, direction, status, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, COALESCE(?5, 'bidirectional'), COALESCE(?6, 'available'), CURRENT_TIMESTAMP)
+                 ON CONFLICT(id) DO UPDATE SET
+                    feature_id = excluded.feature_id,
+                    port_label = excluded.port_label,
+                    port_kind = excluded.port_kind,
+                    direction = excluded.direction,
+                    status = excluded.status,
+                    updated_at = CURRENT_TIMESTAMP",
+                params![
+                    id.to_string(),
+                    feature_id.to_string(),
+                    port_label,
+                    port_kind,
+                    direction.as_deref(),
+                    status.as_deref(),
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        AppEvent::FiberSpliceUpserted {
+            id,
+            enclosure_feature_id,
+            from_strand_id,
+            to_strand_id,
+            loss_db,
+        } => {
+            tx.execute(
+                "INSERT INTO fiber_splices (id, enclosure_feature_id, from_strand_id, to_strand_id, loss_db, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, CURRENT_TIMESTAMP)
+                 ON CONFLICT(id) DO UPDATE SET
+                    enclosure_feature_id = excluded.enclosure_feature_id,
+                    from_strand_id = excluded.from_strand_id,
+                    to_strand_id = excluded.to_strand_id,
+                    loss_db = excluded.loss_db,
+                    updated_at = CURRENT_TIMESTAMP",
+                params![
+                    id.to_string(),
+                    enclosure_feature_id.to_string(),
+                    from_strand_id.to_string(),
+                    to_strand_id.to_string(),
+                    loss_db,
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        AppEvent::FiberSpliceDeleted { id } => {
+            tx.execute(
+                "DELETE FROM fiber_splices WHERE id = ?1",
+                params![id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        AppEvent::FiberCircuitUpserted {
+            id,
+            project_id,
+            name,
+            service_type,
+            status,
+            a_feature_id,
+            z_feature_id,
+        } => {
+            tx.execute(
+                "INSERT INTO fiber_circuits (id, project_id, name, service_type, status, a_feature_id, z_feature_id, updated_at)
+                 VALUES (?1, ?2, ?3, COALESCE(?4, 'data'), COALESCE(?5, 'planned'), ?6, ?7, CURRENT_TIMESTAMP)
+                 ON CONFLICT(id) DO UPDATE SET
+                    project_id = excluded.project_id,
+                    name = excluded.name,
+                    service_type = excluded.service_type,
+                    status = excluded.status,
+                    a_feature_id = excluded.a_feature_id,
+                    z_feature_id = excluded.z_feature_id,
+                    updated_at = CURRENT_TIMESTAMP",
+                params![
+                    id.to_string(),
+                    project_id.to_string(),
+                    name,
+                    service_type.as_deref(),
+                    status.as_deref(),
+                    a_feature_id.to_string(),
+                    z_feature_id.to_string(),
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        AppEvent::FiberCircuitDeleted { id } => {
+            tx.execute(
+                "DELETE FROM fiber_circuit_hops WHERE circuit_id = ?1",
+                params![id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
+            tx.execute(
+                "DELETE FROM fiber_circuits WHERE id = ?1",
+                params![id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        AppEvent::FiberCircuitHopsReplaced { circuit_id, hops } => {
+            tx.execute(
+                "DELETE FROM fiber_circuit_hops WHERE circuit_id = ?1",
+                params![circuit_id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
+            for hop in hops {
+                let sequence_no = hop
+                    .get("sequence_no")
+                    .and_then(Value::as_i64)
+                    .unwrap_or(0);
+                let strand_id = hop
+                    .get("strand_id")
+                    .and_then(Value::as_str)
+                    .map(|value| value.to_string());
+                let port_id = hop
+                    .get("port_id")
+                    .and_then(Value::as_str)
+                    .map(|value| value.to_string());
+                tx.execute(
+                    "INSERT INTO fiber_circuit_hops (circuit_id, sequence_no, strand_id, port_id, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, CURRENT_TIMESTAMP)
+                     ON CONFLICT(circuit_id, sequence_no) DO UPDATE SET
+                        strand_id = excluded.strand_id,
+                        port_id = excluded.port_id,
+                        updated_at = CURRENT_TIMESTAMP",
+                    params![
+                        circuit_id.to_string(),
+                        sequence_no,
+                        strand_id,
+                        port_id,
+                    ],
+                )
+                .map_err(|e| e.to_string())?;
+            }
         }
         AppEvent::SettingsUpdated { changes } => {
             let current_settings: Option<String> = tx
@@ -3806,6 +4111,89 @@ fn write_feature_snapshot(
                 .map(Value::to_string),
             if bool_from_value(record.get("is_visible"), true) { 1 } else { 0 },
             record.get("note").and_then(Value::as_str),
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn project_fiber_cable_if_eligible(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    feature_id: &str,
+    geom_type: &str,
+    metadata: &Value,
+) -> Result<(), String> {
+    let geom_type_lower = geom_type.to_lowercase();
+    let infrastructure = metadata
+        .get("infrastructure")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let legacy_type = infrastructure
+        .get("type")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_lowercase();
+    let cable_type = infrastructure
+        .get("cable_type")
+        .and_then(Value::as_str)
+        .or_else(|| infrastructure.get("type").and_then(Value::as_str))
+        .map(|value| value.to_string());
+    let fiber_count = infrastructure.get("core_count").and_then(Value::as_i64);
+    let owner = infrastructure
+        .get("owner")
+        .and_then(Value::as_str)
+        .map(|value| value.to_string());
+    let status = infrastructure
+        .get("status")
+        .and_then(Value::as_str)
+        .map(|value| match value.to_lowercase().as_str() {
+            "planned" | "active" | "retired" | "damaged" => value.to_lowercase(),
+            _ => "planned".to_string(),
+        })
+        .unwrap_or_else(|| "planned".to_string());
+
+    let network = metadata.get("network").and_then(Value::as_object);
+    let has_network_route = network.map(|net| {
+        let from_feature = net.get("from_feature_id").and_then(Value::as_str).is_some();
+        let to_feature = net.get("to_feature_id").and_then(Value::as_str).is_some();
+        let from_endpoint = net.get("from_endpoint").and_then(Value::as_object).is_some();
+        let to_endpoint = net.get("to_endpoint").and_then(Value::as_object).is_some();
+        (from_feature && to_feature) || (from_endpoint && to_endpoint)
+    }).unwrap_or(false);
+    let has_snap_route = metadata.get("start_node_id").and_then(Value::as_str).is_some()
+        && metadata.get("end_node_id").and_then(Value::as_str).is_some();
+    let should_project_fiber_cable =
+        geom_type_lower == "networklink"
+            || legacy_type == "signalline"
+            || legacy_type == "networklink"
+            || (geom_type_lower.contains("line") && (has_network_route || has_snap_route));
+
+    if !should_project_fiber_cable {
+        return Ok(());
+    }
+
+    tx.execute(
+        "INSERT INTO fiber_cables (id, project_id, feature_id, cable_type, fiber_count, owner, status, source, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'legacy', CURRENT_TIMESTAMP)
+         ON CONFLICT(id) DO UPDATE SET
+            project_id = excluded.project_id,
+            feature_id = excluded.feature_id,
+            cable_type = excluded.cable_type,
+            fiber_count = excluded.fiber_count,
+            owner = excluded.owner,
+            status = excluded.status,
+            source = excluded.source,
+            updated_at = CURRENT_TIMESTAMP",
+        params![
+            feature_id,
+            project_id,
+            feature_id,
+            cable_type,
+            fiber_count,
+            owner,
+            status,
         ],
     )
     .map_err(|e| e.to_string())?;

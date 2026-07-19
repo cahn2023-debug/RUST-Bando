@@ -53,8 +53,9 @@ import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmatio
 import { NetworkNodeWidget } from './NetworkNodeWidget';
 import { cn } from '@TOOL/utils/cn';
 import { getPointCoordinates } from '@TOOL/utils/featureMapping';
+import { FiberInspector } from './FiberInspector';
 
-type NetworkTab = 'intersection' | 'route';
+type NetworkTab = 'intersection' | 'route' | 'fiber';
 type LayoutMode = 'graph' | 'tree';
 type SelectedGraphEntity = { type: 'node' | 'edge'; id: string } | null;
 type NetworkLineStyle = 'solid' | 'dashed' | 'dotted';
@@ -219,8 +220,8 @@ const layoutGraphNodes = (
     const nodeIds = new Set(nodes.map(n => n.id));
     const sortedNodes = [...nodes].sort((a, b) => compareTreeNodes(a, b));
 
-    // If tab is 'route' (Toan tuyen), use geographic-based layout
-    if (tab === 'route') {
+    // If tab is 'route' (Toan tuyen) or 'fiber', use geographic-based layout
+    if (tab === 'route' || tab === 'fiber') {
         let nodeCoords: { id: string; lng: number; lat: number }[] = [];
         const nodesWithoutCoords: NetworkNode[] = [];
 
@@ -562,15 +563,83 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
     const layoutScope = `${tab}:${layoutMode}:${tab === 'intersection' ? (selectedIntersectionId || 'root') : 'all'}`;
     const layoutStorageKey = useMemo(() => getLayoutStorageKey(projectScope, layoutScope), [layoutScope, projectScope]);
 
+    const fiberGraph = useMemo(() => {
+        if (tab !== 'fiber' || !selectedFeatureId) return null;
+        const cableFeature = features[selectedFeatureId];
+        if (!cableFeature || cableFeature.geom_type !== 'LineString' || !Array.isArray(cableFeature.coordinates)) return null;
+        
+        const coords = cableFeature.coordinates as [number, number][];
+        const matchedNodes: NetworkNode[] = [];
+        const seenNodeIds = new Set<string>();
+        const pointFeaturesByCoord = new Map<string, typeof cableFeature[]>();
+        
+        for (const feat of Object.values(features)) {
+            if (feat.geom_type === 'Point' && Array.isArray(feat.coordinates)) {
+                const [lng, lat] = feat.coordinates as [number, number];
+                const key = `${lng.toFixed(6)},${lat.toFixed(6)}`;
+                const arr = pointFeaturesByCoord.get(key) || [];
+                arr.push(feat);
+                pointFeaturesByCoord.set(key, arr);
+            }
+        }
+
+        for (const coord of coords) {
+            const key = `${coord[0].toFixed(6)},${coord[1].toFixed(6)}`;
+            const points = pointFeaturesByCoord.get(key);
+            if (points && points.length > 0) {
+                for (const pt of points) {
+                    if (!seenNodeIds.has(pt.id)) {
+                        seenNodeIds.add(pt.id);
+                        const isSplice = (pt.metadata as any)?.infrastructure?.type === 'SpliceEnclosure';
+                        matchedNodes.push({
+                            id: pt.id,
+                            label: pt.name || pt.id,
+                            role: isSplice ? 'device' : 'cabinet',
+                            networkRole: 'device',
+                            isInferredRole: true,
+                            isOrigin: false,
+                            feature: pt,
+                        });
+                        break;
+                    }
+                }
+            }
+        }
+
+        const fiberEdges: NetworkEdge[] = [];
+        for (let i = 0; i < matchedNodes.length - 1; i++) {
+            const fromNode = matchedNodes[i];
+            const toNode = matchedNodes[i + 1];
+            fiberEdges.push({
+                id: `${cableFeature.id}-segment-${i}`,
+                label: `Lõi ${i+1}`,
+                from: fromNode.id,
+                to: toNode.id,
+                kind: 'signal',
+                sourceType: 'map-polyline',
+                feature: cableFeature,
+                fromEndpoint: { type: 'feature', featureId: fromNode.id },
+                toEndpoint: { type: 'feature', featureId: toNode.id },
+                fromEndpointKey: fromNode.id,
+                toEndpointKey: toNode.id,
+                directionMode: 'auto',
+                directionState: 'confirmed',
+            });
+        }
+        return { nodes: matchedNodes, edges: fiberEdges };
+    }, [tab, selectedFeatureId, features]);
+
     const scopedNodes = useMemo(() => {
-        if (tab === 'route' || !selectedIntersectionId) return evaluation.nodes;
+        if (fiberGraph) return fiberGraph.nodes;
+        if (tab === 'route' || tab === 'fiber' || !selectedIntersectionId) return evaluation.nodes;
         return evaluation.nodes.filter(node => node.id === selectedIntersectionId || node.parentFeatureId === selectedIntersectionId);
-    }, [evaluation.nodes, selectedIntersectionId, tab]);
+    }, [evaluation.nodes, fiberGraph, selectedIntersectionId, tab]);
 
     const scopedNodeIds = useMemo(() => new Set(scopedNodes.map(node => node.id)), [scopedNodes]);
     const nodesById = useMemo(() => new Map(evaluation.nodes.map(node => [node.id, node])), [evaluation.nodes]);
     const scopedEdges = useMemo(() => {
-        if (tab === 'route') {
+        if (fiberGraph) return fiberGraph.edges;
+        if (tab === 'route' || tab === 'fiber') {
             return evaluation.edges.filter(edge => {
                 const fromNode = nodesById.get(edge.from);
                 const toNode = nodesById.get(edge.to);
@@ -589,7 +658,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                 getNodeScopeOwnerId(fromNode) === selectedIntersectionId &&
                 getNodeScopeOwnerId(toNode) === selectedIntersectionId;
         });
-    }, [evaluation.edges, nodesById, scopedNodeIds, selectedIntersectionId, tab]);
+    }, [evaluation.edges, fiberGraph, nodesById, scopedNodeIds, selectedIntersectionId, tab]);
 
     const displayGraph = useMemo(
         () => buildDisplayNetworkGraph(scopedNodes, scopedEdges, tab === 'intersection' ? selectedIntersectionId || null : null),
@@ -817,6 +886,31 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
     }, [dimmedNodeIds, displayGraph.edges, displayGraph.nodes, evaluation.nodeStates, layoutMode, tab, layoutPositions, scopedEdges, scopedNodes, selectedEntity?.id, selectedFeatureId, selectedIntersectionId, snapshot.edges, treeArrangeVersion]);
 
     useEffect(() => {
+        if (!selectedFeatureId) {
+            if (selectedEntity !== null) setSelectedEntity(null);
+            return;
+        }
+
+        if (selectedEntity?.id === selectedFeatureId) return;
+
+        const isNode = evaluation.nodes.some(n => n.id === selectedFeatureId);
+        if (isNode) {
+            setSelectedEntity({ type: 'node', id: selectedFeatureId });
+            return;
+        }
+
+        const isEdge = evaluation.edges.some(e => e.id === selectedFeatureId);
+        if (isEdge) {
+            setSelectedEntity({ type: 'edge', id: selectedFeatureId });
+            return;
+        }
+
+        if (selectedEntity !== null) {
+            setSelectedEntity(null);
+        }
+    }, [selectedFeatureId, evaluation.nodes, evaluation.edges, selectedEntity]);
+
+    useEffect(() => {
         if (!selectedFeatureId) return;
         const selectedDisplayNodeId = displayGraph.displayNodeIdByRawNodeId[selectedFeatureId] || selectedFeatureId;
         const selectedFlowNode = reactFlowNodes.find(node => node.id === selectedDisplayNodeId);
@@ -1013,7 +1107,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                     </div>
                 )}
 
-                <div className="absolute left-4 right-4 top-4 z-10 pointer-events-none flex flex-wrap justify-between gap-3 md:left-4">
+                <div className={cn("absolute top-4 z-10 pointer-events-none flex flex-wrap gap-3 transition-all duration-300", tab === 'fiber' ? "left-[350px] right-[350px] justify-center" : "left-4 right-4 justify-between md:left-4")}>
                     {tab === 'intersection' && selectedIntersection ? <div className="w-40" /> : <div />}
 
                     <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/75 px-3 py-1.5 shadow-xl backdrop-blur-md text-[10.5px] font-sans">
@@ -1141,6 +1235,18 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                     </button>
                 )}
             </div>
+
+            {/* FLOATING COLLAPSIBLE FIBER PANEL (LEFT) */}
+            <aside
+                className={cn(
+                    "absolute left-4 top-4 bottom-4 z-20 w-[320px] flex flex-col min-h-0 rounded-xl border border-cyan-500/30 bg-zinc-950/90 shadow-2xl backdrop-blur-lg transition-all duration-300 ease-out",
+                    tab === 'fiber' ? "translate-x-0 opacity-100 pointer-events-auto" : "-translate-x-[340px] opacity-0 pointer-events-none"
+                )}
+            >
+                <div className="flex-1 min-h-0 overflow-y-auto p-3 scrollbar-thin">
+                    <FiberInspector projectId={projectId} selectedFeatureId={selectedFeatureId} />
+                </div>
+            </aside>
 
             {/* FLOATING COLLAPSIBLE INSPECTOR PANEL */}
             <aside
@@ -1374,31 +1480,34 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                         </div>
                     )}
 
-                    <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2 font-sans">
-                        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-300">
-                            <TriangleAlert size={13} className="text-zinc-500" /> Cấu hình
+                    {tab !== 'fiber' && (
+                        <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2 font-sans">
+                            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-300">
+                                <TriangleAlert size={13} className="text-zinc-500" /> Cấu hình
+                            </div>
+                            {evaluation.diagnostics.length === 0 ? (
+                                <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-400 font-semibold bg-emerald-500/5 border border-emerald-500/15 p-2 rounded-lg">
+                                    <CheckCircle2 size={13} /> Không phát hiện lỗi topology.
+                                </div>
+                            ) : (
+                                <div className="space-y-1.5">
+                                    {evaluation.diagnostics.map((diagnostic, index) => (
+                                        <button
+                                            key={`${diagnostic.type}-${diagnostic.edgeId || diagnostic.featureId || index}`}
+                                            onClick={() => handleDiagnosticSelect(diagnostic.edgeId || diagnostic.featureId)}
+                                            className="w-full rounded-lg border border-purple-500/20 bg-purple-500/5 p-2.5 text-left text-[10.5px] leading-relaxed text-purple-200 hover:bg-purple-500/15 hover:border-purple-500/35 transition duration-200"
+                                        >
+                                            <div className="mb-1 flex items-center gap-1 font-bold text-purple-400">
+                                                <AlertTriangle size={12} /> {diagnostic.type}
+                                            </div>
+                                            {diagnostic.message}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                        {evaluation.diagnostics.length === 0 ? (
-                            <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-400 font-semibold bg-emerald-500/5 border border-emerald-500/15 p-2 rounded-lg">
-                                <CheckCircle2 size={13} /> Không phát hiện lỗi topology.
-                            </div>
-                        ) : (
-                            <div className="space-y-1.5">
-                                {evaluation.diagnostics.map((diagnostic, index) => (
-                                    <button
-                                        key={`${diagnostic.type}-${diagnostic.edgeId || diagnostic.featureId || index}`}
-                                        onClick={() => handleDiagnosticSelect(diagnostic.edgeId || diagnostic.featureId)}
-                                        className="w-full rounded-lg border border-purple-500/20 bg-purple-500/5 p-2.5 text-left text-[10.5px] leading-relaxed text-purple-200 hover:bg-purple-500/15 hover:border-purple-500/35 transition duration-200"
-                                    >
-                                        <div className="mb-1 flex items-center gap-1 font-bold text-purple-400">
-                                            <AlertTriangle size={12} /> {diagnostic.type}
-                                        </div>
-                                        {diagnostic.message}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    )}
+
                 </div>
             </aside>
 
@@ -1464,6 +1573,9 @@ export const NetworkGraphPanel: React.FC = () => {
                         </button>
                         <button className={cn('rounded px-3 py-1', tab === 'route' ? 'bg-cyan-400 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setTab('route')}>
                             Toàn tuyến
+                        </button>
+                        <button className={cn('rounded px-3 py-1', tab === 'fiber' ? 'bg-cyan-400 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setTab('fiber')}>
+                            Fiber
                         </button>
                     </div>
                     <button
