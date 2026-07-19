@@ -3406,7 +3406,7 @@ fn apply_event_to_read_models(
                             status = excluded.status,
                             updated_at = CURRENT_TIMESTAMP",
                         params![
-                            format!("{}:strand:{}", cable_id, strand_no),
+                            uuid::Uuid::new_v4().to_string(),
                             cable_id.to_string(),
                             strand_no,
                         ],
@@ -3415,6 +3415,11 @@ fn apply_event_to_read_models(
                 }
             } else {
                 for strand in strands {
+                    let id = strand
+                        .get("id")
+                        .and_then(Value::as_str)
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
                     let strand_no = strand
                         .get("strand_no")
                         .and_then(Value::as_i64)
@@ -3438,7 +3443,7 @@ fn apply_event_to_read_models(
                             status = excluded.status,
                             updated_at = CURRENT_TIMESTAMP",
                         params![
-                            format!("{}:strand:{}", cable_id, strand_no),
+                            id,
                             cable_id.to_string(),
                             strand_no,
                             color,
@@ -3664,6 +3669,10 @@ fn replace_state_tables(
     }
     for record in object_values(state.get("features")) {
         write_feature_snapshot(tx, project_id, &record)?;
+        let id = record.get("id").and_then(Value::as_str).unwrap_or_default();
+        let geom_type = record.get("geom_type").and_then(Value::as_str).unwrap_or("Point");
+        let metadata = parse_json_field(record.get("metadata").unwrap_or(&Value::Null), json!({}));
+        project_fiber_cable_if_eligible(tx, project_id, id, geom_type, &metadata)?;
     }
 
     let settings = state.get("settings").cloned().unwrap_or_else(|| json!({}));
@@ -4298,6 +4307,244 @@ mod tests {
             .unwrap_or("")
             .to_string()
     }
+
+    #[test]
+    fn test_fiber_events_and_cascade() {
+        let temp_dir = tempdir().unwrap();
+        let db_path = temp_dir.path().join("test.db");
+        let mut db = PmpDatabase::open_or_create(db_path).unwrap();
+        let project_uuid = Uuid::new_v4();
+        let cable_feat_id = Uuid::new_v4();
+        let layer_id = Uuid::new_v4();
+        let project_id = &project_uuid.to_string();
+        seed_basic_project(&db.conn, project_id, "Test Project");
+
+        let tx = db.conn.transaction().unwrap();
+
+        // 1. Tạo feature
+        let mut feature_metadata = serde_json::Map::new();
+        feature_metadata.insert("infrastructure".to_string(), json!({
+            "type": "signalline",
+            "cable_type": "ADSS 200",
+            "core_count": 12,
+            "owner": "Viettel",
+            "status": "planned"
+        }));
+        let feature_created = AppEvent::FeatureCreated {
+            id: cable_feat_id,
+            layer_id,
+            group_id: None,
+            task_id: None,
+            name: "Cable Feature".to_string(),
+            geom_type: "LineString".to_string(),
+            metadata: Value::Object(feature_metadata.clone()),
+            geometry: json!([]),
+            properties: json!({}),
+            style_id: None,
+            is_visible: true,
+            note: None,
+            bbox: None,
+        };
+        let env_feature = EventEnvelope::new(project_uuid, "feature", cable_feat_id, feature_created, "test-device", None);
+        apply_event_to_read_models(&tx, &env_feature).unwrap();
+
+        // Kiểm tra cable_id được tạo ra
+        let cable_id: String = tx.query_row(
+            "SELECT id FROM fiber_cables WHERE feature_id = ?1",
+            params![cable_feat_id.to_string()],
+            |row| row.get(0),
+        ).unwrap();
+        let cable_uuid = Uuid::parse_str(&cable_id).unwrap();
+
+        // 2. Khởi tạo Strands (không cấp sẵn ID)
+        let strands_init = AppEvent::FiberStrandsInitialized {
+            cable_id: cable_uuid,
+            fiber_count: 12,
+            strands: vec![],
+        };
+        let env_strands = EventEnvelope::new(project_uuid, "fiber", cable_uuid, strands_init, "test-device", None);
+        apply_event_to_read_models(&tx, &env_strands).unwrap();
+
+        // Kiểm tra có 12 strands
+        let strand_count: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM fiber_strands WHERE cable_id = ?1",
+            params![cable_id],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(strand_count, 12);
+
+        // Lấy 2 strand IDs
+        let strand_ids: Vec<String> = tx.prepare("SELECT id FROM fiber_strands WHERE cable_id = ?1 LIMIT 2")
+            .unwrap()
+            .query_map(params![cable_id], |row| row.get(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        let s1 = &strand_ids[0];
+        let s2 = &strand_ids[1];
+
+        // Đảm bảo UUID không phải dạng cable:strand:n
+        assert!(!s1.contains(":strand:"));
+
+        // 3. Khởi tạo lại Strands (cấp sẵn ID)
+        let strands_init_with_id = AppEvent::FiberStrandsInitialized {
+            cable_id: cable_uuid,
+            fiber_count: 12,
+            strands: vec![
+                json!({"id": s1, "strand_no": 1, "status": "active"}),
+                json!({"id": s2, "strand_no": 2, "status": "reserved"}),
+            ],
+        };
+        let env_strands2 = EventEnvelope::new(project_uuid, "fiber", cable_uuid, strands_init_with_id, "test-device", None);
+        apply_event_to_read_models(&tx, &env_strands2).unwrap();
+
+        // Đảm bảo s1, s2 vẫn tồn tại và count = 2
+        let strand_count_2: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM fiber_strands WHERE cable_id = ?1",
+            params![cable_id],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(strand_count_2, 2);
+
+        // 4. Tạo một feature khác làm tủ nối (enclosure)
+        let enclosure_feat_id = Uuid::new_v4();
+        let enclosure_created = AppEvent::FeatureCreated {
+            id: enclosure_feat_id,
+            layer_id,
+            group_id: None,
+            task_id: None,
+            name: "Enclosure Feature".to_string(),
+            geom_type: "Point".to_string(),
+            metadata: json!({}),
+            geometry: json!([]),
+            properties: json!({}),
+            style_id: None,
+            is_visible: true,
+            note: None,
+            bbox: None,
+        };
+        let env_enc = EventEnvelope::new(project_uuid, "feature", enclosure_feat_id, enclosure_created, "test-device", None);
+        apply_event_to_read_models(&tx, &env_enc).unwrap();
+
+        // 5. Gắn Port vào enclosure
+        let port_id = Uuid::new_v4();
+        let port_upsert = AppEvent::FiberPortUpserted {
+            id: port_id,
+            feature_id: enclosure_feat_id,
+            port_label: "Port A".to_string(),
+            port_kind: "PON".to_string(),
+            direction: Some("bidirectional".to_string()),
+            status: Some("available".to_string()),
+        };
+        let env_port = EventEnvelope::new(project_uuid, "fiber", port_id, port_upsert, "test-device", None);
+        apply_event_to_read_models(&tx, &env_port).unwrap();
+
+        // 6. Tạo Splice giữa s1 và s2 tại enclosure
+        let splice_id = Uuid::new_v4();
+        let splice_upsert = AppEvent::FiberSpliceUpserted {
+            id: splice_id,
+            enclosure_feature_id: enclosure_feat_id,
+            from_strand_id: Uuid::parse_str(s1).unwrap(),
+            to_strand_id: Uuid::parse_str(s2).unwrap(),
+            loss_db: Some(0.1),
+        };
+        let env_splice = EventEnvelope::new(project_uuid, "fiber", splice_id, splice_upsert, "test-device", None);
+        apply_event_to_read_models(&tx, &env_splice).unwrap();
+
+        // 7. Tạo Circuit
+        let circuit_id = Uuid::new_v4();
+        let circuit_upsert = AppEvent::FiberCircuitUpserted {
+            id: circuit_id,
+            project_id: project_uuid,
+            name: "Circuit Test".to_string(),
+            service_type: Some("data".to_string()),
+            status: Some("active".to_string()),
+            a_feature_id: cable_feat_id,
+            z_feature_id: enclosure_feat_id,
+        };
+        let env_circ = EventEnvelope::new(project_uuid, "fiber", circuit_id, circuit_upsert, "test-device", None);
+        apply_event_to_read_models(&tx, &env_circ).unwrap();
+
+        // 8. Hops Replace
+        let hops_replace = AppEvent::FiberCircuitHopsReplaced {
+            circuit_id: circuit_id,
+            hops: vec![
+                json!({"sequence_no": 1, "strand_id": s1, "port_id": Value::Null}),
+                json!({"sequence_no": 2, "strand_id": Value::Null, "port_id": port_id.to_string()}),
+            ],
+        };
+        let env_hops = EventEnvelope::new(project_uuid, "fiber", circuit_id, hops_replace, "test-device", None);
+        apply_event_to_read_models(&tx, &env_hops).unwrap();
+
+        // Verify hops
+        let hop_count: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM fiber_circuit_hops WHERE circuit_id = ?1",
+            params![circuit_id.to_string()],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(hop_count, 2);
+
+        // 9. Cascade Delete Feature -> Kiểm tra Port, Splice biến mất không?
+        let enclosure_deleted = AppEvent::FeatureDeleted {
+            id: enclosure_feat_id,
+        };
+        let env_del_enc = EventEnvelope::new(project_uuid, "feature", enclosure_feat_id, enclosure_deleted, "test-device", None);
+        apply_event_to_read_models(&tx, &env_del_enc).unwrap();
+
+        let port_count: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM fiber_ports WHERE feature_id = ?1",
+            params![enclosure_feat_id.to_string()],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(port_count, 0, "Port failed to cascade delete");
+
+        let splice_count: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM fiber_splices WHERE enclosure_feature_id = ?1",
+            params![enclosure_feat_id.to_string()],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(splice_count, 0, "Splice failed to cascade delete from enclosure");
+
+        // Vì z_feature_id (enclosure) bị xoá, circuit cũng bị xoá cascade
+        let remaining_circuit: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM fiber_circuits WHERE id = ?1",
+            params![circuit_id.to_string()],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(remaining_circuit, 0, "Circuit failed to cascade delete when z_feature deleted");
+
+        // Hops cũng sẽ bị xoá cascade theo circuit
+        let hop_count_after: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM fiber_circuit_hops WHERE circuit_id = ?1",
+            params![circuit_id.to_string()],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(hop_count_after, 0, "Hops should be deleted when circuit is deleted");
+
+        // 10. Cascade Delete Cable Feature -> Kiểm tra Cable, Strands
+        let cable_deleted = AppEvent::FeatureDeleted {
+            id: cable_feat_id,
+        };
+        let env_del_cab = EventEnvelope::new(project_uuid, "feature", cable_feat_id, cable_deleted, "test-device", None);
+        apply_event_to_read_models(&tx, &env_del_cab).unwrap();
+
+        let cable_count: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM fiber_cables WHERE feature_id = ?1",
+            params![cable_feat_id.to_string()],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(cable_count, 0, "Cable failed to cascade delete");
+
+        let remaining_strands: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM fiber_strands WHERE cable_id = ?1",
+            params![cable_id],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(remaining_strands, 0, "Strands failed to cascade delete");
+        
+        tx.commit().unwrap();
+    }
+
 
     fn make_worker(db: PmpDatabase) -> StorageWorker {
         let (_tx, rx) = mpsc::channel(1);

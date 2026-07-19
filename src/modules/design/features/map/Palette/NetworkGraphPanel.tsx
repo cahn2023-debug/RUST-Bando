@@ -54,6 +54,7 @@ import { NetworkNodeWidget } from './NetworkNodeWidget';
 import { cn } from '@TOOL/utils/cn';
 import { getPointCoordinates } from '@TOOL/utils/featureMapping';
 import { FiberInspector } from './FiberInspector';
+import { FiberSpliceDiagramModal } from './FiberSpliceDiagramModal';
 
 type NetworkTab = 'intersection' | 'route' | 'fiber';
 type LayoutMode = 'graph' | 'tree';
@@ -212,7 +213,8 @@ const layoutGraphNodes = (
     edges: NetworkEdge[],
     layoutMode: LayoutMode,
     tab: NetworkTab,
-    rootId?: string
+    rootId?: string,
+    selectedCableId?: string | null
 ): Record<string, { x: number; y: number }> => {
     const positions: Record<string, { x: number; y: number }> = {};
     if (nodes.length === 0) return positions;
@@ -220,7 +222,23 @@ const layoutGraphNodes = (
     const nodeIds = new Set(nodes.map(n => n.id));
     const sortedNodes = [...nodes].sort((a, b) => compareTreeNodes(a, b));
 
-    // If tab is 'route' (Toan tuyen) or 'fiber', use geographic-based layout
+    const isFiberCableView = tab === 'fiber' && !!selectedCableId;
+
+    if (isFiberCableView) {
+        const startX = 60;
+        const fixedY = 300;
+        const xStep = 400;
+
+        nodes.forEach((n, idx) => {
+            positions[n.id] = {
+                x: startX + idx * xStep,
+                y: fixedY
+            };
+        });
+        return positions;
+    }
+
+    // If tab is 'route' (Toan tuyen) or 'fiber' (overall view), use geographic-based layout
     if (tab === 'route' || tab === 'fiber') {
         let nodeCoords: { id: string; lng: number; lat: number }[] = [];
         const nodesWithoutCoords: NetworkNode[] = [];
@@ -535,11 +553,28 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
     const lastSyncedFeatureIdRef = useRef<string | null>(null);
 
     const [isInspectorOpen, setIsInspectorOpen] = useState(true);
+    const [selectedSpliceEnclosureId, setSelectedSpliceEnclosureId] = useState<string | null>(null);
+    const [activeFiberCableFeatureId, setActiveFiberCableFeatureId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<NetworkComputedStatus | 'all'>('all');
     const [layoutPositions, setLayoutPositions] = useState<LayoutPositions>({});
 
     const features = state?.features || {};
+    const selectedFeature = selectedFeatureId ? features[selectedFeatureId] : null;
+
+    useEffect(() => {
+        if (tab !== 'fiber') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setActiveFiberCableFeatureId(null);
+            return;
+        }
+
+        if (selectedFeature?.geom_type === 'LineString') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setActiveFiberCableFeatureId(selectedFeature.id);
+        }
+    }, [selectedFeature, tab]);
+
     const snapshot = useMemo(() => {
         if (mode === 'simulation') {
             return simulationData;
@@ -564,8 +599,8 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
     const layoutStorageKey = useMemo(() => getLayoutStorageKey(projectScope, layoutScope), [layoutScope, projectScope]);
 
     const fiberGraph = useMemo(() => {
-        if (tab !== 'fiber' || !selectedFeatureId) return null;
-        const cableFeature = features[selectedFeatureId];
+        if (tab !== 'fiber' || !activeFiberCableFeatureId) return null;
+        const cableFeature = features[activeFiberCableFeatureId];
         if (!cableFeature || cableFeature.geom_type !== 'LineString' || !Array.isArray(cableFeature.coordinates)) return null;
         
         const coords = cableFeature.coordinates as [number, number][];
@@ -627,7 +662,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
             });
         }
         return { nodes: matchedNodes, edges: fiberEdges };
-    }, [tab, selectedFeatureId, features]);
+    }, [tab, activeFiberCableFeatureId, features]);
 
     const scopedNodes = useMemo(() => {
         if (fiberGraph) return fiberGraph.nodes;
@@ -781,7 +816,8 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
     }, [layoutMode, layoutPositions, layoutStorageKey]);
 
     const { reactFlowNodes, reactFlowEdges } = useMemo(() => {
-        const positions = layoutGraphNodes(scopedNodes, scopedEdges, layoutMode, tab, selectedIntersectionId);
+        const positions = layoutGraphNodes(scopedNodes, scopedEdges, layoutMode, tab, selectedIntersectionId, activeFiberCableFeatureId);
+        const isFiberCableView = tab === 'fiber' && !!activeFiberCableFeatureId;
         const pairEdgeIndexes = new Map<string, number>();
         const pairEdgeCounts = new Map<string, number>();
 
@@ -802,10 +838,10 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
             return {
                 id: displayNode.id,
                 type: 'networkNode',
-                position: (!isTreeLayout && layoutPositions[displayNode.id]) || positions[node.id] || { x: 40, y: 40 },
+                position: (!isTreeLayout && !isFiberCableView && layoutPositions[displayNode.id]) || positions[node.id] || { x: 40, y: 40 },
                 sourcePosition: Position.Right,
                 targetPosition: Position.Left,
-                draggable: !isTreeLayout,
+                draggable: !isTreeLayout && !isFiberCableView,
                 style: {
                     opacity: isDimmed ? 0.35 : 1,
                     transition: 'opacity 300ms ease-out',
@@ -848,12 +884,12 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                 id: edge.id,
                 source: displayEdge.from,
                 target: displayEdge.to,
-                type: layoutMode === 'tree' ? 'step' : 'smoothstep',
+                type: isFiberCableView ? 'straight' : layoutMode === 'tree' ? 'step' : 'smoothstep',
                 animated: edge.kind === 'signal' && edgeStatus === 'online' && edge.directionState === 'confirmed' && !isDimmed,
                 selectable: edge.kind === 'signal',
                 interactionWidth: edge.kind === 'signal' ? 18 : 8,
                 pathOptions: {
-                    borderRadius: 14,
+                    borderRadius: isFiberCableView ? 0 : 14,
                     offset: pairCount > 1 ? 24 + pairIndex * 18 : 24,
                 },
                 data: {
@@ -883,7 +919,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
         });
 
         return { reactFlowNodes: nodes, reactFlowEdges: edges };
-    }, [dimmedNodeIds, displayGraph.edges, displayGraph.nodes, evaluation.nodeStates, layoutMode, tab, layoutPositions, scopedEdges, scopedNodes, selectedEntity?.id, selectedFeatureId, selectedIntersectionId, snapshot.edges, treeArrangeVersion]);
+    }, [activeFiberCableFeatureId, dimmedNodeIds, displayGraph.edges, displayGraph.nodes, evaluation.nodeStates, layoutMode, tab, layoutPositions, scopedEdges, scopedNodes, selectedEntity?.id, selectedFeatureId, selectedIntersectionId, snapshot.edges, treeArrangeVersion]);
 
     useEffect(() => {
         if (!selectedFeatureId) {
@@ -936,13 +972,19 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
         if (!representative) return;
 
         setSelectedEntity({ type: 'node', id: representative.id });
-        setIsInspectorOpen(true);
         selectAndZoomFeature(representative.id);
+
+        if (tab === 'fiber') {
+            setSelectedSpliceEnclosureId(representative.id);
+            return;
+        }
+
+        setIsInspectorOpen(true);
 
         if (isSourceNode(representative)) {
             setDrilldownIntersectionId(representative.id);
         }
-    }, [displayGraph.nodes, evaluation.nodes, selectAndZoomFeature]);
+    }, [displayGraph.nodes, evaluation.nodes, selectAndZoomFeature, tab]);
 
     const handleEdgeClick = useCallback((event: React.MouseEvent, edge: Edge) => {
         event.stopPropagation();
@@ -1178,7 +1220,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                     nodes={reactFlowNodes}
                     edges={reactFlowEdges}
                     nodeTypes={nodeTypes}
-                    nodesDraggable={layoutMode !== 'tree'}
+                    nodesDraggable={layoutMode !== 'tree' && !(tab === 'fiber' && !!activeFiberCableFeatureId)}
                     onNodeClick={handleNodeClick}
                     onNodeDragStop={handleNodeDragStop}
                     onEdgeClick={handleEdgeClick}
@@ -1519,6 +1561,15 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                 message="Xóa kết nối giả lập trong Network. Không tạo hoặc xóa polyline trên bản đồ."
                 itemName={edgePendingDelete?.label}
             />
+
+            {/* SPLICE EQUIPMENT DIAGRAM MODAL */}
+            {selectedSpliceEnclosureId && (
+                <FiberSpliceDiagramModal
+                    enclosureId={selectedSpliceEnclosureId}
+                    evaluation={evaluation}
+                    onClose={() => setSelectedSpliceEnclosureId(null)}
+                />
+            )}
         </div>
     );
 };
@@ -1633,6 +1684,3 @@ export const NetworkGraphPanel: React.FC = () => {
         </div>
     );
 };
-
-
-

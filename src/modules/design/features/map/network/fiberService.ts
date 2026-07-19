@@ -39,6 +39,7 @@ export interface FiberStrandInitializationInput {
   cableId: string;
   fiberCount: number;
   strands?: Array<{
+    id?: string;
     strandNo: number;
     color?: string | null;
     status?: FiberStrandStatus;
@@ -178,6 +179,7 @@ export const initializeCableStrands = async (input: FiberStrandInitializationInp
       cable_id: input.cableId,
       fiber_count: input.fiberCount,
       strands: input.strands?.map(strand => ({
+        id: strand.id,
         strand_no: strand.strandNo,
         color: strand.color ?? null,
         status: strand.status ?? 'available',

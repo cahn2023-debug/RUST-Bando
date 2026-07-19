@@ -375,6 +375,7 @@ export type DesignEventType =
         cable_id: string;
         fiber_count: number;
         strands?: Array<{
+          id?: string;
           strand_no: number;
           color?: string | null;
           status?: FiberStrandStatus;

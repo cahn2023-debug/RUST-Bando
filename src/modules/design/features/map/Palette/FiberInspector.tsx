@@ -30,6 +30,7 @@ import {
   getFeatureLabel,
   getSpliceChainForStrand,
   groupFiberDiagnostics,
+  type FiberLegacyCableCandidate,
   type FiberInspectorTab,
 } from '@DESIGN/features/map/network/fiberUiModel';
 import { FiberCapacityPanel } from './FiberCapacityPanel';
@@ -70,8 +71,26 @@ const PREDEFINED_CABLE_TYPES = [
 ];
 const PREDEFINED_CAPACITIES = [8, 12, 24, 48, 96, 144];
 
+const parseFeatureMetadata = (metadata: unknown): Record<string, any> => {
+  if (!metadata) return {};
+  if (typeof metadata === 'string') {
+    try {
+      return JSON.parse(metadata || '{}') as Record<string, any>;
+    } catch {
+      return {};
+    }
+  }
+  return metadata as Record<string, any>;
+};
+
+const isLineFeature = (feature: { geom_type?: string; geometry_type?: string; coordinates?: unknown } | undefined) => {
+  if (!feature) return false;
+  const geomType = `${feature.geom_type || feature.geometry_type || ''}`.toLowerCase();
+  return (geomType.includes('line') || geomType.includes('polyline')) && Array.isArray(feature.coordinates);
+};
+
 export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selectedFeatureId }) => {
-  const featuresById = useDesignSync(s => s.state?.features ?? {});
+  const featuresById = useDesignSync(s => s.state?.features) ?? {};
   const selectFeature = useDesignSync(s => s.selectFeature);
   const zoomTo = useDesignSync(s => s.zoomTo);
 
@@ -112,6 +131,42 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
     () => inventory?.cables.find(cable => cable.id === selectedCableId) || null,
     [inventory?.cables, selectedCableId]
   );
+  const selectedPolylineCandidate = useMemo<FiberLegacyCableCandidate | null>(() => {
+    if (!selectedFeatureId) return null;
+    if (inventory?.cables.some(cable => cable.feature_id === selectedFeatureId)) return null;
+    const existingCandidate = legacyCableCandidates.find(item => item.feature_id === selectedFeatureId);
+    if (existingCandidate) return existingCandidate;
+
+    const feature = featuresById[selectedFeatureId];
+    if (!isLineFeature(feature)) return null;
+
+    const metadata = parseFeatureMetadata(feature.metadata);
+    const infrastructure = metadata.infrastructure && typeof metadata.infrastructure === 'object'
+      ? metadata.infrastructure as Record<string, any>
+      : {};
+
+    return {
+      id: feature.id,
+      feature_id: feature.id,
+      label: feature.name || feature.id,
+      cable_type: infrastructure.cable_type || infrastructure.type || null,
+      fiber_count: typeof infrastructure.core_count === 'number' ? infrastructure.core_count : null,
+      source_type: 'map-polyline',
+      from: '',
+      to: '',
+    };
+  }, [featuresById, inventory?.cables, legacyCableCandidates, selectedFeatureId]);
+  const selectedLegacyCandidate = useMemo(() => {
+    if (selectedPolylineCandidate) return selectedPolylineCandidate;
+    if (selectedFeatureId) {
+      const bySelectedFeature = legacyCableCandidates.find(item => item.feature_id === selectedFeatureId);
+      if (bySelectedFeature) return bySelectedFeature;
+    }
+    if (selectedLegacyCandidateId) {
+      return legacyCableCandidates.find(item => item.id === selectedLegacyCandidateId) || null;
+    }
+    return null;
+  }, [legacyCableCandidates, selectedFeatureId, selectedLegacyCandidateId, selectedPolylineCandidate]);
   const filteredStrands = useMemo(
     () => filterFiberStrands(inventory?.strands || [], selectedCableId, strandStatusFilter, strandQuery),
     [inventory?.strands, selectedCableId, strandQuery, strandStatusFilter]
@@ -140,14 +195,20 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
     if (!projectId) return;
     setLoading(true);
     try {
-      const [nextInventory, nextCapacity, nextValidation] = await Promise.all([
-        getFiberInventory(projectId),
-        getFiberCapacity(projectId),
-        validateFiberNetwork(projectId),
-      ]);
+      const nextInventory = await getFiberInventory(projectId);
       setInventory(nextInventory);
-      setCapacity(nextCapacity.items);
-      setDiagnostics(nextValidation.diagnostics);
+      try {
+        const nextCapacity = await getFiberCapacity(projectId);
+        setCapacity(nextCapacity.items);
+      } catch {
+        setCapacity([]);
+      }
+      try {
+        const nextValidation = await validateFiberNetwork(projectId, {}, featuresById);
+        setDiagnostics(nextValidation.diagnostics);
+      } catch {
+        setDiagnostics([]);
+      }
       setSelectedCableId(current => {
         if (current && nextInventory.cables.some(cable => cable.id === current)) return current;
         const byFeature = nextInventory.cables.find(cable => cable.feature_id === selectedFeatureId);
@@ -173,10 +234,11 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
   }, [projectId]);
 
   useEffect(() => {
-    if (!selectedFeatureId || !inventory) return;
-    const cable = inventory.cables.find(item => item.feature_id === selectedFeatureId);
+    if (!selectedFeatureId) return;
+    const cable = inventory?.cables.find(item => item.feature_id === selectedFeatureId);
     if (cable) {
       setSelectedCableId(cable.id);
+      setSelectedLegacyCandidateId(null);
     } else {
       const candidate = legacyCableCandidates.find(item => item.feature_id === selectedFeatureId);
       if (candidate) {
@@ -195,11 +257,14 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
     if (selectedCable) {
       setCableType(selectedCable.cable_type || '');
       setFiberCount(selectedCable.fiber_count || 12);
+    } else if (selectedLegacyCandidate) {
+      setCableType(selectedLegacyCandidate.cable_type || '');
+      setFiberCount(selectedLegacyCandidate.fiber_count || 12);
     } else {
       setCableType('');
       setFiberCount(12);
     }
-  }, [selectedCable]);
+  }, [selectedCable, selectedLegacyCandidate]);
 
   const focusFeature = (featureId: string | null | undefined) => {
     if (!featureId) return;
@@ -227,7 +292,13 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
   };
 
   const handleSaveCableConfig = async () => {
-    if (!projectId || !selectedCable) return;
+    if (!projectId) return;
+    const targetCable = selectedCable;
+    const targetCandidate = selectedLegacyCandidate;
+    if (!targetCable && !targetCandidate) {
+      setStatusMessage('Hãy chọn một polyline/cáp trên bản đồ trước khi lưu cấu hình.');
+      return;
+    }
     const capacity = typeof fiberCount === 'number' ? fiberCount : parseInt(fiberCount, 10);
     if (isNaN(capacity) || capacity < 1) {
       setStatusMessage('Dung lượng cáp không hợp lệ.');
@@ -235,16 +306,20 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
     }
     await runWrite('Đã lưu cấu hình cáp.', () =>
       upsertFiberCable({
-        id: selectedCable.id,
+        id: targetCable?.id || targetCandidate!.id,
         projectId,
-        featureId: selectedCable.feature_id,
+        featureId: targetCable?.feature_id || targetCandidate!.feature_id,
         cableType: cableType.trim() || null,
         fiberCount: capacity,
-        owner: selectedCable.owner,
-        status: selectedCable.status,
-        source: selectedCable.source,
+        owner: targetCable?.owner ?? null,
+        status: targetCable?.status ?? 'planned',
+        source: targetCable?.source ?? 'legacy',
       })
     );
+    if (targetCandidate) {
+      setSelectedCableId(targetCandidate.id);
+      setSelectedLegacyCandidateId(null);
+    }
   };
 
   const handleInitialize = async (cableId = selectedCableId, count?: number | '') => {
@@ -402,6 +477,11 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
   const total = inventory?.summary.total_strands || 0;
   const initializedCableIds = new Set((inventory?.strands || []).map(strand => strand.cable_id));
   const selectedCableInitialized = selectedCableId ? initializedCableIds.has(selectedCableId) : false;
+  const canConfigureCable = Boolean(selectedCable || selectedLegacyCandidate);
+  const cableConfigLabel = selectedCable
+    ? getFeatureLabel(featuresById, selectedCable.feature_id)
+    : selectedLegacyCandidate?.label;
+  const cableConfigIsMaterialized = Boolean(selectedCable);
 
   if (!projectId) {
     return (
@@ -449,6 +529,88 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
           {statusMessage}
         </div>
       )}
+
+      <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-3">
+        <div className="flex items-center gap-2 text-[10px] font-semibold text-zinc-300">
+          <Sigma size={11} /> Cấu hình Cáp
+        </div>
+        <div className="text-[9px] text-zinc-500">
+          {canConfigureCable
+            ? `${cableConfigIsMaterialized ? 'Đang chọn cáp' : 'Đang chọn polyline'}: ${cableConfigLabel}`
+            : 'Chọn một polyline/cáp trên bản đồ hoặc trong danh sách cáp để cấu hình.'}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <label className="text-[9px] text-zinc-400">Loại cáp</label>
+            <input
+              type="text"
+              list="cable-types"
+              value={cableType}
+              onChange={event => setCableType(event.target.value)}
+              placeholder="VD: ADSS khoảng vượt 100"
+              disabled={!canConfigureCable || saving}
+              className="w-full rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none focus:border-cyan-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <datalist id="cable-types">
+              {PREDEFINED_CABLE_TYPES.map(type => (
+                <option key={type} value={type} />
+              ))}
+            </datalist>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[9px] text-zinc-400">Dung lượng (FO)</label>
+            <input
+              type="number"
+              list="cable-capacities"
+              min={1}
+              value={fiberCount}
+              onChange={event => setFiberCount(event.target.value === '' ? '' : Number(event.target.value))}
+              placeholder="VD: 48"
+              disabled={!canConfigureCable || saving}
+              className="w-full rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none focus:border-cyan-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <datalist id="cable-capacities">
+              {PREDEFINED_CAPACITIES.map(cap => (
+                <option key={cap} value={cap} />
+              ))}
+            </datalist>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => void handleSaveCableConfig()}
+            disabled={!canConfigureCable || saving}
+            className="rounded border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-[10px] font-semibold text-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+          >
+            Lưu cấu hình
+          </button>
+
+          {cableConfigIsMaterialized && !selectedCableInitialized && selectedCableId && (
+            <button
+              type="button"
+              onClick={() => void handleInitialize()}
+              disabled={!selectedCable?.fiber_count || selectedCable.fiber_count < 1 || saving}
+              className="rounded border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[10px] font-semibold text-amber-200 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+            >
+              Khởi tạo sợi
+            </button>
+          )}
+        </div>
+
+        {!cableConfigIsMaterialized && selectedLegacyCandidate && (
+          <div className="text-[9px] text-amber-300">
+            Polyline này chưa có cable trong FiberMap. Nhấn Lưu cấu hình để tạo cable và lưu loại/dung lượng.
+          </div>
+        )}
+        {cableConfigIsMaterialized && !selectedCableInitialized && selectedCableId && (
+          <div className="text-[9px] text-amber-300">
+            Cáp này chưa có danh sách sợi. Hãy lưu cấu hình trước, rồi nhấn Khởi tạo sợi.
+          </div>
+        )}
+      </div>
 
       {activeTab === 'inventory' && (
         <div className="space-y-3">
@@ -545,78 +707,6 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
             </div>
           )}
 
-          <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-3">
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-zinc-300">
-              <Sigma size={11} /> Cấu hình Cáp
-            </div>
-            <div className="text-[9px] text-zinc-500">
-              {selectedCable ? `Đang chọn: ${getFeatureLabel(featuresById, selectedCable.feature_id)}` : 'Chưa chọn cáp.'}
-            </div>
-            
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <label className="text-[9px] text-zinc-400">Loại cáp</label>
-                <input
-                  type="text"
-                  list="cable-types"
-                  value={cableType}
-                  onChange={event => setCableType(event.target.value)}
-                  placeholder="VD: ADSS khoảng vượt 100"
-                  disabled={!selectedCableId || saving}
-                  className="w-full rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none focus:border-cyan-500/50"
-                />
-                <datalist id="cable-types">
-                  {PREDEFINED_CABLE_TYPES.map(type => (
-                    <option key={type} value={type} />
-                  ))}
-                </datalist>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[9px] text-zinc-400">Dung lượng (FO)</label>
-                <input
-                  type="number"
-                  list="cable-capacities"
-                  min={1}
-                  value={fiberCount}
-                  onChange={event => setFiberCount(event.target.value === '' ? '' : Number(event.target.value))}
-                  placeholder="VD: 48"
-                  disabled={!selectedCableId || saving}
-                  className="w-full rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none focus:border-cyan-500/50"
-                />
-                <datalist id="cable-capacities">
-                  {PREDEFINED_CAPACITIES.map(cap => (
-                    <option key={cap} value={cap} />
-                  ))}
-                </datalist>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => void handleSaveCableConfig()}
-                disabled={!selectedCableId || saving}
-                className="rounded border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-[10px] font-semibold text-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
-              >
-                Lưu cấu hình
-              </button>
-              
-              {!selectedCableInitialized && selectedCableId && (
-                <button
-                  type="button"
-                  onClick={() => void handleInitialize()}
-                  disabled={!selectedCable?.fiber_count || selectedCable.fiber_count < 1 || saving}
-                  className="rounded border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[10px] font-semibold text-amber-200 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
-                >
-                  Khởi tạo sợi
-                </button>
-              )}
-            </div>
-            
-            {!selectedCableInitialized && selectedCableId && (
-              <div className="text-[9px] text-amber-300">Cáp này chưa có danh sách sợi. Hãy lưu cấu hình và nhấn Khởi tạo sợi.</div>
-            )}
-          </div>
         </div>
       )}
 
