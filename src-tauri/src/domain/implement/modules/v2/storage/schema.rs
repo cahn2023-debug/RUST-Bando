@@ -1,27 +1,27 @@
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 7;
-pub const CURRENT_SCHEMA_LABEL: &str = "7.0.0";
+pub const CURRENT_SCHEMA_VERSION: i32 = 8;
+pub const CURRENT_SCHEMA_LABEL: &str = "8.0.0";
 
-pub const V7_SCHEMA_SQL: &str = r#"
+pub const V8_SCHEMA_SQL: &str = r#"
     PRAGMA journal_mode=WAL;
     PRAGMA synchronous=NORMAL;
     PRAGMA foreign_keys=ON;
-    PRAGMA user_version = 7;
+    PRAGMA user_version = 8;
 
     CREATE TABLE IF NOT EXISTS sys_config (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     );
-    INSERT OR REPLACE INTO sys_config (key, value) VALUES ('schema_version', '7.0.0');
+    INSERT OR REPLACE INTO sys_config (key, value) VALUES ('schema_version', '8.0.0');
 
     CREATE TABLE IF NOT EXISTS schema_migrations (
         version INTEGER PRIMARY KEY,
         label TEXT NOT NULL,
         applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
     );
-    INSERT OR REPLACE INTO schema_migrations (version, label) VALUES (7, '7.0.0');
+    INSERT OR REPLACE INTO schema_migrations (version, label) VALUES (8, '8.0.0');
 
     CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY,
@@ -415,6 +415,8 @@ pub const V7_SCHEMA_SQL: &str = r#"
         enclosure_feature_id TEXT NOT NULL,
         from_strand_id TEXT NOT NULL,
         to_strand_id TEXT NOT NULL,
+        from_direction TEXT NOT NULL DEFAULT 'start' CHECK (from_direction IN ('start', 'end')),
+        to_direction TEXT NOT NULL DEFAULT 'start' CHECK (to_direction IN ('start', 'end')),
         loss_db REAL,
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -422,10 +424,6 @@ pub const V7_SCHEMA_SQL: &str = r#"
         FOREIGN KEY(from_strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE,
         FOREIGN KEY(to_strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE,
         CHECK(from_strand_id <> to_strand_id)
-    );
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_fiber_splices_pair ON fiber_splices (
-        CASE WHEN from_strand_id < to_strand_id THEN from_strand_id ELSE to_strand_id END,
-        CASE WHEN from_strand_id < to_strand_id THEN to_strand_id ELSE from_strand_id END
     );
     CREATE INDEX IF NOT EXISTS idx_fiber_splices_enclosure ON fiber_splices (enclosure_feature_id);
     CREATE INDEX IF NOT EXISTS idx_fiber_splices_from_strand ON fiber_splices (from_strand_id);
@@ -465,6 +463,20 @@ pub const V7_SCHEMA_SQL: &str = r#"
     CREATE INDEX IF NOT EXISTS idx_fiber_circuit_hops_circuit ON fiber_circuit_hops (circuit_id);
     CREATE INDEX IF NOT EXISTS idx_fiber_circuit_hops_strand ON fiber_circuit_hops (strand_id);
     CREATE INDEX IF NOT EXISTS idx_fiber_circuit_hops_port ON fiber_circuit_hops (port_id);
+
+    CREATE TABLE IF NOT EXISTS equipment (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        feature_id TEXT NOT NULL,
+        equipment_type TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY(feature_id) REFERENCES features(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_equipment_project ON equipment (project_id);
+    CREATE INDEX IF NOT EXISTS idx_equipment_feature ON equipment (feature_id);
 
     INSERT OR IGNORE INTO fiber_cables (
         id,
@@ -507,7 +519,93 @@ pub const V7_SCHEMA_SQL: &str = r#"
 "#;
 
 pub fn apply_v2_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
-    conn.execute_batch(V7_SCHEMA_SQL)
+    conn.execute_batch(V8_SCHEMA_SQL)?;
+    ensure_v8_compatibility(conn)
+}
+
+fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, rusqlite::Error> {
+    conn.query_row(
+        "SELECT 1 FROM pragma_table_info(?1) WHERE name = ?2 LIMIT 1",
+        [table, column],
+        |_| Ok(()),
+    )
+    .optional()
+    .map(|value| value.is_some())
+}
+
+pub fn ensure_v8_compatibility(conn: &Connection) -> Result<(), rusqlite::Error> {
+    if !column_exists(conn, "fiber_splices", "from_direction")? {
+        conn.execute_batch(
+            "ALTER TABLE fiber_splices ADD COLUMN from_direction TEXT NOT NULL DEFAULT 'start';",
+        )?;
+    }
+    if !column_exists(conn, "fiber_splices", "to_direction")? {
+        conn.execute_batch(
+            "ALTER TABLE fiber_splices ADD COLUMN to_direction TEXT NOT NULL DEFAULT 'start';",
+        )?;
+    }
+
+    conn.execute_batch(
+        r#"
+        CREATE TRIGGER IF NOT EXISTS trg_fiber_splices_no_self_insert
+        BEFORE INSERT ON fiber_splices
+        WHEN NEW.from_strand_id = NEW.to_strand_id
+        BEGIN
+            SELECT RAISE(ABORT, 'fiber splice cannot connect a strand to itself');
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS trg_fiber_splices_no_self_update
+        BEFORE UPDATE ON fiber_splices
+        WHEN NEW.from_strand_id = NEW.to_strand_id
+        BEGIN
+            SELECT RAISE(ABORT, 'fiber splice cannot connect a strand to itself');
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS trg_fiber_splices_no_duplicate_insert
+        BEFORE INSERT ON fiber_splices
+        WHEN EXISTS (
+            SELECT 1
+            FROM fiber_splices existing
+            WHERE existing.id <> NEW.id
+              AND (
+                (existing.from_strand_id = NEW.from_strand_id
+                  AND existing.from_direction = NEW.from_direction
+                  AND existing.to_strand_id = NEW.to_strand_id
+                  AND existing.to_direction = NEW.to_direction)
+                OR
+                (existing.from_strand_id = NEW.to_strand_id
+                  AND existing.from_direction = NEW.to_direction
+                  AND existing.to_strand_id = NEW.from_strand_id
+                  AND existing.to_direction = NEW.from_direction)
+              )
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'fiber splice pair already exists');
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS trg_fiber_splices_no_duplicate_update
+        BEFORE UPDATE ON fiber_splices
+        WHEN EXISTS (
+            SELECT 1
+            FROM fiber_splices existing
+            WHERE existing.id <> NEW.id
+              AND (
+                (existing.from_strand_id = NEW.from_strand_id
+                  AND existing.from_direction = NEW.from_direction
+                  AND existing.to_strand_id = NEW.to_strand_id
+                  AND existing.to_direction = NEW.to_direction)
+                OR
+                (existing.from_strand_id = NEW.to_strand_id
+                  AND existing.from_direction = NEW.to_direction
+                  AND existing.to_strand_id = NEW.from_strand_id
+                  AND existing.to_direction = NEW.from_direction)
+              )
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'fiber splice pair already exists');
+        END;
+        "#,
+    )
 }
 
 #[cfg(test)]
@@ -630,5 +728,50 @@ mod tests {
             )
             .expect("fiber strand count");
         assert_eq!(strand_count, 0);
+    }
+
+    #[test]
+    fn apply_schema_migrates_existing_splice_direction_columns() {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE fiber_splices (
+                id TEXT PRIMARY KEY,
+                enclosure_feature_id TEXT NOT NULL,
+                from_strand_id TEXT NOT NULL,
+                to_strand_id TEXT NOT NULL,
+                loss_db REAL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+            );
+            "#,
+        )
+        .expect("legacy splice table");
+
+        apply_v2_schema(&conn).expect("schema migrated");
+
+        assert!(column_exists(&conn, "fiber_splices", "from_direction").expect("from_direction lookup"));
+        assert!(column_exists(&conn, "fiber_splices", "to_direction").expect("to_direction lookup"));
+
+        conn.execute(
+            "INSERT INTO fiber_splices (id, enclosure_feature_id, from_strand_id, to_strand_id, from_direction, to_direction, loss_db)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params!["splice-1", "enclosure-1", "strand-1", "strand-2", "end", "start", 0.05],
+        )
+        .expect("directional splice insert");
+
+        let duplicate = conn.execute(
+            "INSERT INTO fiber_splices (id, enclosure_feature_id, from_strand_id, to_strand_id, from_direction, to_direction, loss_db)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params!["splice-2", "enclosure-1", "strand-2", "strand-1", "start", "end", 0.05],
+        );
+        assert!(duplicate.is_err());
+
+        let self_splice = conn.execute(
+            "INSERT INTO fiber_splices (id, enclosure_feature_id, from_strand_id, to_strand_id, from_direction, to_direction, loss_db)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params!["splice-3", "enclosure-1", "strand-1", "strand-1", "end", "start", 0.05],
+        );
+        assert!(self_splice.is_err());
     }
 }

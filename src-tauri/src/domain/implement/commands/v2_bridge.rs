@@ -413,6 +413,19 @@ pub async fn get_fiber_inventory(
     };
     let cable_points = exec_query(&state, cable_points_sql.0, cable_points_sql.1).await?;
 
+    let equipment_sql = if let Some(feature_id) = scope_feature_id.as_deref() {
+        (
+            "SELECT * FROM equipment WHERE project_id = ?1 AND feature_id = ?2 ORDER BY equipment_type, created_at, id",
+            vec![project_id.clone(), feature_id.to_string()],
+        )
+    } else {
+        (
+            "SELECT * FROM equipment WHERE project_id = ?1 ORDER BY feature_id, equipment_type, created_at, id",
+            vec![project_id.clone()],
+        )
+    };
+    let equipment = exec_query(&state, equipment_sql.0, equipment_sql.1).await?;
+
     let strands_rows = row_array(strands.clone());
     let strand_total = strands_rows.len() as i64;
     let strand_reserved = strands_rows
@@ -444,6 +457,7 @@ pub async fn get_fiber_inventory(
         "splices": row_array(splices),
         "circuits": row_array(circuits),
         "cable_points": row_array(cable_points),
+        "equipment": row_array(equipment),
         "summary": {
             "total_strands": strand_total,
             "available_strands": strand_available,

@@ -194,7 +194,19 @@ export interface FiberSplice {
   enclosure_feature_id: string;
   from_strand_id: string;
   to_strand_id: string;
+  from_direction: 'start' | 'end';
+  to_direction: 'start' | 'end';
   loss_db: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Equipment {
+  id: string;
+  project_id: string;
+  feature_id: string;
+  equipment_type: string;
+  status: string;
   created_at: string;
   updated_at: string;
 }
@@ -282,6 +294,7 @@ export interface FiberInventory {
   splices: FiberSplice[];
   circuits: FiberCircuit[];
   cable_points?: FiberCablePoint[];
+  equipment?: Equipment[];
   summary: {
     total_strands: number;
     available_strands: number;
@@ -432,6 +445,16 @@ export type DesignEventType =
       };
     }
   | { type: 'FiberCircuitDeleted'; payload: { id: string } }
+  | {
+      type: 'EquipmentUpserted';
+      payload: {
+        id: string;
+        project_id: string;
+        feature_id: string;
+        equipment_type: string;
+        status?: string;
+      };
+    }
   | {
       type: 'FiberCircuitHopsReplaced';
       payload: {

@@ -1,7 +1,9 @@
 use crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand;
 use crate::domain::implement::modules::v2::storage::connection::PmpDatabase;
 use crate::domain::implement::modules::v2::storage::path_meta::compute_rel_path;
-use crate::domain::implement::modules::v2::storage::schema::CURRENT_SCHEMA_VERSION;
+use crate::domain::implement::modules::v2::storage::schema::{
+    ensure_v8_compatibility, CURRENT_SCHEMA_VERSION,
+};
 use crate::domain::models::v2::{AppEvent, EventEnvelope};
 use base64::{engine::general_purpose, Engine as _};
 use rusqlite::{
@@ -383,6 +385,7 @@ impl StorageWorker {
     }
 
     fn dispatch_events(&mut self, events: Vec<EventEnvelope>) -> Result<usize, String> {
+        ensure_v8_compatibility(&self.db.conn).map_err(|e| e.to_string())?;
         let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
         let mut persisted_count = 0usize;
         let mut touched_projects = std::collections::BTreeSet::new();
@@ -3290,6 +3293,25 @@ fn apply_event_to_read_models(
             )
             .map_err(|e| e.to_string())?;
         }
+        AppEvent::EquipmentUpserted {
+            id,
+            project_id: _proj_id, // `project_id` is already in scope from loop
+            feature_id,
+            equipment_type,
+            status,
+        } => {
+            tx.execute(
+                "INSERT OR REPLACE INTO equipment (id, project_id, feature_id, equipment_type, status, updated_at) VALUES (?1, ?2, ?3, ?4, COALESCE(?5, (SELECT status FROM equipment WHERE id = ?1), 'active'), CURRENT_TIMESTAMP)",
+                params![
+                    id.to_string(),
+                    project_id,
+                    feature_id.to_string(),
+                    equipment_type.to_string(),
+                    status
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        }
         AppEvent::FiberCableUpserted {
             id,
             project_id,
@@ -3488,15 +3510,19 @@ fn apply_event_to_read_models(
             enclosure_feature_id,
             from_strand_id,
             to_strand_id,
+            from_direction,
+            to_direction,
             loss_db,
         } => {
             tx.execute(
-                "INSERT INTO fiber_splices (id, enclosure_feature_id, from_strand_id, to_strand_id, loss_db, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, CURRENT_TIMESTAMP)
+                "INSERT INTO fiber_splices (id, enclosure_feature_id, from_strand_id, to_strand_id, from_direction, to_direction, loss_db, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)
                  ON CONFLICT(id) DO UPDATE SET
                     enclosure_feature_id = excluded.enclosure_feature_id,
                     from_strand_id = excluded.from_strand_id,
                     to_strand_id = excluded.to_strand_id,
+                    from_direction = excluded.from_direction,
+                    to_direction = excluded.to_direction,
                     loss_db = excluded.loss_db,
                     updated_at = CURRENT_TIMESTAMP",
                 params![
@@ -3504,6 +3530,8 @@ fn apply_event_to_read_models(
                     enclosure_feature_id.to_string(),
                     from_strand_id.to_string(),
                     to_strand_id.to_string(),
+                    from_direction,
+                    to_direction,
                     loss_db,
                 ],
             )
@@ -4446,6 +4474,8 @@ mod tests {
             enclosure_feature_id: enclosure_feat_id,
             from_strand_id: Uuid::parse_str(s1).unwrap(),
             to_strand_id: Uuid::parse_str(s2).unwrap(),
+            from_direction: "start".to_string(),
+            to_direction: "end".to_string(),
             loss_db: Some(0.1),
         };
         let env_splice = EventEnvelope::new(project_uuid, "fiber", splice_id, splice_upsert, "test-device", None);

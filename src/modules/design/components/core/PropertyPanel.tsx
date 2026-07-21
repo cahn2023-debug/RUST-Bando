@@ -1372,7 +1372,7 @@ export const PropertyPanel: React.FC = () => {
   // Detect polyline type for specific metadata
   const polyType = asStringValue(
     getMetaValue('infrastructure.type'),
-    safeString(feature.name).toLowerCase().includes('điện') ? 'PowerLine' : safeString(feature.name).toLowerCase().includes('cáp') ? 'SignalLine' : ''
+    isPolyline ? 'SignalLine' : ''
   );
 
   return (

@@ -11,7 +11,7 @@ import type {
 } from '@CONTRACT/types';
 import type { NetworkEdge } from './NetworkGraphService';
 
-export type FiberInspectorTab = 'inventory' | 'strands' | 'circuits' | 'diagnostics';
+export type FiberInspectorTab = 'inventory' | 'strands' | 'equipment' | 'circuits' | 'diagnostics';
 
 export const fiberStrandStatusLabel: Record<FiberStrandStatus, string> = {
   available: 'Khả dụng',

@@ -60,7 +60,17 @@ export interface FiberSpliceUpsertInput {
   enclosureFeatureId: string;
   fromStrandId: string;
   toStrandId: string;
+  fromDirection: 'start' | 'end';
+  toDirection: 'start' | 'end';
   lossDb?: number | null;
+}
+
+export interface EquipmentUpsertInput {
+  id: string;
+  projectId: string;
+  featureId: string;
+  equipmentType: string;
+  status?: string;
 }
 
 export interface FiberCircuitUpsertInput {
@@ -224,6 +234,8 @@ export const upsertFiberSplice = async (projectId: string, input: FiberSpliceUps
       enclosure_feature_id: input.enclosureFeatureId,
       from_strand_id: input.fromStrandId,
       to_strand_id: input.toStrandId,
+      from_direction: input.fromDirection,
+      to_direction: input.toDirection,
       loss_db: input.lossDb ?? null,
     },
   });
@@ -232,6 +244,18 @@ export const deleteFiberSplice = async (projectId: string, spliceId: string) =>
   buildBatchResponse(projectId, {
     type: 'FiberSpliceDeleted',
     payload: { id: spliceId },
+  });
+
+export const upsertEquipment = async (input: EquipmentUpsertInput) =>
+  buildBatchResponse(input.projectId, {
+    type: 'EquipmentUpserted',
+    payload: {
+      id: input.id,
+      project_id: input.projectId,
+      feature_id: input.featureId,
+      equipment_type: input.equipmentType,
+      status: input.status ?? 'active',
+    },
   });
 
 export const upsertFiberCircuit = async (input: FiberCircuitUpsertInput) => {
@@ -276,9 +300,10 @@ export const deleteFiberCircuit = async (projectId: string, circuitId: string) =
 export const materializeFiberFromPolylines = async (
   projectId: string,
   featuresById: Record<string, FeatureState>,
-  inventory: FiberInventory | null = null
+  inventory: FiberInventory | null = null,
+  options: import('./fiberPolylineMaterializer').FiberPolylineMaterializationOptions = {}
 ) => {
-  const materialization = buildFiberPolylineMaterializationEvents(projectId, featuresById, inventory);
+  const materialization = buildFiberPolylineMaterializationEvents(projectId, featuresById, inventory, options);
   if (materialization.events.length === 0) {
     return {
       success: true,

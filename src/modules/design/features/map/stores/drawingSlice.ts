@@ -66,10 +66,8 @@ export const getIntersectionScope = (
 
 export const isSignalLineFeature = (feature: FeatureState): boolean => {
     if (!feature) return false;
-    const metadata = getParsedMetadata(feature);
     const geomType = (feature.geom_type || '').toLowerCase();
-    const infra = metadata.infrastructure as Record<string, unknown> | undefined;
-    return geomType.includes('line') && infra?.type === 'SignalLine';
+    return geomType.includes('line');
 };
 
 export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSlice> = (set, get) => ({

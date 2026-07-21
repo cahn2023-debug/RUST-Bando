@@ -6,6 +6,7 @@ import type {
   FiberStrand,
   FiberStrandStatus,
   FiberTraceResult,
+  FiberCable,
   FiberValidationDiagnostic,
 } from '@CONTRACT/types';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
@@ -35,6 +36,7 @@ import {
 } from '@DESIGN/features/map/network/fiberUiModel';
 import { FiberCapacityPanel } from './FiberCapacityPanel';
 import { FiberCircuitPanel } from './FiberCircuitPanel';
+import { EquipmentPanel } from './EquipmentPanel';
 import {
   CheckCircle2,
   CircleDot,
@@ -55,6 +57,7 @@ interface FiberInspectorProps {
 const tabs: Array<{ id: FiberInspectorTab; label: string }> = [
   { id: 'inventory', label: 'Inventory' },
   { id: 'strands', label: 'Strands' },
+  { id: 'equipment', label: 'Equipment' },
   { id: 'circuits', label: 'Circuits' },
   { id: 'diagnostics', label: 'Diagnostics' },
 ];
@@ -285,7 +288,8 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
       setStatusMessage(message);
       await refresh();
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : 'Thao tác FiberMap thất bại.');
+      const msg = error instanceof Error ? error.message : (typeof error === 'string' ? error : 'Thao tác FiberMap thất bại.');
+      setStatusMessage(msg);
     } finally {
       setSaving(false);
     }
@@ -304,8 +308,8 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
       setStatusMessage('Dung lượng cáp không hợp lệ.');
       return;
     }
-    await runWrite('Đã lưu cấu hình cáp.', () =>
-      upsertFiberCable({
+    await runWrite('Đã lưu cấu hình cáp.', async () => {
+      const updatedCable = {
         id: targetCable?.id || targetCandidate!.id,
         projectId,
         featureId: targetCable?.feature_id || targetCandidate!.feature_id,
@@ -314,8 +318,46 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
         owner: targetCable?.owner ?? null,
         status: targetCable?.status ?? 'planned',
         source: targetCable?.source ?? 'legacy',
-      })
-    );
+      };
+      await upsertFiberCable(updatedCable);
+
+      const existingStrands = inventory?.strands.filter(s => s.cable_id === updatedCable.id) || [];
+      if (existingStrands.length === 0) {
+        await initializeCableStrands({ projectId, cableId: updatedCable.id, fiberCount: capacity });
+      }
+
+      const newInventory = await getFiberInventory(projectId);
+      
+      const newCableData = {
+        id: updatedCable.id,
+        project_id: updatedCable.projectId,
+        feature_id: updatedCable.featureId,
+        cable_type: updatedCable.cableType,
+        fiber_count: updatedCable.fiberCount,
+        owner: updatedCable.owner,
+        status: updatedCable.status,
+        source: updatedCable.source,
+      } as FiberCable;
+
+      const cableIndex = newInventory.cables.findIndex(c => c.id === newCableData.id);
+      if (cableIndex >= 0) {
+        newInventory.cables[cableIndex] = { ...newInventory.cables[cableIndex], ...newCableData };
+      } else {
+        newInventory.cables.push(newCableData);
+      }
+
+      const singleFeature = featuresById[newCableData.feature_id];
+      if (!singleFeature) {
+        throw new Error('Không tìm thấy dữ liệu feature cho tuyến cáp này.');
+      }
+
+      await materializeFiberFromPolylines(
+        projectId, 
+        featuresById, 
+        newInventory,
+        { targetFeatureIds: [newCableData.feature_id] }
+      );
+    });
     if (targetCandidate) {
       setSelectedCableId(targetCandidate.id);
       setSelectedLegacyCandidateId(null);
@@ -331,6 +373,52 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
       initializeCableStrands({ projectId, cableId, fiberCount: finalCount })
     );
     setActiveTab('strands');
+  };
+
+  const handleCreateLegacyCable = async (candidateId: string) => {
+    if (!projectId) return;
+    const candidate = legacyCableCandidates.find(item => item.id === candidateId) || selectedPolylineCandidate;
+    if (!candidate) return;
+    await runWrite('Đã tạo cable legacy từ tuyến Network.', () =>
+      upsertFiberCable({
+        id: candidate.id,
+        projectId,
+        featureId: candidate.feature_id,
+        cableType: candidate.cable_type,
+        fiberCount: candidate.fiber_count,
+        source: 'legacy',
+        status: 'planned',
+      })
+    );
+    setSelectedCableId(candidate.id);
+    setSelectedLegacyCandidateId(null);
+    setActiveTab('inventory');
+  };
+
+  const handleCreateAllLegacyCables = async () => {
+    if (!projectId || legacyCableCandidates.length === 0) return;
+    await runWrite('Đã tạo cable legacy cho toàn bộ tuyến Network.', async () => {
+      await Promise.all(legacyCableCandidates.map(candidate =>
+        upsertFiberCable({
+          id: candidate.id,
+          projectId,
+          featureId: candidate.feature_id,
+          cableType: candidate.cable_type,
+          fiberCount: candidate.fiber_count,
+          source: 'legacy',
+          status: 'planned',
+        })
+      ));
+    });
+    setActiveTab('inventory');
+  };
+
+  const handleMaterializePolylines = async () => {
+    if (!projectId) return;
+    await runWrite('Đã nhận diện tuyến fiber từ polyline và materialize măng xông.', () =>
+      materializeFiberFromPolylines(projectId, featuresById, inventory)
+    );
+    setActiveTab('inventory');
   };
 
   const handleChangeSelectedStatus = async (status: FiberStrandStatus) => {
@@ -362,6 +450,8 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
         enclosureFeatureId,
         fromStrandId: fromStrand.id,
         toStrandId: toStrand.id,
+        fromDirection: 'end',
+        toDirection: 'start',
         lossDb: spliceLossDb,
       })
     );
@@ -429,51 +519,6 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
     setSelectedStrandId(strandId);
   };
 
-  const handleCreateLegacyCable = async (candidateId: string) => {
-    if (!projectId) return;
-    const candidate = legacyCableCandidates.find(item => item.id === candidateId);
-    if (!candidate) return;
-    await runWrite('Đã tạo cáp legacy từ tuyến Network.', () =>
-      upsertFiberCable({
-        id: candidate.id,
-        projectId,
-        featureId: candidate.feature_id,
-        cableType: candidate.cable_type,
-        fiberCount: candidate.fiber_count,
-        source: 'legacy',
-        status: 'planned',
-      })
-    );
-    setSelectedCableId(candidate.id);
-    setActiveTab('inventory');
-  };
-
-  const handleCreateAllLegacyCables = async () => {
-    if (!projectId || legacyCableCandidates.length === 0) return;
-    await runWrite('Đã tạo cable legacy cho toàn bộ tuyến Network.', async () => {
-      await Promise.all(legacyCableCandidates.map(candidate =>
-        upsertFiberCable({
-          id: candidate.id,
-          projectId,
-          featureId: candidate.feature_id,
-          cableType: candidate.cable_type,
-          fiberCount: candidate.fiber_count,
-          source: 'legacy',
-          status: 'planned',
-        })
-      ));
-    });
-    setActiveTab('inventory');
-  };
-
-  const handleMaterializePolylines = async () => {
-    if (!projectId) return;
-    await runWrite('Đã nhận diện tuyến fiber từ polyline, tạo đầu/cuối cáp và măng xông.', () =>
-      materializeFiberFromPolylines(projectId, featuresById, inventory)
-    );
-    setActiveTab('inventory');
-  };
-
   const total = inventory?.summary.total_strands || 0;
   const initializedCableIds = new Set((inventory?.strands || []).map(strand => strand.cable_id));
   const selectedCableInitialized = selectedCableId ? initializedCableIds.has(selectedCableId) : false;
@@ -509,7 +554,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-1 rounded-lg border border-white/5 bg-black/25 p-1">
+      <div className="grid grid-cols-5 gap-1 rounded-lg border border-white/5 bg-black/25 p-1">
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -619,7 +664,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
               <div>
                 <div className="font-semibold text-cyan-100">Nhận diện tuyến fiber từ polyline</div>
                 <div className="mt-0.5 text-cyan-100/70">
-                  Tạo cable từ mọi polyline, tự sinh điểm đầu/cuối cáp và măng xông tại điểm rẽ/giao tuyến.
+                  Tạo cable từ polyline, dùng điểm đầu/cuối đã có và chỉ sinh măng xông tại điểm rẽ/giao tuyến.
                 </div>
               </div>
               <button
@@ -848,6 +893,15 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
             )}
           </div>
         </div>
+      )}
+
+      {activeTab === 'equipment' && (
+        <EquipmentPanel 
+          projectId={projectId} 
+          selectedFeatureId={selectedFeatureId ?? null}
+          inventory={inventory}
+          featuresById={featuresById}
+        />
       )}
 
       {activeTab === 'circuits' && (

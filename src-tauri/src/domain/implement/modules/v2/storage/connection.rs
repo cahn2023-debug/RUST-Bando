@@ -1,5 +1,5 @@
 use crate::domain::implement::modules::v2::storage::schema::{
-    apply_v2_schema, CURRENT_SCHEMA_LABEL, CURRENT_SCHEMA_VERSION,
+    apply_v2_schema, ensure_v8_compatibility, CURRENT_SCHEMA_LABEL, CURRENT_SCHEMA_VERSION,
 };
 use rusqlite::{backup::Backup, Connection, DatabaseName, OpenFlags};
 use serde_json::json;
@@ -47,6 +47,7 @@ impl PmpDatabase {
             migrate_foundational_v4_state(&conn)?;
             migrate_sync_state(&conn)?;
         }
+        ensure_v8_compatibility(&conn)?;
 
         Ok(Self {
             conn,

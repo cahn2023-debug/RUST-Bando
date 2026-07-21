@@ -139,6 +139,13 @@ pub enum AppEvent {
     FeatureDeleted {
         id: Uuid,
     },
+    EquipmentUpserted {
+        id: Uuid,
+        project_id: Uuid,
+        feature_id: Uuid,
+        equipment_type: String,
+        status: Option<String>,
+    },
     FiberCableUpserted {
         id: Uuid,
         project_id: Uuid,
@@ -173,6 +180,8 @@ pub enum AppEvent {
         enclosure_feature_id: Uuid,
         from_strand_id: Uuid,
         to_strand_id: Uuid,
+        from_direction: String,
+        to_direction: String,
         loss_db: Option<f64>,
     },
     FiberSpliceDeleted {
@@ -449,6 +458,7 @@ impl AppEvent {
             AppEvent::FeatureCreated { .. } => "created",
             AppEvent::FeatureUpdated { .. } => "updated",
             AppEvent::FeatureDeleted { .. } => "deleted",
+            AppEvent::EquipmentUpserted { .. } => "upserted",
             AppEvent::FiberCableUpserted { .. } => "upserted",
             AppEvent::FiberCablePointsMaterialized { .. } => "materialized",
             AppEvent::FiberStrandsInitialized { .. } => "initialized",
@@ -506,6 +516,7 @@ impl AppEvent {
             AppEvent::FeatureCreated { .. } => "FeatureCreated",
             AppEvent::FeatureUpdated { .. } => "FeatureUpdated",
             AppEvent::FeatureDeleted { .. } => "FeatureDeleted",
+            AppEvent::EquipmentUpserted { .. } => "EquipmentUpserted",
             AppEvent::FiberCableUpserted { .. } => "FiberCableUpserted",
             AppEvent::FiberCablePointsMaterialized { .. } => "FiberCablePointsMaterialized",
             AppEvent::FiberStrandsInitialized { .. } => "FiberStrandsInitialized",
@@ -588,6 +599,7 @@ impl AppEvent {
             AppEvent::FeatureCreated { .. }
             | AppEvent::FeatureUpdated { .. }
             | AppEvent::FeatureDeleted { .. } => "feature",
+            AppEvent::EquipmentUpserted { .. } => "equipment",
             AppEvent::FiberCableUpserted { .. }
             | AppEvent::FiberCablePointsMaterialized { .. }
             | AppEvent::FiberStrandsInitialized { .. }

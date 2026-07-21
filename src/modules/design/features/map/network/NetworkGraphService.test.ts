@@ -86,7 +86,7 @@ describe('NetworkGraphService.build', () => {
         expect(graph.diagnostics).toEqual([]);
     });
 
-    it('includes non-line features without network roles and excludes ordinary lines', () => {
+    it('includes non-line features without network roles and treats ordinary lines as network edges (yielding missing endpoints)', () => {
         const graph = NetworkGraphService.build(byId(
             inferredNode('Nút giao A', { icon: 'intersection' }),
             inferredNode('camera-a', { parent_feature_id: 'Nút giao A', icon: 'cctv' }),
@@ -96,8 +96,12 @@ describe('NetworkGraphService.build', () => {
         expect(graph.nodes.map(item => item.id)).toEqual(['Nút giao A', 'camera-a']);
         expect(graph.nodes.find(item => item.id === 'Nút giao A')).toMatchObject({ role: 'intersection', isInferredRole: true });
         expect(graph.nodes.find(item => item.id === 'camera-a')).toMatchObject({ role: 'device', parentFeatureId: 'Nút giao A' });
+        // The ordinary line is treated as a NetworkEdge now, but since it has no from/to, it throws a missing-endpoint diagnostic.
         expect(graph.edges).toEqual([]);
-        expect(graph.diagnostics).toEqual([]);
+        expect(graph.diagnostics).toContainEqual(expect.objectContaining({
+            type: 'missing-endpoint',
+            edgeId: 'ordinary-line',
+        }));
     });
 
     it('treats simulated NetworkLink features as edges without creating map polylines', () => {

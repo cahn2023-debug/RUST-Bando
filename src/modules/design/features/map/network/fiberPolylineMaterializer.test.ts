@@ -20,40 +20,69 @@ const lineFeature = (id: string, coordinates: [number, number][]): FeatureState 
 });
 
 describe('fiberPolylineMaterializer', () => {
-  it('materializes endpoints and cable point rows for a polyline', () => {
+  it('does not auto-create cable start/end points for a polyline', () => {
     const result = buildFiberPolylineMaterializationEvents('project-1', {
       'line-1': lineFeature('line-1', [[106.1, 10.1], [106.2, 10.2], [106.3, 10.3]]),
     });
 
     expect(result.cableCount).toBe(1);
-    expect(result.pointCount).toBe(2);
+    expect(result.pointCount).toBe(0);
     expect(result.enclosureCount).toBe(0);
     expect(result.events.map(event => event.type)).toEqual([
-      'FeatureCreated',
-      'FeatureCreated',
       'FeatureUpdated',
       'FiberCableUpserted',
-      'FiberCablePointsMaterialized',
     ]);
 
-    const pointsEvent = result.events[result.events.length - 1];
-    expect(pointsEvent?.type).toBe('FiberCablePointsMaterialized');
-    if (pointsEvent?.type === 'FiberCablePointsMaterialized') {
-      expect(pointsEvent.payload.points).toHaveLength(2);
-      expect(pointsEvent.payload.points[0].point_kind).toBe('cable_start');
-      expect(pointsEvent.payload.points[1].point_kind).toBe('cable_end');
+    const updateEvent = result.events[0];
+    expect(updateEvent?.type).toBe('FeatureUpdated');
+    if (updateEvent?.type === 'FeatureUpdated') {
+      const metadata = JSON.parse(updateEvent.payload.metadata as string);
+      expect(metadata.network?.from_endpoint).toBeUndefined();
+      expect(metadata.network?.to_endpoint).toBeUndefined();
     }
   });
 
-  it('materializes a splice enclosure at a shared branch coordinate', () => {
+  it('does not auto-create a splice enclosure at a shared branch coordinate', () => {
     const result = buildFiberPolylineMaterializationEvents('project-1', {
       'line-1': lineFeature('line-1', [[106.1, 10.1], [106.2, 10.2], [106.3, 10.3]]),
       'line-2': lineFeature('line-2', [[106.3, 10.3], [106.4, 10.4]]),
     });
 
     const pointCreatedEvents = result.events.filter(event => event.type === 'FeatureCreated');
-    expect(pointCreatedEvents.length).toBeGreaterThanOrEqual(3);
-    expect(result.enclosureCount).toBeGreaterThanOrEqual(1);
+    expect(pointCreatedEvents).toHaveLength(0);
+    expect(result.pointCount).toBe(0);
+    expect(result.enclosureCount).toBe(0);
+
+    const pointsEvent = result.events.find(event => event.type === 'FiberCablePointsMaterialized');
+    expect(pointsEvent).toBeUndefined();
+  });
+
+  it('materializes a splice enclosure only when a valid GIS point already exists', () => {
+    const splicePoint: FeatureState = {
+      id: 'splice-1',
+      layer_id: 'layer-1',
+      group_id: null,
+      name: 'Măng xông 1',
+      geom_type: 'Point',
+      metadata: {
+        fiber: {
+          kind: 'splice_enclosure',
+          point_kind: 'splice_enclosure',
+        },
+      },
+      properties: {},
+      coordinates: [106.3, 10.3],
+    };
+    const result = buildFiberPolylineMaterializationEvents('project-1', {
+      'line-1': lineFeature('line-1', [[106.1, 10.1], [106.2, 10.2], [106.3, 10.3]]),
+      'line-2': lineFeature('line-2', [[106.3, 10.3], [106.4, 10.4]]),
+      'splice-1': splicePoint,
+    });
+
+    const pointCreatedEvents = result.events.filter(event => event.type === 'FeatureCreated');
+    expect(pointCreatedEvents).toHaveLength(0);
+    expect(result.pointCount).toBe(1);
+    expect(result.enclosureCount).toBe(1);
 
     const pointsEvent = result.events.filter(event => event.type === 'FiberCablePointsMaterialized');
     expect(pointsEvent).toHaveLength(2);
@@ -61,5 +90,25 @@ describe('fiberPolylineMaterializer', () => {
     if (firstCablePoints.type === 'FiberCablePointsMaterialized') {
       expect(firstCablePoints.payload.points.some(point => point.point_kind === 'splice_enclosure')).toBe(true);
     }
+  });
+
+  it('does not reuse unrelated point features as fiber endpoints', () => {
+    const normalPoint: FeatureState = {
+      id: 'point-1',
+      layer_id: 'layer-1',
+      group_id: null,
+      name: 'Plain point',
+      geom_type: 'Point',
+      metadata: {},
+      properties: {},
+      coordinates: [106.1, 10.1],
+    };
+    const result = buildFiberPolylineMaterializationEvents('project-1', {
+      'line-1': lineFeature('line-1', [[106.1, 10.1], [106.2, 10.2]]),
+      'point-1': normalPoint,
+    });
+
+    const pointsEvent = result.events.find(event => event.type === 'FiberCablePointsMaterialized');
+    expect(pointsEvent).toBeUndefined();
   });
 });

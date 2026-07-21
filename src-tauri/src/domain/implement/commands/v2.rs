@@ -943,6 +943,20 @@ fn frontend_event_to_envelope(
         "FeatureDeleted" => crate::domain::models::v2::AppEvent::FeatureDeleted {
             id: parse_uuid_value(payload.get("id"), "payload.id")?,
         },
+        "EquipmentUpserted" => crate::domain::models::v2::AppEvent::EquipmentUpserted {
+            id: parse_uuid_value(payload.get("id"), "payload.id")?,
+            project_id: parse_uuid_value(payload.get("project_id"), "payload.project_id")?,
+            feature_id: parse_uuid_value(payload.get("feature_id"), "payload.feature_id")?,
+            equipment_type: payload
+                .get("equipment_type")
+                .and_then(Value::as_str)
+                .unwrap_or("unknown")
+                .to_string(),
+            status: payload
+                .get("status")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string()),
+        },
         "FiberCableUpserted" => crate::domain::models::v2::AppEvent::FiberCableUpserted {
             id: parse_uuid_value(payload.get("id"), "payload.id")?,
             project_id: parse_uuid_value(payload.get("project_id"), "payload.project_id")?,
@@ -1023,6 +1037,16 @@ fn frontend_event_to_envelope(
             )?,
             from_strand_id: parse_uuid_value(payload.get("from_strand_id"), "payload.from_strand_id")?,
             to_strand_id: parse_uuid_value(payload.get("to_strand_id"), "payload.to_strand_id")?,
+            from_direction: payload
+                .get("from_direction")
+                .and_then(Value::as_str)
+                .unwrap_or("start")
+                .to_string(),
+            to_direction: payload
+                .get("to_direction")
+                .and_then(Value::as_str)
+                .unwrap_or("start")
+                .to_string(),
             loss_db: payload.get("loss_db").and_then(Value::as_f64),
         },
         "FiberSpliceDeleted" => crate::domain::models::v2::AppEvent::FiberSpliceDeleted {

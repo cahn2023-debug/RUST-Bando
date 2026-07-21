@@ -106,6 +106,8 @@ describe('fiberUiModel', () => {
       enclosure_feature_id: 'feature-1',
       from_strand_id: 'strand-1',
       to_strand_id: 'strand-2',
+      from_direction: 'end',
+      to_direction: 'start',
       loss_db: 0.05,
       created_at: '',
       updated_at: '',

@@ -25,6 +25,7 @@ interface ParsedMetadata {
 
 export interface FiberPolylineMaterializationOptions {
   createId?: () => string;
+  targetFeatureIds?: string[];
 }
 
 export interface FiberPolylineMaterializationResult {
@@ -46,9 +47,6 @@ interface CablePointInput {
   sequence_no: number;
   vertex_index: number | null;
 }
-
-const DEFAULT_POINT_COLOR = '#22d3ee';
-const DEFAULT_ENCLOSURE_COLOR = '#f59e0b';
 
 const newId = () => crypto.randomUUID();
 
@@ -83,10 +81,30 @@ const isPolylineFeature = (feature: FeatureState): boolean => {
 
 const coordinateKey = (point: PointCoordinates): string => `${point[0].toFixed(7)},${point[1].toFixed(7)}`;
 
+const isReusableFiberPoint = (
+  feature: FeatureState,
+  reusableFeatureIds: Set<string>,
+  pointKind?: FiberCablePointKind
+): boolean => {
+  if (!isPoint(feature.coordinates)) return false;
+  if (reusableFeatureIds.has(feature.id)) return true;
+
+  const metadata = parseMetadata(feature.metadata);
+  const fiber = metadata.fiber;
+  if (!fiber) return false;
+  if (pointKind && fiber.point_kind !== pointKind) return false;
+
+  return fiber.kind === 'cable_endpoint'
+    || fiber.kind === 'splice_enclosure'
+    || fiber.point_kind === 'cable_start'
+    || fiber.point_kind === 'cable_end'
+    || fiber.point_kind === 'splice_enclosure';
+};
+
 const cloneMetadataWithFiberCable = (
   feature: FeatureState,
-  startFeatureId: string,
-  endFeatureId: string
+  startFeatureId: string | null,
+  endFeatureId: string | null
 ): ParsedMetadata => {
   const metadata = parseMetadata(feature.metadata);
   const infrastructure = metadata.infrastructure && typeof metadata.infrastructure === 'object'
@@ -107,10 +125,10 @@ const cloneMetadataWithFiberCable = (
     },
     network: {
       ...network,
-      from_feature_id: network.from_feature_id || startFeatureId,
-      to_feature_id: network.to_feature_id || endFeatureId,
-      from_endpoint: network.from_endpoint || { type: 'feature', id: startFeatureId },
-      to_endpoint: network.to_endpoint || { type: 'feature', id: endFeatureId },
+      ...(startFeatureId && !network.from_feature_id ? { from_feature_id: startFeatureId } : {}),
+      ...(endFeatureId && !network.to_feature_id ? { to_feature_id: endFeatureId } : {}),
+      ...(startFeatureId && !network.from_endpoint ? { from_endpoint: { type: 'feature', id: startFeatureId } } : {}),
+      ...(endFeatureId && !network.to_endpoint ? { to_endpoint: { type: 'feature', id: endFeatureId } } : {}),
       direction_mode: network.direction_mode || 'auto',
     },
     fiber: {
@@ -124,69 +142,35 @@ const findExistingCablePoint = (
   features: FeatureState[],
   cableId: string,
   pointKind: FiberCablePointKind,
+  reusableFeatureIds: Set<string>,
   coordinate?: PointCoordinates
 ): FeatureState | undefined => {
   const key = coordinate ? coordinateKey(coordinate) : null;
   return features.find(feature => {
     const metadata = parseMetadata(feature.metadata);
     const fiber = metadata.fiber;
-    if (!fiber || fiber.cable_id !== cableId || fiber.point_kind !== pointKind) return false;
-    if (!key) return true;
-    return fiber.coordinate_key === key || (isPoint(feature.coordinates) && coordinateKey(feature.coordinates) === key);
+    if (fiber && fiber.cable_id === cableId && fiber.point_kind === pointKind) return true;
+    return Boolean(
+      key
+      && isReusableFiberPoint(feature, reusableFeatureIds, pointKind)
+      && isPoint(feature.coordinates)
+      && coordinateKey(feature.coordinates) === key
+    );
   });
 };
 
 const findExistingEnclosure = (
   features: FeatureState[],
+  reusableFeatureIds: Set<string>,
   coordinate: PointCoordinates
 ): FeatureState | undefined => {
   const key = coordinateKey(coordinate);
   return features.find(feature => {
-    const metadata = parseMetadata(feature.metadata);
-    const fiber = metadata.fiber;
-    return fiber?.kind === 'splice_enclosure'
-      && (fiber.coordinate_key === key || (isPoint(feature.coordinates) && coordinateKey(feature.coordinates) === key));
+    return isReusableFiberPoint(feature, reusableFeatureIds, 'splice_enclosure')
+      && isPoint(feature.coordinates)
+      && coordinateKey(feature.coordinates) === key;
   });
 };
-
-const buildPointFeatureEvent = (
-  feature: FeatureState,
-  pointFeatureId: string,
-  name: string,
-  coordinate: PointCoordinates,
-  metadata: ParsedMetadata
-): DesignEventType => ({
-  type: 'FeatureCreated',
-  payload: {
-    id: pointFeatureId,
-    layer_id: feature.layer_id,
-    group_id: feature.group_id ?? null,
-    name,
-    geom_type: 'Point',
-    metadata: JSON.stringify(metadata),
-    coordinates: coordinate,
-    properties: {},
-  },
-});
-
-const buildPointMetadata = (
-  cableId: string,
-  pointKind: FiberCablePointKind,
-  sequenceNo: number,
-  coordinate: PointCoordinates
-): ParsedMetadata => ({
-  icon: 'default',
-  color: pointKind === 'splice_enclosure' ? DEFAULT_ENCLOSURE_COLOR : DEFAULT_POINT_COLOR,
-  type: pointKind,
-  network: { role: 'device' },
-  fiber: {
-    kind: pointKind === 'splice_enclosure' ? 'splice_enclosure' : 'cable_endpoint',
-    point_kind: pointKind,
-    cable_id: cableId,
-    sequence_no: sequenceNo,
-    coordinate_key: coordinateKey(coordinate),
-  },
-});
 
 const buildCablePoint = (
   createId: () => string,
@@ -233,6 +217,10 @@ export const buildFiberPolylineMaterializationEvents = (
     .map(feature => ({ feature, coordinates: getLineCoordinates(feature) }))
     .filter((item): item is LineCandidate => Boolean(item.coordinates));
   const existingCablesByFeature = new Map((inventory?.cables || []).map(cable => [cable.feature_id, cable]));
+  const reusableFeatureIds = new Set<string>([
+    ...(inventory?.cable_points || []).map(point => point.feature_id),
+    ...(inventory?.equipment || []).map(equipment => equipment.feature_id),
+  ]);
   const coordinateUsage = new Map<string, { point: PointCoordinates; cableIds: Set<string>; vertexRefs: Array<{ cableId: string; vertexIndex: number }> }>();
 
   candidates.forEach(candidate => {
@@ -251,67 +239,91 @@ export const buildFiberPolylineMaterializationEvents = (
       .map(([key]) => key)
   );
 
+  features.forEach(feature => {
+    if (!isPolylineFeature(feature) && isReusableFiberPoint(feature, reusableFeatureIds) && isPoint(feature.coordinates)) {
+      branchKeys.add(coordinateKey(feature.coordinates));
+    }
+  });
+
   const events: DesignEventType[] = [];
-  const createdFeatureIds = new Set<string>();
+  const emittedEquipmentIds = new Set<string>();
+  const countedEnclosureIds = new Set<string>();
   let pointCount = 0;
   let enclosureCount = 0;
 
-  candidates.forEach(candidate => {
+  const pushEquipmentEvent = (featureId: string, equipmentType: FiberCablePointKind) => {
+    const eventKey = `${featureId}:${equipmentType}`;
+    if (emittedEquipmentIds.has(eventKey)) return;
+    emittedEquipmentIds.add(eventKey);
+    events.push({
+      type: 'EquipmentUpserted',
+      payload: {
+        id: featureId,
+        project_id: projectId,
+        feature_id: featureId,
+        equipment_type: equipmentType,
+        status: 'active',
+      },
+    });
+  };
+
+  const targetCandidates = options.targetFeatureIds
+    ? candidates.filter(c => options.targetFeatureIds!.includes(c.feature.id))
+    : candidates;
+
+  let cablesToMaterialize = new Set(options.targetFeatureIds);
+  if (options.targetFeatureIds) {
+    targetCandidates.forEach(candidate => {
+      candidate.coordinates.forEach(point => {
+        const key = coordinateKey(point);
+        if (branchKeys.has(key)) {
+          const usage = coordinateUsage.get(key);
+          if (usage) {
+            usage.cableIds.forEach(id => cablesToMaterialize.add(id));
+          }
+        }
+      });
+    });
+  }
+
+  const finalCandidates = options.targetFeatureIds
+    ? candidates.filter(c => cablesToMaterialize.has(c.feature.id))
+    : candidates;
+
+  finalCandidates.forEach(candidate => {
     const { feature, coordinates } = candidate;
     const cableId = existingCablesByFeature.get(feature.id)?.id || feature.id;
     const existingCable = existingCablesByFeature.get(feature.id);
     const first = coordinates[0];
     const last = coordinates[coordinates.length - 1];
-    const startPoint = findExistingCablePoint(features, cableId, 'cable_start', first);
-    const endPoint = findExistingCablePoint(features, cableId, 'cable_end', last);
-    const startFeatureId = startPoint?.id || createId();
-    const endFeatureId = endPoint?.id || createId();
+    const startPoint = findExistingCablePoint(features, cableId, 'cable_start', reusableFeatureIds, first);
+    const endPoint = findExistingCablePoint(features, cableId, 'cable_end', reusableFeatureIds, last);
+    const startFeatureId = startPoint?.id || null;
+    const endFeatureId = endPoint?.id || null;
     const cablePoints: CablePointInput[] = [];
 
-    if (!startPoint && !createdFeatureIds.has(startFeatureId)) {
-      events.push(buildPointFeatureEvent(
-        feature,
-        startFeatureId,
-        `Đầu cáp ${feature.name || feature.id}`,
-        first,
-        buildPointMetadata(cableId, 'cable_start', 0, first)
-      ));
-      createdFeatureIds.add(startFeatureId);
-      pointCount += 1;
+    if (startFeatureId) {
+      cablePoints.push(buildCablePoint(createId, startFeatureId, 'cable_start', 0, 0));
+      pushEquipmentEvent(startFeatureId, 'cable_start');
     }
-    cablePoints.push(buildCablePoint(createId, startFeatureId, 'cable_start', 0, 0));
 
-    if (!endPoint && !createdFeatureIds.has(endFeatureId)) {
-      events.push(buildPointFeatureEvent(
-        feature,
-        endFeatureId,
-        `Cuối cáp ${feature.name || feature.id}`,
-        last,
-        buildPointMetadata(cableId, 'cable_end', coordinates.length - 1, last)
-      ));
-      createdFeatureIds.add(endFeatureId);
-      pointCount += 1;
+    if (endFeatureId) {
+      cablePoints.push(buildCablePoint(createId, endFeatureId, 'cable_end', coordinates.length - 1, coordinates.length - 1));
+      pushEquipmentEvent(endFeatureId, 'cable_end');
     }
-    cablePoints.push(buildCablePoint(createId, endFeatureId, 'cable_end', coordinates.length - 1, coordinates.length - 1));
 
     coordinates.forEach((point, vertexIndex) => {
       const key = coordinateKey(point);
       if (!branchKeys.has(key)) return;
-      const existingEnclosure = findExistingEnclosure(features, point);
-      const enclosureFeatureId = existingEnclosure?.id || createId();
-      if (!existingEnclosure && !createdFeatureIds.has(enclosureFeatureId)) {
-        events.push(buildPointFeatureEvent(
-          feature,
-          enclosureFeatureId,
-          `Măng xông ${key}`,
-          point,
-          buildPointMetadata(cableId, 'splice_enclosure', vertexIndex, point)
-        ));
-        createdFeatureIds.add(enclosureFeatureId);
+      const existingEnclosure = findExistingEnclosure(features, reusableFeatureIds, point);
+      if (!existingEnclosure) return;
+      cablePoints.push(buildCablePoint(createId, existingEnclosure.id, 'splice_enclosure', vertexIndex, vertexIndex));
+      pushEquipmentEvent(existingEnclosure.id, 'splice_enclosure');
+      if (!countedEnclosureIds.has(existingEnclosure.id)) {
+        countedEnclosureIds.add(existingEnclosure.id);
         enclosureCount += 1;
         pointCount += 1;
       }
-      cablePoints.push(buildCablePoint(createId, enclosureFeatureId, 'splice_enclosure', vertexIndex, vertexIndex));
     });
 
     events.push({
@@ -336,20 +348,22 @@ export const buildFiberPolylineMaterializationEvents = (
       },
     });
 
-    events.push({
-      type: 'FiberCablePointsMaterialized',
-      payload: {
-        id: createId(),
-        project_id: projectId,
-        cable_id: cableId,
-        points: cablePoints,
-      },
-    });
+    if (cablePoints.length > 0) {
+      events.push({
+        type: 'FiberCablePointsMaterialized',
+        payload: {
+          id: createId(),
+          project_id: projectId,
+          cable_id: cableId,
+          points: cablePoints,
+        },
+      });
+    }
   });
 
   return {
     events,
-    cableCount: candidates.length,
+    cableCount: finalCandidates.length,
     pointCount,
     enclosureCount,
   };

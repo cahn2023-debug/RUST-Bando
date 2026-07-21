@@ -60,8 +60,7 @@ export const isLineFeature = (feature: FeatureState): boolean => {
 
 export const isNetworkEdgeFeature = (feature: FeatureState, metadata: FeatureMetadata = getParsedMetadata(feature) as FeatureMetadata): boolean => {
     const geomType = (feature.geom_type || feature.geometry_type || '').toLowerCase();
-    return (geomType.includes('line') && metadata.infrastructure?.type === 'SignalLine') ||
-        metadata.infrastructure?.type === 'NetworkLink';
+    return geomType.includes('line') || metadata.infrastructure?.type === 'NetworkLink';
 };
 
 export const inferNetworkRole = (feature: FeatureState, metadata: FeatureMetadata = getParsedMetadata(feature) as FeatureMetadata): NetworkRole => {
