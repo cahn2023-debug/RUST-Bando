@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Project } from "@CONTRACT/types";
 
 export function useRibbonActions(project?: Project | null) {
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization
     const openStandaloneWindow = useCallback(async (view: 'analysis' | 'print' | 'contract_analysis') => {
         if (!project?.id) return;
         try {
@@ -73,7 +74,7 @@ export function useRibbonActions(project?: Project | null) {
 
             const win = createWindow();
 
-            win.once('tauri://created', async () => {
+            win.once('tauri://created', () => {
                 setTimeout(async () => {
                     await focusWindow();
                 }, 150);
@@ -86,7 +87,7 @@ export function useRibbonActions(project?: Project | null) {
                     const destroyed = await destroyWindow();
                     if (destroyed) {
                         const retryWindow = createWindow();
-                        retryWindow.once('tauri://created', async () => {
+                        retryWindow.once('tauri://created', () => {
                             setTimeout(async () => {
                                 await focusWindow();
                             }, 150);

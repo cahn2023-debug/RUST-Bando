@@ -10,6 +10,15 @@ import {
 } from '@TOOL/utils/featureUtils';
 import { getParsedMetadata } from './SharedMapComponents';
 
+const metadataNumber = (value: unknown, fallback: number) => {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
+    if (typeof value === 'string') {
+        const parsed = parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+    return fallback;
+};
+
 /**
  * Layer component for rendering Camera Field of View (FOV) cones.
  * Renders circular sectors (wedges) for point features configured as cameras.
@@ -80,9 +89,9 @@ export const FOVLayer = React.memo(({
                 if (!coords) return null;
 
                 // Extract FOV parameters from metadata
-                const rotation = parseFloat(String(getFeatureMetadataValue(f, 'gis.rotation', 'rotation', metadata) ?? 0));
-                const fovAngle = parseFloat(String(getFeatureMetadataValue(f, 'gis.fov_angle', 'fov_angle', metadata) ?? 60));
-                const fovRadius = parseFloat(String(getFeatureMetadataValue(f, 'gis.fov_radius', 'fov_radius', metadata) ?? 50));
+                const rotation = metadataNumber(getFeatureMetadataValue(f, 'gis.rotation', 'rotation', metadata), 0);
+                const fovAngle = metadataNumber(getFeatureMetadataValue(f, 'gis.fov_angle', 'fov_angle', metadata), 60);
+                const fovRadius = metadataNumber(getFeatureMetadataValue(f, 'gis.fov_radius', 'fov_radius', metadata), 50);
 
                 // Calculate polygon points (Offsets are now handled in calculateFOVPoints)
                 const fovPoints = calculateFOVPoints(coords, fovRadius, rotation, fovAngle);

@@ -5,10 +5,12 @@ import { MapState, FeatureState } from '@CONTRACT/types';
 
 export const pushStateToFirestore = async (_projectId: number, _state: MapState) => {
   // CLOUD SYNC DISABLED
+  await Promise.resolve();
 };
 
 export const pushFeaturesToFirestore = async (_projectId: number, _features: Record<string, FeatureState>) => {
   // CLOUD SYNC DISABLED
+  await Promise.resolve();
 };
 
 export const subscribeToProjectState = (
@@ -22,13 +24,16 @@ export const subscribeToProjectState = (
 
 export const deleteFeatureFromFirestore = async (_projectId: number, _featureId: string) => {
   // CLOUD SYNC DISABLED
+  await Promise.resolve();
 };
 
 export const deleteFeaturesFromFirestoreBatch = async (_projectId: number, _featureIds: string[]) => {
   // CLOUD SYNC DISABLED
+  await Promise.resolve();
 };
 
 export const forceGlobalCleanup = async (_projectId: number, _localState: MapState) => {
   // CLOUD SYNC DISABLED
+  await Promise.resolve();
   return 0;
 };

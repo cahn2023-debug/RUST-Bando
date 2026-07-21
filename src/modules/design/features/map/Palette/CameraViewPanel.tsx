@@ -75,32 +75,43 @@ export const CameraViewPanel: React.FC = () => {
     };
 
     useEffect(() => {
-        if (!feature) {
-            setLocalMeta({});
-            return;
-        }
+        let cancelled = false;
+        const syncTimer = window.setTimeout(() => {
+            if (cancelled) return;
 
-        try {
-            const parsed = typeof feature.metadata === 'string'
-                ? JSON.parse(feature.metadata || '{}')
-                : (feature.metadata || {});
-            setLocalMeta(parsed);
-        } catch {
-            setLocalMeta({});
-        }
+            if (!feature) {
+                setLocalMeta({});
+                return;
+            }
+
+            try {
+                const parsed = typeof feature.metadata === 'string'
+                    ? JSON.parse(feature.metadata || '{}')
+                    : (feature.metadata || {});
+                setLocalMeta(parsed);
+            } catch {
+                setLocalMeta({});
+            }
+        }, 0);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(syncTimer);
+        };
     }, [feature?.id, feature?.metadata]);
 
     // Update localMeta when previewMetadata changes (sync from other palettes)
     useEffect(() => {
         if (previewMetadata?.id === selectedFeatureId && previewMetadata.metadata) {
-            // Only update if metadata is actually different to avoid unnecessary jitter
-            // but ensuring we have the latest "draft" from other palettes
-            setLocalMeta((prev: any) => {
-                if (JSON.stringify(prev) !== JSON.stringify(previewMetadata.metadata)) {
-                    return previewMetadata.metadata;
-                }
-                return prev;
-            });
+            const syncTimer = window.setTimeout(() => {
+                setLocalMeta((prev: any) => {
+                    if (JSON.stringify(prev) !== JSON.stringify(previewMetadata.metadata)) {
+                        return previewMetadata.metadata;
+                    }
+                    return prev;
+                });
+            }, 0);
+            return () => window.clearTimeout(syncTimer);
         }
     }, [previewMetadata, selectedFeatureId]);
 

@@ -15,13 +15,13 @@ export function CreateProjectModal({ onClose, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-derive project name whenever path changes
   useEffect(() => {
     if (path) {
       const filenameWithExt = path.split(/[/\\]/).pop() || "";
       const derivedName = filenameWithExt.replace(/\.pmp$/i, "");
       if (derivedName && derivedName !== name) {
         console.log("[CreateProjectModal] Auto-deriving name:", derivedName);
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setName(derivedName);
       }
     }

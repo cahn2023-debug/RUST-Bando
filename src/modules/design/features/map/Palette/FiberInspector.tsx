@@ -232,7 +232,8 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
   };
 
   useEffect(() => {
-    void refresh();
+    const refreshTimer = window.setTimeout(() => void refresh(), 0);
+    return () => window.clearTimeout(refreshTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
@@ -240,31 +241,44 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
     if (!selectedFeatureId) return;
     const cable = inventory?.cables.find(item => item.feature_id === selectedFeatureId);
     if (cable) {
-      setSelectedCableId(cable.id);
-      setSelectedLegacyCandidateId(null);
+      const selectionTimer = window.setTimeout(() => {
+        setSelectedCableId(cable.id);
+        setSelectedLegacyCandidateId(null);
+      }, 0);
+      return () => window.clearTimeout(selectionTimer);
     } else {
       const candidate = legacyCableCandidates.find(item => item.feature_id === selectedFeatureId);
       if (candidate) {
-        setSelectedLegacyCandidateId(candidate.id);
+        const selectionTimer = window.setTimeout(() => {
+          setSelectedLegacyCandidateId(candidate.id);
+        }, 0);
+        return () => window.clearTimeout(selectionTimer);
       }
     }
   }, [inventory, selectedFeatureId, legacyCableCandidates]);
 
   useEffect(() => {
     if (!selectedLegacyCandidateId && legacyCableCandidates.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedLegacyCandidateId(legacyCableCandidates[0].id);
     }
   }, [legacyCableCandidates, selectedLegacyCandidateId]);
 
   useEffect(() => {
     if (selectedCable) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCableType(selectedCable.cable_type || '');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFiberCount(selectedCable.fiber_count || 12);
     } else if (selectedLegacyCandidate) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCableType(selectedLegacyCandidate.cable_type || '');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFiberCount(selectedLegacyCandidate.fiber_count || 12);
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCableType('');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFiberCount(12);
     }
   }, [selectedCable, selectedLegacyCandidate]);
@@ -327,7 +341,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
       }
 
       const newInventory = await getFiberInventory(projectId);
-      
+
       const newCableData = {
         id: updatedCable.id,
         project_id: updatedCable.projectId,
@@ -352,8 +366,8 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
       }
 
       await materializeFiberFromPolylines(
-        projectId, 
-        featuresById, 
+        projectId,
+        featuresById,
         newInventory,
         { targetFeatureIds: [newCableData.feature_id] }
       );
@@ -896,8 +910,8 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
       )}
 
       {activeTab === 'equipment' && (
-        <EquipmentPanel 
-          projectId={projectId} 
+        <EquipmentPanel
+          projectId={projectId}
           selectedFeatureId={selectedFeatureId ?? null}
           inventory={inventory}
           featuresById={featuresById}

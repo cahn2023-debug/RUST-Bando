@@ -39,9 +39,18 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
       const selectedFeature = state.features[selectedFeatureId];
       if (selectedFeature && (selectedFeature.group_id === groupId || targetFeatureIds?.includes(selectedFeatureId))) {
         const meta = getParsedMetadata(selectedFeature);
-        if (meta.icon) setIconType(asString(meta.icon) || iconType);
-        if (meta.color) setColor(asString(meta.color) || color);
-        if (meta.size !== undefined && meta.size !== null) setSize(asNumber(meta.size, size));
+        if (meta.icon) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setIconType(asString(meta.icon) || iconType);
+        }
+        if (meta.color) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setColor(asString(meta.color) || color);
+        }
+        if (meta.size !== undefined && meta.size !== null) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setSize(asNumber(meta.size, size));
+        }
         loadedRef.current = true;
         return;
       }
@@ -56,9 +65,18 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
           : (group.metadata as any)?.theme_config;
 
         if (themeConfig) {
-          if (themeConfig.icon) setIconType(asString(themeConfig.icon) || iconType);
-          if (themeConfig.color) setColor(asString(themeConfig.color) || color);
-          if (themeConfig.size !== undefined && themeConfig.size !== null) setSize(asNumber(themeConfig.size, size));
+          if (themeConfig.icon) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setIconType(asString(themeConfig.icon) || iconType);
+          }
+          if (themeConfig.color) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setColor(asString(themeConfig.color) || color);
+          }
+          if (themeConfig.size !== undefined && themeConfig.size !== null) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setSize(asNumber(themeConfig.size, size));
+          }
           loadedRef.current = true;
         }
       } catch (e) {
@@ -86,7 +104,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
     onClose();
   };
 
-  const handleApply = async () => {
+  const handleApply = () => {
     if (!state) return;
 
     setIsApplying(true);

@@ -164,10 +164,11 @@ export const StaticStreetViewPreview: React.FC<StaticStreetViewPreviewProps> = (
 
     useEffect(() => {
         let active = true;
-        setImageError(false);
-        setPendingDirectImageError(false);
 
         const resolvePano = async () => {
+            setImageError(false);
+            setPendingDirectImageError(false);
+
             if (isNaN(lat) || isNaN(lng) || !apiKey.trim() || apiKey === 'undefined') {
                 if (active) {
                     setResolvedLocation(null);
@@ -241,8 +242,11 @@ export const StaticStreetViewPreview: React.FC<StaticStreetViewPreviewProps> = (
             pendingDirectImageError &&
             resolvedLocation?.source === 'direct'
         ) {
-            setImageError(true);
-            setStatus('error');
+            const errorTimer = window.setTimeout(() => {
+                setImageError(true);
+                setStatus('error');
+            }, 0);
+            return () => window.clearTimeout(errorTimer);
         }
     }, [resolveFinished, pendingDirectImageError, resolvedLocation]);
 

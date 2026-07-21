@@ -48,7 +48,7 @@ export interface OrientedEdgeDescriptor {
 }
 
 const normalizeText = (value: unknown): string =>
-    String(value || '')
+    (typeof value === 'string' ? value : typeof value === 'number' || typeof value === 'boolean' ? String(value) : '')
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase();

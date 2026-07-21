@@ -78,6 +78,28 @@ export const DesignRibbonTools = ({
 }) => {
     const { finishDrawingSession } = useDrawingInteraction();
 
+    const [configCoords, setConfigCoords] = React.useState<{ top: string; left: string; maxHeight: string }>({
+        top: '100px',
+        left: '20px',
+        maxHeight: 'calc(100vh - 140px)'
+    });
+
+    React.useEffect(() => {
+        if (!showSystemConfig || !systemConfigRef.current) return;
+        const updateCoords = () => {
+            if (!systemConfigRef.current) return;
+            const rect = systemConfigRef.current.getBoundingClientRect();
+            setConfigCoords({
+                top: `${rect.bottom + 8}px`,
+                left: `${rect.left}px`,
+                maxHeight: `calc(100vh - ${rect.bottom + 24}px)`
+            });
+        };
+        updateCoords();
+        window.addEventListener('resize', updateCoords);
+        return () => window.removeEventListener('resize', updateCoords);
+    }, [showSystemConfig, systemConfigRef]);
+
     const handleToolModeChange = async (nextMode: 'none' | 'point' | 'polyline' | 'image' | 'intersection' | 'move' | 'print_area') => {
         if (drawingMode === nextMode) return;
 
@@ -112,11 +134,9 @@ export const DesignRibbonTools = ({
                             className="fixed z-[9999] shadow-2xl flex flex-col min-w-[450px] overflow-hidden rounded-xl"
                             onMouseDown={(e) => e.stopPropagation()}
                             style={{
-                                top: systemConfigRef.current?.getBoundingClientRect().bottom ? systemConfigRef.current.getBoundingClientRect().bottom + 8 : '100px',
-                                left: systemConfigRef.current?.getBoundingClientRect().left || '20px',
-                                maxHeight: systemConfigRef.current?.getBoundingClientRect().bottom 
-                                    ? `calc(100vh - ${systemConfigRef.current.getBoundingClientRect().bottom + 24}px)` 
-                                    : 'calc(100vh - 140px)'
+                                top: configCoords.top,
+                                left: configCoords.left,
+                                maxHeight: configCoords.maxHeight
                             }}
                         >
                             <PaletteProvider value={{

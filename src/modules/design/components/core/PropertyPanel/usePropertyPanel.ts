@@ -42,8 +42,11 @@ export function usePropertyPanel() {
       try {
         const meta = typeof feature.metadata === 'string' ? JSON.parse(feature.metadata || '{}') : (feature.metadata || {});
         const normalized = normalizeMetadataObject(meta);
-        const sttValue = normalized.display_order || normalized.stt || normalized.STT || '';
-        setLocalName(getCleanName(feature, String(sttValue)));
+        const rawSttValue = normalized.display_order || normalized.stt || normalized.STT || '';
+        const sttValue = (typeof rawSttValue === 'string' || typeof rawSttValue === 'number') ? String(rawSttValue) : '';
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setLocalName(getCleanName(feature, sttValue));
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLocalMeta(normalized);
       } catch (e) {
         console.warn('[usePropertyPanel] Failed to parse feature metadata:', e);

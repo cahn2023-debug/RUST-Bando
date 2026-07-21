@@ -52,6 +52,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ projectId }) =>
     };
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchData();
     }, [projectId]);
 

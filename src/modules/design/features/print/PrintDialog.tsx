@@ -93,14 +93,15 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
       };
       captureForPreview();
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreviewImage(null);
     }
     return () => { active = false; };
   }, [printArea, isStandalone]);
 
-  // Initialize selections
-  useMemo(() => {
+  useEffect(() => {
     if (state?.layers) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedLayerIds(new Set(Object.keys(state.layers)));
     }
   }, [state?.layers]);

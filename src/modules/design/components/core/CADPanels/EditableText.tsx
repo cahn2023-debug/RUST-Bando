@@ -14,6 +14,7 @@ export function EditableText({ value: initialValue, onSave, className, placehold
 
   // Sync with external value changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setValue(initialValue);
   }, [initialValue]);
 
@@ -37,6 +38,7 @@ export function EditableText({ value: initialValue, onSave, className, placehold
     return (
       <input
         type="text"
+        // eslint-disable-next-line jsx-a11y/no-autofocus
         autoFocus
         value={value}
         onChange={e => setValue(e.target.value)}

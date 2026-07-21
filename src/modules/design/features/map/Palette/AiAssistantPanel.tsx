@@ -200,9 +200,12 @@ export function AiAssistantPanel() {
     };
 
     useEffect(() => {
-        void refreshAi();
+        const refreshTimer = window.setTimeout(() => void refreshAi(), 0);
         const interval = window.setInterval(refreshAi, 8000);
-        return () => window.clearInterval(interval);
+        return () => {
+            window.clearTimeout(refreshTimer);
+            window.clearInterval(interval);
+        };
     }, []);
 
     useEffect(() => {
@@ -218,9 +221,11 @@ export function AiAssistantPanel() {
 
     useEffect(() => {
         if (!projectId) {
-            setConversationId("");
-            setMessages([]);
-            return;
+            const resetTimer = window.setTimeout(() => {
+                setConversationId("");
+                setMessages([]);
+            }, 0);
+            return () => window.clearTimeout(resetTimer);
         }
 
         const initChat = async () => {

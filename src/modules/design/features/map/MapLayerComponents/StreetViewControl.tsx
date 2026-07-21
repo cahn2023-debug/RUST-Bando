@@ -323,18 +323,26 @@ export function StreetViewControl() {
   const state = useDesignSync((s) => s.state);
 
   const latestPegmanState = useRef(pegmanState);
-  latestPegmanState.current = pegmanState;
+  
+  useEffect(() => {
+    latestPegmanState.current = pegmanState;
+  }, [pegmanState]);
+
   const pegmanMarkerRef = useRef<L.Marker | null>(null);
   const isDraggingPegmanRef = useRef(false);
   const pendingStreetViewSyncRef = useRef<Partial<typeof pegmanState> | null>(null);
   const streetViewSyncTimerRef = useRef<number | null>(null);
   const lastStreetViewApplyAtRef = useRef(0);
+  const feedbackTimerRef = useRef<number | null>(null);
 
   const showFeedback = useCallback((message: string) => {
     setFeedback(message);
-    window.clearTimeout((showFeedback as unknown as { timer?: number }).timer);
-    (showFeedback as unknown as { timer?: number }).timer = window.setTimeout(() => {
+    if (feedbackTimerRef.current !== null) {
+      window.clearTimeout(feedbackTimerRef.current);
+    }
+    feedbackTimerRef.current = window.setTimeout(() => {
       setFeedback(null);
+      feedbackTimerRef.current = null;
     }, 2800);
   }, []);
 
@@ -557,16 +565,22 @@ export function StreetViewControl() {
           const meta = getParsedMetadata(feature);
           const gis = typeof meta.gis === 'object' && meta.gis ? meta.gis as Record<string, unknown> : {};
           const specsMeta = typeof meta.specs === 'object' && meta.specs ? meta.specs as Record<string, unknown> : {};
-          const rotation = parseFloat(String(gis.rotation ?? meta.rotation ?? 0));
+          
+          const rawRotation = gis.rotation ?? meta.rotation ?? 0;
+          const rotationStr = (typeof rawRotation === 'string' || typeof rawRotation === 'number') ? String(rawRotation) : '0';
+          const rotation = parseFloat(rotationStr);
           nextHeading = mapRotationToHeading(rotation);
-          panoId = String(gis.pano_id ?? meta.pano_id ?? panoId);
+          
+          const rawPanoId = gis.pano_id ?? meta.pano_id ?? panoId;
+          panoId = (typeof rawPanoId === 'string' || typeof rawPanoId === 'number') ? String(rawPanoId) : '';
 
           const specs = getEffectiveCameraSpecs(feature, state?.settings, meta);
           const sensor =
             SENSOR_SIZES[specs.sensorSize as keyof typeof SENSOR_SIZES] || SENSOR_SIZES['1/3"'];
-          nextFov = parseFloat(
-            String(specsMeta.hfov ?? meta.hfov ?? calculateHFOV(sensor.width, specs.focalLength))
-          );
+          
+          const rawHfov = specsMeta.hfov ?? meta.hfov ?? calculateHFOV(sensor.width, specs.focalLength);
+          const hfovStr = (typeof rawHfov === 'string' || typeof rawHfov === 'number') ? String(rawHfov) : '90';
+          nextFov = parseFloat(hfovStr);
         }
 
         const apiKey = getGoogleMapsApiKey().trim();
@@ -622,7 +636,7 @@ export function StreetViewControl() {
             focus: true
           } as any);
 
-          newWindow.once('tauri://created', async () => {
+          newWindow.once('tauri://created', () => {
             syncPegmanState({ windowOpen: true, source: 'map' });
             window.setTimeout(() => {
               void injectCleanup();
@@ -880,6 +894,7 @@ export function StreetViewControl() {
 
   useEffect(() => {
     if (!shouldShowPegman) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsPegmanSelected(false);
     }
   }, [shouldShowPegman]);

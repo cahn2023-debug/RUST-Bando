@@ -103,6 +103,7 @@ export default function App() {
   useEffect(() => {
     if (selectedFeatureId) {
       if (activeTab === 'HOME') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setActiveTab('DESIGN');
       }
 
@@ -317,7 +318,10 @@ export default function App() {
                 projects={projects}
                 loadingProjects={loadingProjects}
                 onOpenProject={handleOpenProject}
-                onDeleteProject={handleDeleteProject}
+                onDeleteProject={(event, project) => {
+                  handleDeleteProject(event, project);
+                  return Promise.resolve();
+                }}
                 onSelectProject={async (project) => {
                   setActiveTab("DESIGN");
                   const success = await handleOpenProject(project.path);

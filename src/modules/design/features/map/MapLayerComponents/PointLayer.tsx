@@ -114,6 +114,7 @@ export const SelectedFeaturePopupManager = ({
     }, [selectedFeatureId, selectedPopupLocation, visibleFeatures, clusterGroupRef]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         updatePopupPosition();
     }, [selectedFeatureId, selectedPopupLocation, visibleFeatures, updatePopupPosition]);
 
@@ -161,7 +162,9 @@ const createNativeIcon = (
     const baseSize = metadata.size ? parseInt(String(metadata.size), 10) : 32;
     // Tăng kích thước biểu tượng lên gấp rưỡi để số nằm gọn bên trong
     const size = (isIntersection || isCamera) ? Math.floor(baseSize * 1.5) : baseSize;
-    const rotation = parseFloat(String(getFeatureMetadataValue(feature, 'gis.rotation', 'rotation', metadata) ?? 0));
+    const rawRotation = getFeatureMetadataValue(feature, 'gis.rotation', 'rotation', metadata) ?? 0;
+    const rotationStr = (typeof rawRotation === 'string' || typeof rawRotation === 'number') ? String(rawRotation) : '0';
+    const rotation = parseFloat(rotationStr);
     const markerColor = safeString(metadata.color) || '#10b981';
 
     const baseVisualFilter = `filter: saturate(0.96) drop-shadow(0 1px 1px rgba(0,0,0,0.18));`;

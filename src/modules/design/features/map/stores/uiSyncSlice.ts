@@ -280,7 +280,8 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
         }
     },
 
-    syncWithFirestore: async (projectId: string, data: unknown) => {
+    syncWithFirestore: (projectId: string, data: unknown) => {
         console.warn('Firestore sync not yet implemented in V2 architecture.', { projectId, data });
+        return Promise.resolve();
     }
 });

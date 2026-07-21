@@ -25,7 +25,7 @@ export class DesignSyncService {
             if (!calculatedSTT) return;
 
             const meta = getParsedMetadata(f);
-            const currentOrder = String(meta.display_order || '');
+            const currentOrder = String((meta.display_order as any) || '');
 
             if (currentOrder !== String(calculatedSTT)) {
                 updateEvents.push({

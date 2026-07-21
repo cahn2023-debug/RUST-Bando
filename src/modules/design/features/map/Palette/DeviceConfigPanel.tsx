@@ -40,33 +40,45 @@ export const DeviceConfigPanel: React.FC = () => {
     });
 
     useEffect(() => {
-        if (!feature) {
-            setLocalMeta({});
-            return;
-        }
+        let cancelled = false;
+        const syncTimer = window.setTimeout(() => {
+            if (cancelled) return;
 
-        try {
-            const parsed = typeof feature.metadata === 'string'
-                ? JSON.parse(feature.metadata || '{}')
-                : (feature.metadata || {});
-            setLocalMeta(parsed);
-        } catch (e) {
-            console.warn('[DeviceConfigPanel] Failed to parse feature metadata:', e);
-            setLocalMeta({});
-        }
+            if (!feature) {
+                setLocalMeta({});
+                return;
+            }
 
+            try {
+                const parsed = typeof feature.metadata === 'string'
+                    ? JSON.parse(feature.metadata || '{}')
+                    : (feature.metadata || {});
+                setLocalMeta(parsed);
+            } catch (e) {
+                console.warn('[DeviceConfigPanel] Failed to parse feature metadata:', e);
+                setLocalMeta({});
+            }
+        }, 0);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(syncTimer);
+        };
     }, [feature?.id, feature?.metadata]);
 
     // Sync with previewMetadata (from other palettes)
     useEffect(() => {
         if (previewMetadata?.id === selectedFeatureId && previewMetadata.metadata) {
-            setLocalMeta((prev: any) => {
-                const incoming = previewMetadata.metadata;
-                if (JSON.stringify(prev) !== JSON.stringify(incoming)) {
-                    return incoming;
-                }
-                return prev;
-            });
+            const syncTimer = window.setTimeout(() => {
+                setLocalMeta((prev: any) => {
+                    const incoming = previewMetadata.metadata;
+                    if (JSON.stringify(prev) !== JSON.stringify(incoming)) {
+                        return incoming;
+                    }
+                    return prev;
+                });
+            }, 0);
+            return () => window.clearTimeout(syncTimer);
         }
     }, [previewMetadata, selectedFeatureId]);
 
@@ -123,7 +135,7 @@ export const DeviceConfigPanel: React.FC = () => {
         return newMeta;
     };
 
-    const handleAutoOrient = async () => {
+    const handleAutoOrient = () => {
         const coords = getPointCoordinates(feature);
         if (!coords) return;
 

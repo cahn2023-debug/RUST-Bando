@@ -62,6 +62,7 @@ export const EditableCell = memo(({
                         e.currentTarget.blur();
                     }
                 }}
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
                 className="w-full bg-cad-elevated border-cad-accent border rounded px-1 py-0.5 outline-none font-medium text-cad-text-primary"
             />

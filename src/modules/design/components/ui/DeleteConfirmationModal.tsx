@@ -72,7 +72,7 @@ export function DeleteConfirmationModal({
             {itemName && (
               <div className="inline-block px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
                 <span className="text-red-400 font-bold text-xs italic">
-                  "{itemName}"
+                  &quot;{itemName}&quot;
                 </span>
               </div>
             )}

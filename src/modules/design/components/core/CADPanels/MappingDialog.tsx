@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X, FileSpreadsheet, CheckCircle2, AlertCircle } from "lucide-react";
 import { type ImportMapping } from "@IMPLEMENT/services/importService";
 
@@ -10,39 +10,33 @@ interface MappingDialogProps {
 }
 
 export function MappingDialog({ headers, filename, onConfirm, onClose }: MappingDialogProps) {
-  const [mapping, setMapping] = useState<ImportMapping>({
-    name_column: "",
-    lat_column: "",
-    lng_column: "",
-    description_column: ""
-  });
-
-  // Auto-detect columns
-  useEffect(() => {
-    const autoMapping: Partial<ImportMapping> = {};
+  const [mapping, setMapping] = useState<ImportMapping>(() => {
+    const initial: ImportMapping = {
+      name_column: "",
+      lat_column: "",
+      lng_column: "",
+      description_column: ""
+    };
     
     headers.forEach(h => {
       const lower = h.toLowerCase().trim();
       const includes = (terms: string[]) => terms.some(t => lower.includes(t.toLowerCase()));
 
       if (includes(["tên", "name", "đối tượng", "label"])) {
-        autoMapping.name_column = h;
+        initial.name_column = h;
       } else if (includes(["lat", "latitude", "vĩ độ"]) || lower === "x") {
-        autoMapping.lat_column = h;
+        initial.lat_column = h;
       } else if (includes(["lng", "longitude", "kinh độ", "long"]) || lower === "y") {
-        autoMapping.lng_column = h;
+        initial.lng_column = h;
       } else if (includes(["mô tả", "description", "ghi chú"])) {
-        autoMapping.description_column = h;
+        initial.description_column = h;
       } else if (includes(["stt", "mã hiệu", "mã", "index", "order", "số tt"]) || lower === "id") {
-        autoMapping.order_column = h;
+        initial.order_column = h;
       }
     });
-
-    setMapping(prev => ({
-      ...prev,
-      ...autoMapping
-    }));
-  }, [headers]);
+    
+    return initial;
+  });
 
   const isValid = mapping.name_column && mapping.lat_column && mapping.lng_column;
 

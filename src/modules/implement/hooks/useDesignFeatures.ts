@@ -72,7 +72,7 @@ export const useFeatureHierarchy = (features: Record<string, FeatureState>) => {
             if (!meta.parent_feature_id || visited.has(id)) return 0;
 
             visited.add(id);
-            const depth = 1 + getDepth(String(meta.parent_feature_id), visited);
+            const depth = 1 + getDepth(String(meta.parent_feature_id as any), visited);
             memoDepth[id] = depth;
             return depth;
         };
@@ -80,7 +80,7 @@ export const useFeatureHierarchy = (features: Record<string, FeatureState>) => {
         Object.values(features).forEach(f => {
             const meta = getBaseParsedMetadata(f);
             const idStr = String(f.id);
-            if (meta.parent_feature_id) hasVirtualChildren.add(String(meta.parent_feature_id));
+            if (meta.parent_feature_id) hasVirtualChildren.add(String(meta.parent_feature_id as any));
             depthMap[idStr] = getDepth(idStr);
         });
 

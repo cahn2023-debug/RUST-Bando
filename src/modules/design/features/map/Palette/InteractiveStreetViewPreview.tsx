@@ -18,8 +18,8 @@ export const InteractiveStreetViewPreview: React.FC<InteractiveStreetViewPreview
     heading,
     fallback,
 }) => {
-    const [loading, setLoading] = useState(true);
-    const [loadFailed, setLoadFailed] = useState(false);
+    const [loadedUrl, setLoadedUrl] = useState<string | null>(null);
+    const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
     const hasValidCoordinates = Number.isFinite(lat) && Number.isFinite(lng);
     const normalizedHeading = ((heading % 360) + 360) % 360;
@@ -34,18 +34,14 @@ export const InteractiveStreetViewPreview: React.FC<InteractiveStreetViewPreview
         return `https://maps.google.com/maps?${params.toString()}`;
     }, [hasValidCoordinates, lat, lng, normalizedHeading]);
 
-    useEffect(() => {
-        if (!hasValidCoordinates) return;
-        setLoading(true);
-        setLoadFailed(false);
-    }, [hasValidCoordinates, publicUrl]);
+    const loading = hasValidCoordinates && loadedUrl !== publicUrl && failedUrl !== publicUrl;
+    const loadFailed = hasValidCoordinates && failedUrl === publicUrl;
 
     useEffect(() => {
         if (!hasValidCoordinates) return undefined;
         if (!loading) return undefined;
         const timeoutId = window.setTimeout(() => {
-            setLoadFailed(true);
-            setLoading(false);
+            setFailedUrl(publicUrl);
         }, PUBLIC_STREET_VIEW_TIMEOUT_MS);
         return () => window.clearTimeout(timeoutId);
     }, [hasValidCoordinates, loading, publicUrl]);
@@ -70,8 +66,8 @@ export const InteractiveStreetViewPreview: React.FC<InteractiveStreetViewPreview
                 }}
                 allowFullScreen
                 onLoad={() => {
-                    setLoadFailed(false);
-                    setLoading(false);
+                    setFailedUrl(null);
+                    setLoadedUrl(publicUrl);
                 }}
                 className={cn('transition-opacity duration-300 bg-white', loading ? 'opacity-0' : 'opacity-100')}
             />

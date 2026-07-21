@@ -185,7 +185,7 @@ const buildAnalysisFieldColumn = (
       meta: { options: GEOM_TYPES_OPTIONS },
       cell: (info) => (
         <DropdownCell
-          value={String(info.getValue() ?? '')}
+          value={String((info.getValue() as any) ?? '')}
           options={GEOM_TYPES_OPTIONS}
           row={info.row}
           column={info.column}
@@ -204,7 +204,7 @@ const buildAnalysisFieldColumn = (
       meta: { options },
       cell: (info) => (
         <DropdownCell
-          value={String(info.getValue() ?? '')}
+          value={String((info.getValue() as any) ?? '')}
           options={options}
           row={info.row}
           column={info.column}
@@ -240,7 +240,7 @@ const buildAnalysisFieldColumn = (
 };
 
 const getGeomIconValue = (value: unknown) => {
-  const lowerVal = String(value ?? '').toLowerCase();
+  const lowerVal = String((value as any) ?? '').toLowerCase();
   if (['cctv', 'ptz', 'speed', 'lpr'].includes(lowerVal)) return lowerVal;
   if (lowerVal.includes('nut giao')) return 'intersection';
   return null;
@@ -583,7 +583,7 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
         }
 
         if (ANALYSIS_NON_EDITABLE_FIELDS.has(key)) {
-          return <span>{String(buildDisplayValue(value) ?? '')}</span>;
+          return <span>{String((buildDisplayValue(value) as any) ?? '')}</span>;
         }
 
         return (

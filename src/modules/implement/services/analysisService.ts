@@ -117,7 +117,7 @@ const normalizeHeader = (key: string) => normalizeAnalysisColumnKey(String(key |
 
 const readString = (value: unknown) => {
   if (value == null) return '';
-  return String(value).trim();
+  return String(value as any).trim();
 };
 
 const parseBoolean = (value: unknown): boolean | undefined => {
@@ -134,7 +134,7 @@ const parseCoordinates = (value: unknown) => {
   if (typeof value === 'object') return value;
 
   try {
-    return JSON.parse(String(value));
+    return JSON.parse(String(value as any));
   } catch {
     return null;
   }

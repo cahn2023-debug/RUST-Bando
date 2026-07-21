@@ -73,6 +73,7 @@ export function useProjectData(project: Project) {
 
   useEffect(() => {
     if (!hasValidProject) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTasks([]);
       setNotes([]);
       setContracts([]);

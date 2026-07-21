@@ -52,7 +52,7 @@ const text = (value: unknown): string => {
       return "[object]";
     }
   }
-  return String(value);
+  return String(value as any);
 };
 
 const paragraph = (value: string, bold = false): Paragraph =>

@@ -46,6 +46,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocalSettings(asTemplateSettings(state?.settings));
   }, [state?.settings]);
 

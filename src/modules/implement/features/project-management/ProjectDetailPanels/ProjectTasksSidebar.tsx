@@ -114,6 +114,7 @@ export function ProjectTasksSidebar({
 
          {adding ? (
             <form onSubmit={onSubmit} className="bg-cad-bg p-3 border border-cad-accent">
+               {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
                <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} className="w-full bg-cad-surface border border-cad-border p-2 text-[10px] text-white outline-none" placeholder="TASK NAME..." />
                <div className="flex justify-end gap-2 mt-2">
                   <button type="button" onClick={() => onAdd(false)} className="text-[9px] font-black text-cad-text-muted hover:text-white uppercase transition-all">Cancel</button>

@@ -160,7 +160,7 @@ export function useVirtualDrag({
                         const targetMeta = getParsedMetadata(targetFeature);
                         const parentFeatureId = getFeatureDisplayInfo(targetFeature).isIntersection
                             ? targetFeature.id
-                            : targetMeta.parent_feature_id ? String(targetMeta.parent_feature_id) : null;
+                            : (typeof targetMeta.parent_feature_id === 'string' || typeof targetMeta.parent_feature_id === 'number') ? String(targetMeta.parent_feature_id) : null;
                         if (parentFeatureId && currentDrag.ids.includes(parentFeatureId)) {
                             logDragDrop("execute:skip:would-create-cycle", { id, parentFeatureId, ids: currentDrag.ids });
                             return;

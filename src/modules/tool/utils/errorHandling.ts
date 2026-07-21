@@ -135,7 +135,7 @@ export function getUserFriendlyMessage(error: unknown): string {
     return USER_ERROR_MESSAGES['default'];
   }
   
-  const message = error instanceof Error ? error.message : String(error);
+  const message = error instanceof Error ? error.message : String(error as any);
   
   // Check for known error patterns
   for (const [pattern, friendlyMessage] of Object.entries(USER_ERROR_MESSAGES)) {

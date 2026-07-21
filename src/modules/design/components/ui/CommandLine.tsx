@@ -7,6 +7,7 @@ export function CommandLine() {
           type="text" 
           defaultValue="_OPEN_PROJECT_RECORDS"
           className="bg-transparent outline-none border-none font-mono text-cad-text-primary text-[11px] w-full"
+          // eslint-disable-next-line jsx-a11y/no-autofocus
           autoFocus
         />
       </div>

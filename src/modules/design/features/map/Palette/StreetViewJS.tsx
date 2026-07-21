@@ -3,7 +3,7 @@ import { emit } from '@tauri-apps/api/event';
 import { initGoogleMaps, waitForGoogleMaps } from '@TOOL/utils/googleMapsLoader';
 import { cn } from '@TOOL/utils/cn';
 
-declare var google: any;
+declare const google: any;
 
 interface StreetViewJSProps {
   lat: number;
@@ -118,8 +118,10 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
     };
 
     if (!trimmedApiKey) {
-      setError('Missing API Configuration.');
-      return;
+      const errorTimer = window.setTimeout(() => {
+        setError('Missing API Configuration.');
+      }, 0);
+      return () => window.clearTimeout(errorTimer);
     }
 
     const initPanorama = async () => {

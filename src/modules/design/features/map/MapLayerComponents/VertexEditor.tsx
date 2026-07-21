@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useRef } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Marker, Polyline, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
@@ -71,9 +71,6 @@ export const VertexEditor = () => {
     const [dragType, setDragType] = useState<'update' | 'insert'>('update');
     const [previewCoords, setPreviewCoords] = useState<[number, number][] | null>(null);
 
-    // Refs for stable coordinate access
-    const coordsRef = useRef<[number, number][]>([]);
-
     const feature = useMemo(() => {
         if (!editingFeatureId || !state?.features[editingFeatureId]) return null;
         return state.features[editingFeatureId];
@@ -81,24 +78,22 @@ export const VertexEditor = () => {
 
     const coords: [number, number][] = useMemo(() => {
         if (!feature) {
-            coordsRef.current = [];
             return [];
         }
         const parsed = getParsedCoordinates(feature);
         if (!parsed || !Array.isArray(parsed)) return [];
         const isPolygon = feature?.geom_type?.toLowerCase() === 'polygon';
         const final = isPolygon ? (Array.isArray(parsed[0]) ? parsed[0] : parsed) : parsed;
-        coordsRef.current = final as [number, number][];
-        return coordsRef.current;
+        return final as [number, number][];
     }, [feature]);
 
     const handleDragStart = useCallback((_: any, i: number) => {
         logEditor(`Drag Start on vertex ${i}`);
         setDragType('update');
         setDraggingIndex(i);
-        setPreviewCoords([...coordsRef.current]);
+        setPreviewCoords([...coords]);
         map.dragging.disable(); // Prevent map pan
-    }, [map]);
+    }, [coords, map]);
 
     useMapEvents({
         mousemove: (e) => {

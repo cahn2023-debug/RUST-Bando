@@ -615,6 +615,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                 {/* The Table */}
                 <div
                     ref={scrollContainerRef}
+                    // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
                     tabIndex={0}
                     onKeyDown={handleTableKeyDown}
                     onPaste={handleTablePaste}

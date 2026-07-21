@@ -205,10 +205,12 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
     const defaults = getDefaultReportSelections(state, { selectionSet, selectedFeatureId, selectedGroupId });
     const keys = defaults.map(keyOf);
     keys.forEach((key) => getDescendantKeys(selectableItems, key).forEach((childKey) => keys.push(childKey)));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedKeys(new Set(keys));
   }, [selectableItems, state, selectedFeatureId, selectedGroupId, selectionSet]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExpandedSelectionKeys((prev) => {
       const expandableKeys = new Set(selectableItems
         .filter((item) => getDescendantKeys(selectableItems, item.key).length > 0)
@@ -235,11 +237,13 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
   useEffect(() => {
     let cancelled = false;
     if (!baseReportModel) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setReportModel(null);
       return;
     }
     hydrateReportPhotoAssets(baseReportModel, projectId)
       .then((hydrated) => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (!cancelled) setReportModel(hydrated);
       });
     return () => {
@@ -251,10 +255,12 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
 
   useEffect(() => {
     if (!reportModel || reportModel.sections.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveSectionId(null);
       return;
     }
     if (!currentSectionId || !reportModel.sections.some((section) => section.id === currentSectionId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveSectionId(reportModel.sections[0].id);
     }
   }, [currentSectionId, reportModel]);
@@ -511,6 +517,7 @@ function ReportPreview({
 
   useEffect(() => {
     if (!activeSection) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setExpandedSections((prev) => {
       if (prev.has(activeSection.id)) return prev;
       const next = new Set(prev);

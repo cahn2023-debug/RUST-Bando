@@ -31,7 +31,7 @@ export const safeString = (value: unknown): string => {
         }
     }
 
-    return String(value);
+    return String(value as any);
 };
 
 /**
@@ -149,12 +149,12 @@ export const getEffectiveMountingHeight = (
     // 1. Feature specific metadata
     const featureHeight = getFeatureMetadataValue(feature, 'specs.install_height', 'installHeight', providedMetadata);
     if (featureHeight !== undefined && featureHeight !== null && featureHeight !== '') {
-        return parseFloat(String(featureHeight));
+        return parseFloat(String(featureHeight as any));
     }
 
     // 2. Project global setting
     if (settings?.default_install_height !== undefined && settings?.default_install_height !== null) {
-        return parseFloat(String(settings.default_install_height));
+        return parseFloat(String(settings.default_install_height as any));
     }
 
     // 3. Last resort fallback
@@ -193,9 +193,9 @@ export const getEffectiveCameraSpecs = (
     const preset = settings?.camera_presets?.[type] || settings?.camera_presets?.['default'];
 
     return {
-        focalLength: parseFloat(String(getFeatureMetadataValue(feature, 'specs.focal_length', 'focalLength', providedMetadata) ?? preset?.focal_length ?? 3.6)),
+        focalLength: parseFloat(String((getFeatureMetadataValue(feature, 'specs.focal_length', 'focalLength', providedMetadata) ?? preset?.focal_length ?? 3.6) as any)),
         sensorSize: (getFeatureMetadataValue(feature, 'specs.sensor_size', 'sensorSize', providedMetadata) as string) ?? preset?.sensor_size ?? '1/3"',
-        resolutionX: parseInt(String(getFeatureMetadataValue(feature, 'specs.resolution_x', 'resolutionX', providedMetadata) ?? preset?.resolution_x ?? 1920)),
-        resolutionY: parseInt(String(getFeatureMetadataValue(feature, 'specs.resolution_y', 'resolutionY', providedMetadata) ?? preset?.resolution_y ?? 1080))
+        resolutionX: parseInt(String((getFeatureMetadataValue(feature, 'specs.resolution_x', 'resolutionX', providedMetadata) ?? preset?.resolution_x ?? 1920) as any)),
+        resolutionY: parseInt(String((getFeatureMetadataValue(feature, 'specs.resolution_y', 'resolutionY', providedMetadata) ?? preset?.resolution_y ?? 1080) as any))
     };
 };

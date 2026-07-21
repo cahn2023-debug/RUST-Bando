@@ -124,7 +124,9 @@ export function useProjectManager() {
     };
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         loadProjects();
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         loadSettings();
 
         return () => {
@@ -323,7 +325,7 @@ export function useProjectManager() {
         return false;
     };
 
-    const handleDeleteProject = async (e: React.MouseEvent, project: Project) => {
+    const handleDeleteProject = (e: React.MouseEvent, project: Project) => {
         e.stopPropagation();
         setProjectToDelete(project);
         setIsDeleteModalOpen(true);

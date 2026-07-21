@@ -41,6 +41,17 @@ interface Props {
   projectName?: string;
   isAnalyzing?: boolean;
 }
+const calculateEndDate = (signedDate: string, durationStr: string) => {
+  try {
+    const date = parse(signedDate, 'dd/MM/yyyy', new Date());
+    if (!isValid(date)) return '---';
+    const days = parseInt(durationStr.replace(/\D/g, '')) || 0;
+    if (days <= 0) return signedDate;
+    return format(addDays(date, days), 'dd/MM/yyyy');
+  } catch (e) {
+    return '---';
+  }
+};
 
 export function ContractAnalysisView({
   projectId,
@@ -57,12 +68,22 @@ export function ContractAnalysisView({
   const [executionGroups, setExecutionGroups] = useState<ContractExecutionGroup[]>([]);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
 
+  const fetchGroups = useCallback(async () => {
+    try {
+      const groups = await invoke<ContractExecutionGroup[]>('get_execution_groups', { projectId });
+      setExecutionGroups(groups);
+    } catch (error) {
+      console.error('Fetch groups error:', error);
+    }
+  }, [projectId]);
+
   useEffect(() => {
     const calculatedEndDate = calculateEndDate(initialData.signed_date, initialData.duration);
     const processedBOM = initialData.bom_table.map((item) => ({
       ...item,
       uid: item.uid && item.uid !== '' ? item.uid : crypto.randomUUID(),
     }));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setData({
       ...initialData,
       bom_table: processedBOM,
@@ -74,17 +95,9 @@ export function ContractAnalysisView({
   }, [initialData]);
 
   useEffect(() => {
-    if (projectId) fetchGroups();
-  }, [projectId]);
-
-  const fetchGroups = async () => {
-    try {
-      const groups = await invoke<ContractExecutionGroup[]>('get_execution_groups', { projectId });
-      setExecutionGroups(groups);
-    } catch (error) {
-      console.error('Fetch groups error:', error);
-    }
-  };
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (projectId) void fetchGroups();
+  }, [projectId, fetchGroups]);
 
   const handleUpsertGroup = async (group: Partial<ContractExecutionGroup>) => {
     try {
@@ -107,19 +120,9 @@ export function ContractAnalysisView({
     }
   };
 
-  const calculateEndDate = (signedDate: string, durationStr: string) => {
-    try {
-      const date = parse(signedDate, 'dd/MM/yyyy', new Date());
-      if (!isValid(date)) return '---';
-      const days = parseInt(durationStr.replace(/\D/g, '')) || 0;
-      if (days <= 0) return signedDate;
-      return format(addDays(date, days), 'dd/MM/yyyy');
-    } catch (e) {
-      return '---';
-    }
-  };
 
-  const handleBOMUpdate = useCallback(async (id: string, field: string, value: any) => {
+
+  const handleBOMUpdate = useCallback((id: string, field: string, value: string | number | boolean) => {
     setData((prev) => {
       const newBOM = prev.bom_table.map((item) => {
         if (item.uid === id) {
@@ -133,9 +136,10 @@ export function ContractAnalysisView({
       });
       return { ...prev, bom_table: newBOM };
     });
+    return Promise.resolve();
   }, []);
 
-  const onBatchUpdate = useCallback(async (selectedIds: string[], field: string, value: any) => {
+  const onBatchUpdate = useCallback((selectedIds: string[], field: string, value: string | number | boolean) => {
     setData((prev) => {
       const newBOM = prev.bom_table.map((item) => {
         if (selectedIds.includes(item.uid)) {
@@ -149,6 +153,7 @@ export function ContractAnalysisView({
       });
       return { ...prev, bom_table: newBOM };
     });
+    return Promise.resolve();
   }, []);
 
   const tableData = useMemo(() => {
@@ -343,6 +348,7 @@ export function ContractAnalysisView({
             {isAddingGroup && (
               <div className="p-4 bg-cad-surface border border-cad-accent/30 rounded-lg space-y-2">
                 <input
+                  // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
                   placeholder="Tên nhóm..."
                   className="w-full bg-cad-bg border border-cad-border px-3 py-1.5 text-xs text-white rounded outline-none"

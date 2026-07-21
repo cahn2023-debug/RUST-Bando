@@ -21,12 +21,15 @@ const COLORS = [
 const ExtensionDistribution: React.FC<ExtensionDistributionProps> = ({ data }) => {
     const total = (data || []).reduce((acc, curr) => acc + curr.count, 0);
 
-    let currentAngle = -90;
     const segments = data.map((item, index) => {
         const percentage = total > 0 ? (item.count / total) * 100 : 0;
         const angle = total > 0 ? (item.count / total) * 360 : 0;
-        const pathData = describeArc(50, 50, 40, currentAngle, currentAngle + angle);
-        currentAngle += angle;
+        
+        const prevSum = data.slice(0, index).reduce((sum, d) => sum + d.count, 0);
+        const startAngle = total > 0 ? (prevSum / total) * 360 - 90 : -90;
+        const endAngle = startAngle + angle;
+        
+        const pathData = describeArc(50, 50, 40, startAngle, endAngle);
         return {
             ...item,
             percentage,

@@ -6,6 +6,7 @@ export function ProjectNotesSidebar({ notes, onAdd, onDelete, adding, newTitle, 
       <div className="flex flex-col gap-4">
          {adding ? (
             <form onSubmit={onSubmit} className="bg-cad-bg p-3 border border-cad-accent">
+               {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
                <input autoFocus value={newTitle} onChange={e => setNewTitle(e.target.value)} className="w-full bg-cad-surface border border-cad-border p-2 text-[10px] text-white outline-none" placeholder="NOTE TITLE..." />
                <div className="flex justify-end gap-2 mt-2">
                   <button type="button" onClick={() => onAdd(false)} className="text-[9px] font-black text-cad-text-muted hover:text-white uppercase transition-all">Cancel</button>

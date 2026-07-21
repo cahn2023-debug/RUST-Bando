@@ -174,7 +174,7 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
                 tryRecoveryInitialize(get, projectId);
             }
         } catch (e) {
-            logger.error(`[Sync] Undo failed: ${e}`);
+            logger.error(`[Sync] Undo failed: ${e instanceof Error ? e.message : String(e)}`);
         }
     },
 
@@ -188,7 +188,7 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
                 tryRecoveryInitialize(get, projectId);
             }
         } catch (e) {
-            logger.error(`[Sync] Redo failed: ${e}`);
+            logger.error(`[Sync] Redo failed: ${e instanceof Error ? e.message : String(e)}`);
         }
     },
 
@@ -199,7 +199,7 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
             await invoke('deduplicate_features', { projectId });
             tryRecoveryInitialize(get, projectId);
         } catch (e) {
-            logger.error(`[Sync] Deduplicate failed: ${e}`);
+            logger.error(`[Sync] Deduplicate failed: ${e instanceof Error ? e.message : String(e)}`);
         }
     },
 
@@ -273,7 +273,9 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
                 String(calculatedSTT),
                 f.properties as Record<string, unknown>
             );
-            const currentOrder = String(meta.display_order || '');
+            const currentOrder = typeof meta.display_order === 'string' || typeof meta.display_order === 'number'
+                ? String(meta.display_order)
+                : '';
             const currentAliasState = JSON.stringify(syncDisplayOrderAliases(
                 meta as Record<string, unknown>,
                 currentOrder,

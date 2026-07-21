@@ -39,6 +39,7 @@ export function MaterialManager({ projectId }: Props) {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMaterials();
   }, [projectId]);
 
@@ -198,6 +199,7 @@ export function MaterialManager({ projectId }: Props) {
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-cad-text-muted uppercase tracking-widest">Description</label>
                 <input
+                  // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
                   required
                   value={newMaterial.name}

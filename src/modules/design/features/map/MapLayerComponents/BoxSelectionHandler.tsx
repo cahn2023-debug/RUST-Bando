@@ -67,7 +67,7 @@ export function BoxSelectionHandler() {
       selectionBox.style.height = `${maxY - minY}px`;
     };
 
-    const onMouseUp = async (e: MouseEvent) => {
+    const onMouseUp = (e: MouseEvent) => {
       if (!isDragging || !startPoint || !selectionBox) return;
 
       const rect = container.getBoundingClientRect();

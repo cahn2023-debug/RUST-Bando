@@ -27,9 +27,11 @@ export function MeasurementTool({ active, onDeactivate }: MeasurementToolProps) 
 
     useEffect(() => {
         if (!active) {
-            setPoints([]);
-            setHoverPoint(null);
-            return;
+            const resetTimer = window.setTimeout(() => {
+                setPoints([]);
+                setHoverPoint(null);
+            }, 0);
+            return () => window.clearTimeout(resetTimer);
         }
 
         map.getContainer().classList.add('measure-tool-active');

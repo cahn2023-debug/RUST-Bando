@@ -84,21 +84,27 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
         const val = parseFloat(value);
         if (isNaN(val)) return;
 
-        let coords = typeof feature.coordinates === 'string' ? JSON.parse(feature.coordinates) : feature.coordinates;
+        const coords = typeof feature.coordinates === 'string' ? JSON.parse(feature.coordinates) : feature.coordinates;
+        let nextCoords = coords;
 
         // Handle Point or first point of Line/Polygon
         if (Array.isArray(coords)) {
           if (typeof coords[0] === 'number') {
             // It's a single Point [lng, lat]
-            if (field === 'lng') coords[0] = val;
-            else coords[1] = val;
+            nextCoords = field === 'lng'
+              ? [val, coords[1]]
+              : [coords[0], val];
           } else if (Array.isArray(coords[0]) && typeof coords[0][0] === 'number') {
             // It's a line/polygon [[lng, lat], ...] or multi-point
-            if (field === 'lng') coords[0][0] = val;
-            else coords[0][1] = val;
+            nextCoords = coords.map((point: unknown, index: number) => {
+              if (index !== 0 || !Array.isArray(point)) return point;
+              return field === 'lng'
+                ? [val, point[1]]
+                : [point[0], val];
+            });
           }
         }
-        payload.coordinates = JSON.stringify(coords);
+        payload.coordinates = JSON.stringify(nextCoords);
       } catch (e) {
         console.error("Failed to update coordinates:", e);
       }

@@ -79,7 +79,9 @@ export function useFlattenedTree({
             if (sortField === 'stt' && (aStt !== undefined || bStt !== undefined)) {
                 if (aStt === undefined) return 1;
                 if (bStt === undefined) return -1;
-                return String(aStt).localeCompare(String(bStt), undefined, { numeric: true, sensitivity: 'base' });
+                const aStr = (typeof aStt === 'string' || typeof aStt === 'number') ? String(aStt) : '';
+                const bStr = (typeof bStt === 'string' || typeof bStt === 'number') ? String(bStt) : '';
+                return aStr.localeCompare(bStr, undefined, { numeric: true, sensitivity: 'base' });
             }
 
             const nameA = a.name || '';

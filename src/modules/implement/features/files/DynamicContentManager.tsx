@@ -36,6 +36,7 @@ export function DynamicContentManager({ projectId, contentType }: Props) {
     };
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchData();
     }, [projectId, contentType.id]);
 

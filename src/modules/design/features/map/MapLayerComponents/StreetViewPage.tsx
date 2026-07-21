@@ -34,33 +34,21 @@ const parseStreetViewLocation = () => {
 };
 
 const StreetViewPage: React.FC = () => {
-  const [lat, setLat] = useState<number | null>(null);
-  const [lng, setLng] = useState<number | null>(null);
-  const [apiKey, setApiKey] = useState<string>('');
-  const [heading, setHeading] = useState<number>(0);
-  const [fov, setFov] = useState<number>(90);
+  const [location, setLocation] = useState(() => parseStreetViewLocation());
+  const [apiKey] = useState(() => getGoogleMapsApiKey());
 
   useEffect(() => {
-    const parsed = parseStreetViewLocation();
-    if (parsed) {
-      setLat(parsed.lat);
-      setLng(parsed.lng);
-      setHeading(parsed.heading);
-      setFov(parsed.fov);
-    }
-
     const unlistenLocation = listen<{ lat: number; lng: number; heading?: number; fov?: number }>(
       'location-change',
       (event) => {
-        setLat(event.payload.lat);
-        setLng(event.payload.lng);
-        setHeading(normalizeHeading(event.payload.heading ?? 0));
-        setFov(event.payload.fov ?? 90);
+        setLocation({
+          lat: event.payload.lat,
+          lng: event.payload.lng,
+          heading: normalizeHeading(event.payload.heading ?? 0),
+          fov: event.payload.fov ?? 90
+        });
       }
     );
-
-    const key = getGoogleMapsApiKey();
-    setApiKey(key);
 
     const root = document.documentElement;
     const body = document.body;
@@ -79,7 +67,7 @@ const StreetViewPage: React.FC = () => {
     };
   }, []);
 
-  if (lat === null || lng === null) {
+  if (!location) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#1a1a1a] text-white font-sans">
         <div className="flex flex-col items-center gap-3">
@@ -101,7 +89,7 @@ const StreetViewPage: React.FC = () => {
         filter: 'none'
       }}
     >
-      <StreetViewJS lat={lat} lng={lng} heading={heading} fov={fov} apiKey={apiKey} />
+      <StreetViewJS lat={location.lat} lng={location.lng} heading={location.heading} fov={location.fov} apiKey={apiKey} />
     </div>
   );
 };

@@ -476,6 +476,8 @@ export type DesignEventType =
         enclosure_feature_id: string;
         from_strand_id: string;
         to_strand_id: string;
+        from_direction: 'start' | 'end';
+        to_direction: 'start' | 'end';
         loss_db?: number | null;
       };
     }

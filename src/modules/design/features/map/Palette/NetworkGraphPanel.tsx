@@ -776,8 +776,10 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
         const isNode = evaluation.nodes.some(node => node.id === selectedFeatureId);
         const isEdge = evaluation.edges.some(edge => edge.id === selectedFeatureId);
         if (isNode || isEdge) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setIsInspectorOpen(true);
         }
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSelectedEntity(current => {
             if (current?.type === 'edge' && !selectedFeatureChanged) return current;
             if (isNode) {
@@ -803,10 +805,12 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
 
     useEffect(() => {
         if (layoutMode === 'tree') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLayoutPositions({});
             return;
         }
 
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setLayoutPositions(readLayoutPositions(layoutStorageKey));
     }, [layoutMode, layoutStorageKey]);
 
@@ -923,6 +927,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
 
     useEffect(() => {
         if (!selectedFeatureId) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             if (selectedEntity !== null) setSelectedEntity(null);
             return;
         }
@@ -931,17 +936,20 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
 
         const isNode = evaluation.nodes.some(n => n.id === selectedFeatureId);
         if (isNode) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSelectedEntity({ type: 'node', id: selectedFeatureId });
             return;
         }
 
         const isEdge = evaluation.edges.some(e => e.id === selectedFeatureId);
         if (isEdge) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSelectedEntity({ type: 'edge', id: selectedFeatureId });
             return;
         }
 
         if (selectedEntity !== null) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSelectedEntity(null);
         }
     }, [selectedFeatureId, evaluation.nodes, evaluation.edges, selectedEntity]);

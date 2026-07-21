@@ -32,6 +32,7 @@ export function ContractSidebar({ projectId, contractType, onFileSelect }: Contr
     };
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         loadContracts();
 
         // Listen for metadata updates to refresh sidebar

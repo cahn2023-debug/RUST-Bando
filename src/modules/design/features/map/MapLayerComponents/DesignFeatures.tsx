@@ -19,6 +19,12 @@ import { getParsedMetadata } from '@DESIGN/features/map/MapLayerComponents/Share
 import { getFeatureDisplayInfo, getParsedCoordinates } from '@TOOL/utils/featureUtils';
 import { isRenderableFeatureGeometry } from '@TOOL/utils/featurePersistence';
 
+const metadataString = (value: unknown) => (
+    typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+        ? String(value)
+        : null
+);
+
 const ZOOM_THRESHOLD = 19;
 const BOUNDS_DEBOUNCE_MS = 150;
 const REPORT_CAPTURE_EVENT = 'design-report-map-capture';
@@ -115,17 +121,20 @@ export const DesignFeatures = () => {
     }, [map]);
 
     useEffect(() => {
-        if (canReadMapBounds(map)) {
-            setCurrentZoom(map.getZoom());
-            setBounds(map.getBounds());
-            return;
-        }
+        const syncTimer = window.setTimeout(() => {
+            if (canReadMapBounds(map)) {
+                setCurrentZoom(map.getZoom());
+                setBounds(map.getBounds());
+                return;
+            }
 
-        map.whenReady(() => {
-            if (!canReadMapBounds(map)) return;
-            setCurrentZoom(map.getZoom());
-            setBounds(map.getBounds());
-        });
+            map.whenReady(() => {
+                if (!canReadMapBounds(map)) return;
+                setCurrentZoom(map.getZoom());
+                setBounds(map.getBounds());
+            });
+        }, 0);
+        return () => window.clearTimeout(syncTimer);
     }, [map]);
 
     useMapEvents({
@@ -143,8 +152,8 @@ export const DesignFeatures = () => {
         const map = new Map<string, string[]>();
         Object.values(features).forEach(f => {
             const meta = getParsedMetadata(f, previewMetadata);
-            if (meta.parent_feature_id) {
-                const pid = String(meta.parent_feature_id);
+            const pid = metadataString(meta.parent_feature_id);
+            if (pid) {
                 const children = map.get(pid) || [];
                 map.set(pid, [...children, f.id]);
             }

@@ -10,6 +10,15 @@ import {
 import { calculatePPMAtPoint, SENSOR_SIZES, calculateHFOV, getDORICategory } from '@TOOL/utils/cameraMath';
 import { createPortal } from 'react-dom';
 
+const metadataNumber = (value: unknown, fallback: number) => {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
+    if (typeof value === 'string') {
+        const parsed = parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+    return fallback;
+};
+
 export const InteractivePPM: React.FC = () => {
     const showDORILayers = useDesignSync(s => s.showDORILayers);
     const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
@@ -45,8 +54,8 @@ export const InteractivePPM: React.FC = () => {
         const installHeight = getEffectiveMountingHeight(feature, state.settings, metadata);
         const sensor = SENSOR_SIZES[sensorSize as keyof typeof SENSOR_SIZES] || SENSOR_SIZES['1/2.8"'];
         const calculatedHfov = calculateHFOV(sensor.width, focalLength);
-        const hfov = parseFloat(String(getFeatureMetadataValue(feature, 'specs.hfov', 'hfov', metadata) ?? calculatedHfov));
-        const targetHeight = parseFloat(String(getFeatureMetadataValue(feature, 'specs.target_height', 'targetHeight', metadata) ?? 1.7));
+        const hfov = metadataNumber(getFeatureMetadataValue(feature, 'specs.hfov', 'hfov', metadata), calculatedHfov);
+        const targetHeight = metadataNumber(getFeatureMetadataValue(feature, 'specs.target_height', 'targetHeight', metadata), 1.7);
 
         return {
             lat: coords[1] as number,

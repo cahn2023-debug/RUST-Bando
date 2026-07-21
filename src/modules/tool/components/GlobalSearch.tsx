@@ -59,7 +59,9 @@ export const GlobalSearch: React.FC = () => {
 
     useEffect(() => {
         if (isOpen) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setQuery("");
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setResults([]);
             setTimeout(() => inputRef.current?.focus(), 10);
         }

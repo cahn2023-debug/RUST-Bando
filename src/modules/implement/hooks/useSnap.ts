@@ -34,7 +34,7 @@ export const useSnap = () => {
         return unsubscribe;
     }, []);
 
-    const snapNow = useCallback(async (lat: number, lng: number, manualThreshold?: number) => {
+    const snapNow = useCallback((lat: number, lng: number, manualThreshold?: number) => {
         if (drawingMode === 'none' && !editingFeatureId) return null;
         try {
             const threshold = manualThreshold ?? 0.00002;
@@ -74,8 +74,8 @@ export const useSnap = () => {
         }
     }, [drawingMode, editingFeatureId, features]);
 
-    const performSnap = useMemo(() => throttle(async (lat: number, lng: number) => {
-        const result = await snapNow(lat, lng);
+    const performSnap = useMemo(() => throttle((lat: number, lng: number) => {
+        const result = snapNow(lat, lng);
         setSnappedPoint(result);
     }, 50), [snapNow, setSnappedPoint]);
 

@@ -150,7 +150,7 @@ export const getRepresentativePoint = (feature: FeatureState | { coordinates: un
  */
 export const formatToIntegerString = (val: unknown): string => {
     if (val === undefined || val === null || val === '') return "";
-    const s = String(val).trim();
+    const s = String(val as any).trim();
     if (s === 'Data::Empty') return "";
 
     // Special Case: Junction Numbering (e.g. 15_1, 192_4)
@@ -177,8 +177,7 @@ export const getCleanName = (feature: FeatureState | { name: unknown }, stt?: st
     const s = stt.trim();
     const n = name.trim();
 
-    // Normalization to handle matching "193" with "193.0 Nút giao"
-    const normalizeForMatch = (val: string) => val.replace(/^0+/, '').replace(/\.0+$/, '').replace(/[\.\-:]+$/, '');
+    const normalizeForMatch = (val: string) => val.replace(/^0+/, '').replace(/\.0+$/, '').replace(/[.:-]+$/, '');
     const sNorm = normalizeForMatch(s);
     const nNorm = normalizeForMatch(n);
 

@@ -11,11 +11,21 @@ export const PerformanceOverlay: React.FC = () => {
     const showPerformanceOverlay = useLayoutStore(s => s.showPerformanceOverlay);
     const setShowPerformanceOverlay = useLayoutStore(s => s.setShowPerformanceOverlay);
 
+    const [now, setNow] = React.useState(() => Date.now());
+
+    React.useEffect(() => {
+        if (!showPerformanceOverlay) return;
+        const interval = setInterval(() => {
+            setNow(Date.now());
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [showPerformanceOverlay]);
+
     if (!showPerformanceOverlay) return null;
 
     const syncLabel = syncError ? 'Error' : pendingSync || isSaving ? 'Saving' : 'Idle';
     const syncTone = syncError ? 'text-red-400' : pendingSync || isSaving ? 'text-yellow-300' : 'text-green-400';
-    const lastSyncLabel = lastSync ? `${Math.max(0, Math.round((Date.now() - lastSync) / 1000))}s` : '--';
+    const lastSyncLabel = lastSync ? `${Math.max(0, Math.round((now - lastSync) / 1000))}s` : '--';
 
     return (
         <div

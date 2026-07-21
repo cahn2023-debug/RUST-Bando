@@ -9,6 +9,15 @@ import {
 } from '@TOOL/utils/featureUtils';
 import { calculateDORIRanges, calculateArcPoints, SENSOR_SIZES, calculateHFOV, mapRotationToHeading } from '@TOOL/utils/cameraMath';
 
+const metadataNumber = (value: unknown, fallback: number) => {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
+    if (typeof value === 'string') {
+        const parsed = parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+    return fallback;
+};
+
 export const DORIOverlay: React.FC = () => {
     const showDORILayers = useDesignSync(s => s.showDORILayers);
     const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
@@ -43,7 +52,7 @@ export const DORIOverlay: React.FC = () => {
     const lng = coords[0] as number;
 
     // Support both flattened and nested metadata paths
-    const rotationVal = parseFloat(String(getFeatureMetadataValue(feature, 'gis.rotation', 'rotation', metadata) ?? 0));
+    const rotationVal = metadataNumber(getFeatureMetadataValue(feature, 'gis.rotation', 'rotation', metadata), 0);
     const heading = mapRotationToHeading(rotationVal);
 
     const { focalLength, sensorSize, resolutionX } = getEffectiveCameraSpecs(feature, state?.settings, metadata);
@@ -52,8 +61,8 @@ export const DORIOverlay: React.FC = () => {
     // Calculate hfov from focalLength and sensorSize if not explicitly in metadata
     const sensor = SENSOR_SIZES[sensorSize as keyof typeof SENSOR_SIZES] || SENSOR_SIZES['1/2.8"'];
     const calculatedHfov = calculateHFOV(sensor.width, focalLength);
-    const hfov = parseFloat(String(getFeatureMetadataValue(feature, 'specs.hfov', 'hfov', metadata) ?? calculatedHfov));
-    const targetHeight = parseFloat(String(getFeatureMetadataValue(feature, 'specs.target_height', 'targetHeight', metadata) ?? 1.7));
+    const hfov = metadataNumber(getFeatureMetadataValue(feature, 'specs.hfov', 'hfov', metadata), calculatedHfov);
+    const targetHeight = metadataNumber(getFeatureMetadataValue(feature, 'specs.target_height', 'targetHeight', metadata), 1.7);
 
     const ranges = calculateDORIRanges(resolutionX, hfov, installHeight, targetHeight);
 

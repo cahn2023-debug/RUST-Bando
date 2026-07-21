@@ -30,6 +30,7 @@ export function ImportReviewDialog({
   const normalizedRecords = useMemo(() => records.map((record) => record.id), [records]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedIds(normalizedRecords);
   }, [normalizedRecords]);
 

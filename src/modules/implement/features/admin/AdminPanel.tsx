@@ -38,6 +38,7 @@ export const AdminPanel: React.FC = () => {
     };
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchConfig();
         fetchLogs();
     }, []);
@@ -51,7 +52,7 @@ export const AdminPanel: React.FC = () => {
             });
             await fetchConfig();
         } catch (err) {
-            alert("Failed to update: " + err);
+            alert("Failed to update: " + (err instanceof Error ? err.message : String(err)));
         }
     };
 
@@ -64,7 +65,7 @@ export const AdminPanel: React.FC = () => {
             });
             await fetchConfig();
         } catch (err) {
-            alert("Failed to remove: " + err);
+            alert("Failed to remove: " + (err instanceof Error ? err.message : String(err)));
         }
     };
 

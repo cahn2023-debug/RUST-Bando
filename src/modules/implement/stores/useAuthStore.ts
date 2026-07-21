@@ -155,7 +155,7 @@ export const initAuth = () => {
   const currentState = useAuthStore.getState();
   if (currentState.initialized) return Promise.resolve();
 
-  initPromise = new Promise(async (resolve) => {
+  initPromise = new Promise((resolve) => {
     // v72: IMMEDIATE URL DETECTION (Primary for Standalone)
     const initialParams = new URLSearchParams(window.location.search);
     const isUrlStandalone = initialParams.has('view') || initialParams.has('projectId');
@@ -163,80 +163,84 @@ export const initAuth = () => {
     let currentLabel = isUrlStandalone ? 'unknown_standalone' : 'main';
     let isStandalone = isUrlStandalone;
 
-    try {
-      // v72: Refine with Native Tauri APIs if possible
-      const { getCurrentWindow } = await import('@tauri-apps/api/window');
-      const win = getCurrentWindow();
-      if (win) {
-        currentLabel = win.label;
-        isStandalone = currentLabel !== 'main';
-        console.log(`[Auth] v72 Native Detection: Label=${currentLabel}, Standalone=${isStandalone}`);
-        useAuthStore.setState({ isStandalone, tauriLabel: currentLabel });
+    const runInit = async () => {
+      try {
+        // v72: Refine with Native Tauri APIs if possible
+        const { getCurrentWindow } = await import('@tauri-apps/api/window');
+        const win = getCurrentWindow();
+        if (win) {
+          currentLabel = win.label;
+          isStandalone = currentLabel !== 'main';
+          console.log(`[Auth] v72 Native Detection: Label=${currentLabel}, Standalone=${isStandalone}`);
+          useAuthStore.setState({ isStandalone, tauriLabel: currentLabel });
+        }
+      } catch (e) {
+        console.warn("[Auth] Tauri API not available, sticking to URL detection.");
       }
-    } catch (e) {
-      console.warn("[Auth] Tauri API not available, sticking to URL detection.");
-    }
 
-    console.log(`[Auth] Initializing Auth System (v72). Standalone: ${isStandalone}, Label: ${currentLabel}`);
+      console.log(`[Auth] Initializing Auth System (v72). Standalone: ${isStandalone}, Label: ${currentLabel}`);
 
-    // 1. Force Local Persistence ONLY in Main Window (view === null)
-    const persistencePromise = !isStandalone
-      ? setPersistence(auth, browserLocalPersistence)
-        .then(() => {
-          console.log("1. Persistence set to LOCAL successfully (Main Window).");
-        })
-        .catch((err) => {
-          console.error("!! Persistence Error: ", err.code, err.message);
-          useAuthStore.getState().setError(err.message);
-        })
-      : Promise.resolve().then(() => console.log("1. Skipping setPersistence in Standalone Window."));
+      // 1. Force Local Persistence ONLY in Main Window (view === null)
+      const persistencePromise = !isStandalone
+        ? setPersistence(auth, browserLocalPersistence)
+          .then(() => {
+            console.log("1. Persistence set to LOCAL successfully (Main Window).");
+          })
+          .catch((err) => {
+            console.error("!! Persistence Error: ", err.code, err.message);
+            useAuthStore.getState().setError(err.message);
+          })
+        : Promise.resolve().then(() => console.log("1. Skipping setPersistence in Standalone Window."));
 
-    persistencePromise.finally(() => {
-      console.debug("[Auth] 2. Starting onAuthStateChanged listener.");
-      const startTime = Date.now();
+      persistencePromise.finally(() => {
+        console.debug("[Auth] 2. Starting onAuthStateChanged listener.");
+        const startTime = Date.now();
 
-      onAuthStateChanged(auth, (user) => {
-        const elapsed = Date.now() - startTime;
-        console.debug(`[Auth] onAuthStateChanged fired (${elapsed}ms). User:`, user?.email || "None");
+        onAuthStateChanged(auth, (user) => {
+          const elapsed = Date.now() - startTime;
+          console.debug(`[Auth] onAuthStateChanged fired (${elapsed}ms). User:`, user?.email || "None");
 
-        // Clear any pending null-timers if a valid user appears
-        if (user && nullStateTimer) {
-          console.log("[Auth] Valid user detected. Canceling No-User grace period.");
-          clearTimeout(nullStateTimer);
-          nullStateTimer = null;
-        }
-
-        // v72 STABILITY BUFFER: Prevent early kick-out on Main Window
-        if (!isStandalone && !user && !useAuthStore.getState().initialized) {
-          if (!nullStateTimer) {
-            // v4.0.3: Shorten buffer for browser environments to prevent UI lag/loops
-            const duration = IS_REAL_TAURI ? STABILITY_CHECK_DURATION : 100;
-            console.warn(`[Auth] Main Window (${elapsed}ms): Initial 'null' user. Starting ${duration}ms stability buffer...`);
-
-            nullStateTimer = setTimeout(() => {
-              console.warn("[Auth] Main Window: Stability buffer expired. Confirming No-User state.");
-              useAuthStore.getState().setUser(null);
-              nullStateTimer = null;
-            }, duration);
+          // Clear any pending null-timers if a valid user appears
+          if (user && nullStateTimer) {
+            console.log("[Auth] Valid user detected. Canceling No-User grace period.");
+            clearTimeout(nullStateTimer);
+            nullStateTimer = null;
           }
-          return; // Wait for buffer
-        }
+
+          // v72 STABILITY BUFFER: Prevent early kick-out on Main Window
+          if (!isStandalone && !user && !useAuthStore.getState().initialized) {
+            if (!nullStateTimer) {
+              // v4.0.3: Shorten buffer for browser environments to prevent UI lag/loops
+              const duration = IS_REAL_TAURI ? STABILITY_CHECK_DURATION : 100;
+              console.warn(`[Auth] Main Window (${elapsed}ms): Initial 'null' user. Starting ${duration}ms stability buffer...`);
+
+              nullStateTimer = setTimeout(() => {
+                console.warn("[Auth] Main Window: Stability buffer expired. Confirming No-User state.");
+                useAuthStore.getState().setUser(null);
+                nullStateTimer = null;
+              }, duration);
+            }
+            return; // Wait for buffer
+          }
 
 
-        // v47/v72 STANDALONE PROTECTION (Keep 60s for sub-windows)
-        if (isStandalone && !user && elapsed < 60000) {
-          console.warn(`[Auth] Standalone Window (${elapsed}ms): ZERO-FAILURE SESSION GUARD. Ignoring 'null' user update.`);
-          return;
-        }
+          // v47/v72 STANDALONE PROTECTION (Keep 60s for sub-windows)
+          if (isStandalone && !user && elapsed < 60000) {
+            console.warn(`[Auth] Standalone Window (${elapsed}ms): ZERO-FAILURE SESSION GUARD. Ignoring 'null' user update.`);
+            return;
+          }
 
-        useAuthStore.getState().setUser(user);
-        resolve();
-      }, (err) => {
-        console.error("[Auth] onAuthStateChanged Error:", err);
-        useAuthStore.getState().setError(err.message);
-        resolve();
+          useAuthStore.getState().setUser(user);
+          resolve();
+        }, (err) => {
+          console.error("[Auth] onAuthStateChanged Error:", err);
+          useAuthStore.getState().setError(err.message);
+          resolve();
+        });
       });
-    });
+    };
+
+    runInit();
 
     // Safety Timeout: 15 seconds
     setTimeout(() => {

@@ -220,6 +220,7 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
     [loadBOM]
   );
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleBulkSync = useCallback(async () => {
     if (analyzing || !selectedFile?.path) return;
     setAnalyzing(true);
@@ -244,6 +245,7 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
     }
   }, [projectId, analyzing, selectedFile?.path]);
 
+  /* eslint-disable react-hooks/preserve-manual-memoization */
   const handleSaveCorrections = useCallback(
     async (correctedData: ContractMetadata) => {
       try {
@@ -273,6 +275,7 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
     },
     [projectId, selectedFile?.path, loadContracts, onProjectUpdate]
   );
+  /* eslint-enable react-hooks/preserve-manual-memoization */
 
   const handleProjectMetadataUpdate = useCallback(
     async (correctedData: LocalMetadata & { bom_table?: BOMItem[] }) => {

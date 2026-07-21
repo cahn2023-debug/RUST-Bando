@@ -55,8 +55,8 @@ const compareValues = (left: ComparableValue, right: ComparableValue) => {
 };
 
 const compareFeatures = (left: ProcessedFeature, right: ProcessedFeature) => {
-  const leftDisplayOrder = String(left.flatRow.display_order || '');
-  const rightDisplayOrder = String(right.flatRow.display_order || '');
+  const leftDisplayOrder = String((left.flatRow.display_order as any) || '');
+  const rightDisplayOrder = String((right.flatRow.display_order as any) || '');
 
   if (leftDisplayOrder && rightDisplayOrder) {
     const displayOrderComparison = collator.compare(leftDisplayOrder, rightDisplayOrder);
@@ -162,8 +162,8 @@ export const buildAnalysisHierarchyRows = (state: MapState): AnalysisHierarchyRo
     const row = {
       ...(current.flatRow as Record<string, unknown>),
       junction_scope: current.parentId
-        ? (root.feature.name || String(root.flatRow.name || ''))
-        : (current.isIntersection ? String(current.feature.name || current.flatRow.name || '') : ''),
+        ? (root.feature.name || String((root.flatRow.name as any) || ''))
+        : (current.isIntersection ? String((current.feature.name as any) || (current.flatRow.name as any) || '') : ''),
       __analysis_depth: depth,
       __analysis_is_intersection: current.isIntersection,
       __analysis_parent_id: current.parentId,

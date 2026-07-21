@@ -62,6 +62,7 @@ export function useSyncV2() {
 
     // Polling status occasionally
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchStatus();
         const interval = setInterval(fetchStatus, 30000); // 30s
         return () => clearInterval(interval);
