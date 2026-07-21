@@ -11,6 +11,7 @@ import type {
   FiberCircuitStatus,
   FiberInventory,
   FiberPortDirection,
+  FiberPortTerminationSide,
   FiberPortStatus,
   FiberStrandStatus,
   FiberTraceResult,
@@ -53,6 +54,23 @@ export interface FiberPortUpsertInput {
   portKind: string;
   direction?: FiberPortDirection;
   status?: FiberPortStatus;
+}
+
+export interface FiberPortTerminationUpsertInput {
+  id: string;
+  portId: string;
+  strandId: string;
+  strandDirection: 'start' | 'end';
+  side: FiberPortTerminationSide;
+  status?: string;
+}
+
+export interface FiberPortPatchUpsertInput {
+  id: string;
+  fromPortId: string;
+  toPortId: string;
+  status?: string;
+  lossDb?: number | null;
 }
 
 export interface FiberSpliceUpsertInput {
@@ -226,6 +244,43 @@ export const upsertFiberPort = async (projectId: string, input: FiberPortUpsertI
     },
   });
 
+export const upsertFiberPortTermination = async (projectId: string, input: FiberPortTerminationUpsertInput) =>
+  buildBatchResponse(projectId, {
+    type: 'FiberPortTerminationUpserted',
+    payload: {
+      id: input.id,
+      port_id: input.portId,
+      strand_id: input.strandId,
+      strand_direction: input.strandDirection,
+      side: input.side,
+      status: input.status ?? 'active',
+    },
+  });
+
+export const deleteFiberPortTermination = async (projectId: string, terminationId: string) =>
+  buildBatchResponse(projectId, {
+    type: 'FiberPortTerminationDeleted',
+    payload: { id: terminationId },
+  });
+
+export const upsertFiberPortPatch = async (projectId: string, input: FiberPortPatchUpsertInput) =>
+  buildBatchResponse(projectId, {
+    type: 'FiberPortPatchUpserted',
+    payload: {
+      id: input.id,
+      from_port_id: input.fromPortId,
+      to_port_id: input.toPortId,
+      status: input.status ?? 'active',
+      loss_db: input.lossDb ?? null,
+    },
+  });
+
+export const deleteFiberPortPatch = async (projectId: string, patchId: string) =>
+  buildBatchResponse(projectId, {
+    type: 'FiberPortPatchDeleted',
+    payload: { id: patchId },
+  });
+
 export const upsertFiberSplice = async (projectId: string, input: FiberSpliceUpsertInput) =>
   buildBatchResponse(projectId, {
     type: 'FiberSpliceUpserted',
@@ -239,6 +294,23 @@ export const upsertFiberSplice = async (projectId: string, input: FiberSpliceUps
       loss_db: input.lossDb ?? null,
     },
   });
+
+export const upsertFiberSplices = async (projectId: string, inputs: FiberSpliceUpsertInput[]) =>
+  invoke_design_event_batch(
+    projectId,
+    inputs.map(input => ({
+      type: 'FiberSpliceUpserted',
+      payload: {
+        id: input.id,
+        enclosure_feature_id: input.enclosureFeatureId,
+        from_strand_id: input.fromStrandId,
+        to_strand_id: input.toStrandId,
+        from_direction: input.fromDirection,
+        to_direction: input.toDirection,
+        loss_db: input.lossDb ?? null,
+      },
+    }))
+  );
 
 export const deleteFiberSplice = async (projectId: string, spliceId: string) =>
   buildBatchResponse(projectId, {

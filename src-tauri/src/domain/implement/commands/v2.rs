@@ -1029,6 +1029,41 @@ fn frontend_event_to_envelope(
                 .and_then(Value::as_str)
                 .map(|value| value.to_string()),
         },
+        "FiberPortTerminationUpserted" => crate::domain::models::v2::AppEvent::FiberPortTerminationUpserted {
+            id: parse_uuid_value(payload.get("id"), "payload.id")?,
+            port_id: parse_uuid_value(payload.get("port_id"), "payload.port_id")?,
+            strand_id: parse_uuid_value(payload.get("strand_id"), "payload.strand_id")?,
+            strand_direction: payload
+                .get("strand_direction")
+                .and_then(Value::as_str)
+                .unwrap_or("start")
+                .to_string(),
+            side: payload
+                .get("side")
+                .and_then(Value::as_str)
+                .unwrap_or("left")
+                .to_string(),
+            status: payload
+                .get("status")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string()),
+        },
+        "FiberPortTerminationDeleted" => crate::domain::models::v2::AppEvent::FiberPortTerminationDeleted {
+            id: parse_uuid_value(payload.get("id"), "payload.id")?,
+        },
+        "FiberPortPatchUpserted" => crate::domain::models::v2::AppEvent::FiberPortPatchUpserted {
+            id: parse_uuid_value(payload.get("id"), "payload.id")?,
+            from_port_id: parse_uuid_value(payload.get("from_port_id"), "payload.from_port_id")?,
+            to_port_id: parse_uuid_value(payload.get("to_port_id"), "payload.to_port_id")?,
+            status: payload
+                .get("status")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string()),
+            loss_db: payload.get("loss_db").and_then(Value::as_f64),
+        },
+        "FiberPortPatchDeleted" => crate::domain::models::v2::AppEvent::FiberPortPatchDeleted {
+            id: parse_uuid_value(payload.get("id"), "payload.id")?,
+        },
         "FiberSpliceUpserted" => crate::domain::models::v2::AppEvent::FiberSpliceUpserted {
             id: parse_uuid_value(payload.get("id"), "payload.id")?,
             enclosure_feature_id: parse_uuid_value(

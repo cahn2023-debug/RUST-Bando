@@ -374,6 +374,32 @@ pub async fn get_fiber_inventory(
     };
     let ports = exec_query(&state, ports_sql.0, ports_sql.1).await?;
 
+    let port_terminations_sql = if let Some(feature_id) = scope_feature_id.as_deref() {
+        (
+            "SELECT fpt.* FROM fiber_port_terminations fpt INNER JOIN fiber_ports fp ON fp.id = fpt.port_id WHERE fp.feature_id = ?1 ORDER BY fp.port_label, fpt.side, fpt.id",
+            vec![feature_id.to_string()],
+        )
+    } else {
+        (
+            "SELECT fpt.* FROM fiber_port_terminations fpt INNER JOIN fiber_ports fp ON fp.id = fpt.port_id INNER JOIN features f ON f.id = fp.feature_id WHERE f.project_id = ?1 ORDER BY fp.feature_id, fp.port_label, fpt.id",
+            vec![project_id.clone()],
+        )
+    };
+    let port_terminations = exec_query(&state, port_terminations_sql.0, port_terminations_sql.1).await?;
+
+    let port_patches_sql = if let Some(feature_id) = scope_feature_id.as_deref() {
+        (
+            "SELECT fpp.* FROM fiber_port_patches fpp INNER JOIN fiber_ports fp1 ON fp1.id = fpp.from_port_id INNER JOIN fiber_ports fp2 ON fp2.id = fpp.to_port_id WHERE fp1.feature_id = ?1 OR fp2.feature_id = ?1 ORDER BY fpp.created_at, fpp.id",
+            vec![feature_id.to_string()],
+        )
+    } else {
+        (
+            "SELECT fpp.* FROM fiber_port_patches fpp INNER JOIN fiber_ports fp ON fp.id = fpp.from_port_id INNER JOIN features f ON f.id = fp.feature_id WHERE f.project_id = ?1 ORDER BY fpp.created_at, fpp.id",
+            vec![project_id.clone()],
+        )
+    };
+    let port_patches = exec_query(&state, port_patches_sql.0, port_patches_sql.1).await?;
+
     let splices_sql = if let Some(feature_id) = scope_feature_id.as_deref() {
         (
             "SELECT fs.* FROM fiber_splices fs WHERE fs.enclosure_feature_id = ?1 ORDER BY fs.created_at, fs.id",
@@ -454,6 +480,8 @@ pub async fn get_fiber_inventory(
         "cables": row_array(cables),
         "strands": strands_rows,
         "ports": row_array(ports),
+        "port_terminations": row_array(port_terminations),
+        "port_patches": row_array(port_patches),
         "splices": row_array(splices),
         "circuits": row_array(circuits),
         "cable_points": row_array(cable_points),
@@ -806,6 +834,16 @@ fn validate_fiber_inventory(inventory: &Value) -> Vec<Value> {
         .and_then(Value::as_array)
         .cloned()
         .unwrap_or_default();
+    let port_terminations = inventory
+        .get("port_terminations")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let port_patches = inventory
+        .get("port_patches")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
     let circuits = inventory
         .get("circuits")
         .and_then(Value::as_array)
@@ -894,11 +932,29 @@ fn validate_fiber_inventory(inventory: &Value) -> Vec<Value> {
     for splice in &splices {
         let from_id = splice.get("from_strand_id").and_then(Value::as_str).unwrap_or_default();
         let to_id = splice.get("to_strand_id").and_then(Value::as_str).unwrap_or_default();
-        if from_id == to_id {
+        let from_direction = splice.get("from_direction").and_then(Value::as_str).unwrap_or_default();
+        let to_direction = splice.get("to_direction").and_then(Value::as_str).unwrap_or_default();
+        if from_id == to_id && from_direction == to_direction {
             diagnostics.push(json!({
                 "type": "invalid-splice-loop",
                 "message": "Splice tạo vòng không hợp lệ",
                 "strand_id": from_id,
+            }));
+        }
+    }
+
+    for termination in &port_terminations {
+        let port_id = termination.get("port_id").and_then(Value::as_str).unwrap_or_default();
+        let has_patch = port_patches.iter().any(|patch| {
+            patch.get("from_port_id").and_then(Value::as_str) == Some(port_id)
+                || patch.get("to_port_id").and_then(Value::as_str) == Some(port_id)
+        });
+        if !has_patch {
+            diagnostics.push(json!({
+                "type": "odf-one-side",
+                "message": "ODF port da dau core nhung chua patch thong tuyen",
+                "port_id": port_id,
+                "strand_id": termination.get("strand_id").cloned().unwrap_or(Value::Null),
             }));
         }
     }

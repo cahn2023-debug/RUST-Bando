@@ -175,6 +175,27 @@ pub enum AppEvent {
         direction: Option<String>,
         status: Option<String>,
     },
+    FiberPortTerminationUpserted {
+        id: Uuid,
+        port_id: Uuid,
+        strand_id: Uuid,
+        strand_direction: String,
+        side: String,
+        status: Option<String>,
+    },
+    FiberPortTerminationDeleted {
+        id: Uuid,
+    },
+    FiberPortPatchUpserted {
+        id: Uuid,
+        from_port_id: Uuid,
+        to_port_id: Uuid,
+        status: Option<String>,
+        loss_db: Option<f64>,
+    },
+    FiberPortPatchDeleted {
+        id: Uuid,
+    },
     FiberSpliceUpserted {
         id: Uuid,
         enclosure_feature_id: Uuid,
@@ -463,6 +484,10 @@ impl AppEvent {
             AppEvent::FiberCablePointsMaterialized { .. } => "materialized",
             AppEvent::FiberStrandsInitialized { .. } => "initialized",
             AppEvent::FiberPortUpserted { .. } => "upserted",
+            AppEvent::FiberPortTerminationUpserted { .. } => "upserted",
+            AppEvent::FiberPortTerminationDeleted { .. } => "deleted",
+            AppEvent::FiberPortPatchUpserted { .. } => "upserted",
+            AppEvent::FiberPortPatchDeleted { .. } => "deleted",
             AppEvent::FiberSpliceUpserted { .. } => "upserted",
             AppEvent::FiberSpliceDeleted { .. } => "deleted",
             AppEvent::FiberCircuitUpserted { .. } => "upserted",
@@ -521,6 +546,10 @@ impl AppEvent {
             AppEvent::FiberCablePointsMaterialized { .. } => "FiberCablePointsMaterialized",
             AppEvent::FiberStrandsInitialized { .. } => "FiberStrandsInitialized",
             AppEvent::FiberPortUpserted { .. } => "FiberPortUpserted",
+            AppEvent::FiberPortTerminationUpserted { .. } => "FiberPortTerminationUpserted",
+            AppEvent::FiberPortTerminationDeleted { .. } => "FiberPortTerminationDeleted",
+            AppEvent::FiberPortPatchUpserted { .. } => "FiberPortPatchUpserted",
+            AppEvent::FiberPortPatchDeleted { .. } => "FiberPortPatchDeleted",
             AppEvent::FiberSpliceUpserted { .. } => "FiberSpliceUpserted",
             AppEvent::FiberSpliceDeleted { .. } => "FiberSpliceDeleted",
             AppEvent::FiberCircuitUpserted { .. } => "FiberCircuitUpserted",
@@ -604,6 +633,10 @@ impl AppEvent {
             | AppEvent::FiberCablePointsMaterialized { .. }
             | AppEvent::FiberStrandsInitialized { .. }
             | AppEvent::FiberPortUpserted { .. }
+            | AppEvent::FiberPortTerminationUpserted { .. }
+            | AppEvent::FiberPortTerminationDeleted { .. }
+            | AppEvent::FiberPortPatchUpserted { .. }
+            | AppEvent::FiberPortPatchDeleted { .. }
             | AppEvent::FiberSpliceUpserted { .. }
             | AppEvent::FiberSpliceDeleted { .. }
             | AppEvent::FiberCircuitUpserted { .. }

@@ -3505,6 +3505,75 @@ fn apply_event_to_read_models(
             )
             .map_err(|e| e.to_string())?;
         }
+        AppEvent::FiberPortTerminationUpserted {
+            id,
+            port_id,
+            strand_id,
+            strand_direction,
+            side,
+            status,
+        } => {
+            tx.execute(
+                "INSERT INTO fiber_port_terminations (id, port_id, strand_id, strand_direction, side, status, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, COALESCE(?6, 'active'), CURRENT_TIMESTAMP)
+                 ON CONFLICT(id) DO UPDATE SET
+                    port_id = excluded.port_id,
+                    strand_id = excluded.strand_id,
+                    strand_direction = excluded.strand_direction,
+                    side = excluded.side,
+                    status = excluded.status,
+                    updated_at = CURRENT_TIMESTAMP",
+                params![
+                    id.to_string(),
+                    port_id.to_string(),
+                    strand_id.to_string(),
+                    strand_direction,
+                    side,
+                    status.as_deref(),
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        AppEvent::FiberPortTerminationDeleted { id } => {
+            tx.execute(
+                "DELETE FROM fiber_port_terminations WHERE id = ?1",
+                params![id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        AppEvent::FiberPortPatchUpserted {
+            id,
+            from_port_id,
+            to_port_id,
+            status,
+            loss_db,
+        } => {
+            tx.execute(
+                "INSERT INTO fiber_port_patches (id, from_port_id, to_port_id, status, loss_db, updated_at)
+                 VALUES (?1, ?2, ?3, COALESCE(?4, 'active'), ?5, CURRENT_TIMESTAMP)
+                 ON CONFLICT(id) DO UPDATE SET
+                    from_port_id = excluded.from_port_id,
+                    to_port_id = excluded.to_port_id,
+                    status = excluded.status,
+                    loss_db = excluded.loss_db,
+                    updated_at = CURRENT_TIMESTAMP",
+                params![
+                    id.to_string(),
+                    from_port_id.to_string(),
+                    to_port_id.to_string(),
+                    status.as_deref(),
+                    loss_db,
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        AppEvent::FiberPortPatchDeleted { id } => {
+            tx.execute(
+                "DELETE FROM fiber_port_patches WHERE id = ?1",
+                params![id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
+        }
         AppEvent::FiberSpliceUpserted {
             id,
             enclosure_feature_id,
@@ -4466,6 +4535,54 @@ mod tests {
         };
         let env_port = EventEnvelope::new(project_uuid, "fiber", port_id, port_upsert, "test-device", None);
         apply_event_to_read_models(&tx, &env_port).unwrap();
+
+        let port_b_id = Uuid::new_v4();
+        let port_b_upsert = AppEvent::FiberPortUpserted {
+            id: port_b_id,
+            feature_id: enclosure_feat_id,
+            port_label: "Port B".to_string(),
+            port_kind: "ODF".to_string(),
+            direction: Some("bidirectional".to_string()),
+            status: Some("available".to_string()),
+        };
+        let env_port_b = EventEnvelope::new(project_uuid, "fiber", port_b_id, port_b_upsert, "test-device", None);
+        apply_event_to_read_models(&tx, &env_port_b).unwrap();
+
+        let termination_id = Uuid::new_v4();
+        let termination_upsert = AppEvent::FiberPortTerminationUpserted {
+            id: termination_id,
+            port_id,
+            strand_id: Uuid::parse_str(s1).unwrap(),
+            strand_direction: "start".to_string(),
+            side: "left".to_string(),
+            status: Some("active".to_string()),
+        };
+        let env_termination = EventEnvelope::new(project_uuid, "fiber", termination_id, termination_upsert, "test-device", None);
+        apply_event_to_read_models(&tx, &env_termination).unwrap();
+
+        let patch_id = Uuid::new_v4();
+        let patch_upsert = AppEvent::FiberPortPatchUpserted {
+            id: patch_id,
+            from_port_id: port_id,
+            to_port_id: port_b_id,
+            status: Some("active".to_string()),
+            loss_db: Some(0.05),
+        };
+        let env_patch = EventEnvelope::new(project_uuid, "fiber", patch_id, patch_upsert, "test-device", None);
+        apply_event_to_read_models(&tx, &env_patch).unwrap();
+
+        let termination_count: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM fiber_port_terminations WHERE id = ?1",
+            params![termination_id.to_string()],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(termination_count, 1);
+        let patch_count: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM fiber_port_patches WHERE id = ?1",
+            params![patch_id.to_string()],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(patch_count, 1);
 
         // 6. Tạo Splice giữa s1 và s2 tại enclosure
         let splice_id = Uuid::new_v4();

@@ -410,6 +410,38 @@ pub const V8_SCHEMA_SQL: &str = r#"
     CREATE INDEX IF NOT EXISTS idx_fiber_ports_feature ON fiber_ports (feature_id);
     CREATE INDEX IF NOT EXISTS idx_fiber_ports_id ON fiber_ports (id);
 
+    CREATE TABLE IF NOT EXISTS fiber_port_terminations (
+        id TEXT PRIMARY KEY,
+        port_id TEXT NOT NULL,
+        strand_id TEXT NOT NULL,
+        strand_direction TEXT NOT NULL DEFAULT 'start' CHECK (strand_direction IN ('start', 'end')),
+        side TEXT NOT NULL DEFAULT 'left' CHECK (side IN ('left', 'right')),
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(port_id) REFERENCES fiber_ports(id) ON DELETE CASCADE,
+        FOREIGN KEY(strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE,
+        UNIQUE(port_id),
+        UNIQUE(strand_id, strand_direction)
+    );
+    CREATE INDEX IF NOT EXISTS idx_fiber_port_terminations_port ON fiber_port_terminations (port_id);
+    CREATE INDEX IF NOT EXISTS idx_fiber_port_terminations_strand ON fiber_port_terminations (strand_id, strand_direction);
+
+    CREATE TABLE IF NOT EXISTS fiber_port_patches (
+        id TEXT PRIMARY KEY,
+        from_port_id TEXT NOT NULL,
+        to_port_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        loss_db REAL,
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(from_port_id) REFERENCES fiber_ports(id) ON DELETE CASCADE,
+        FOREIGN KEY(to_port_id) REFERENCES fiber_ports(id) ON DELETE CASCADE,
+        CHECK(from_port_id <> to_port_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_fiber_port_patches_from ON fiber_port_patches (from_port_id);
+    CREATE INDEX IF NOT EXISTS idx_fiber_port_patches_to ON fiber_port_patches (to_port_id);
+
     CREATE TABLE IF NOT EXISTS fiber_splices (
         id TEXT PRIMARY KEY,
         enclosure_feature_id TEXT NOT NULL,
@@ -422,8 +454,7 @@ pub const V8_SCHEMA_SQL: &str = r#"
         updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
         FOREIGN KEY(enclosure_feature_id) REFERENCES features(id) ON DELETE CASCADE,
         FOREIGN KEY(from_strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE,
-        FOREIGN KEY(to_strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE,
-        CHECK(from_strand_id <> to_strand_id)
+        FOREIGN KEY(to_strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_fiber_splices_enclosure ON fiber_splices (enclosure_feature_id);
     CREATE INDEX IF NOT EXISTS idx_fiber_splices_from_strand ON fiber_splices (from_strand_id);
@@ -533,7 +564,112 @@ fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, r
     .map(|value| value.is_some())
 }
 
+fn fiber_splices_has_legacy_self_check(conn: &Connection) -> Result<bool, rusqlite::Error> {
+    conn.query_row(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'fiber_splices'",
+        [],
+        |row| row.get::<_, String>(0),
+    )
+    .optional()
+    .map(|sql| sql.is_some_and(|value| value.contains("CHECK(from_strand_id <> to_strand_id)")))
+}
+
+fn rebuild_fiber_splices_without_legacy_self_check(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute_batch(
+        r#"
+        PRAGMA foreign_keys=OFF;
+
+        DROP TRIGGER IF EXISTS trg_fiber_splices_no_self_insert;
+        DROP TRIGGER IF EXISTS trg_fiber_splices_no_self_update;
+        DROP TRIGGER IF EXISTS trg_fiber_splices_no_duplicate_insert;
+        DROP TRIGGER IF EXISTS trg_fiber_splices_no_duplicate_update;
+
+        CREATE TABLE IF NOT EXISTS fiber_splices_v8_rebuild (
+            id TEXT PRIMARY KEY,
+            enclosure_feature_id TEXT NOT NULL,
+            from_strand_id TEXT NOT NULL,
+            to_strand_id TEXT NOT NULL,
+            from_direction TEXT NOT NULL DEFAULT 'start' CHECK (from_direction IN ('start', 'end')),
+            to_direction TEXT NOT NULL DEFAULT 'start' CHECK (to_direction IN ('start', 'end')),
+            loss_db REAL,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            FOREIGN KEY(enclosure_feature_id) REFERENCES features(id) ON DELETE CASCADE,
+            FOREIGN KEY(from_strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE,
+            FOREIGN KEY(to_strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE
+        );
+
+        INSERT OR REPLACE INTO fiber_splices_v8_rebuild (
+            id,
+            enclosure_feature_id,
+            from_strand_id,
+            to_strand_id,
+            from_direction,
+            to_direction,
+            loss_db,
+            created_at,
+            updated_at
+        )
+        SELECT
+            id,
+            enclosure_feature_id,
+            from_strand_id,
+            to_strand_id,
+            from_direction,
+            to_direction,
+            loss_db,
+            created_at,
+            updated_at
+        FROM fiber_splices;
+
+        DROP TABLE fiber_splices;
+        ALTER TABLE fiber_splices_v8_rebuild RENAME TO fiber_splices;
+        CREATE INDEX IF NOT EXISTS idx_fiber_splices_enclosure ON fiber_splices (enclosure_feature_id);
+        CREATE INDEX IF NOT EXISTS idx_fiber_splices_from_strand ON fiber_splices (from_strand_id);
+        CREATE INDEX IF NOT EXISTS idx_fiber_splices_to_strand ON fiber_splices (to_strand_id);
+
+        PRAGMA foreign_keys=ON;
+        "#,
+    )
+}
+
 pub fn ensure_v8_compatibility(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS fiber_port_terminations (
+            id TEXT PRIMARY KEY,
+            port_id TEXT NOT NULL,
+            strand_id TEXT NOT NULL,
+            strand_direction TEXT NOT NULL DEFAULT 'start' CHECK (strand_direction IN ('start', 'end')),
+            side TEXT NOT NULL DEFAULT 'left' CHECK (side IN ('left', 'right')),
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            FOREIGN KEY(port_id) REFERENCES fiber_ports(id) ON DELETE CASCADE,
+            FOREIGN KEY(strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE,
+            UNIQUE(port_id),
+            UNIQUE(strand_id, strand_direction)
+        );
+        CREATE INDEX IF NOT EXISTS idx_fiber_port_terminations_port ON fiber_port_terminations (port_id);
+        CREATE INDEX IF NOT EXISTS idx_fiber_port_terminations_strand ON fiber_port_terminations (strand_id, strand_direction);
+
+        CREATE TABLE IF NOT EXISTS fiber_port_patches (
+            id TEXT PRIMARY KEY,
+            from_port_id TEXT NOT NULL,
+            to_port_id TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            loss_db REAL,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            FOREIGN KEY(from_port_id) REFERENCES fiber_ports(id) ON DELETE CASCADE,
+            FOREIGN KEY(to_port_id) REFERENCES fiber_ports(id) ON DELETE CASCADE,
+            CHECK(from_port_id <> to_port_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_fiber_port_patches_from ON fiber_port_patches (from_port_id);
+        CREATE INDEX IF NOT EXISTS idx_fiber_port_patches_to ON fiber_port_patches (to_port_id);
+        "#,
+    )?;
+
     if !column_exists(conn, "fiber_splices", "from_direction")? {
         conn.execute_batch(
             "ALTER TABLE fiber_splices ADD COLUMN from_direction TEXT NOT NULL DEFAULT 'start';",
@@ -544,12 +680,23 @@ pub fn ensure_v8_compatibility(conn: &Connection) -> Result<(), rusqlite::Error>
             "ALTER TABLE fiber_splices ADD COLUMN to_direction TEXT NOT NULL DEFAULT 'start';",
         )?;
     }
+    if fiber_splices_has_legacy_self_check(conn)? {
+        rebuild_fiber_splices_without_legacy_self_check(conn)?;
+    }
 
     conn.execute_batch(
         r#"
+        DROP TRIGGER IF EXISTS trg_fiber_splices_no_self_insert;
+        DROP TRIGGER IF EXISTS trg_fiber_splices_no_self_update;
+        DROP TRIGGER IF EXISTS trg_fiber_splices_no_duplicate_insert;
+        DROP TRIGGER IF EXISTS trg_fiber_splices_no_duplicate_update;
+        DROP TRIGGER IF EXISTS trg_fiber_port_patches_no_duplicate_insert;
+        DROP TRIGGER IF EXISTS trg_fiber_port_patches_no_duplicate_update;
+
         CREATE TRIGGER IF NOT EXISTS trg_fiber_splices_no_self_insert
         BEFORE INSERT ON fiber_splices
         WHEN NEW.from_strand_id = NEW.to_strand_id
+         AND NEW.from_direction = NEW.to_direction
         BEGIN
             SELECT RAISE(ABORT, 'fiber splice cannot connect a strand to itself');
         END;
@@ -557,6 +704,7 @@ pub fn ensure_v8_compatibility(conn: &Connection) -> Result<(), rusqlite::Error>
         CREATE TRIGGER IF NOT EXISTS trg_fiber_splices_no_self_update
         BEFORE UPDATE ON fiber_splices
         WHEN NEW.from_strand_id = NEW.to_strand_id
+         AND NEW.from_direction = NEW.to_direction
         BEGIN
             SELECT RAISE(ABORT, 'fiber splice cannot connect a strand to itself');
         END;
@@ -603,6 +751,38 @@ pub fn ensure_v8_compatibility(conn: &Connection) -> Result<(), rusqlite::Error>
         )
         BEGIN
             SELECT RAISE(ABORT, 'fiber splice pair already exists');
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS trg_fiber_port_patches_no_duplicate_insert
+        BEFORE INSERT ON fiber_port_patches
+        WHEN EXISTS (
+            SELECT 1
+            FROM fiber_port_patches existing
+            WHERE existing.id <> NEW.id
+              AND (
+                (existing.from_port_id = NEW.from_port_id AND existing.to_port_id = NEW.to_port_id)
+                OR
+                (existing.from_port_id = NEW.to_port_id AND existing.to_port_id = NEW.from_port_id)
+              )
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'fiber port patch already exists');
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS trg_fiber_port_patches_no_duplicate_update
+        BEFORE UPDATE ON fiber_port_patches
+        WHEN EXISTS (
+            SELECT 1
+            FROM fiber_port_patches existing
+            WHERE existing.id <> NEW.id
+              AND (
+                (existing.from_port_id = NEW.from_port_id AND existing.to_port_id = NEW.to_port_id)
+                OR
+                (existing.from_port_id = NEW.to_port_id AND existing.to_port_id = NEW.from_port_id)
+              )
+        )
+        BEGIN
+            SELECT RAISE(ABORT, 'fiber port patch already exists');
         END;
         "#,
     )
@@ -767,11 +947,124 @@ mod tests {
         );
         assert!(duplicate.is_err());
 
-        let self_splice = conn.execute(
+        conn.execute(
             "INSERT INTO fiber_splices (id, enclosure_feature_id, from_strand_id, to_strand_id, from_direction, to_direction, loss_db)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params!["splice-3", "enclosure-1", "strand-1", "strand-1", "end", "start", 0.05],
+        )
+        .expect("same strand with opposite directions insert");
+
+        let same_direction_self_splice = conn.execute(
+            "INSERT INTO fiber_splices (id, enclosure_feature_id, from_strand_id, to_strand_id, from_direction, to_direction, loss_db)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params!["splice-4", "enclosure-1", "strand-1", "strand-1", "end", "end", 0.05],
         );
-        assert!(self_splice.is_err());
+        assert!(same_direction_self_splice.is_err());
+    }
+
+    #[test]
+    fn apply_schema_rebuilds_legacy_splice_self_check() {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE fiber_splices (
+                id TEXT PRIMARY KEY,
+                enclosure_feature_id TEXT NOT NULL,
+                from_strand_id TEXT NOT NULL,
+                to_strand_id TEXT NOT NULL,
+                from_direction TEXT NOT NULL DEFAULT 'start' CHECK (from_direction IN ('start', 'end')),
+                to_direction TEXT NOT NULL DEFAULT 'start' CHECK (to_direction IN ('start', 'end')),
+                loss_db REAL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                CHECK(from_strand_id <> to_strand_id)
+            );
+            INSERT INTO fiber_splices (id, enclosure_feature_id, from_strand_id, to_strand_id, from_direction, to_direction, loss_db)
+            VALUES ('splice-existing', 'enclosure-1', 'strand-1', 'strand-2', 'end', 'start', 0.05);
+            "#,
+        )
+        .expect("legacy splice table with self check");
+
+        apply_v2_schema(&conn).expect("schema migrated");
+        assert!(!fiber_splices_has_legacy_self_check(&conn).expect("legacy check lookup"));
+        conn.execute_batch("PRAGMA foreign_keys=OFF;")
+            .expect("disable foreign keys for isolated check migration assertions");
+
+        let existing_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_splices WHERE id = ?1",
+                ["splice-existing"],
+                |row| row.get(0),
+            )
+            .expect("existing splice count");
+        assert_eq!(existing_count, 1);
+
+        conn.execute(
+            "INSERT INTO fiber_splices (id, enclosure_feature_id, from_strand_id, to_strand_id, from_direction, to_direction, loss_db)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params!["splice-same-strand", "enclosure-1", "strand-1", "strand-1", "start", "end", 0.05],
+        )
+        .expect("same strand with opposite directions insert after rebuild");
+    }
+
+    #[test]
+    fn apply_schema_creates_odf_port_mapping_tables() {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+        apply_v2_schema(&conn).expect("schema applied");
+
+        let terminations_table: String = conn
+            .query_row(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'fiber_port_terminations'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("fiber_port_terminations table");
+        assert_eq!(terminations_table, "fiber_port_terminations");
+
+        let patches_table: String = conn
+            .query_row(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'fiber_port_patches'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("fiber_port_patches table");
+        assert_eq!(patches_table, "fiber_port_patches");
+
+        conn.execute_batch("PRAGMA foreign_keys=OFF;")
+            .expect("disable foreign keys for isolated constraint assertions");
+        conn.execute(
+            "INSERT INTO fiber_port_terminations (id, port_id, strand_id, strand_direction, side)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["termination-1", "port-1", "strand-1", "start", "left"],
+        )
+        .expect("termination insert");
+
+        let duplicate_port = conn.execute(
+            "INSERT INTO fiber_port_terminations (id, port_id, strand_id, strand_direction, side)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params!["termination-2", "port-1", "strand-2", "start", "right"],
+        );
+        assert!(duplicate_port.is_err());
+
+        let self_patch = conn.execute(
+            "INSERT INTO fiber_port_patches (id, from_port_id, to_port_id)
+             VALUES (?1, ?2, ?3)",
+            params!["patch-1", "port-1", "port-1"],
+        );
+        assert!(self_patch.is_err());
+
+        conn.execute(
+            "INSERT INTO fiber_port_patches (id, from_port_id, to_port_id)
+             VALUES (?1, ?2, ?3)",
+            params!["patch-2", "port-1", "port-2"],
+        )
+        .expect("port patch insert");
+
+        let reverse_duplicate = conn.execute(
+            "INSERT INTO fiber_port_patches (id, from_port_id, to_port_id)
+             VALUES (?1, ?2, ?3)",
+            params!["patch-3", "port-2", "port-1"],
+        );
+        assert!(reverse_duplicate.is_err());
     }
 }

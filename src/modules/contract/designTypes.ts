@@ -139,6 +139,7 @@ export type FiberCableStatus = 'planned' | 'active' | 'retired' | 'damaged';
 export type FiberStrandStatus = 'available' | 'reserved' | 'active' | 'damaged';
 export type FiberPortDirection = 'input' | 'output' | 'bidirectional';
 export type FiberPortStatus = 'available' | 'reserved' | 'active' | 'damaged';
+export type FiberPortTerminationSide = 'left' | 'right';
 export type FiberCircuitServiceType = 'data' | 'voice' | 'video' | 'backhaul' | 'other';
 export type FiberCircuitStatus = 'planned' | 'active' | 'suspended' | 'down' | 'retired';
 export type FiberCablePointKind = 'cable_start' | 'cable_end' | 'splice_enclosure';
@@ -185,6 +186,27 @@ export interface FiberPort {
   port_kind: string;
   direction: FiberPortDirection;
   status: FiberPortStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FiberPortTermination {
+  id: string;
+  port_id: string;
+  strand_id: string;
+  strand_direction: 'start' | 'end';
+  side: FiberPortTerminationSide;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FiberPortPatch {
+  id: string;
+  from_port_id: string;
+  to_port_id: string;
+  status: string;
+  loss_db: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -263,7 +285,8 @@ export interface FiberValidationDiagnostic {
     | 'missing-branch-enclosure'
     | 'unmaterialized-cable-points'
     | 'direction-conflict'
-    | 'multiple-origin';
+    | 'multiple-origin'
+    | 'odf-one-side';
   message: string;
   cable_id?: string | null;
   circuit_id?: string | null;
@@ -291,6 +314,8 @@ export interface FiberInventory {
   cables: FiberCable[];
   strands: FiberStrand[];
   ports: FiberPort[];
+  port_terminations?: FiberPortTermination[];
+  port_patches?: FiberPortPatch[];
   splices: FiberSplice[];
   circuits: FiberCircuit[];
   cable_points?: FiberCablePoint[];
@@ -421,6 +446,29 @@ export type DesignEventType =
         status?: FiberPortStatus;
       };
     }
+  | {
+      type: 'FiberPortTerminationUpserted';
+      payload: {
+        id: string;
+        port_id: string;
+        strand_id: string;
+        strand_direction: 'start' | 'end';
+        side: FiberPortTerminationSide;
+        status?: string;
+      };
+    }
+  | { type: 'FiberPortTerminationDeleted'; payload: { id: string } }
+  | {
+      type: 'FiberPortPatchUpserted';
+      payload: {
+        id: string;
+        from_port_id: string;
+        to_port_id: string;
+        status?: string;
+        loss_db?: number | null;
+      };
+    }
+  | { type: 'FiberPortPatchDeleted'; payload: { id: string } }
   | {
       type: 'FiberSpliceUpserted';
       payload: {

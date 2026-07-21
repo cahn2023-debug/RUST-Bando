@@ -53,6 +53,18 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
 
   const featureLabel = getFeatureLabel(featuresById, selectedFeatureId);
   const equipment = nodeEquipmentData?.equipment as Equipment[] | undefined;
+  const isOdf = equipment?.some(item => item.equipment_type === 'odf') || false;
+  const odfPorts = (inventory.ports || [])
+    .filter(port => port.feature_id === selectedFeatureId)
+    .sort((a, b) => a.port_label.localeCompare(b.port_label, undefined, { numeric: true }));
+  const odfTerminations = inventory.port_terminations || [];
+  const odfPatches = inventory.port_patches || [];
+  const terminationsByPort = new Map(odfTerminations.map(item => [item.port_id, item]));
+  const patchesByPort = new Map<string, number>();
+  odfPatches.forEach(patch => {
+    patchesByPort.set(patch.from_port_id, (patchesByPort.get(patch.from_port_id) || 0) + 1);
+    patchesByPort.set(patch.to_port_id, (patchesByPort.get(patch.to_port_id) || 0) + 1);
+  });
 
   return (
     <div className="space-y-3">
@@ -70,6 +82,36 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
                   <div className="text-zinc-500">{item.status}</div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {isOdf && (
+            <div className="rounded border border-emerald-500/10 bg-emerald-500/5 p-2">
+              <div className="mb-2 font-semibold text-emerald-200">ODF ports</div>
+              {odfPorts.length === 0 ? (
+                <div className="text-zinc-500">Chưa khai báo số cổng quang cho ODF này.</div>
+              ) : (
+                <div className="grid grid-cols-2 gap-1">
+                  {odfPorts.map(port => {
+                    const termination = terminationsByPort.get(port.id);
+                    const patchCount = patchesByPort.get(port.id) || 0;
+                    const status = termination ? patchCount > 0 ? 'Thông tuyến' : 'Một hướng' : 'Trống';
+                    return (
+                      <div key={port.id} className="rounded border border-white/5 bg-black/25 px-2 py-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-zinc-200">{port.port_label}</span>
+                          <span className={status === 'Thông tuyến' ? 'text-emerald-300' : status === 'Một hướng' ? 'text-amber-300' : 'text-zinc-500'}>{status}</span>
+                        </div>
+                        {termination && (
+                          <div className="truncate text-zinc-500">
+                            {termination.side.toUpperCase()} · {termination.strand_direction}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
