@@ -27,8 +27,7 @@
                 "enable": true,
                 "scope": [
                     "$RESOURCE/**",
-                    "$APPDATA/**",
-                    "$DOCUMENT/**"
+                    "$APPDATA/**"
                 ]
             }
         }

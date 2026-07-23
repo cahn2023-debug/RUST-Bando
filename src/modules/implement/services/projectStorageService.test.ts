@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { invoke } from '@tauri-apps/api/core';
 import {
+  analyzeProjectMediaRecovery,
+  applyProjectMediaRecovery,
   getProjectStorageHealth,
   optimizeProjectStorage,
   requestStorageHealthRefresh,
@@ -48,6 +50,46 @@ describe('projectStorageService', () => {
       projectId: 'project-1',
     });
     expect(result.integrityAfter).toBe('ok');
+  });
+
+  it('loads media recovery preview through the V2 command', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      projectId: 'project-1',
+      candidates: [],
+      missingMediaFiles: [],
+      brokenLinks: [],
+      checkedAt: '2026-07-23T00:00:00Z',
+    });
+
+    const result = await analyzeProjectMediaRecovery('project-1');
+
+    expect(mockInvoke).toHaveBeenCalledWith('analyze_project_media_recovery', {
+      projectId: 'project-1',
+    });
+    expect(result.candidates).toEqual([]);
+  });
+
+  it('applies selected media recovery through the V2 command', async () => {
+    const items = [{
+      featureId: 'feature-1',
+      name: 'Camera A',
+      fields: [{ path: 'display_order', current: null, recovered: '72_1' }],
+    }];
+    mockInvoke.mockResolvedValueOnce({
+      projectId: 'project-1',
+      backupPath: 'D:/backup/project.pmp',
+      restoredFeatures: 1,
+      restoredFields: 1,
+      appliedAt: '2026-07-23T00:00:00Z',
+    });
+
+    const result = await applyProjectMediaRecovery('project-1', items);
+
+    expect(mockInvoke).toHaveBeenCalledWith('apply_project_media_recovery', {
+      projectId: 'project-1',
+      items,
+    });
+    expect(result.restoredFields).toBe(1);
   });
 
   it('emits a refresh event for active health widgets', () => {

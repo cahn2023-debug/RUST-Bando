@@ -7,6 +7,7 @@ import React, { useMemo } from 'react';
 import { Wrench, Ruler, Camera, MapPin, Eye, Zap } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getParsedMetadata } from '@TOOL/utils/featureMetadata';
+import { getFeatureDisplayInfo } from '@TOOL/utils/featureUtils';
 import { cn } from '@TOOL/utils/cn';
 import type { FeatureMetadata } from '@CONTRACT/types';
 
@@ -34,10 +35,16 @@ export const TechnicalSpecsPanel: React.FC<TechnicalSpecsPanelProps> = ({ classN
     return state.features[selectedFeatureId] || null;
   }, [selectedFeatureId, state]);
 
+  const selectedGroup = useMemo(() => {
+    if (!selectedFeature?.group_id || !state) return null;
+    return state.feature_groups[selectedFeature.group_id] || null;
+  }, [selectedFeature, state]);
+
   const specs = useMemo<SpecField[]>(() => {
     if (!selectedFeature) return [];
 
     const metadata = getParsedMetadata(selectedFeature) as FeatureMetadata;
+    const displayInfo = getFeatureDisplayInfo(selectedFeature, selectedGroup?.type, selectedGroup?.name, metadata);
     const fields: SpecField[] = [];
 
     // Basic Info
@@ -54,8 +61,8 @@ export const TechnicalSpecsPanel: React.FC<TechnicalSpecsPanelProps> = ({ classN
     });
 
     fields.push({
-      label: 'Loại hình học',
-      value: selectedFeature.geom_type,
+      label: 'Loại đối tượng',
+      value: displayInfo.label,
       icon: <Ruler size={14} />
     });
 
@@ -239,7 +246,7 @@ export const TechnicalSpecsPanel: React.FC<TechnicalSpecsPanelProps> = ({ classN
     });
 
     return fields;
-  }, [selectedFeature]);
+  }, [selectedFeature, selectedGroup]);
 
   if (!selectedFeature) {
     return (

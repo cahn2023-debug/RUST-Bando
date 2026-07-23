@@ -84,6 +84,7 @@ describe('VertexEditor: Intersection Scope Locking', () => {
         mapEventsHandlers = {};
         mockSnapRef.current = null;
         vi.clearAllMocks();
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
 
         setDrawingPoint = vi.fn().mockResolvedValue(undefined);
         insertDrawingPoint = vi.fn().mockResolvedValue(undefined);

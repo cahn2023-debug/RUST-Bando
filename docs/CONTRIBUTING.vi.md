@@ -20,9 +20,9 @@ Khi tham gia dự án, vui lòng giữ thái độ tôn trọng, lịch sự và
 -   **Fork** dự án và tạo branch từ nhánh `develop`.
 -   **Tên Branch**: `feat/ten-tinh-nang` hoặc `fix/ten-loi`.
 -   **Commit Message**: Tuân thủ chuẩn [Conventional Commits](https://www.conventionalcommits.org/).
-    -   `feat: them workflow moi`
-    -   `fix: sua loi cai dat npm`
-    -   `docs: cap nhat tai lieu`
+    -   `feat: thêm workflow mới`
+    -   `fix: sửa lỗi cài đặt npm`
+    -   `docs: cập nhật tài liệu`
 -   **Kiểm thử**: Đảm bảo chạy `npm test` thành công.
 -   **Lint Code**: Chạy `npm run lint` để code sạch đẹp.
 

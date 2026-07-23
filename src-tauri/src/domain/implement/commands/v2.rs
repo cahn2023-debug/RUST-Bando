@@ -9,11 +9,20 @@ use calamine::{open_workbook_auto, Reader};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
+use std::net::{IpAddr, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::{mpsc, oneshot};
+use url::Url;
 use uuid::Uuid;
+
+const MAX_BINARY_FILE_BYTES: usize = 50 * 1024 * 1024;
+const MAX_REMOTE_IMAGE_BYTES: u64 = 10 * 1024 * 1024;
+const BINARY_SAVE_EXTENSIONS: &[&str] = &[
+    "pmp", "xlsx", "docx", "zip", "json", "csv", "png", "jpg", "jpeg",
+];
+const BINARY_READ_EXTENSIONS: &[&str] = &["pmp", "xlsx", "xls", "csv", "kml", "kmz", "json"];
 
 #[derive(Clone)]
 pub struct ActorState {
@@ -132,6 +141,13 @@ fn ensure_excel_extension(path: &Path) -> Result<(), String> {
 #[tauri::command]
 pub async fn save_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
     let path = PathBuf::from(path);
+    validate_binary_path(&path, BINARY_SAVE_EXTENSIONS)?;
+    if data.len() > MAX_BINARY_FILE_BYTES {
+        return Err(format!(
+            "File is too large to save through this command (max {} MB)",
+            MAX_BINARY_FILE_BYTES / 1024 / 1024
+        ));
+    }
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|error| format!("Failed to create parent directory: {error}"))?;
@@ -141,7 +157,35 @@ pub async fn save_binary_file(path: String, data: Vec<u8>) -> Result<(), String>
 
 #[tauri::command]
 pub async fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
-    std::fs::read(PathBuf::from(path)).map_err(|error| format!("Failed to read file: {error}"))
+    let path = PathBuf::from(path);
+    validate_binary_path(&path, BINARY_READ_EXTENSIONS)?;
+    let metadata =
+        std::fs::metadata(&path).map_err(|error| format!("Failed to inspect file: {error}"))?;
+    if metadata.len() > MAX_BINARY_FILE_BYTES as u64 {
+        return Err(format!(
+            "File is too large to read through this command (max {} MB)",
+            MAX_BINARY_FILE_BYTES / 1024 / 1024
+        ));
+    }
+    std::fs::read(path).map_err(|error| format!("Failed to read file: {error}"))
+}
+
+fn validate_binary_path(path: &Path, allowed_extensions: &[&str]) -> Result<(), String> {
+    if !path.is_absolute() {
+        return Err("File path must be absolute".to_string());
+    }
+
+    let extension = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.to_ascii_lowercase())
+        .ok_or_else(|| "File extension is required".to_string())?;
+
+    if !allowed_extensions.contains(&extension.as_str()) {
+        return Err(format!("Unsupported file extension: {extension}"));
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -314,23 +358,29 @@ pub fn copy_text_to_system_clipboard(text: String) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn fetch_url_as_data_url(url: String) -> Result<String, String> {
-    if !(url.starts_with("https://") || url.starts_with("http://")) {
-        return Err("Only http/https URLs are supported".to_string());
-    }
+    let parsed_url = validate_remote_image_url(&url)?;
 
     tokio::task::spawn_blocking(move || {
         let client = reqwest::blocking::Client::builder()
             .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
             .timeout(std::time::Duration::from_secs(12))
+            .redirect(reqwest::redirect::Policy::none())
             .build()
             .map_err(|error| format!("Failed to create HTTP client: {error}"))?;
 
         let response = client
-            .get(&url)
+            .get(parsed_url)
             .send()
             .map_err(|error| format!("Failed to fetch URL: {error}"))?
             .error_for_status()
             .map_err(|error| format!("HTTP error while fetching URL: {error}"))?;
+
+        if response.content_length().unwrap_or(0) > MAX_REMOTE_IMAGE_BYTES {
+            return Err(format!(
+                "Remote image is too large (max {} MB)",
+                MAX_REMOTE_IMAGE_BYTES / 1024 / 1024
+            ));
+        }
 
         let content_type = response
             .headers()
@@ -342,9 +392,21 @@ pub async fn fetch_url_as_data_url(url: String) -> Result<String, String> {
             .unwrap_or("image/png")
             .to_string();
 
+        if !content_type.starts_with("image/") {
+            return Err(format!(
+                "Remote URL did not return an image: {content_type}"
+            ));
+        }
+
         let bytes = response
             .bytes()
             .map_err(|error| format!("Failed to read response bytes: {error}"))?;
+        if bytes.len() > MAX_REMOTE_IMAGE_BYTES as usize {
+            return Err(format!(
+                "Remote image is too large (max {} MB)",
+                MAX_REMOTE_IMAGE_BYTES / 1024 / 1024
+            ));
+        }
         Ok(format!(
             "data:{};base64,{}",
             content_type,
@@ -357,6 +419,10 @@ pub async fn fetch_url_as_data_url(url: String) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn post_collaboration_json(url: String, body: Value) -> Result<Value, String> {
+    if !collaboration_enabled() {
+        return Err("Collaboration coordinator is disabled in this build".to_string());
+    }
+
     if !url.starts_with("https://") {
         return Err("Collaboration coordinator URL must use https".to_string());
     }
@@ -379,14 +445,73 @@ pub async fn post_collaboration_json(url: String, body: Value) -> Result<Value, 
             .map_err(|error| format!("Failed to read coordinator response: {error}"))?;
 
         if !status.is_success() {
-            return Err(format!("Coordinator HTTP {status}: {text}"));
+            return Err(format!("Coordinator HTTP {status}"));
         }
 
         serde_json::from_str::<Value>(&text)
-            .map_err(|error| format!("Coordinator returned invalid JSON: {error}; body={text}"))
+            .map_err(|error| format!("Coordinator returned invalid JSON: {error}"))
     })
     .await
     .map_err(|error| format!("Failed to join coordinator task: {error}"))?
+}
+
+fn collaboration_enabled() -> bool {
+    cfg!(debug_assertions) || std::env::var("PMP_ENABLE_COLLABORATION").as_deref() == Ok("1")
+}
+
+fn validate_remote_image_url(url: &str) -> Result<Url, String> {
+    let parsed = Url::parse(url).map_err(|error| format!("Invalid URL: {error}"))?;
+    if parsed.scheme() != "https" {
+        return Err("Only https image URLs are supported".to_string());
+    }
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| "Remote image URL must include a host".to_string())?;
+    validate_public_host(host)?;
+    Ok(parsed)
+}
+
+fn validate_public_host(host: &str) -> Result<(), String> {
+    if host.eq_ignore_ascii_case("localhost") || host.ends_with(".localhost") {
+        return Err("Localhost URLs are not allowed".to_string());
+    }
+
+    if let Ok(ip) = host.parse::<IpAddr>() {
+        return validate_public_ip(ip);
+    }
+
+    let addrs = (host, 443)
+        .to_socket_addrs()
+        .map_err(|error| format!("Failed to resolve remote host: {error}"))?;
+    for addr in addrs {
+        validate_public_ip(addr.ip())?;
+    }
+    Ok(())
+}
+
+fn validate_public_ip(ip: IpAddr) -> Result<(), String> {
+    let allowed = match ip {
+        IpAddr::V4(ip) => {
+            !(ip.is_private()
+                || ip.is_loopback()
+                || ip.is_link_local()
+                || ip.is_broadcast()
+                || ip.is_documentation()
+                || ip.is_unspecified())
+        }
+        IpAddr::V6(ip) => {
+            !(ip.is_loopback()
+                || ip.is_unspecified()
+                || ip.is_unique_local()
+                || ip.is_unicast_link_local())
+        }
+    };
+
+    if allowed {
+        Ok(())
+    } else {
+        Err("Remote host resolved to a non-public address".to_string())
+    }
 }
 
 fn normalize_column_key(value: &str) -> String {
@@ -919,7 +1044,7 @@ fn frontend_event_to_envelope(
         "FeatureUpdated" | "update_metadata" => {
             let mut changes = serde_json::Map::new();
             for (key, value) in &payload {
-                if key == "id" {
+                if key == "id" || key == "geom_type" {
                     continue;
                 }
                 if key == "coordinates" {
@@ -1029,28 +1154,32 @@ fn frontend_event_to_envelope(
                 .and_then(Value::as_str)
                 .map(|value| value.to_string()),
         },
-        "FiberPortTerminationUpserted" => crate::domain::models::v2::AppEvent::FiberPortTerminationUpserted {
-            id: parse_uuid_value(payload.get("id"), "payload.id")?,
-            port_id: parse_uuid_value(payload.get("port_id"), "payload.port_id")?,
-            strand_id: parse_uuid_value(payload.get("strand_id"), "payload.strand_id")?,
-            strand_direction: payload
-                .get("strand_direction")
-                .and_then(Value::as_str)
-                .unwrap_or("start")
-                .to_string(),
-            side: payload
-                .get("side")
-                .and_then(Value::as_str)
-                .unwrap_or("left")
-                .to_string(),
-            status: payload
-                .get("status")
-                .and_then(Value::as_str)
-                .map(|value| value.to_string()),
-        },
-        "FiberPortTerminationDeleted" => crate::domain::models::v2::AppEvent::FiberPortTerminationDeleted {
-            id: parse_uuid_value(payload.get("id"), "payload.id")?,
-        },
+        "FiberPortTerminationUpserted" => {
+            crate::domain::models::v2::AppEvent::FiberPortTerminationUpserted {
+                id: parse_uuid_value(payload.get("id"), "payload.id")?,
+                port_id: parse_uuid_value(payload.get("port_id"), "payload.port_id")?,
+                strand_id: parse_uuid_value(payload.get("strand_id"), "payload.strand_id")?,
+                strand_direction: payload
+                    .get("strand_direction")
+                    .and_then(Value::as_str)
+                    .unwrap_or("start")
+                    .to_string(),
+                side: payload
+                    .get("side")
+                    .and_then(Value::as_str)
+                    .unwrap_or("left")
+                    .to_string(),
+                status: payload
+                    .get("status")
+                    .and_then(Value::as_str)
+                    .map(|value| value.to_string()),
+            }
+        }
+        "FiberPortTerminationDeleted" => {
+            crate::domain::models::v2::AppEvent::FiberPortTerminationDeleted {
+                id: parse_uuid_value(payload.get("id"), "payload.id")?,
+            }
+        }
         "FiberPortPatchUpserted" => crate::domain::models::v2::AppEvent::FiberPortPatchUpserted {
             id: parse_uuid_value(payload.get("id"), "payload.id")?,
             from_port_id: parse_uuid_value(payload.get("from_port_id"), "payload.from_port_id")?,
@@ -1070,7 +1199,10 @@ fn frontend_event_to_envelope(
                 payload.get("enclosure_feature_id"),
                 "payload.enclosure_feature_id",
             )?,
-            from_strand_id: parse_uuid_value(payload.get("from_strand_id"), "payload.from_strand_id")?,
+            from_strand_id: parse_uuid_value(
+                payload.get("from_strand_id"),
+                "payload.from_strand_id",
+            )?,
             to_strand_id: parse_uuid_value(payload.get("to_strand_id"), "payload.to_strand_id")?,
             from_direction: payload
                 .get("from_direction")
@@ -1591,6 +1723,7 @@ pub async fn get_app_config(
 
 #[tauri::command]
 #[allow(non_snake_case)]
+#[allow(clippy::too_many_arguments)]
 pub async fn update_app_config(
     app: AppHandle,
     ai_state: State<'_, AiState>,
@@ -2010,7 +2143,7 @@ pub async fn send_ai_message(
     .await?;
 
     let _ = app.emit("ai-chat-final", &result);
-    Ok(serde_json::to_value(result).map_err(|e| e.to_string())?)
+    serde_json::to_value(result).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -2983,13 +3116,39 @@ pub async fn delete_media_asset(
     state: State<'_, ActorState>,
     projectId: String,
     assetId: String,
-) -> Result<(), String> {
+) -> Result<Value, String> {
     let (tx, rx) = oneshot::channel();
     state
         .gateway_tx
         .send(StorageCommand::DeleteMediaAsset {
             project_id: projectId,
             asset_id: assetId,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn replace_media_asset(
+    state: State<'_, ActorState>,
+    projectId: String,
+    featureId: String,
+    assetId: String,
+    dataUrl: Option<String>,
+    filePath: Option<String>,
+) -> Result<Value, String> {
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::ReplaceMediaAsset {
+            project_id: projectId,
+            feature_id: featureId,
+            asset_id: assetId,
+            data_url: dataUrl,
+            file_path: filePath,
             reply: tx,
         })
         .await
@@ -3046,6 +3205,44 @@ pub async fn get_project_storage_health(
         .gateway_tx
         .send(StorageCommand::GetProjectHealth {
             project_id: projectId,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn analyze_project_media_recovery(
+    state: State<'_, ActorState>,
+    projectId: String,
+) -> Result<Value, String> {
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::AnalyzeProjectMediaRecovery {
+            project_id: projectId,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn apply_project_media_recovery(
+    state: State<'_, ActorState>,
+    projectId: String,
+    items: Value,
+) -> Result<Value, String> {
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::ApplyProjectMediaRecovery {
+            project_id: projectId,
+            items,
             reply: tx,
         })
         .await

@@ -27,8 +27,6 @@
     "core:window:allow-hide",
     "core:window:allow-destroy",
     "core:window:allow-start-dragging",
-    "core:path:default",
-    "fs:allow-read",
-    "fs:default"
+    "core:path:default"
   ]
 }

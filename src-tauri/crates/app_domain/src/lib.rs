@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-pub use shared_kernel::{Point, Color, CameraSpecs, DoriDistances};
+pub use shared_kernel::{CameraSpecs, Color, DoriDistances, Point};
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum EntityType {

@@ -589,12 +589,12 @@ export const applyImportedRecords = async (records: FeatureRecord[], preferredGr
   const store = useDesignSync.getState();
   const targetGroupId = preferredGroupId || store.selectedGroupId;
   if (!targetGroupId) {
-    throw new Error('Vui long chon mot nhom dich truoc khi import du lieu.');
+    throw new Error('Vui lòng chọn một nhóm đích trước khi import dữ liệu.');
   }
 
   const targetGroup = store.state?.feature_groups?.[targetGroupId];
   if (!targetGroup?.layer_id) {
-    throw new Error('Nhom dich khong hop le hoac chua co layer de chua du lieu import.');
+    throw new Error('Nhóm đích không hợp lệ hoặc chưa có layer để chứa dữ liệu import.');
   }
 
   const events = buildFeatureCreatedEvents(records, targetGroupId, targetGroup.layer_id, {

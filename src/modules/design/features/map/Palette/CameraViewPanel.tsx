@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 import {
     Settings, Save,
     Video, Ruler, Activity, ChevronDown, ChevronRight, Map as MapIcon, Layers
@@ -27,7 +28,7 @@ import { DORILegend } from '@DESIGN/features/map/MapLayerComponents/DORILegend';
 import { InteractiveStreetViewPreview } from './InteractiveStreetViewPreview';
 import { CameraHudFallback } from './CameraHudFallback';
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
-import { buildFeaturePropertiesForPersistence } from '@TOOL/utils/featurePersistence';
+import { buildFeaturePropertiesForPersistence, normalizeFeatureMetadataForPersistence } from '@TOOL/utils/featurePersistence';
 
 const SENSOR_SIZES = {
     '1/3"': { width: 4.8, height: 3.6 },
@@ -75,43 +76,30 @@ export const CameraViewPanel: React.FC = () => {
     };
 
     useEffect(() => {
-        let cancelled = false;
-        const syncTimer = window.setTimeout(() => {
-            if (cancelled) return;
+        if (!feature) {
+            setLocalMeta({});
+            return;
+        }
 
-            if (!feature) {
-                setLocalMeta({});
-                return;
-            }
-
-            try {
-                const parsed = typeof feature.metadata === 'string'
-                    ? JSON.parse(feature.metadata || '{}')
-                    : (feature.metadata || {});
-                setLocalMeta(parsed);
-            } catch {
-                setLocalMeta({});
-            }
-        }, 0);
-
-        return () => {
-            cancelled = true;
-            window.clearTimeout(syncTimer);
-        };
+        try {
+            const parsed = typeof feature.metadata === 'string'
+                ? JSON.parse(feature.metadata || '{}')
+                : (feature.metadata || {});
+            setLocalMeta(parsed);
+        } catch {
+            setLocalMeta({});
+        }
     }, [feature?.id, feature?.metadata]);
 
     // Update localMeta when previewMetadata changes (sync from other palettes)
     useEffect(() => {
         if (previewMetadata?.id === selectedFeatureId && previewMetadata.metadata) {
-            const syncTimer = window.setTimeout(() => {
-                setLocalMeta((prev: any) => {
-                    if (JSON.stringify(prev) !== JSON.stringify(previewMetadata.metadata)) {
-                        return previewMetadata.metadata;
-                    }
-                    return prev;
-                });
-            }, 0);
-            return () => window.clearTimeout(syncTimer);
+            setLocalMeta((prev: any) => {
+                if (JSON.stringify(prev) !== JSON.stringify(previewMetadata.metadata)) {
+                    return previewMetadata.metadata;
+                }
+                return prev;
+            });
         }
     }, [previewMetadata, selectedFeatureId]);
 
@@ -159,10 +147,14 @@ export const CameraViewPanel: React.FC = () => {
 
     const handleSave = async () => {
         if (!selectedFeatureId || !isDirty || isSaving) return;
+        if (!confirmUserAction('Xác nhận lưu thay đổi cấu hình camera?')) return;
         setIsSaving(true);
 
         try {
-            const standardizedMeta = normalizeMetadataObject(effectiveMeta);
+            const standardizedMeta = normalizeFeatureMetadataForPersistence(
+                normalizeMetadataObject(effectiveMeta),
+                feature?.properties
+            );
             await queueEvent({
                 type: 'FeatureUpdated',
                 payload: {

@@ -1,4 +1,4 @@
-use geo::{Area, Euclidean, Geometry, Intersects, Length, BooleanOps};
+use geo::{Area, BooleanOps, Euclidean, Geometry, Intersects, Length};
 use geozero::geojson::GeoJson;
 use geozero::ToGeo;
 use serde_json::Value;

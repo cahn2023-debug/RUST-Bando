@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  calculateFeatureNumbers,
   getDeclaredOrderFieldKey,
   getNextFeatureDisplayOrder,
   getParsedCoordinates,
@@ -7,6 +8,12 @@ import {
 } from './featureMapping';
 
 describe('featureMapping', () => {
+  it('preserves an intersection child number whose parent name starts with digits', () => {
+    expect(syncDisplayOrderAliases({}, '15 Lê Lợi_1')).toMatchObject({
+      display_order: '15 Lê Lợi_1',
+    });
+  });
+
   describe('getParsedCoordinates', () => {
     it('should return null for null feature', () => {
       expect(getParsedCoordinates(null as any)).toBeNull();
@@ -83,11 +90,12 @@ describe('featureMapping', () => {
       expect(getNextFeatureDisplayOrder(features as any, 'group-1')).toBe('3');
     });
 
-    it('returns parent map number plus next child number for intersection children', () => {
+    it('returns the parent STT plus the next consecutive child number', () => {
       const features = {
         'intersection-1': {
           id: 'intersection-1',
           group_id: 'group-1',
+          name: 'Nút giao Lê Lợi',
           metadata: JSON.stringify({ display_order: '15', type: 'intersection' }),
         },
         'camera-1': {
@@ -103,6 +111,33 @@ describe('featureMapping', () => {
       };
 
       expect(getNextFeatureDisplayOrder(features as any, 'group-1', 'intersection-1')).toBe('15_3');
+    });
+
+    it('repairs duplicate and missing child numbers into one consecutive sequence', () => {
+      const features = {
+        parent: {
+          id: 'parent',
+          group_id: 'group-1',
+          name: 'NG-01',
+          metadata: JSON.stringify({ display_order: '9', type: 'intersection' }),
+        },
+        'camera-1': {
+          id: 'camera-1',
+          group_id: 'group-1',
+          metadata: JSON.stringify({ parent_feature_id: 'parent', display_order: '9_4' }),
+        },
+        'camera-2': {
+          id: 'camera-2',
+          group_id: 'group-1',
+          metadata: JSON.stringify({ parent_feature_id: 'parent', display_order: '9_4' }),
+        },
+      };
+
+      const numbers = calculateFeatureNumbers(Object.values(features) as any, features as any);
+
+      expect(numbers['camera-1']).toBe('9_1');
+      expect(numbers['camera-2']).toBe('9_2');
+      expect(getNextFeatureDisplayOrder(features as any, 'group-1', 'parent')).toBe('9_3');
     });
   });
 

@@ -34,4 +34,65 @@ describe('featureDisplay preview metadata', () => {
     expect(info.iconKey).toBe('cctv');
     expect(info.isCamera).toBe(true);
   });
+
+  it('falls back to camera properties when metadata omits icon and type', () => {
+    const feature = {
+      id: 'f-3',
+      geom_type: 'POINT',
+      name: 'Diem Khao Sat Moi',
+      metadata: JSON.stringify({ description: 'saved without display fields' }),
+      properties: { iconKey: 'cctv', type: 'cctv' },
+    };
+
+    const info = getFeatureDisplayInfo(feature);
+
+    expect(info.label).toBe('CCTV');
+    expect(info.iconKey).toBe('cctv');
+    expect(info.isCamera).toBe(true);
+  });
+
+  it('uses camera properties when metadata only has legacy point type', () => {
+    const feature = {
+      id: 'f-4',
+      geom_type: 'POINT',
+      name: 'Diem Khao Sat Moi',
+      metadata: JSON.stringify({ type: 'point', color: '#3b82f6' }),
+      properties: { iconKey: 'cctv', type: 'cctv' },
+    };
+
+    const info = getFeatureDisplayInfo(feature);
+
+    expect(info.label).toBe('CCTV');
+    expect(info.iconKey).toBe('cctv');
+    expect(info.isCamera).toBe(true);
+  });
+
+  it('displays a point feature with intersection icon as Nút giao', () => {
+    const feature = {
+      id: 'f-5',
+      geom_type: 'POINT',
+      name: 'QL21A',
+      metadata: JSON.stringify({ type: 'point', icon: 'intersection' }),
+    };
+
+    const info = getFeatureDisplayInfo(feature);
+
+    expect(info.label).toBe('Nút giao');
+    expect(info.iconKey).toBe('intersection');
+    expect(info.isIntersection).toBe(true);
+  });
+
+  it('displays a point feature in an intersection group as Nút giao', () => {
+    const feature = {
+      id: 'f-6',
+      geom_type: 'POINT',
+      name: 'QL21A',
+      metadata: JSON.stringify({ type: 'point', icon: 'default' }),
+    };
+
+    const info = getFeatureDisplayInfo(feature, 'INTERSECTION', 'Nút giao');
+
+    expect(info.label).toBe('Nút giao');
+    expect(info.isIntersection).toBe(true);
+  });
 });

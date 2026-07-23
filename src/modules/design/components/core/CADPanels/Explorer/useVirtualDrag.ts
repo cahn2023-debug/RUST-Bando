@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { DesignEventType } from "@IMPLEMENT/stores/useDesignSync";
 import { getFeatureDisplayInfo, getNextFeatureDisplayOrder, getParsedMetadata, syncDisplayOrderAliases } from "@TOOL/utils/featureUtils";
 import type { FeatureGroupState, FeatureState } from "@CONTRACT/types";
+import { confirmUserAction } from "@TOOL/utils/userConfirmation";
 
 interface UseVirtualDragProps {
     featuresRef: React.MutableRefObject<Record<string, FeatureState>>;
@@ -28,6 +29,23 @@ const buildMovedFeatureMetadata = (
     }
 
     return syncDisplayOrderAliases(metadata, displayOrder, feature.properties);
+};
+
+export const buildMovedFeatureUpdatePayload = (
+    feature: FeatureState,
+    featuresMap: Record<string, FeatureState>,
+    layerId: string,
+    groupId: string | null,
+    parentFeatureId?: string | null
+): Extract<DesignEventType, { type: 'FeatureUpdated' }>['payload'] => {
+    const nextMetadata = buildMovedFeatureMetadata(feature, featuresMap, groupId, parentFeatureId);
+
+    return {
+        id: feature.id,
+        layer_id: layerId,
+        group_id: groupId,
+        metadata: JSON.stringify(nextMetadata)
+    };
 };
 
 const logDragDrop = (step: string, details?: Record<string, unknown>) => {
@@ -115,42 +133,32 @@ export function useVirtualDrag({
                     const targetLayerId = region?.layers?.[0]?.id || region?.layer_id;
                     logDragDrop("execute:feature-to-region", { id, targetId, targetLayerId });
                     if (targetLayerId) {
-                        const nextMetadata = buildMovedFeatureMetadata(feature, nextFeaturesMap, null, null);
+                        const payload = buildMovedFeatureUpdatePayload(feature, nextFeaturesMap, targetLayerId, null, null);
                         events.push({
                             type: 'FeatureUpdated',
-                            payload: {
-                                id,
-                                layer_id: targetLayerId,
-                                group_id: "",
-                                metadata: JSON.stringify(nextMetadata)
-                            }
+                            payload
                         });
                         nextFeaturesMap[id] = {
                             ...feature,
                             layer_id: targetLayerId,
-                            group_id: "",
-                            metadata: nextMetadata
+                            group_id: null,
+                            metadata: JSON.parse(payload.metadata ?? '{}')
                         };
                     }
                 } else if (targetType === 'group') {
                     const targetGroup = gMap[targetId];
                     logDragDrop("execute:feature-to-group", { id, targetId, targetLayerId: targetGroup?.layer_id });
                     if (targetGroup) {
-                        const nextMetadata = buildMovedFeatureMetadata(feature, nextFeaturesMap, targetId, null);
+                        const payload = buildMovedFeatureUpdatePayload(feature, nextFeaturesMap, targetGroup.layer_id, targetId, null);
                         events.push({
                             type: 'FeatureUpdated',
-                            payload: {
-                                id,
-                                layer_id: targetGroup.layer_id,
-                                group_id: targetId,
-                                metadata: JSON.stringify(nextMetadata)
-                            }
+                            payload
                         });
                         nextFeaturesMap[id] = {
                             ...feature,
                             layer_id: targetGroup.layer_id,
                             group_id: targetId,
-                            metadata: nextMetadata
+                            metadata: JSON.parse(payload.metadata ?? '{}')
                         };
                     }
                 } else if (targetType === 'feature' && id !== targetId) {
@@ -165,26 +173,22 @@ export function useVirtualDrag({
                             logDragDrop("execute:skip:would-create-cycle", { id, parentFeatureId, ids: currentDrag.ids });
                             return;
                         }
-                        const nextMetadata = buildMovedFeatureMetadata(
+                        const payload = buildMovedFeatureUpdatePayload(
                             feature,
                             nextFeaturesMap,
+                            targetFeature.layer_id,
                             targetFeature.group_id,
                             parentFeatureId
                         );
                         events.push({
                             type: 'FeatureUpdated',
-                            payload: {
-                                id,
-                                layer_id: targetFeature.layer_id,
-                                group_id: targetFeature.group_id,
-                                metadata: JSON.stringify(nextMetadata)
-                            }
+                            payload
                         });
                         nextFeaturesMap[id] = {
                             ...feature,
                             layer_id: targetFeature.layer_id,
                             group_id: targetFeature.group_id,
-                            metadata: nextMetadata
+                            metadata: JSON.parse(payload.metadata ?? '{}')
                         };
                     }
                 }
@@ -226,6 +230,10 @@ export function useVirtualDrag({
         });
 
         if (events.length > 0) {
+            if (!confirmUserAction(`Xác nhận di chuyển ${events.length} đối tượng/nhóm đến vị trí mới?`)) {
+                logDragDrop("execute:cancelled", { eventCount: events.length });
+                return;
+            }
             logDragDrop("execute:dispatch", { eventCount: events.length, events });
             dispatchEvents(events);
             clearSelection();

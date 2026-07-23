@@ -41,6 +41,14 @@ pub enum StorageCommand {
         file_path: Option<String>,
         reply: oneshot::Sender<Result<serde_json::Value, String>>,
     },
+    ReplaceMediaAsset {
+        project_id: String,
+        feature_id: String,
+        asset_id: String,
+        data_url: Option<String>,
+        file_path: Option<String>,
+        reply: oneshot::Sender<Result<serde_json::Value, String>>,
+    },
     AnalyzePmpImport {
         source_path: PathBuf,
         reply: oneshot::Sender<Result<serde_json::Value, String>>,
@@ -53,7 +61,7 @@ pub enum StorageCommand {
     DeleteMediaAsset {
         project_id: String,
         asset_id: String,
-        reply: oneshot::Sender<Result<(), String>>,
+        reply: oneshot::Sender<Result<serde_json::Value, String>>,
     },
     ResolveMediaAsset {
         project_id: String,
@@ -89,6 +97,15 @@ pub enum StorageCommand {
     },
     GetProjectHealth {
         project_id: String,
+        reply: oneshot::Sender<Result<serde_json::Value, String>>,
+    },
+    AnalyzeProjectMediaRecovery {
+        project_id: String,
+        reply: oneshot::Sender<Result<serde_json::Value, String>>,
+    },
+    ApplyProjectMediaRecovery {
+        project_id: String,
+        items: serde_json::Value,
         reply: oneshot::Sender<Result<serde_json::Value, String>>,
     },
     GetPendingSyncOutbox {

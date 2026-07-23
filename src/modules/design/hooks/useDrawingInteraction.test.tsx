@@ -64,6 +64,7 @@ describe('useDrawingInteraction', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
         dispatchEvent = vi.fn().mockResolvedValue(undefined);
         queueEvent = vi.fn().mockResolvedValue(undefined);
         queueEvents = vi.fn().mockResolvedValue(undefined);
@@ -110,6 +111,19 @@ describe('useDrawingInteraction', () => {
         });
     });
 
+    it('does not create an object when the user cancels confirmation', async () => {
+        vi.mocked(window.confirm).mockReturnValue(false);
+        useDesignSync.setState({ drawingMode: 'point' });
+        const { result } = renderHook(() => useDrawingInteraction());
+
+        await act(async () => {
+            await result.current.handleLocationChange(10, 20, 0, null);
+        });
+
+        expect(dispatchEvent).not.toHaveBeenCalled();
+        expect(useDesignSync.getState().drawingMode).toBe('point');
+    });
+
     it('fills the next display order when creating a root object', async () => {
         useDesignSync.setState({
             state: {
@@ -140,7 +154,7 @@ describe('useDrawingInteraction', () => {
         });
     });
 
-    it('fills intersection child display order from the parent map number', async () => {
+    it('fills intersection child display order from the parent STT', async () => {
         useDesignSync.setState({
             state: {
                 ...makeState(),

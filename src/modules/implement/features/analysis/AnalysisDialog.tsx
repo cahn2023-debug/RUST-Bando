@@ -783,7 +783,7 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
               onImport={() => {
                 const input = document.createElement('input');
                 input.type = 'file';
-                input.accept = '.xlsx,.xls';
+                input.accept = '.csv';
                 (input as any).onchange = handleImport;
                 input.click();
                 return Promise.resolve();

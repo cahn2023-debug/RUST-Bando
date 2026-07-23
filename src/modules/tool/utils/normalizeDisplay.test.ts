@@ -68,6 +68,31 @@ describe('normalizeDisplay tests', () => {
             expect((res.metadata as any).stt).toBe('5');
         });
 
+        it('should normalize legacy point type from properties icon into metadata and properties', () => {
+            const f1 = {
+                id: 'f1',
+                name: 'Intersection A',
+                geom_type: 'Point',
+                coordinates: [105.12, 21.03],
+                properties: {
+                    iconKey: 'intersection',
+                    type: 'intersection'
+                },
+                metadata: {
+                    type: 'point'
+                }
+            } as any;
+
+            const res = normalizeFeatureForDisplay(f1);
+
+            expect((res.metadata as any).icon).toBe('intersection');
+            expect((res.metadata as any).type).toBe('intersection');
+            expect((res.properties as any).icon).toBe('intersection');
+            expect((res.properties as any).iconKey).toBe('intersection');
+            expect((res.properties as any).type).toBe('intersection');
+            expect(res.geom_type).toBe('Point');
+        });
+
         it('should compute bbox if missing but coordinates exist', () => {
             const f1 = {
                 id: 'f1',
@@ -118,6 +143,49 @@ describe('normalizeDisplay tests', () => {
             expect(res.features.f1).toBeDefined();
             expect(res.features.f1.coordinates).toEqual([105.12, 21.03]);
             expect((res.features.f1.metadata as any).display_order).toBe('1');
+        });
+
+        it('should normalize symbol data from object and array state shapes', () => {
+            const feature = {
+                id: 'f1',
+                name: 'QL21A',
+                group_id: 'g1',
+                geom_type: 'Point',
+                coordinates: [105.12, 21.03],
+                metadata: { type: 'point' },
+                properties: { iconKey: 'default', type: 'point' }
+            };
+            const group = {
+                id: 'g1',
+                layer_id: 'l1',
+                name: 'Nút giao',
+                type: 'INTERSECTION',
+                is_visible: true
+            };
+            const objectState = {
+                regions: {},
+                layers: {},
+                feature_groups: { g1: group },
+                features: { f1: feature },
+                settings: {}
+            } as any;
+            const arrayState = {
+                regions: [],
+                layers: [],
+                feature_groups: [group],
+                features: [feature],
+                settings: {}
+            } as any;
+
+            const objectResult = normalizeMapStateForDisplay(objectState);
+            const arrayResult = normalizeMapStateForDisplay(arrayState);
+
+            expect((objectResult.features.f1.metadata as any).icon).toBe('intersection');
+            expect((objectResult.features.f1.metadata as any).type).toBe('intersection');
+            expect((objectResult.features.f1.properties as any).iconKey).toBe('intersection');
+            expect((arrayResult.features.f1.metadata as any).icon).toBe('intersection');
+            expect((arrayResult.features.f1.metadata as any).type).toBe('intersection');
+            expect((arrayResult.features.f1.properties as any).iconKey).toBe('intersection');
         });
     });
 });

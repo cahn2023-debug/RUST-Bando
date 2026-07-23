@@ -1,9 +1,9 @@
-import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 import { save, open } from '@tauri-apps/plugin-dialog';
 import { safeInvoke as invoke } from '@IMPLEMENT/lib/tauri';
 import { normalizeAnalysisColumnKey } from '@IMPLEMENT/features/analysis/analysisColumns';
 import { syncDisplayOrderAliases, getParsedMetadata } from '@TOOL/utils/featureUtils';
+import { parseCsv, rowsToCsv } from '@TOOL/utils/csv';
 import type { DesignEventType, FeatureProperties } from '@CONTRACT/designTypes';
 import type { FeatureState, FeatureGroupState, LayerState, MapState, RegionState } from '@CONTRACT/types';
 
@@ -501,33 +501,29 @@ export const buildAnalysisImportEvents = (rows: AnalysisRow[], state: MapState):
 };
 
 /**
- * Service to handle data analysis Excel operations
+ * Service to handle data analysis CSV operations
  */
 export const analysisService = {
   /**
-   * Exports current analysis data to Excel
+   * Exports current analysis data to CSV
    */
   exportToExcel: async (data: AnalysisRow[], projectId: string) => {
     try {
       const timestamp = format(new Date(), 'yyyyMMdd_HHmmss');
-      const defaultPath = `Phân-tích_${projectId}_${timestamp}.xlsx`;
+      const defaultPath = `Phân-tích_${projectId}_${timestamp}.csv`;
 
       const filePath = await save({
-        filters: [{ name: 'Excel Workbook', extensions: ['xlsx'] }],
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
         defaultPath,
       });
 
       if (!filePath) return;
 
-      const worksheet = XLSX.utils.json_to_sheet(data);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Dữ liệu phân tích');
-
-      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const csvBuffer = new TextEncoder().encode(rowsToCsv(data));
 
       await invoke('save_binary_file', {
         path: filePath,
-        data: Array.from(new Uint8Array(excelBuffer)),
+        data: Array.from(csvBuffer),
       });
 
       return true;
@@ -538,24 +534,19 @@ export const analysisService = {
   },
 
   /**
-   * Imports Excel data and generates update/create events.
+   * Imports CSV data and generates update/create events.
    */
   importFromExcel: async (state: MapState): Promise<DesignEventType[]> => {
     try {
       const selected = await open({
         multiple: false,
-        filters: [{ name: 'Excel Files', extensions: ['xlsx', 'xls'] }],
+        filters: [{ name: 'CSV Files', extensions: ['csv'] }],
       });
 
       if (!selected || Array.isArray(selected)) return [];
 
       const fileContent = await invoke<number[]>('read_binary_file', { path: selected });
-      const data = new Uint8Array(fileContent);
-
-      const workbook = XLSX.read(data, { type: 'array' });
-      const firstSheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[firstSheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet) as AnalysisRow[];
+      const jsonData = parseCsv(new TextDecoder('utf-8').decode(new Uint8Array(fileContent))) as AnalysisRow[];
 
       return buildAnalysisImportEvents(jsonData, state);
     } catch (error) {

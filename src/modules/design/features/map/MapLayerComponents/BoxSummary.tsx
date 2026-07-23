@@ -6,6 +6,7 @@ import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import { DeleteConfirmationModal } from "@DESIGN/components/ui/DeleteConfirmationModal";
 import { safeString } from "@TOOL/utils/featureUtils";
 import { EditableText } from "@DESIGN/components/core/CADPanels/EditableText";
+import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 
 interface BoxSummaryProps {
   inline?: boolean;
@@ -111,6 +112,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
     }
 
     if (Object.keys(payload).length > 1) {
+      if (!confirmUserAction(`Xác nhận cập nhật ${field === 'lng' || field === 'lat' ? 'vị trí' : 'dữ liệu'} của đối tượng "${feature.name}"?`)) return;
       await dispatchEvent({ type: 'FeatureUpdated', payload });
     }
   };

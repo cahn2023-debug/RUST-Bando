@@ -5,6 +5,7 @@ import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { useSnap } from '@IMPLEMENT/hooks/useSnap';
 import { getParsedCoordinates, getParsedMetadata, getPointCoordinates } from '@TOOL/utils/featureUtils';
 import { isPointInPolygon, getIntersectionScope, isSignalLineFeature } from '../stores/drawingSlice';
+import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 
 /**
  * Enhanced Logging Helper
@@ -154,6 +155,11 @@ export const VertexEditor = () => {
             }
 
             try {
+                if (!confirmUserAction('Xác nhận thay đổi vị trí điểm này?')) {
+                    setPreviewCoords(null);
+                    clearSnap();
+                    return;
+                }
                 if (dragType === 'insert') {
                     await insertDrawingPoint(i, finalLat, finalLng);
                 } else {
@@ -216,6 +222,11 @@ export const VertexEditor = () => {
                 }
 
                 try {
+                    if (!confirmUserAction('Xác nhận thay đổi vị trí điểm này?')) {
+                        setPreviewCoords(null);
+                        clearSnap();
+                        return;
+                    }
                     if (dragType === 'insert') {
                         await insertDrawingPoint(i, finalLat, finalLng);
                     } else {
@@ -232,8 +243,10 @@ export const VertexEditor = () => {
     });
 
     const handleContextMenu = useCallback((_: any, i: number) => {
-        logEditor(`Delete vertex ${i}`);
-        useDesignSync.getState().deleteDrawingPoint(i);
+        if (confirmUserAction('Xác nhận xóa điểm này khỏi đối tượng?')) {
+            logEditor(`Delete vertex ${i}`);
+            void useDesignSync.getState().deleteDrawingPoint(i);
+        }
     }, []);
 
     if (!feature) return null;

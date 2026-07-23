@@ -2,6 +2,7 @@ use crate::domain::implement::commands::v2::ActorState;
 use crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand;
 use serde_json::{json, Value};
 use tauri::State;
+use url::Url;
 
 fn extract_project_metadata(rows: &Value) -> Value {
     let metadata = rows
@@ -385,7 +386,8 @@ pub async fn get_fiber_inventory(
             vec![project_id.clone()],
         )
     };
-    let port_terminations = exec_query(&state, port_terminations_sql.0, port_terminations_sql.1).await?;
+    let port_terminations =
+        exec_query(&state, port_terminations_sql.0, port_terminations_sql.1).await?;
 
     let port_patches_sql = if let Some(feature_id) = scope_feature_id.as_deref() {
         (
@@ -631,7 +633,7 @@ pub async fn trace_fiber_circuit(
         .as_array()
         .and_then(|items| items.first())
         .cloned()
-        .unwrap_or_else(|| json!(null));
+        .unwrap_or(Value::Null);
 
     let hops = exec_query(
         &state,
@@ -642,11 +644,19 @@ pub async fn trace_fiber_circuit(
     let hop_rows = row_array(hops.clone());
     let strand_ids: Vec<String> = hop_rows
         .iter()
-        .filter_map(|row| row.get("strand_id").and_then(Value::as_str).map(|value| value.to_string()))
+        .filter_map(|row| {
+            row.get("strand_id")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string())
+        })
         .collect();
     let port_ids: Vec<String> = hop_rows
         .iter()
-        .filter_map(|row| row.get("port_id").and_then(Value::as_str).map(|value| value.to_string()))
+        .filter_map(|row| {
+            row.get("port_id")
+                .and_then(Value::as_str)
+                .map(|value| value.to_string())
+        })
         .collect();
 
     let strands = if strand_ids.is_empty() {
@@ -656,8 +666,7 @@ pub async fn trace_fiber_circuit(
             &state,
             &format!(
                 "SELECT * FROM fiber_strands WHERE id IN ({}) ORDER BY cable_id, strand_no, id",
-                std::iter::repeat("?")
-                    .take(strand_ids.len())
+                std::iter::repeat_n("?", strand_ids.len())
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
@@ -672,8 +681,7 @@ pub async fn trace_fiber_circuit(
             &state,
             &format!(
                 "SELECT * FROM fiber_ports WHERE id IN ({}) ORDER BY feature_id, port_label, id",
-                std::iter::repeat("?")
-                    .take(port_ids.len())
+                std::iter::repeat_n("?", port_ids.len())
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
@@ -690,8 +698,7 @@ pub async fn trace_fiber_circuit(
             &state,
             &format!(
                 "SELECT * FROM fiber_splices WHERE from_strand_id IN ({0}) OR to_strand_id IN ({0}) ORDER BY created_at, id",
-                std::iter::repeat("?")
-                    .take(strand_ids.len())
+                std::iter::repeat_n("?", strand_ids.len())
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
@@ -772,14 +779,20 @@ fn trace_fiber_diagnostics(
         }));
     }
 
-    if hops.iter().any(|hop| hop.get("strand_id").and_then(Value::as_str).is_none() && hop.get("port_id").and_then(Value::as_str).is_none()) {
+    if hops.iter().any(|hop| {
+        hop.get("strand_id").and_then(Value::as_str).is_none()
+            && hop.get("port_id").and_then(Value::as_str).is_none()
+    }) {
         diagnostics.push(json!({
             "type": "broken-hop",
             "message": "Có hop không gắn strand hoặc port",
         }));
     }
 
-    if strands.iter().any(|strand| strand.get("status").and_then(Value::as_str) == Some("damaged")) {
+    if strands
+        .iter()
+        .any(|strand| strand.get("status").and_then(Value::as_str) == Some("damaged"))
+    {
         diagnostics.push(json!({
             "type": "damaged-strand",
             "message": "Circuit đi qua strand damaged",
@@ -790,8 +803,14 @@ fn trace_fiber_diagnostics(
     let has_duplicate_splice = splices.iter().any(|splice| {
         let key = format!(
             "{}:{}",
-            splice.get("from_strand_id").and_then(Value::as_str).unwrap_or_default(),
-            splice.get("to_strand_id").and_then(Value::as_str).unwrap_or_default()
+            splice
+                .get("from_strand_id")
+                .and_then(Value::as_str)
+                .unwrap_or_default(),
+            splice
+                .get("to_strand_id")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
         );
         !splice_keys.insert(key)
     });
@@ -856,16 +875,27 @@ fn validate_fiber_inventory(inventory: &Value) -> Vec<Value> {
         .unwrap_or_default();
 
     for cable in cables {
-        let cable_id = cable.get("id").and_then(Value::as_str).unwrap_or_default().to_string();
+        let cable_id = cable
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_string();
         let cable_feature_id = cable.get("feature_id").cloned().unwrap_or(Value::Null);
-        let fiber_count = cable.get("fiber_count").and_then(Value::as_i64).unwrap_or(0);
+        let fiber_count = cable
+            .get("fiber_count")
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
         let cable_strands: Vec<&Value> = strands
             .iter()
-            .filter(|strand| strand.get("cable_id").and_then(Value::as_str) == Some(cable_id.as_str()))
+            .filter(|strand| {
+                strand.get("cable_id").and_then(Value::as_str) == Some(cable_id.as_str())
+            })
             .collect();
         let points_for_cable: Vec<&Value> = cable_points
             .iter()
-            .filter(|point| point.get("cable_id").and_then(Value::as_str) == Some(cable_id.as_str()))
+            .filter(|point| {
+                point.get("cable_id").and_then(Value::as_str) == Some(cable_id.as_str())
+            })
             .collect();
         let has_start = points_for_cable
             .iter()
@@ -909,7 +939,10 @@ fn validate_fiber_inventory(inventory: &Value) -> Vec<Value> {
     }
 
     for circuit in &circuits {
-        let circuit_id = circuit.get("id").and_then(Value::as_str).unwrap_or_default();
+        let circuit_id = circuit
+            .get("id")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let a_feature_missing = circuit
             .get("a_feature_id")
             .and_then(Value::as_str)
@@ -930,10 +963,22 @@ fn validate_fiber_inventory(inventory: &Value) -> Vec<Value> {
     }
 
     for splice in &splices {
-        let from_id = splice.get("from_strand_id").and_then(Value::as_str).unwrap_or_default();
-        let to_id = splice.get("to_strand_id").and_then(Value::as_str).unwrap_or_default();
-        let from_direction = splice.get("from_direction").and_then(Value::as_str).unwrap_or_default();
-        let to_direction = splice.get("to_direction").and_then(Value::as_str).unwrap_or_default();
+        let from_id = splice
+            .get("from_strand_id")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let to_id = splice
+            .get("to_strand_id")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let from_direction = splice
+            .get("from_direction")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let to_direction = splice
+            .get("to_direction")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         if from_id == to_id && from_direction == to_direction {
             diagnostics.push(json!({
                 "type": "invalid-splice-loop",
@@ -944,7 +989,10 @@ fn validate_fiber_inventory(inventory: &Value) -> Vec<Value> {
     }
 
     for termination in &port_terminations {
-        let port_id = termination.get("port_id").and_then(Value::as_str).unwrap_or_default();
+        let port_id = termination
+            .get("port_id")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
         let has_patch = port_patches.iter().any(|patch| {
             patch.get("from_port_id").and_then(Value::as_str) == Some(port_id)
                 || patch.get("to_port_id").and_then(Value::as_str) == Some(port_id)
@@ -1158,12 +1206,10 @@ pub async fn get_materials(
 pub fn navigate_webview(app: tauri::AppHandle, label: String, url: String) -> Result<(), String> {
     use tauri::Manager;
 
+    let parsed_url = validate_webview_navigation(&label, &url)?;
     let webview = app
         .get_webview_window(&label)
         .ok_or_else(|| format!("Webview not found: {}", label))?;
-    let parsed_url = url
-        .parse()
-        .map_err(|e| format!("Invalid URL for webview navigation: {}", e))?;
 
     webview.navigate(parsed_url).map_err(|e| e.to_string())
 }
@@ -1172,11 +1218,41 @@ pub fn navigate_webview(app: tauri::AppHandle, label: String, url: String) -> Re
 pub fn eval_webview(app: tauri::AppHandle, label: String, script: String) -> Result<(), String> {
     use tauri::Manager;
 
+    if !webview_eval_enabled() {
+        return Err("Webview script evaluation is disabled in this build".to_string());
+    }
+
     let webview = app
         .get_webview_window(&label)
         .ok_or_else(|| format!("Webview not found: {}", label))?;
 
     webview.eval(&script).map_err(|e| e.to_string())
+}
+
+fn webview_eval_enabled() -> bool {
+    cfg!(debug_assertions) || std::env::var("PMP_ALLOW_WEBVIEW_EVAL").as_deref() == Ok("1")
+}
+
+fn validate_webview_navigation(label: &str, url: &str) -> Result<Url, String> {
+    if label != "street-view" {
+        return Err("Webview navigation is only allowed for the street-view window".to_string());
+    }
+
+    let parsed =
+        Url::parse(url).map_err(|e| format!("Invalid URL for webview navigation: {}", e))?;
+    if parsed.scheme() != "https" {
+        return Err("Webview navigation requires https".to_string());
+    }
+
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| "Webview navigation URL must include a host".to_string())?;
+    let is_google_maps = host == "www.google.com" || host == "maps.google.com";
+    if !is_google_maps {
+        return Err(format!("Webview navigation host is not allowed: {host}"));
+    }
+
+    Ok(parsed)
 }
 
 #[tauri::command]
@@ -1191,6 +1267,83 @@ pub fn get_webview_url(app: tauri::AppHandle, label: String) -> Result<String, S
         .url()
         .map(|url| url.to_string())
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn capture_webview_png(
+    app: tauri::AppHandle,
+    label: String,
+) -> Result<Value, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use tauri::Manager;
+        use tokio::sync::oneshot;
+
+        let window = app
+            .get_webview_window(&label)
+            .ok_or_else(|| format!("Webview not found: {}", label))?;
+
+        let (tx, rx) = oneshot::channel::<Result<String, String>>();
+
+        window.with_webview(move |webview| {
+            unsafe {
+                use webview2_com::Microsoft::Web::WebView2::Win32::COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT_PNG;
+                use windows_sys::Win32::System::Com::{CreateStreamOnHGlobal, GetHGlobalFromStream};
+                use windows_sys::Win32::System::Memory::{GlobalLock, GlobalUnlock, GlobalSize};
+
+                let mut stream_ptr = std::ptr::null_mut();
+                if CreateStreamOnHGlobal(std::ptr::null_mut(), 1, &mut stream_ptr) != 0 || stream_ptr.is_null() {
+                    let _ = tx.send(Err("Failed to create IStream".into()));
+                    return;
+                }
+
+                let stream: windows::Win32::System::Com::IStream = std::mem::transmute(stream_ptr);
+                let controller = webview.controller();
+
+                let handler = webview2_com::CapturePreviewCompletedHandler::create(Box::new(move |res| {
+                    if res.is_err() {
+                        let _ = tx.send(Err("CapturePreview failed".into()));
+                        return Ok(());
+                    }
+                    let mut hglobal = std::ptr::null_mut();
+                    if GetHGlobalFromStream(stream_ptr, &mut hglobal) == 0 && !hglobal.is_null() {
+                        let size = GlobalSize(hglobal);
+                        let ptr = GlobalLock(hglobal) as *const u8;
+                        if !ptr.is_null() && size > 0 {
+                            let bytes = std::slice::from_raw_parts(ptr, size as usize);
+                            let base64_str = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
+                            GlobalUnlock(hglobal);
+                            let data_url = format!("data:image/png;base64,{}", base64_str);
+                            let _ = tx.send(Ok(data_url));
+                            return Ok(());
+                        }
+                    }
+                    let _ = tx.send(Err("Failed to read captured stream".into()));
+                    Ok(())
+                }));
+
+                if let Ok(core) = controller.CoreWebView2() {
+                    if let Err(e) = core.CapturePreview(COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT_PNG, &stream, &handler) {
+                        let _ = tx.send(Err(format!("CapturePreview error: {:?}", e)));
+                    }
+                } else {
+                    let _ = tx.send(Err("Failed to get CoreWebView2".into()));
+                }
+            }
+        }).map_err(|e| e.to_string())?;
+
+        let data_url = rx.await.map_err(|e| e.to_string())??;
+        Ok(json!({
+            "dataUrl": data_url
+        }))
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        let _ = label;
+        Err("Nền tảng chưa hỗ trợ".to_string())
+    }
 }
 
 #[tauri::command]

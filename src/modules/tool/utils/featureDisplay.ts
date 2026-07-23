@@ -1,6 +1,7 @@
 import { MapPin } from "lucide-react";
 import { Intersection, PolylineIcon, CameraCCTV, CameraPTZ, CameraSpeed, CameraLPR } from '../../design/components/icons/MapIcons';
 import { getParsedMetadata, safeString } from "./featureMetadata";
+import type { FeatureProperties, IconType } from '@CONTRACT/types';
 
 /**
  * Camera icon types
@@ -11,6 +12,12 @@ export const CAMERA_ICONS = ['camera', 'cctv', 'ptz', 'speed', 'lpr'];
  * Intersection icon identifier
  */
 export const INTERSECTION_ICON = 'intersection';
+
+export type FeatureSymbolData = {
+    iconKey: IconType;
+    objectType: string;
+    label: string;
+};
 
 /**
  * Display names for various object types
@@ -29,12 +36,151 @@ export const DISPLAY_TYPES = {
     POLYGON: 'Vùng',
 } as const;
 
+export const SYMBOL_ICON_OPTIONS: Array<{ id: IconType; label: string; component: any }> = [
+    { id: 'default', label: 'Mặc định', component: MapPin },
+    { id: 'intersection', label: DISPLAY_TYPES.INTERSECTION, component: Intersection },
+    { id: 'cctv', label: DISPLAY_TYPES.CCTV, component: CameraCCTV },
+    { id: 'ptz', label: DISPLAY_TYPES.PTZ, component: CameraPTZ },
+    { id: 'speed', label: DISPLAY_TYPES.SPEED, component: CameraSpeed },
+    { id: 'lpr', label: DISPLAY_TYPES.LPR, component: CameraLPR },
+];
+
 /**
  * Checks if an icon key represents a camera
  */
 export const isCameraIcon = (icon?: string): boolean => {
     if (!icon) return false;
     return CAMERA_ICONS.includes(icon.toLowerCase());
+};
+
+export const normalizeIconKey = (icon: unknown): IconType => {
+    switch (safeString(icon).toLowerCase()) {
+        case 'cctv':
+        case 'camera':
+            return 'cctv';
+        case 'ptz':
+            return 'ptz';
+        case 'speed':
+            return 'speed';
+        case 'lpr':
+            return 'lpr';
+        case 'intersection':
+            return 'intersection';
+        default:
+            return 'default';
+    }
+};
+
+export const getObjectTypeForIcon = (icon: IconType): string => {
+    switch (icon) {
+        case 'cctv':
+            return 'cctv';
+        case 'ptz':
+            return 'ptz';
+        case 'speed':
+            return 'speed';
+        case 'lpr':
+            return 'lpr';
+        case 'intersection':
+            return 'intersection';
+        default:
+            return 'point';
+    }
+};
+
+export const canonicalizeObjectType = (type: unknown): string => {
+    const normalized = safeString(type).trim().toLowerCase();
+    if (normalized === 'camera' || normalized === 'mat cam' || normalized === 'mắt cam') return 'cctv';
+    if (normalized === 'nut_giao' || normalized === 'nút giao') return 'intersection';
+    if (normalized === 'polyline' || normalized === 'linestring') return 'line';
+    if (normalized === 'default') return 'point';
+    return normalized;
+};
+
+const isLegacyPointType = (value: unknown): boolean => {
+    const normalized = safeString(value).trim().toLowerCase();
+    return normalized === '' || normalized === 'point' || normalized === 'default';
+};
+
+const getEffectiveIcon = (feature: any, meta: any, groupType?: string, groupName?: string): IconType => {
+    const metaIcon = safeString(meta.icon).toLowerCase();
+    const props = feature?.properties || {};
+    const propertyIcon = safeString(props.icon || props.iconKey).toLowerCase();
+    const metaType = safeString(meta.type).toLowerCase();
+    const propertyType = safeString(props.type).toLowerCase();
+    const lowerGType = safeString(groupType).toLowerCase();
+    const lowerGName = safeString(groupName).toLowerCase();
+
+    const normalizedMetaIcon = normalizeIconKey(metaIcon);
+    const normalizedPropertyIcon = normalizeIconKey(propertyIcon);
+
+    if (normalizedMetaIcon !== 'default') return normalizedMetaIcon;
+    if (normalizedPropertyIcon !== 'default') return normalizedPropertyIcon;
+    if (metaType === 'intersection' || metaType === 'nut_giao' || metaType === 'nút giao') return 'intersection';
+    if (propertyType === 'intersection' || propertyType === 'nut_giao' || propertyType === 'nút giao') return 'intersection';
+    if (isCameraIcon(metaType)) return normalizeIconKey(metaType);
+    if (isCameraIcon(propertyType)) return normalizeIconKey(propertyType);
+    if (lowerGType.includes('intersection') || lowerGType.includes('nut_giao') || lowerGName.includes('nút giao')) return 'intersection';
+    if ([lowerGType, lowerGName].some(s => s.includes('camera') || s.includes('cam') || s.includes('cctv'))) return 'cctv';
+
+    return normalizedMetaIcon !== 'default' ? normalizedMetaIcon : normalizedPropertyIcon;
+};
+
+const getEffectiveType = (feature: any, meta: any): string => {
+    const metaType = safeString(meta.type).toLowerCase();
+    const propertyType = safeString(feature?.properties?.type).toLowerCase();
+    const effectiveIcon = getEffectiveIcon(feature, meta);
+
+    if (metaType && metaType !== 'point' && metaType !== 'default') return metaType;
+    if (isCameraIcon(effectiveIcon)) return effectiveIcon;
+    if (propertyType && propertyType !== 'point' && propertyType !== 'default') return propertyType;
+    return metaType || propertyType;
+};
+
+export const getDisplayTypeForObjectType = (objectType: string, geomType?: string): string => {
+    const normalized = safeString(objectType).toUpperCase();
+    if (normalized === 'INTERSECTION' || normalized === 'NUT_GIAO' || normalized === 'NÚT GIAO') return DISPLAY_TYPES.INTERSECTION;
+    if (normalized === 'CAMERA' || normalized === 'CCTV' || normalized === 'MẮT CAM') return DISPLAY_TYPES.CCTV;
+    if (normalized === 'PTZ') return DISPLAY_TYPES.PTZ;
+    if (normalized === 'SPEED') return DISPLAY_TYPES.SPEED;
+    if (normalized === 'LPR') return DISPLAY_TYPES.LPR;
+    if (normalized === 'CABINET' || normalized === 'TU_THIET_BI') return DISPLAY_TYPES.CABINET;
+    if (normalized === 'PILLAR' || normalized === 'POLE') return DISPLAY_TYPES.PILLAR;
+    if (normalized === 'BRIDGE' || normalized === 'TUNNEL') return DISPLAY_TYPES.BRIDGE;
+    if (normalized === 'LINE') return DISPLAY_TYPES.LINE;
+    if (normalized === 'POLYGON') return DISPLAY_TYPES.POLYGON;
+
+    const geometry = safeString(geomType).toUpperCase();
+    if (geometry === 'LINESTRING' || geometry === 'POLYLINE') return DISPLAY_TYPES.LINE;
+    if (geometry === 'POLYGON') return DISPLAY_TYPES.POLYGON;
+    return DISPLAY_TYPES.POINT;
+};
+
+export const normalizeFeatureSymbolData = (
+    feature: { geom_type?: unknown; name?: unknown; properties?: FeatureProperties; metadata?: unknown } | null | undefined,
+    groupType?: string,
+    groupName?: string,
+    providedMetadata?: any
+): FeatureSymbolData => {
+    const meta = providedMetadata || getParsedMetadata(feature as any);
+    const geomType = safeString(feature?.geom_type || '').toUpperCase();
+    const iconKey = getEffectiveIcon(feature, meta, groupType, groupName);
+    const effectiveType = canonicalizeObjectType(getEffectiveType(feature, meta));
+    const fallbackObjectType = geomType === 'LINESTRING' || geomType === 'POLYLINE'
+        ? 'line'
+        : geomType === 'POLYGON'
+            ? 'polygon'
+            : getObjectTypeForIcon(iconKey);
+    const objectType = !isLegacyPointType(effectiveType)
+        ? effectiveType
+        : fallbackObjectType;
+    const label = getDisplayTypeForObjectType(objectType, geomType);
+
+    return {
+        iconKey,
+        objectType,
+        label,
+    };
 };
 
 /**
@@ -45,8 +191,9 @@ export const getFeatureDisplayType = (feature: any, groupType?: string, groupNam
 
     const meta = providedMetadata || getParsedMetadata(feature);
     const geomType = (feature.geom_type || '').toUpperCase();
-    const icon = (meta.icon || '').toLowerCase();
-    const metaType = safeString(meta.type || '').toUpperCase();
+    const symbol = normalizeFeatureSymbolData(feature, groupType, groupName, meta);
+    const icon = symbol.iconKey;
+    const metaType = symbol.objectType.toUpperCase();
     const lowerGType = (groupType || '').toLowerCase();
     const lowerGName = (groupName || '').toLowerCase();
     const lowerName = safeString(feature.name || '').toLowerCase();
@@ -68,7 +215,7 @@ export const getFeatureDisplayType = (feature: any, groupType?: string, groupNam
             if (metaType === 'LPR') return DISPLAY_TYPES.LPR;
             if (metaType === 'PTZ') return DISPLAY_TYPES.PTZ;
         }
-        if (metaType && DISPLAY_TYPES[metaType as keyof typeof DISPLAY_TYPES]) {
+        if (metaType && metaType !== 'POINT' && metaType !== 'DEFAULT' && DISPLAY_TYPES[metaType as keyof typeof DISPLAY_TYPES]) {
             return DISPLAY_TYPES[metaType as keyof typeof DISPLAY_TYPES];
         }
 
@@ -107,8 +254,9 @@ export const getFeatureDisplayType = (feature: any, groupType?: string, groupNam
  */
 export const getFeatureDisplayInfo = (feature: any, groupType?: string, groupName?: string, providedMetadata?: any) => {
     const meta = providedMetadata || getParsedMetadata(feature);
+    const symbol = normalizeFeatureSymbolData(feature, groupType, groupName, meta);
     const displayType = getFeatureDisplayType(feature, groupType, groupName, meta);
-    const iconKey = (meta.icon || 'default').toLowerCase();
+    const iconKey = symbol.iconKey;
 
     let IconComponent: any = MapPin;
     let colorClass = "text-indigo-400";
@@ -138,6 +286,7 @@ export const getFeatureDisplayInfo = (feature: any, groupType?: string, groupNam
         color: meta.color || (isLine ? '#10b981' : '#6366f1'),
         icon: IconComponent,
         iconKey: iconKey,
+        objectType: symbol.objectType,
         isIntersection: displayType === DISPLAY_TYPES.INTERSECTION,
         isCamera: displayType === DISPLAY_TYPES.CCTV || displayType === DISPLAY_TYPES.PTZ || displayType === DISPLAY_TYPES.SPEED || displayType === DISPLAY_TYPES.LPR,
         isLine,

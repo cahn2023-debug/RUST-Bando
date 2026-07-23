@@ -574,7 +574,9 @@ fn fiber_splices_has_legacy_self_check(conn: &Connection) -> Result<bool, rusqli
     .map(|sql| sql.is_some_and(|value| value.contains("CHECK(from_strand_id <> to_strand_id)")))
 }
 
-fn rebuild_fiber_splices_without_legacy_self_check(conn: &Connection) -> Result<(), rusqlite::Error> {
+fn rebuild_fiber_splices_without_legacy_self_check(
+    conn: &Connection,
+) -> Result<(), rusqlite::Error> {
     conn.execute_batch(
         r#"
         PRAGMA foreign_keys=OFF;
@@ -930,7 +932,9 @@ mod tests {
 
         apply_v2_schema(&conn).expect("schema migrated");
 
-        assert!(column_exists(&conn, "fiber_splices", "from_direction").expect("from_direction lookup"));
+        assert!(
+            column_exists(&conn, "fiber_splices", "from_direction").expect("from_direction lookup")
+        );
         assert!(column_exists(&conn, "fiber_splices", "to_direction").expect("to_direction lookup"));
 
         conn.execute(

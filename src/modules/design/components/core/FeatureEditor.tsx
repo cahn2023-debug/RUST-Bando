@@ -19,6 +19,7 @@ const parseCoordinateList = (coordinates: unknown): [number, number][] => {
   return [];
 };
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
+import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 
 interface FeatureEditorProps {
   feature: FeatureState;
@@ -220,6 +221,7 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
   };
 
   const handleSave = async () => {
+    if (!confirmUserAction(`Xác nhận lưu cấu hình và vị trí của đối tượng "${name}"?`)) return;
     const metadata = {
       description,
       imageUrl,

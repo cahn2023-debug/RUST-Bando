@@ -699,11 +699,16 @@ impl AppEvent {
         if event_type == "FeatureCreated" {
             obj.entry("id".to_string())
                 .or_insert_with(|| serde_json::Value::String(Uuid::new_v4().to_string()));
-            obj.entry("group_id".to_string()).or_insert(serde_json::Value::Null);
-            obj.entry("task_id".to_string()).or_insert(serde_json::Value::Null);
-            obj.entry("style_id".to_string()).or_insert(serde_json::Value::Null);
-            obj.entry("note".to_string()).or_insert(serde_json::Value::Null);
-            obj.entry("bbox".to_string()).or_insert(serde_json::Value::Null);
+            obj.entry("group_id".to_string())
+                .or_insert(serde_json::Value::Null);
+            obj.entry("task_id".to_string())
+                .or_insert(serde_json::Value::Null);
+            obj.entry("style_id".to_string())
+                .or_insert(serde_json::Value::Null);
+            obj.entry("note".to_string())
+                .or_insert(serde_json::Value::Null);
+            obj.entry("bbox".to_string())
+                .or_insert(serde_json::Value::Null);
             if obj.get("geometry").map(|v| v.is_null()).unwrap_or(true) {
                 obj.insert("geometry".to_string(), serde_json::json!([]));
             }

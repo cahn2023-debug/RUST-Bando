@@ -65,7 +65,12 @@ impl BoundingBox {
             max_y = max_y.max(p.y);
         }
 
-        Self { min_x, min_y, max_x, max_y }
+        Self {
+            min_x,
+            min_y,
+            max_x,
+            max_y,
+        }
     }
 
     pub fn intersects(&self, other: &BoundingBox) -> bool {

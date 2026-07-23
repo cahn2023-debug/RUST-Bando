@@ -12,6 +12,128 @@ let inboundUpdateTimer: any = null;
 let inboundStateBuffer: MapState | null = null;
 let lastUpdateTimestamp = 0;
 
+const parseJsonObject = (value: unknown): Record<string, unknown> | null => {
+    if (!value) return null;
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+        } catch {
+            return null;
+        }
+    }
+    return typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+};
+
+const isEmptyMetadataShell = (value: unknown) => {
+    const metadata = parseJsonObject(value);
+    if (!metadata) return false;
+    const entries = Object.entries(metadata);
+    if (entries.length === 0) return true;
+    return entries.every(([key, entryValue]) => (
+        ['media', 'gis', 'business', 'specs'].includes(key) &&
+        entryValue &&
+        typeof entryValue === 'object' &&
+        !Array.isArray(entryValue) &&
+        Object.keys(entryValue).length === 0
+    ));
+};
+
+const isDefaultPointProperties = (value: unknown) => {
+    const properties = parseJsonObject(value);
+    if (!properties) return false;
+    const keys = Object.keys(properties);
+    return keys.length > 0 &&
+        keys.every(key => ['icon', 'iconKey', 'type'].includes(key)) &&
+        (properties.type === 'point' || properties.type === 'Point' || properties.type === 'POINT') &&
+        (!('icon' in properties) || properties.icon === 'default') &&
+        (!('iconKey' in properties) || properties.iconKey === 'default');
+};
+
+const PRESERVED_METADATA_KEYS = [
+    'parent_feature_id',
+    'source_parent_feature_id',
+    'snap_links',
+    'network',
+    'start_node_id',
+    'end_node_id',
+    'infrastructure',
+] as const;
+
+const serializeMetadataLikePayload = (originalPayload: unknown, metadata: Record<string, unknown>) => (
+    typeof originalPayload === 'string' ? JSON.stringify(metadata) : metadata
+);
+
+const buildSafeFeaturePatch = (currentFeature: MapState['features'][string] | undefined, payload: any) => {
+    const patch: Record<string, unknown> = Object.fromEntries(
+        Object.entries(payload).filter(([key, value]) => (
+            value !== undefined && (value !== null || key === 'group_id')
+        ))
+    );
+
+    if (patch.group_id === '') patch.group_id = null;
+
+    if (!currentFeature) return patch;
+
+    if (
+        'metadata' in patch &&
+        isEmptyMetadataShell(patch.metadata) &&
+        !isEmptyMetadataShell(currentFeature.metadata)
+    ) {
+        delete patch.metadata;
+    }
+
+    if (
+        'properties' in patch &&
+        isDefaultPointProperties(patch.properties) &&
+        !isDefaultPointProperties(currentFeature.properties)
+    ) {
+        delete patch.properties;
+    }
+
+    if ('metadata' in patch && patch.metadata !== undefined && patch.metadata !== null) {
+        const currentMetadata = parseJsonObject(currentFeature.metadata);
+        const patchMetadata = parseJsonObject(patch.metadata);
+        if (currentMetadata && patchMetadata) {
+            let didPreserve = false;
+            const mergedMetadata: Record<string, unknown> = { ...currentMetadata, ...patchMetadata };
+
+            ['media', 'gis', 'specs', 'business', 'infrastructure', 'network'].forEach((sectionKey) => {
+                const currentSec = parseJsonObject(currentMetadata[sectionKey]);
+                const patchSec = parseJsonObject(patchMetadata[sectionKey]);
+                if (currentSec && patchSec) {
+                    mergedMetadata[sectionKey] = { ...currentSec, ...patchSec };
+                    didPreserve = true;
+                } else if (currentSec && !patchMetadata[sectionKey]) {
+                    mergedMetadata[sectionKey] = currentSec;
+                    didPreserve = true;
+                }
+            });
+
+            PRESERVED_METADATA_KEYS.forEach((key) => {
+                if (
+                    currentMetadata[key] !== undefined &&
+                    currentMetadata[key] !== null &&
+                    mergedMetadata[key] === undefined
+                ) {
+                    mergedMetadata[key] = currentMetadata[key];
+                    didPreserve = true;
+                }
+            });
+
+            if (didPreserve || Object.keys(mergedMetadata).length > Object.keys(patchMetadata).length) {
+                patch.metadata = serializeMetadataLikePayload(patch.metadata, mergedMetadata);
+            }
+        }
+    }
+
+    if ('geom_type' in patch) {
+        delete patch.geom_type;
+    }
+
+    return patch;
+};
+
 export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapStateSlice> = (set, get) => ({
     state: null,
     projectId: null,
@@ -103,12 +225,12 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         if (timeSinceLast >= UPDATE_THROTTLE_MS) {
             lastUpdateTimestamp = now;
-            set({ state: newState });
+            set({ state: normalizeMapStateForDisplay(newState) });
         } else {
             inboundUpdateTimer = setTimeout(() => {
                 if (inboundStateBuffer) {
                     lastUpdateTimestamp = Date.now();
-                    set({ state: inboundStateBuffer });
+                    set({ state: normalizeMapStateForDisplay(inboundStateBuffer) });
                     inboundStateBuffer = null;
                 }
                 inboundUpdateTimer = null;
@@ -135,12 +257,13 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                         console.log('before properties:', currentFeature?.properties);
                         console.groupEnd();
                     }
+                    const safePatch = buildSafeFeaturePatch(currentFeature, payload);
                     newState.features = {
                         ...newState.features,
                         [payload.id]: currentFeature ? {
                             ...currentFeature,
-                            ...Object.fromEntries(Object.entries(payload).filter(([_, v]) => v !== null && v !== undefined))
-                        } : { ...payload }
+                            ...safePatch
+                        } : { ...safePatch }
                     };
                     break;
                 }
@@ -250,12 +373,14 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                         console.log('before properties:', newState.features[payload.id]?.properties);
                         console.groupEnd();
                     }
+                    const currentFeature = newState.features[payload.id];
+                    const safePatch = buildSafeFeaturePatch(currentFeature, payload);
                     newState.features = {
                         ...newState.features,
-                        [payload.id]: {
-                            ...newState.features[payload.id],
-                            ...payload
-                        }
+                        [payload.id]: currentFeature ? {
+                            ...currentFeature,
+                            ...safePatch
+                        } : { ...safePatch }
                     };
                     break;
                 }
@@ -349,8 +474,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 case 'FeatureCreated':
                 case 'FeatureUpdated': {
                     if (!newState.features) newState.features = {};
-                    const fPayload = { ...payload };
-                    if (fPayload.group_id === '') fPayload.group_id = null;
+                    const fPayload = buildSafeFeaturePatch(newState.features[payload.id], payload);
                     const currentFeature = newState.features[payload.id];
                     if (IS_DEV && type === 'FeatureUpdated') {
                         console.groupCollapsed(`[Sync] applyEventsOptimistically FeatureUpdated ${payload.id}`);
@@ -363,7 +487,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                         ...newState.features,
                         [payload.id]: currentFeature ? {
                             ...currentFeature,
-                            ...Object.fromEntries(Object.entries(fPayload).filter(([_, v]) => v !== null && v !== undefined))
+                            ...fPayload
                         } : { ...fPayload }
                     };
                     break;

@@ -232,8 +232,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             // All data is visible by default. Only hide when user clicks the eye icon.
             // mapHiddenIds starts empty - only populated by user actions
 
-            await get().syncDisplayOrderWithSTT();
-            console.log(`[Store] Hydration and Display Sync complete for project: ${projectId}`);
+            console.log(`[Store] Hydration complete for project: ${projectId}`);
 
             const handleOnline = () => set({ isOnline: true });
             const handleOffline = () => set({ isOnline: false });

@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { safeInvoke } from '../lib/tauri';
 import { useDesignSync } from './useDesignSync';
 
+const parseMetadata = (value: unknown) => (
+    typeof value === 'string' ? JSON.parse(value) : value as Record<string, unknown>
+);
+
 // Mock Tauri APIs
 vi.mock('@tauri-apps/api/core', () => ({
     invoke: vi.fn(),
@@ -179,5 +183,148 @@ describe('useDesignSync Store', () => {
         const [, args] = vi.mocked(safeInvoke).mock.calls[0];
         expect((args as any).events).toHaveLength(1);
         expect(useDesignSync.getState().pendingSync).toBe(false);
+    });
+
+    it('should ignore sparse default feature ack fields that would erase intersection child state', () => {
+        useDesignSync.setState({
+            state: {
+                regions: {},
+                layers: {},
+                feature_groups: {},
+                settings: {},
+                features: {
+                    'camera-1': {
+                        id: 'camera-1',
+                        layer_id: 'layer-a',
+                        group_id: 'group-a',
+                        name: 'Camera 1',
+                        geom_type: 'POINT',
+                        coordinates: [105.62984, 21.00289],
+                        properties: { icon: 'cctv', iconKey: 'cctv', type: 'camera' },
+                        metadata: JSON.stringify({ parent_feature_id: 'intersection-1', specs: { hfov: 70 } }),
+                        is_visible: true,
+                    },
+                },
+            },
+        });
+
+        useDesignSync.getState().applyPatchToState({
+            success: true,
+            event_id: 'ack-1',
+            applied_event: {
+                type: 'FeatureUpdated',
+                payload: {
+                    id: 'camera-1',
+                    layer_id: 'layer-b',
+                    group_id: 'group-b',
+                    geom_type: 'LineString',
+                    metadata: JSON.stringify({ media: {}, gis: {}, business: {}, specs: {} }),
+                    properties: { icon: 'default', iconKey: 'default', type: 'point' },
+                },
+            },
+            side_effects: [],
+        });
+
+        const feature = useDesignSync.getState().state!.features['camera-1'];
+        expect(feature.layer_id).toBe('layer-b');
+        expect(feature.group_id).toBe('group-b');
+        expect(feature.geom_type).toBe('POINT');
+        expect(feature.properties).toMatchObject({ iconKey: 'cctv', type: 'camera' });
+        expect(parseMetadata(feature.metadata)).toMatchObject({
+            parent_feature_id: 'intersection-1',
+        });
+    });
+
+    it('should preserve intersection parent metadata on metadata-only feature updates', () => {
+        useDesignSync.setState({
+            state: {
+                regions: {},
+                layers: {},
+                feature_groups: {},
+                settings: {},
+                features: {
+                    'camera-1': {
+                        id: 'camera-1',
+                        layer_id: 'layer-a',
+                        group_id: 'group-a',
+                        name: 'Camera 1',
+                        geom_type: 'POINT',
+                        coordinates: [105.62984, 21.00289],
+                        properties: { icon: 'cctv', iconKey: 'cctv', type: 'camera' },
+                        metadata: JSON.stringify({
+                            parent_feature_id: 'intersection-1',
+                            source_parent_feature_id: 'source-intersection-1',
+                            snap_links: { v0: 'intersection-1' },
+                            network: { from_feature_id: 'node-a' },
+                            start_node_id: 'node-a',
+                            end_node_id: 'node-b',
+                            specs: { hfov: 70 },
+                        }),
+                        is_visible: true,
+                    },
+                },
+            },
+        });
+
+        useDesignSync.getState().applyEventsOptimistically([{
+            type: 'FeatureUpdated',
+            payload: {
+                id: 'camera-1',
+                metadata: JSON.stringify({ description: 'updated only' }),
+            },
+        }]);
+
+        const feature = useDesignSync.getState().state!.features['camera-1'];
+        expect(parseMetadata(feature.metadata)).toMatchObject({
+            description: 'updated only',
+            parent_feature_id: 'intersection-1',
+            source_parent_feature_id: 'source-intersection-1',
+            snap_links: { v0: 'intersection-1' },
+            network: { from_feature_id: 'node-a' },
+            start_node_id: 'node-a',
+            end_node_id: 'node-b',
+        });
+    });
+
+    it('should still apply explicit feature ack geometry and properties changes', () => {
+        useDesignSync.setState({
+            state: {
+                regions: {},
+                layers: {},
+                feature_groups: {},
+                settings: {},
+                features: {
+                    'camera-1': {
+                        id: 'camera-1',
+                        layer_id: 'layer-a',
+                        group_id: 'group-a',
+                        name: 'Camera 1',
+                        geom_type: 'POINT',
+                        coordinates: [105.62984, 21.00289],
+                        properties: { icon: 'cctv', iconKey: 'cctv', type: 'camera' },
+                        metadata: JSON.stringify({ parent_feature_id: 'intersection-1' }),
+                        is_visible: true,
+                    },
+                },
+            },
+        });
+
+        useDesignSync.getState().applyQueuedAckToState({
+            success: true,
+            event_id: 'ack-2',
+            applied_event: {
+                type: 'FeatureUpdated',
+                payload: {
+                    id: 'camera-1',
+                    coordinates: [105.7, 21.1],
+                    properties: { icon: 'camera-new', iconKey: 'camera-new', type: 'camera' },
+                },
+            },
+            side_effects: [],
+        });
+
+        const feature = useDesignSync.getState().state!.features['camera-1'];
+        expect(feature.coordinates).toEqual([105.7, 21.1]);
+        expect(feature.properties).toEqual({ icon: 'camera-new', iconKey: 'camera-new', type: 'camera' });
     });
 });

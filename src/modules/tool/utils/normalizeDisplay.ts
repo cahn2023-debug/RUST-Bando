@@ -2,6 +2,7 @@ import { MapState, FeatureState, RegionState, LayerState, FeatureGroupState } fr
 import { FeatureMetadata } from '@CONTRACT/designTypes';
 import { calculateFeatureNumbers, syncDisplayOrderAliases } from './featureMapping';
 import { normalizeMetadataObject } from './metadataNormalization';
+import { normalizeFeatureSymbolData } from './featureDisplay';
 
 /**
  * Safely converts array or object representation to a proper Record mapping by ID.
@@ -27,10 +28,23 @@ const ensureRecord = <T extends { id?: string }>(data: unknown): Record<string, 
     return {};
 };
 
+const isDefaultSymbolValue = (value: unknown): boolean => {
+    const normalized = (
+        typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
+            ? String(value)
+            : ''
+    ).trim().toLowerCase();
+    return normalized === '' || normalized === 'point' || normalized === 'default';
+};
+
 /**
  * Standardizes a single feature for rendering.
  */
-export const normalizeFeatureForDisplay = (feature: FeatureState, calculatedSTT?: string): FeatureState => {
+export const normalizeFeatureForDisplay = (
+    feature: FeatureState,
+    calculatedSTT?: string,
+    group?: FeatureGroupState | null
+): FeatureState => {
     if (!feature) return feature;
 
     // 1. Parse properties
@@ -45,6 +59,7 @@ export const normalizeFeatureForDisplay = (feature: FeatureState, calculatedSTT?
     if (!properties || typeof properties !== 'object') {
         properties = {};
     }
+    properties = { ...(properties as FeatureState['properties']) };
 
     // 2. Parse metadata (supporting double-encoded string)
     let metadata = feature.metadata;
@@ -63,6 +78,26 @@ export const normalizeFeatureForDisplay = (feature: FeatureState, calculatedSTT?
 
     // Standardize metadata fields (e.g. description, specs, business, media, gis)
     let normalizedMeta = normalizeMetadataObject(metadata);
+
+    const symbol = normalizeFeatureSymbolData(
+        { ...feature, properties: properties as any, metadata: normalizedMeta },
+        group?.type,
+        group?.name,
+        normalizedMeta
+    );
+    normalizedMeta = {
+        ...normalizedMeta,
+        icon: symbol.iconKey,
+        type: symbol.objectType,
+    } as FeatureMetadata;
+    const existingIcon = properties.iconKey || properties.icon;
+    const existingType = properties.type;
+    properties = {
+        ...properties,
+        icon: isDefaultSymbolValue(existingIcon) ? symbol.iconKey : existingIcon,
+        iconKey: isDefaultSymbolValue(existingIcon) ? symbol.iconKey : existingIcon,
+        type: isDefaultSymbolValue(existingType) ? symbol.objectType : existingType,
+    } as FeatureState['properties'];
 
     // 3. Parse coordinates (Leaflet expects [lng, lat] for GeoJSON/MapLibre)
     let coordinates = feature.coordinates;
@@ -188,7 +223,8 @@ export const normalizeMapStateForDisplay = (state: MapState): MapState => {
     // 1. Initial normalization run of features to extract properties and metadata
     const tempFeatures: Record<string, FeatureState> = {};
     for (const [id, f] of Object.entries(rawFeatures)) {
-        tempFeatures[id] = normalizeFeatureForDisplay(f);
+        const group = f.group_id ? normalizedGroups[f.group_id] : null;
+        tempFeatures[id] = normalizeFeatureForDisplay(f, undefined, group);
     }
 
     // 2. Perform stable sequence calculation for all features
@@ -198,7 +234,8 @@ export const normalizeMapStateForDisplay = (state: MapState): MapState => {
     // 3. Final normalization run matching calculated stable display sequence order (STT)
     const features: Record<string, FeatureState> = {};
     for (const [id, f] of Object.entries(tempFeatures)) {
-        features[id] = normalizeFeatureForDisplay(f, featureNumbers[id]);
+        const group = f.group_id ? normalizedGroups[f.group_id] : null;
+        features[id] = normalizeFeatureForDisplay(f, featureNumbers[id], group);
     }
 
     return {

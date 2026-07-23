@@ -2,8 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Database, Loader2, RefreshCw, Zap } from "lucide-react";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import {
+  analyzeProjectMediaRecovery,
+  applyProjectMediaRecovery,
   getProjectStorageHealth,
   optimizeProjectStorage,
+  ProjectMediaRecoveryAnalysis,
   ProjectStorageHealth,
   ProjectStorageOptimizationResult,
   STORAGE_HEALTH_REFRESH_EVENT,
@@ -34,7 +37,10 @@ const needsOptimization = (health: ProjectStorageHealth | null) => {
     health.walSizeBytes > WAL_WARN_BYTES ||
     health.freelistBytes > FREELIST_WARN_BYTES ||
     health.largeEventCount > 0 ||
-    health.legacyMediaRefCount > 0
+    health.legacyMediaRefCount > 0 ||
+    health.missingMediaFileCount > 0 ||
+    health.brokenMediaLinkCount > 0 ||
+    health.recoverableFeatureCount > 0
   );
 };
 
@@ -47,6 +53,9 @@ export function StorageHealthIndicator() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
+  const [isAnalyzingRecovery, setIsAnalyzingRecovery] = useState(false);
+  const [isApplyingRecovery, setIsApplyingRecovery] = useState(false);
+  const [recovery, setRecovery] = useState<ProjectMediaRecoveryAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -103,6 +112,39 @@ export function StorageHealthIndicator() {
     }
   };
 
+  const handleAnalyzeRecovery = async () => {
+    if (!projectId || isAnalyzingRecovery) return;
+    setIsAnalyzingRecovery(true);
+    setError(null);
+    try {
+      setRecovery(await analyzeProjectMediaRecovery(String(projectId)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsAnalyzingRecovery(false);
+    }
+  };
+
+  const handleApplyRecovery = async () => {
+    if (!projectId || !recovery || recovery.candidates.length === 0 || isApplyingRecovery) return;
+    const fieldCount = recovery.candidates.reduce((sum, item) => sum + item.fields.length, 0);
+    const confirmed = window.confirm(`Apply recovery for ${recovery.candidates.length} objects and ${fieldCount} metadata fields? A .pmp backup will be created first.`);
+    if (!confirmed) return;
+    setIsApplyingRecovery(true);
+    setError(null);
+    try {
+      await applyProjectMediaRecovery(String(projectId), recovery.candidates);
+      const next = await getProjectStorageHealth(String(projectId));
+      setHealth(next);
+      setRecovery(null);
+      await initialize(String(projectId), projectPath ?? undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsApplyingRecovery(false);
+    }
+  };
+
   if (!projectId) return null;
 
   return (
@@ -144,6 +186,9 @@ export function StorageHealthIndicator() {
               <Metric label="Features" value={String(health?.featureCount ?? 0)} />
               <Metric label="Assets" value={String(health?.mediaAssetCount ?? 0)} />
               <Metric label="Legacy" value={String(health?.legacyMediaRefCount ?? 0)} warn={(health?.legacyMediaRefCount || 0) > 0} />
+              <Metric label="Missing" value={String(health?.missingMediaFileCount ?? 0)} warn={(health?.missingMediaFileCount || 0) > 0} />
+              <Metric label="Links" value={String(health?.brokenMediaLinkCount ?? 0)} warn={(health?.brokenMediaLinkCount || 0) > 0} />
+              <Metric label="Recover" value={String(health?.recoverableFeatureCount ?? 0)} warn={(health?.recoverableFeatureCount || 0) > 0} />
             </div>
 
             <div className="border-t border-cad-border pt-2">
@@ -172,6 +217,49 @@ export function StorageHealthIndicator() {
                 {error}
               </div>
             )}
+
+            <div className="border-t border-cad-border pt-2">
+              <button
+                className="flex h-8 w-full items-center justify-center gap-2 border border-cad-border bg-cad-bg text-[10px] font-black uppercase tracking-[0.12em] text-cad-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => void handleAnalyzeRecovery()}
+                disabled={isAnalyzingRecovery}
+                title="Preview recoverable media and metadata"
+              >
+                {isAnalyzingRecovery ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                Preview Recovery
+              </button>
+
+              {recovery && (
+                <div className="mt-2 max-h-44 space-y-2 overflow-y-auto border border-cad-border bg-cad-bg p-2">
+                  <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-cad-text-muted">
+                    {recovery.candidates.length} objects, {recovery.candidates.reduce((sum, item) => sum + item.fields.length, 0)} fields
+                  </div>
+                  {recovery.candidates.slice(0, 5).map((candidate) => (
+                    <div key={candidate.featureId} className="border-t border-cad-border/70 pt-1">
+                      <div className="truncate text-[10px] font-bold text-cad-text-primary">{candidate.name || candidate.featureId}</div>
+                      <div className="mt-1 space-y-0.5 font-mono text-[9px] text-cad-text-muted">
+                        {candidate.fields.slice(0, 4).map((field) => (
+                          <div key={field.path} className="truncate">{field.path}: {String(field.recovered)}</div>
+                        ))}
+                        {candidate.fields.length > 4 && <div>+{candidate.fields.length - 4} more</div>}
+                      </div>
+                    </div>
+                  ))}
+                  {recovery.candidates.length > 5 && (
+                    <div className="text-[9px] text-cad-text-muted">+{recovery.candidates.length - 5} more objects</div>
+                  )}
+                  <button
+                    className="mt-1 flex h-8 w-full items-center justify-center gap-2 border border-cad-accent/50 bg-cad-accent/10 text-[10px] font-black uppercase tracking-[0.12em] text-cad-accent disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => void handleApplyRecovery()}
+                    disabled={isApplyingRecovery || recovery.candidates.length === 0}
+                    title="Apply selected recovery preview"
+                  >
+                    {isApplyingRecovery ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                    Apply Preview
+                  </button>
+                </div>
+              )}
+            </div>
 
             <button
               className="flex h-8 w-full items-center justify-center gap-2 border border-cad-accent/50 bg-cad-accent/10 text-[10px] font-black uppercase tracking-[0.12em] text-cad-accent disabled:cursor-not-allowed disabled:opacity-50"

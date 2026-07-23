@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Settings2, X, Play } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { getParsedMetadata } from '@TOOL/utils/featureUtils';
+import { getParsedMetadata, normalizeFeatureSymbolData } from '@TOOL/utils/featureUtils';
+import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 
 interface ThemeModalProps {
   groupId: string;
@@ -105,6 +106,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
   };
 
   const handleApply = () => {
+    if (!confirmUserAction('Xác nhận áp dụng biểu tượng và giao diện cho các đối tượng đã chọn?')) return;
     if (!state) return;
 
     setIsApplying(true);
@@ -177,24 +179,39 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
 
           // IMPORTANT: Only merge theme-related fields into metadata
           // Do NOT overwrite the entire metadata string
-          const newMetadata = {
+          const draftMetadata = {
             ...metadata,
             icon: targetIcon,
             color: color || metadata.color,
             size: size || metadata.size || 32
           };
+          const symbol = normalizeFeatureSymbolData(
+            { ...f, metadata: draftMetadata },
+            group?.type,
+            group?.name || groupName,
+            draftMetadata
+          );
+          const newMetadata = {
+            ...draftMetadata,
+            icon: symbol.iconKey,
+            type: symbol.objectType,
+          };
+          const properties = f.properties && typeof f.properties === 'object' && !Array.isArray(f.properties)
+            ? f.properties
+            : {};
 
           return {
             type: 'FeatureUpdated',
             payload: {
               id: f.id,
               name: f.name || '',
-              geom_type: f.geom_type,
-              layer_id: f.layer_id || '',
-              group_id: f.group_id || null,
-              coordinates: f.coordinates || { type: 'Point', coordinates: [] },
-              properties: f.properties || {},
-              metadata: JSON.stringify(newMetadata)
+              metadata: JSON.stringify(newMetadata),
+              properties: {
+                ...properties,
+                icon: symbol.iconKey,
+                iconKey: symbol.iconKey,
+                type: symbol.objectType,
+              },
             }
           };
         });

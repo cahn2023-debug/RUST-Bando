@@ -19,6 +19,9 @@ export interface ProjectStorageHealth {
   largeEventCount: number;
   legacyMediaRefCount: number;
   mediaAssetCount: number;
+  missingMediaFileCount: number;
+  brokenMediaLinkCount: number;
+  recoverableFeatureCount: number;
   mediaAssetsSizeBytes: number;
   tableSizes: ProjectStorageTableSize[];
   integrityStatus: 'ok' | 'failed' | string;
@@ -28,6 +31,34 @@ export interface ProjectStorageHealth {
   lastOptimizedAt?: string | null;
   backupCount: number;
   checkedAt: string;
+}
+
+export interface ProjectMediaRecoveryField {
+  path: string;
+  current: unknown;
+  recovered: unknown;
+}
+
+export interface ProjectMediaRecoveryCandidate {
+  featureId: string;
+  name: string;
+  fields: ProjectMediaRecoveryField[];
+}
+
+export interface ProjectMediaRecoveryAnalysis {
+  projectId: string;
+  candidates: ProjectMediaRecoveryCandidate[];
+  missingMediaFiles: Array<Record<string, unknown>>;
+  brokenLinks: Array<Record<string, unknown>>;
+  checkedAt: string;
+}
+
+export interface ProjectMediaRecoveryApplyResult {
+  projectId: string;
+  backupPath: string;
+  restoredFeatures: number;
+  restoredFields: number;
+  appliedAt: string;
 }
 
 export interface ProjectStorageOptimizationResult {
@@ -53,6 +84,19 @@ export const optimizeProjectStorage = async (
   projectId: string
 ): Promise<ProjectStorageOptimizationResult> => {
   return await invoke<ProjectStorageOptimizationResult>('optimize_project_storage', { projectId });
+};
+
+export const analyzeProjectMediaRecovery = async (
+  projectId: string
+): Promise<ProjectMediaRecoveryAnalysis> => {
+  return await invoke<ProjectMediaRecoveryAnalysis>('analyze_project_media_recovery', { projectId });
+};
+
+export const applyProjectMediaRecovery = async (
+  projectId: string,
+  items: ProjectMediaRecoveryCandidate[]
+): Promise<ProjectMediaRecoveryApplyResult> => {
+  return await invoke<ProjectMediaRecoveryApplyResult>('apply_project_media_recovery', { projectId, items });
 };
 
 export const requestStorageHealthRefresh = () => {

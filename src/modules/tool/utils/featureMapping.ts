@@ -159,9 +159,10 @@ export const formatToIntegerString = (val: unknown): string => {
         return s;
     }
 
-    // If it looks like a number (including 193.0), parse and floor it
-    const num = parseFloat(s);
-    if (!isNaN(num) && isFinite(num)) {
+    // Convert only a fully numeric value. Intersection names may begin with a
+    // number (for example "15 Lê Lợi_1") and must remain intact.
+    const num = Number(s);
+    if (/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(s) && Number.isFinite(num)) {
         return Math.floor(num).toString();
     }
     return s;
@@ -233,7 +234,7 @@ export const removeVietnameseTones = (str: string): string => {
 /**
  * Calculates display sequence numbers for features
  */
-type FeaturesMapType = Record<string, FeatureState | { metadata: unknown; group_id?: string | null }>;
+type FeaturesMapType = Record<string, FeatureState | { name?: string; metadata: unknown; group_id?: string | null }>;
 type OrderMetadata = Record<string, unknown>;
 
 const normalizeOrderKey = (key: string): string =>
@@ -320,7 +321,23 @@ export const calculateFeatureNumbers = (features: FeatureState[], featuresMap: F
         if (!f) return "";
 
         const meta = getParsedMetadata(f);
-        let sttValue = meta.display_order || meta.stt || meta.STT || (meta as Record<string, unknown>).order;
+        const sttValue = meta.display_order || meta.stt || meta.STT || (meta as Record<string, unknown>).order;
+
+        const parentId = meta.parent_feature_id as string | undefined;
+
+        // Children inside an intersection are always numbered from the parent
+        // STT in one stable, duplicate-free sequence. Legacy stored child
+        // numbers are intentionally ignored so gaps and duplicates are repaired.
+        if (parentId && featuresMap[parentId]) {
+            const parentPrefix = getOrResolveSTT(parentId) || '1';
+
+            if (!parentSequenceMap[parentId]) parentSequenceMap[parentId] = 0;
+            parentSequenceMap[parentId]++;
+
+            const result = `${parentPrefix}_${parentSequenceMap[parentId]}`;
+            featureNumberMap[fId] = result;
+            return result;
+        }
 
         // If explicitly set, use it (but still format it)
         if (sttValue) {
@@ -331,27 +348,14 @@ export const calculateFeatureNumbers = (features: FeatureState[], featuresMap: F
             }
         }
 
-        // Fallback: Check parent hierarchy
-        const parentId = meta.parent_feature_id as string | undefined;
-        if (parentId && featuresMap[parentId]) {
-            const parentSTT = getOrResolveSTT(parentId);
+        // Default: Root level sequencing by group
+        const groupId = (f.group_id as string) || "default";
+        if (!groupSequenceMap[groupId]) groupSequenceMap[groupId] = 0;
+        groupSequenceMap[groupId]++;
 
-            if (!parentSequenceMap[parentId]) parentSequenceMap[parentId] = 0;
-            parentSequenceMap[parentId]++;
-
-            const result = `${parentSTT}_${parentSequenceMap[parentId]}`;
-            featureNumberMap[fId] = result;
-            return result;
-        } else {
-            // Default: Root level sequencing by group
-            const groupId = (f.group_id as string) || "default";
-            if (!groupSequenceMap[groupId]) groupSequenceMap[groupId] = 0;
-            groupSequenceMap[groupId]++;
-
-            const result = `${groupSequenceMap[groupId]}`;
-            featureNumberMap[fId] = result;
-            return result;
-        }
+        const result = `${groupSequenceMap[groupId]}`;
+        featureNumberMap[fId] = result;
+        return result;
     };
 
     // Process all features in sorted order to maintain stable sequence numbers
@@ -371,20 +375,13 @@ export const getNextFeatureDisplayOrder = (
     const currentNumbers = calculateFeatureNumbers(features, featuresMap);
 
     if (parentFeatureId && featuresMap[parentFeatureId]) {
-        const parentNumber = currentNumbers[parentFeatureId] || "1";
-        const prefix = `${parentNumber}_`;
-        const maxChildNumber = features.reduce((max, feature) => {
+        const parentPrefix = currentNumbers[parentFeatureId] || "1";
+        const siblingCount = features.reduce((count, feature) => {
             const meta = getParsedMetadata(feature);
-            if (meta.parent_feature_id !== parentFeatureId) return max;
-
-            const displayNumber = currentNumbers[feature.id] || "";
-            if (!displayNumber.startsWith(prefix)) return max;
-
-            const childNumber = Number.parseInt(displayNumber.slice(prefix.length), 10);
-            return Number.isFinite(childNumber) ? Math.max(max, childNumber) : max;
+            return meta.parent_feature_id === parentFeatureId ? count + 1 : count;
         }, 0);
 
-        return `${parentNumber}_${maxChildNumber + 1}`;
+        return `${parentPrefix}_${siblingCount + 1}`;
     }
 
     const maxRootNumber = features.reduce((max, feature) => {

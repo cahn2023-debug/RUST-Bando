@@ -15,22 +15,44 @@ export interface MediaAsset {
   dataUrl?: string;
 }
 
+export interface MediaFeaturePatch {
+  id: string;
+  name?: string;
+  metadata: string;
+  properties?: Record<string, unknown>;
+}
+
+export interface MediaAssetMutationResult extends MediaAsset {
+  asset?: MediaAsset;
+  featurePatch?: MediaFeaturePatch | null;
+}
+
 const toMediaAssetWithSrc = (asset: MediaAsset): MediaAsset & { src: string } => ({
   ...asset,
   src: asset.dataUrl || convertFileSrc(asset.path),
 });
 
+const normalizeMutationResult = (result: MediaAssetMutationResult): MediaAssetMutationResult & { src: string } => {
+  const asset = result.asset || result;
+  return {
+    ...result,
+    ...asset,
+    asset,
+    src: asset.dataUrl || convertFileSrc(asset.path),
+  };
+};
+
 export const importMediaAsset = async (
   projectId: string,
   featureId: string,
   dataUrl: string
-): Promise<MediaAsset & { src: string }> => {
-  const asset = await invoke<MediaAsset>('import_media_asset', {
+): Promise<MediaAssetMutationResult & { src: string }> => {
+  const asset = await invoke<MediaAssetMutationResult>('import_media_asset', {
     projectId,
     featureId,
     dataUrl,
   });
-  return toMediaAssetWithSrc(asset);
+  return normalizeMutationResult(asset);
 };
 
 export const resolveMediaAsset = async (
@@ -47,9 +69,24 @@ export const resolveMediaAsset = async (
 export const deleteMediaAsset = async (
   projectId: string,
   assetId: string
-): Promise<void> => {
-  await invoke('delete_media_asset', {
+): Promise<{ featurePatch?: MediaFeaturePatch | null }> => {
+  return await invoke<{ featurePatch?: MediaFeaturePatch | null }>('delete_media_asset', {
     projectId,
     assetId,
   });
+};
+
+export const replaceMediaAsset = async (
+  projectId: string,
+  featureId: string,
+  assetId: string,
+  dataUrl: string
+): Promise<MediaAssetMutationResult & { src: string }> => {
+  const result = await invoke<MediaAssetMutationResult>('replace_media_asset', {
+    projectId,
+    featureId,
+    assetId,
+    dataUrl,
+  });
+  return normalizeMutationResult(result);
 };

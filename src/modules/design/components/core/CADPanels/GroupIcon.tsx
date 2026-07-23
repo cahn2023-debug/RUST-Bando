@@ -1,5 +1,6 @@
 import React from "react";
-import { Folder, Network, Camera, Square, Circle, Video, ShieldAlert, Monitor, ArrowRightLeft } from "lucide-react";
+import { Folder } from "lucide-react";
+import { getFeatureDisplayInfo } from "@TOOL/utils/featureUtils";
 
 export interface GroupIconProps {
     type?: string;
@@ -9,39 +10,34 @@ export interface GroupIconProps {
     color?: string;
 }
 
+const getGroupGeometryHint = (type?: string, name?: string): string => {
+    const lowerType = (type || "").toLowerCase();
+    const lowerName = (name || "").toLowerCase();
+    if (lowerType.includes("line") || lowerType.includes("polyline") || lowerName.includes("tuyến")) return "LineString";
+    if (lowerType.includes("polygon") || lowerName.includes("vùng")) return "Polygon";
+    return "Point";
+};
+
 export const GroupIcon = React.memo(({ type, name, size = 12, className, color }: GroupIconProps) => {
     const lowerType = (type || "").toLowerCase();
     const lowerName = (name || "").toLowerCase();
 
-    // Determine icon based on type or name
-    if (lowerType === 'folder' || lowerName.includes('thư mục') || lowerName.includes('nhóm')) {
+    if (lowerType === "folder" || lowerName.includes("thư mục") || lowerName.includes("nhóm")) {
         return <Folder size={size} className={className} style={{ color }} />;
     }
 
-    if (lowerType === 'intersection' || lowerName.includes('nút giao')) {
-        return <Network size={size} className={className} style={{ color }} />;
-    }
+    const displayInfo = getFeatureDisplayInfo(
+        {
+            geom_type: getGroupGeometryHint(type, name),
+            name,
+            metadata: { type },
+            properties: { type },
+        },
+        type,
+        name,
+        { type, color }
+    );
+    const Icon = displayInfo.icon;
 
-    if (lowerType === 'cctv' || lowerType === 'ptz' || lowerType === 'camera' || lowerName.includes('camera')) {
-        if (lowerType === 'ptz') return <Video size={size} className={className} style={{ color }} />;
-        return <Camera size={size} className={className} style={{ color }} />;
-    }
-
-    if (lowerType === 'speed' || lowerName.includes('tốc độ')) {
-        return <ShieldAlert size={size} className={className} style={{ color }} />;
-    }
-
-    if (lowerType === 'lpr' || lowerName.includes('biển số')) {
-        return <Monitor size={size} className={className} style={{ color }} />;
-    }
-
-    if (lowerType === 'polyline' || lowerType === 'line' || lowerName.includes('tuyến')) {
-        return <ArrowRightLeft size={size} className={className} style={{ color }} />;
-    }
-
-    // Default icons based on common names or just a folder
-    if (lowerName.includes('vùng') || lowerType === 'polygon') return <Square size={size} className={className} style={{ color }} />;
-    if (lowerName.includes('điểm') || lowerType === 'point') return <Circle size={size} className={className} style={{ color }} />;
-
-    return <Folder size={size} className={className} style={{ color }} />;
+    return <Icon size={size} className={className} style={{ color: color || displayInfo.color }} />;
 });

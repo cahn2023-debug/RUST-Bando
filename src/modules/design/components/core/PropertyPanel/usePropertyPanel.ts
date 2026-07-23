@@ -3,6 +3,7 @@ import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { safeString, getCleanName } from '@TOOL/utils/featureUtils';
 import type { FeatureMetadata } from '@CONTRACT/types';
+import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 
 /**
  * Hook to manage property panel state for a selected feature.
@@ -110,6 +111,7 @@ export function usePropertyPanel() {
 
   const handleSave = async () => {
     if (!feature) return;
+    if (!confirmUserAction(`Xác nhận lưu thay đổi cho đối tượng "${localName}"?`)) return;
     setIsSaving(true);
     setIsSaved(false);
     try {

@@ -1,5 +1,4 @@
 import JSZip from 'jszip';
-import * as XLSX from 'xlsx';
 import { MapState, FeatureState, Project, FeatureMetadata as TypesFeatureMetadata } from '@CONTRACT/types';
 import { format } from 'date-fns';
 
@@ -8,6 +7,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { useExportStore } from '@IMPLEMENT/stores/useExportStore';
 import { resolveMediaAsset } from '@IMPLEMENT/services/mediaAssetService';
 import { logger } from '@TOOL/utils/logger';
+import { rowsToCsv } from '@TOOL/utils/csv';
 
 /**
  * Escapes special characters for XML/KML
@@ -86,30 +86,23 @@ export const exportProjectData = async (projectState: MapState, projectName: str
   updateProgress(5, 'Đang chuẩn bị dữ liệu báo cáo...');
 
   try {
-    // 2. Generate Excel (.xlsx) -> Add to MAIN ZIP
-    updateProgress(10, 'Đang tạo bảng Excel metadata...');
-    const excelData = prepareExcelData(projectState);
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
-    const workbook = XLSX.utils.book_new();
+    // 2. Generate CSV metadata -> Add to MAIN ZIP
+    updateProgress(10, 'Dang tao bang metadata CSV...');
+    const metadataCsv = rowsToCsv(prepareExcelData(projectState));
 
-    // Add Project Info sheet if info is available
     if (projectInfo) {
-      const projectSheetData = [
-        { "Trường": "Tên dự án", "Giá trị": projectInfo.name },
-        { "Trường": "ID dự án", "Giá trị": projectInfo.id },
-        { "Trường": "Đường dẫn", "Giá trị": projectInfo.path },
-        { "Trường": "Thời gian xuất", "Giá trị": format(new Date(), 'dd/MM/yyyy HH:mm:ss') },
-        { "Trường": "Tổng số đối tượng", "Giá trị": Object.keys(projectState.features).length }
-      ];
-      const projectSheet = XLSX.utils.json_to_sheet(projectSheetData);
-      XLSX.utils.book_append_sheet(workbook, projectSheet, "Thông tin dự án");
+      const projectInfoCsv = rowsToCsv([
+        { "Field": "Project name", "Value": projectInfo.name },
+        { "Field": "Project ID", "Value": projectInfo.id },
+        { "Field": "Path", "Value": projectInfo.path },
+        { "Field": "Exported at", "Value": format(new Date(), 'dd/MM/yyyy HH:mm:ss') },
+        { "Field": "Total features", "Value": Object.keys(projectState.features).length }
+      ]);
+      mainZip.file(`project-info_${timestamp}.csv`, projectInfoCsv);
     }
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Siêu dữ liệu");
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    mainZip.file(`Dữ-liệu-thuộc-tính_${timestamp}.xlsx`, excelBuffer);
-    updateProgress(20, 'Đã tạo xong Excel.');
-
+    mainZip.file(`feature-metadata_${timestamp}.csv`, metadataCsv);
+    updateProgress(20, 'Da tao xong CSV.');
     // 3. Generate KML (.kml) -> Add to KMZ ZIP
     updateProgress(25, 'Đang tạo dữ liệu bản đồ KMZ...');
     const kmlContent = generateKML(projectState, projectName, projectInfo);

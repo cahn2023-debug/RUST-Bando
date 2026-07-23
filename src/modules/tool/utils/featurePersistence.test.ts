@@ -51,6 +51,66 @@ describe('featurePersistence', () => {
     });
   });
 
+  it('preserves existing camera type when metadata update omits icon and type', () => {
+    const properties: FeatureProperties = {
+      icon: 'cctv',
+      iconKey: 'cctv',
+      type: 'cctv',
+    };
+    const metadata: FeatureMetadata = {
+      description: 'Checked in field',
+      media: {
+        imageAssetIds: ['asset-1'],
+      },
+    };
+
+    expect(buildFeaturePropertiesForPersistence(properties, metadata)).toEqual({
+      icon: 'cctv',
+      iconKey: 'cctv',
+      type: 'cctv',
+    });
+  });
+
+  it('normalizes legacy point type to intersection when intersection icon is selected', () => {
+    const properties: FeatureProperties = {
+      icon: 'default',
+      iconKey: 'default',
+      type: 'point',
+    };
+    const metadata: FeatureMetadata = {
+      icon: 'intersection',
+      type: 'point',
+      color: '#6366f1',
+    };
+
+    expect(normalizeFeatureMetadataForPersistence(metadata, properties)).toMatchObject({
+      icon: 'intersection',
+      type: 'intersection',
+    });
+    expect(buildFeaturePropertiesForPersistence(properties, metadata)).toMatchObject({
+      icon: 'intersection',
+      iconKey: 'intersection',
+      type: 'intersection',
+    });
+  });
+
+  it('canonicalizes camera alias to cctv when persisting symbol data', () => {
+    const metadata: FeatureMetadata = {
+      icon: 'cctv',
+      type: 'camera',
+    };
+
+    expect(normalizeFeatureMetadataForPersistence(metadata)).toMatchObject({
+      icon: 'cctv',
+      type: 'cctv',
+    });
+    expect(buildFeaturePropertiesForPersistence(undefined, metadata)).toMatchObject({
+      icon: 'cctv',
+      iconKey: 'cctv',
+      type: 'cctv',
+    });
+  });
+
   it('keeps explicit metadata type when icon changes to PTZ', () => {
     const properties: FeatureProperties = {
       iconKey: 'cctv',

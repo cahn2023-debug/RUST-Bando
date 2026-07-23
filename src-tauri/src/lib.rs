@@ -39,9 +39,7 @@ pub fn run() {
             app.manage(ai_state);
             Ok(())
         })
-        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_shell::init())
         .manage(crate::domain::implement::commands::v2::ActorState { gateway_tx: tx })
         .invoke_handler(tauri::generate_handler![
             crate::domain::implement::commands::v2::create_pmp_v2,
@@ -114,6 +112,7 @@ pub fn run() {
             crate::domain::implement::commands::v2_bridge::navigate_webview,
             crate::domain::implement::commands::v2_bridge::eval_webview,
             crate::domain::implement::commands::v2_bridge::get_webview_url,
+            crate::domain::implement::commands::v2_bridge::capture_webview_png,
             crate::domain::implement::commands::v2_bridge::get_task_dependencies,
             crate::domain::implement::commands::v2_bridge::get_content_types,
             crate::domain::implement::commands::v2_bridge::get_project_bom_table,
@@ -124,9 +123,12 @@ pub fn run() {
             crate::domain::implement::commands::v2::import_media_asset,
             crate::domain::implement::commands::v2::import_pmp_into_project,
             crate::domain::implement::commands::v2::delete_media_asset,
+            crate::domain::implement::commands::v2::replace_media_asset,
             crate::domain::implement::commands::v2::resolve_media_asset,
             crate::domain::implement::commands::v2::optimize_project_storage,
             crate::domain::implement::commands::v2::get_project_storage_health,
+            crate::domain::implement::commands::v2::analyze_project_media_recovery,
+            crate::domain::implement::commands::v2::apply_project_media_recovery,
             crate::domain::implement::commands::v2::remove_recent_project,
             crate::domain::implement::commands::v2::delete_project,
             crate::domain::implement::commands::v2::rebuild_fts_v2,

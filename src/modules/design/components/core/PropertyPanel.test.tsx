@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   importMediaAsset: vi.fn(),
   resolveMediaAsset: vi.fn(),
   deleteMediaAsset: vi.fn(),
+  replaceMediaAsset: vi.fn(),
 }));
 
 const cameraState = vi.hoisted(() => ({
@@ -132,6 +133,7 @@ vi.mock('@IMPLEMENT/services/mediaAssetService', () => ({
   importMediaAsset: mocks.importMediaAsset,
   resolveMediaAsset: mocks.resolveMediaAsset,
   deleteMediaAsset: mocks.deleteMediaAsset,
+  replaceMediaAsset: mocks.replaceMediaAsset,
 }));
 
 const createClipboardItem = (file: File) => ({
@@ -147,24 +149,51 @@ const getMediaSection = async () => {
   return section;
 };
 
+const getLastPatchedMetadata = () => {
+  const call = mockUseDesignSync.setState.mock.calls[mockUseDesignSync.setState.mock.calls.length - 1]?.[0];
+  const metadata = call?.state?.features?.[selectedFeature.id]?.metadata;
+  return JSON.parse(metadata || '{}');
+};
+
 describe('PropertyPanel clipboard images', () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockClear());
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     cameraState.onCapture = null;
     mockUseDesignSync.mockClear();
     mockUseDesignSync.getState.mockClear();
     mockUseDesignSync.setState.mockClear();
+    const importedIds: string[] = [];
     mocks.importMediaAsset.mockImplementation(async (_projectId: string, _featureId: string, dataUrl: string) => ({
-      id: dataUrl.includes('jpeg') ? 'asset-jpeg' : 'asset-png',
-      assetId: dataUrl.includes('jpeg') ? 'asset-jpeg' : 'asset-png',
-      projectId: 'project-1',
-      featureId: selectedFeature.id,
-      sha256: 'sha',
-      relPath: 'project.assets/media/test.png',
-      path: 'D:/Code Antinigaty/RUST/project.assets/media/test.png',
-      mimeType: dataUrl.includes('jpeg') ? 'image/jpeg' : 'image/png',
-      byteSize: 123,
-      src: dataUrl.includes('jpeg') ? 'asset://jpeg-preview' : 'asset://png-preview',
+      ...(() => {
+        const assetId = dataUrl.includes('jpeg') ? 'asset-jpeg' : 'asset-png';
+        if (!importedIds.includes(assetId)) importedIds.push(assetId);
+        return {
+          id: assetId,
+          assetId,
+          projectId: 'project-1',
+          featureId: selectedFeature.id,
+          sha256: 'sha',
+          relPath: 'project.assets/media/test.png',
+          path: 'D:/Code Antinigaty/RUST/project.assets/media/test.png',
+          mimeType: dataUrl.includes('jpeg') ? 'image/jpeg' : 'image/png',
+          byteSize: 123,
+          src: dataUrl.includes('jpeg') ? 'asset://jpeg-preview' : 'asset://png-preview',
+          featurePatch: {
+            id: selectedFeature.id,
+            name: 'Camera A',
+            metadata: JSON.stringify({
+              media: {
+                imageAssetIds: [...importedIds],
+                primaryImageAssetId: importedIds[0],
+                imageUrl: 'data:image/png;base64,old',
+                imageUrls: ['data:image/png;base64,old'],
+              },
+            }),
+            properties: selectedFeature.properties,
+          },
+        };
+      })(),
     }));
     mocks.resolveMediaAsset.mockImplementation(async (_projectId: string, assetId: string) => ({
       id: assetId,
@@ -178,7 +207,42 @@ describe('PropertyPanel clipboard images', () => {
       byteSize: 123,
       src: `asset://${assetId}`,
     }));
-    mocks.deleteMediaAsset.mockResolvedValue(undefined);
+    mocks.deleteMediaAsset.mockResolvedValue({
+      featurePatch: {
+        id: selectedFeature.id,
+        name: 'Camera A',
+        metadata: JSON.stringify({
+          media: {
+            imageAssetIds: [],
+            imageUrls: ['data:image/png;base64,old'],
+          },
+        }),
+        properties: selectedFeature.properties,
+      },
+    });
+    mocks.replaceMediaAsset.mockResolvedValue({
+      id: 'asset-png',
+      assetId: 'asset-png',
+      projectId: 'project-1',
+      featureId: selectedFeature.id,
+      sha256: 'sha',
+      relPath: 'project.assets/media/test.png',
+      path: 'D:/Code Antinigaty/RUST/project.assets/media/test.png',
+      mimeType: 'image/png',
+      byteSize: 123,
+      src: 'asset://png-preview',
+      featurePatch: {
+        id: selectedFeature.id,
+        name: 'Camera A',
+        metadata: JSON.stringify({
+          media: {
+            imageAssetIds: ['asset-1', 'asset-png'],
+            primaryImageAssetId: 'asset-1',
+          },
+        }),
+        properties: selectedFeature.properties,
+      },
+    });
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
       clearRect: vi.fn(),
       drawImage: vi.fn(),
@@ -213,26 +277,77 @@ describe('PropertyPanel clipboard images', () => {
 
     await waitFor(() => {
       expect(mocks.importMediaAsset).toHaveBeenCalledWith('project-1', selectedFeature.id, expect.stringMatching(/^data:image\/png;base64,/));
-      expect(mocks.queueEvent).toHaveBeenCalledWith({
-        type: 'FeatureUpdated',
-        payload: expect.objectContaining({
-          id: selectedFeature.id,
-          name: 'Camera A',
+      expect(mocks.queueEvent).not.toHaveBeenCalled();
+      expect(getLastPatchedMetadata()).toMatchObject({
+        media: expect.objectContaining({
+          imageAssetIds: ['asset-png'],
+          primaryImageAssetId: 'asset-png',
+          imageUrl: 'data:image/png;base64,old',
+          imageUrls: ['data:image/png;base64,old'],
         }),
       });
-      expect(mocks.setPreview).toHaveBeenCalledWith(
-        selectedFeature.id,
-        expect.objectContaining({
-          media: expect.objectContaining({
-            imageAssetIds: ['asset-png'],
-            primaryImageAssetId: 'asset-png',
-            imageUrl: 'data:image/png;base64,old',
-            imageUrls: ['data:image/png;base64,old'],
-          }),
-        }),
-        'Camera A',
-      );
     });
+  });
+
+  it('preserves unsaved text draft edits when an image is imported', async () => {
+    render(<PropertyPanel />);
+    const notesInput = await screen.findByLabelText('Survey Notes');
+    fireEvent.change(notesInput, { target: { value: 'Unsaved note draft' } });
+
+    const mediaSection = await getMediaSection();
+    const file = new File(['image-data'], 'site.png', { type: 'image/png' });
+
+    fireEvent.paste(mediaSection, {
+      clipboardData: {
+        items: [createClipboardItem(file)],
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.importMediaAsset).toHaveBeenCalled();
+    });
+
+    expect(notesInput).toHaveValue('Unsaved note draft');
+    expect(screen.getByRole('button', { name: /save specs/i })).not.toBeDisabled();
+  });
+
+  it('pastes an image without changing a nested camera into a standalone point', async () => {
+    const originalMetadata = selectedFeature.metadata;
+    const originalProperties = selectedFeature.properties;
+    selectedFeature.properties = {
+      icon: 'cctv',
+      iconKey: 'cctv',
+      type: 'cctv',
+    };
+    selectedFeature.metadata = JSON.stringify({
+      parent_feature_id: 'intersection-1',
+      media: {
+        imageUrls: ['data:image/png;base64,old'],
+      },
+    });
+
+    render(<PropertyPanel />);
+    const mediaSection = await getMediaSection();
+    const file = new File(['image-data'], 'site.png', { type: 'image/png' });
+
+    fireEvent.paste(mediaSection, {
+      clipboardData: {
+        items: [createClipboardItem(file)],
+      },
+    });
+
+    await waitFor(() => {
+      expect(mocks.importMediaAsset).toHaveBeenCalled();
+      expect(mocks.queueEvent).not.toHaveBeenCalled();
+    });
+    expect(getLastPatchedMetadata()).toMatchObject({
+      media: expect.objectContaining({
+        imageAssetIds: ['asset-png'],
+      }),
+    });
+
+    selectedFeature.metadata = originalMetadata;
+    selectedFeature.properties = originalProperties;
   });
 
   it('appends multiple pasted images and keeps existing photos', async () => {
@@ -248,18 +363,14 @@ describe('PropertyPanel clipboard images', () => {
     });
 
     await waitFor(() => {
-      expect(mocks.setPreview).toHaveBeenCalledWith(
-        selectedFeature.id,
-        expect.objectContaining({
-          media: expect.objectContaining({
-            imageAssetIds: ['asset-png', 'asset-jpeg'],
-            primaryImageAssetId: 'asset-png',
-            imageUrl: 'data:image/png;base64,old',
-            imageUrls: ['data:image/png;base64,old'],
-          }),
+      expect(getLastPatchedMetadata()).toMatchObject({
+        media: expect.objectContaining({
+          imageAssetIds: ['asset-png', 'asset-jpeg'],
+          primaryImageAssetId: 'asset-png',
+          imageUrl: 'data:image/png;base64,old',
+          imageUrls: ['data:image/png;base64,old'],
         }),
-        'Camera A',
-      );
+      });
     });
   });
 
@@ -316,16 +427,12 @@ describe('PropertyPanel clipboard images', () => {
 
     await waitFor(() => {
       expect(mocks.deleteMediaAsset).toHaveBeenCalledWith('project-1', 'asset-1');
-        expect(mocks.setPreview).toHaveBeenCalledWith(
-        selectedFeature.id,
-        expect.objectContaining({
-          media: expect.objectContaining({
-            imageUrls: ['data:image/png;base64,old'],
-            imageAssetIds: [],
-          }),
+      expect(getLastPatchedMetadata()).toMatchObject({
+        media: expect.objectContaining({
+          imageUrls: ['data:image/png;base64,old'],
+          imageAssetIds: [],
         }),
-        'Camera A',
-      );
+      });
     });
   });
 
@@ -336,13 +443,40 @@ describe('PropertyPanel clipboard images', () => {
     fireEvent.click(editButtons[0]);
 
     expect(await screen.findByText('Edit Photo')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Stamp tool' })).toBeInTheDocument();
     expect(screen.getByLabelText('Stroke pattern')).toBeInTheDocument();
     expect(screen.getByLabelText('Asset stamp')).toBeInTheDocument();
     expect(screen.getByLabelText('Text size')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'OK text' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save photo' })).toBeInTheDocument();
+  });
+
+  it('scopes image editor shortcuts to the open editor and ignores text inputs', async () => {
+    render(<PropertyPanel />);
+
+    const editButtons = await screen.findAllByRole('button', { name: 'Edit' });
+    fireEvent.click(editButtons[0]);
+    expect(await screen.findByText('Edit Photo')).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'l' });
+    expect(screen.getByRole('button', { name: 'Line tool (L)' })).toHaveClass('bg-indigo-500');
+
+    fireEvent.keyDown(window, { key: 'C' });
+    expect(screen.getByRole('button', { name: 'Circle tool (C)' })).toHaveClass('bg-indigo-500');
+
+    fireEvent.keyDown(window, { key: 'r' });
+    expect(screen.getByRole('button', { name: 'Square tool (R)' })).toHaveClass('bg-indigo-500');
+
+    fireEvent.keyDown(window, { key: 'T' });
+    expect(screen.getByRole('button', { name: 'Text tool (T)' })).toHaveClass('bg-indigo-500');
+
+    fireEvent.keyDown(screen.getByLabelText('Text value'), { key: 'l' });
+    expect(screen.getByRole('button', { name: 'Text tool (T)' })).toHaveClass('bg-indigo-500');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.keyDown(window, { key: 'l' });
+    expect(screen.queryByText('Edit Photo')).not.toBeInTheDocument();
   });
 
   it('replaces the edited image at the same index and keeps other photos', async () => {
@@ -378,29 +512,114 @@ describe('PropertyPanel clipboard images', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Save photo' }));
 
     await waitFor(() => {
-      expect(mocks.importMediaAsset).toHaveBeenCalledWith('project-1', selectedFeature.id, 'data:image/png;base64,edited');
-      expect(mocks.deleteMediaAsset).toHaveBeenCalledWith('project-1', 'asset-2');
-      expect(mocks.setPreview).toHaveBeenCalledWith(
-        selectedFeature.id,
-        expect.objectContaining({
-          media: expect.objectContaining({
-            imageAssetIds: ['asset-1', 'asset-png'],
-            primaryImageAssetId: 'asset-1',
-          }),
-        }),
-        'Camera A',
-      );
-    });
-    await waitFor(() => {
-      expect(mocks.queueEvent).toHaveBeenCalledWith({
-        type: 'FeatureUpdated',
-        payload: expect.objectContaining({
-          id: selectedFeature.id,
-          name: 'Camera A',
-          metadata: expect.stringContaining('asset-png'),
+      expect(mocks.replaceMediaAsset).toHaveBeenCalledWith('project-1', selectedFeature.id, 'asset-2', 'data:image/png;base64,edited');
+      expect(mocks.deleteMediaAsset).not.toHaveBeenCalledWith('project-1', 'asset-2');
+      expect(getLastPatchedMetadata()).toMatchObject({
+        media: expect.objectContaining({
+          imageAssetIds: ['asset-1', 'asset-png'],
+          primaryImageAssetId: 'asset-1',
         }),
       });
+      expect(mocks.queueEvent).not.toHaveBeenCalled();
     });
+  });
+
+  it('saves added image text into the object description', async () => {
+    const originalMetadata = selectedFeature.metadata;
+    selectedFeature.metadata = JSON.stringify({
+      description: 'Existing note',
+      media: {
+        imageUrls: ['data:image/png;base64,old'],
+      },
+    });
+    mockUseDesignSync.mockReturnValue({
+      state: designState,
+      selectedFeatureId: selectedFeature.id,
+      selectFeature: mocks.selectFeature,
+      dispatchEvent: mocks.dispatchEvent,
+      queueEvent: mocks.queueEvent,
+      setDrawingMode: mocks.setDrawingMode,
+      setSelectedGroup: mocks.setSelectedGroup,
+      setActiveParentFeature: mocks.setActiveParentFeature,
+      setPreview: mocks.setPreview,
+      previewMetadata: null,
+      editingFeatureId: null,
+      setEditingFeatureId: mocks.setEditingFeatureId,
+      projectId: 'project-1',
+      selectionSet: new Set<string>(),
+    });
+
+    render(<PropertyPanel />);
+    await screen.findAllByDisplayValue('Existing note');
+    const editButtons = await screen.findAllByRole('button', { name: 'Edit' });
+    fireEvent.click(editButtons[0]);
+    await screen.findByText('Edit Photo');
+
+    fireEvent.keyDown(window, { key: 't' });
+    fireEvent.change(screen.getByLabelText('Text value'), { target: { value: 'Photo label' } });
+    const canvas = document.querySelector('canvas');
+    if (!canvas) throw new Error('Image editor canvas not found');
+    fireEvent.pointerDown(canvas, { clientX: 10, clientY: 10 });
+    fireEvent.click(screen.getByRole('button', { name: 'OK text' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save photo' }));
+
+    await waitFor(() => {
+      const payload = mocks.queueEvent.mock.calls[mocks.queueEvent.mock.calls.length - 1]?.[0].payload;
+      const savedMetadata = JSON.parse(payload.metadata);
+      expect(savedMetadata.description).toBe('Existing note\nPhoto label');
+    });
+
+    selectedFeature.metadata = originalMetadata;
+  });
+
+  it('does not save image text that was undone before saving', async () => {
+    const originalMetadata = selectedFeature.metadata;
+    selectedFeature.metadata = JSON.stringify({
+      description: 'Existing note',
+      media: {
+        imageUrls: ['data:image/png;base64,old'],
+      },
+    });
+    mockUseDesignSync.mockReturnValue({
+      state: designState,
+      selectedFeatureId: selectedFeature.id,
+      selectFeature: mocks.selectFeature,
+      dispatchEvent: mocks.dispatchEvent,
+      queueEvent: mocks.queueEvent,
+      setDrawingMode: mocks.setDrawingMode,
+      setSelectedGroup: mocks.setSelectedGroup,
+      setActiveParentFeature: mocks.setActiveParentFeature,
+      setPreview: mocks.setPreview,
+      previewMetadata: null,
+      editingFeatureId: null,
+      setEditingFeatureId: mocks.setEditingFeatureId,
+      projectId: 'project-1',
+      selectionSet: new Set<string>(),
+    });
+
+    render(<PropertyPanel />);
+    await screen.findAllByDisplayValue('Existing note');
+    const editButtons = await screen.findAllByRole('button', { name: 'Edit' });
+    fireEvent.click(editButtons[0]);
+    await screen.findByText('Edit Photo');
+
+    fireEvent.keyDown(window, { key: 't' });
+    fireEvent.change(screen.getByLabelText('Text value'), { target: { value: 'Removed label' } });
+    const canvas = document.querySelector('canvas');
+    if (!canvas) throw new Error('Image editor canvas not found');
+    fireEvent.pointerDown(canvas, { clientX: 10, clientY: 10 });
+    fireEvent.click(screen.getByRole('button', { name: 'OK text' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Undo' })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save photo' }));
+
+    await waitFor(() => {
+      const payload = mocks.queueEvent.mock.calls[mocks.queueEvent.mock.calls.length - 1]?.[0].payload;
+      const savedMetadata = JSON.parse(payload.metadata);
+      expect(savedMetadata.description).toBe('Existing note');
+    });
+
+    selectedFeature.metadata = originalMetadata;
   });
 
   it('imports a captured image into media assets immediately', async () => {
@@ -411,13 +630,8 @@ describe('PropertyPanel clipboard images', () => {
 
     await waitFor(() => {
       expect(mocks.importMediaAsset).toHaveBeenCalledWith('project-1', selectedFeature.id, 'data:image/png;base64,captured');
-      expect(mocks.queueEvent).toHaveBeenCalledWith({
-        type: 'FeatureUpdated',
-        payload: expect.objectContaining({
-          id: selectedFeature.id,
-          metadata: expect.stringContaining('asset-png'),
-        }),
-      });
+      expect(mocks.queueEvent).not.toHaveBeenCalled();
+      expect(getLastPatchedMetadata().media.imageAssetIds).toEqual(['asset-png']);
     });
   });
 
@@ -534,8 +748,13 @@ describe('PropertyPanel clipboard images', () => {
 
   it('hides internal metadata keys but preserves them when saving user edits', async () => {
     const originalMetadata = selectedFeature.metadata;
+    const originalProperties = selectedFeature.properties;
+    selectedFeature.properties = {
+      icon: 'cctv',
+      iconKey: 'cctv',
+      type: 'cctv',
+    };
     selectedFeature.metadata = JSON.stringify({
-      type: 'point',
       parent_feature_id: 'parent-uuid',
       start_node_id: 'start-uuid',
       end_node_id: 'end-uuid',
@@ -576,7 +795,17 @@ describe('PropertyPanel clipboard images', () => {
     });
     const payload = mocks.queueEvent.mock.calls[mocks.queueEvent.mock.calls.length - 1][0].payload;
     const savedMetadata = JSON.parse(payload.metadata);
+    expect(payload).not.toHaveProperty('group_id');
+    expect(payload).not.toHaveProperty('geom_type');
+    expect(payload).not.toHaveProperty('layer_id');
+    expect(payload.properties).toMatchObject({
+      icon: 'cctv',
+      iconKey: 'cctv',
+      type: 'cctv',
+    });
     expect(savedMetadata).toMatchObject({
+      icon: 'cctv',
+      type: 'cctv',
       description: 'Checked in field',
       parent_feature_id: 'parent-uuid',
       start_node_id: 'start-uuid',
@@ -591,6 +820,7 @@ describe('PropertyPanel clipboard images', () => {
     });
 
     selectedFeature.metadata = originalMetadata;
+    selectedFeature.properties = originalProperties;
   });
 
   it('renders camera metadata fields from specs and GIS metadata', async () => {

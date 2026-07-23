@@ -8,7 +8,7 @@ import { Package, BarChart3, Users, Layers, Map as MapIcon } from 'lucide-react'
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { generateBOMSummary, bomToExcelData } from '@IMPLEMENT/services/bomService';
 import { cn } from '@TOOL/utils/cn';
-import * as XLSX from 'xlsx';
+import { rowsToCsv } from '@TOOL/utils/csv';
 import { save } from '@tauri-apps/plugin-dialog';
 
 interface BOMSummaryProps {
@@ -59,20 +59,15 @@ export const BOMSummaryPanel: React.FC<BOMSummaryProps> = ({ className }) => {
   const handleExportBOM = async () => {
     try {
       const filePath = await save({
-        filters: [{ name: 'Excel', extensions: ['xlsx'] }],
-        defaultPath: `Tổng-hợp-BOM_${new Date().toISOString().split('T')[0]}.xlsx`
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+        defaultPath: `Tổng-hợp-BOM_${new Date().toISOString().split('T')[0]}.csv`
       });
 
       if (!filePath) return;
 
-      const excelData = bomToExcelData(bomSummary);
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Tổng hợp BOM');
-
-      const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const buffer = new TextEncoder().encode(rowsToCsv(bomToExcelData(bomSummary)));
       const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('save_binary_file', { path: filePath, data: Array.from(new Uint8Array(buffer)) });
+      await invoke('save_binary_file', { path: filePath, data: Array.from(buffer) });
     } catch (error) {
       console.error('Export error:', error);
     }
@@ -188,7 +183,7 @@ export const BOMSummaryPanel: React.FC<BOMSummaryProps> = ({ className }) => {
             onClick={handleExportBOM}
             className="px-3 py-1.5 bg-cad-accent text-white text-[10px] font-black uppercase rounded hover:brightness-110 transition-all"
           >
-            Xuất Excel
+            Xuất CSV
           </button>
         </div>
       </div>

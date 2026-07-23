@@ -51,11 +51,14 @@ impl StorageWorker {
                                     | StorageCommand::VerifyIntegrity { .. }
                                     | StorageCommand::GetProjectHealth { .. }
                                     | StorageCommand::ImportMediaAsset { .. }
+                                    | StorageCommand::ReplaceMediaAsset { .. }
                                     | StorageCommand::AnalyzePmpImport { .. }
                                     | StorageCommand::ImportPmpIntoProject { .. }
                                     | StorageCommand::DeleteMediaAsset { .. }
                                     | StorageCommand::ResolveMediaAsset { .. }
                                     | StorageCommand::OptimizeProjectStorage { .. }
+                                    | StorageCommand::AnalyzeProjectMediaRecovery { .. }
+                                    | StorageCommand::ApplyProjectMediaRecovery { .. }
                             ) {
                                 worker.execute_batch(batch).await;
                                 worker.execute(next).await;
@@ -205,6 +208,27 @@ impl StorageWorker {
                 .and_then(|result| result);
                 let _ = reply.send(res);
             }
+            StorageCommand::ReplaceMediaAsset {
+                project_id,
+                feature_id,
+                asset_id,
+                data_url,
+                file_path,
+                reply,
+            } => {
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.replace_media_asset(
+                        &project_id,
+                        &feature_id,
+                        &asset_id,
+                        data_url,
+                        file_path,
+                    )
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
+                let _ = reply.send(res);
+            }
             StorageCommand::AnalyzePmpImport { source_path, reply } => {
                 let res = catch_unwind(AssertUnwindSafe(|| self.analyze_pmp_import(&source_path)))
                     .map_err(panic_to_string)
@@ -250,6 +274,26 @@ impl StorageWorker {
             StorageCommand::OptimizeProjectStorage { project_id, reply } => {
                 let res = catch_unwind(AssertUnwindSafe(|| {
                     self.optimize_project_storage(&project_id)
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
+                let _ = reply.send(res);
+            }
+            StorageCommand::AnalyzeProjectMediaRecovery { project_id, reply } => {
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.analyze_project_media_recovery(&project_id)
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
+                let _ = reply.send(res);
+            }
+            StorageCommand::ApplyProjectMediaRecovery {
+                project_id,
+                items,
+                reply,
+            } => {
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.apply_project_media_recovery(&project_id, &items)
                 }))
                 .map_err(panic_to_string)
                 .and_then(|result| result);
@@ -311,6 +355,9 @@ impl StorageWorker {
                         "largeEventCount": summary.get("largeEventCount").cloned().unwrap_or_else(|| json!(0)),
                         "legacyMediaRefCount": summary.get("legacyMediaRefCount").cloned().unwrap_or_else(|| json!(0)),
                         "mediaAssetCount": summary.get("mediaAssetCount").cloned().unwrap_or_else(|| json!(0)),
+                        "missingMediaFileCount": summary.get("missingMediaFileCount").cloned().unwrap_or_else(|| json!(0)),
+                        "brokenMediaLinkCount": summary.get("brokenMediaLinkCount").cloned().unwrap_or_else(|| json!(0)),
+                        "recoverableFeatureCount": summary.get("recoverableFeatureCount").cloned().unwrap_or_else(|| json!(0)),
                         "mediaAssetsSizeBytes": summary.get("mediaAssetsSizeBytes").cloned().unwrap_or_else(|| json!(0)),
                         "tableSizes": summary.get("tableSizes").cloned().unwrap_or_else(|| json!([])),
                         "integrityStatus": if integrity == "ok" { "ok" } else { "failed" },
@@ -368,11 +415,14 @@ impl StorageWorker {
                     | StorageCommand::GetPendingSyncOutbox { .. }
                     | StorageCommand::MarkOutboxSynced { .. }
                     | StorageCommand::ImportMediaAsset { .. }
+                    | StorageCommand::ReplaceMediaAsset { .. }
                     | StorageCommand::AnalyzePmpImport { .. }
                     | StorageCommand::ImportPmpIntoProject { .. }
                     | StorageCommand::DeleteMediaAsset { .. }
                     | StorageCommand::ResolveMediaAsset { .. }
                     | StorageCommand::OptimizeProjectStorage { .. }
+                    | StorageCommand::AnalyzeProjectMediaRecovery { .. }
+                    | StorageCommand::ApplyProjectMediaRecovery { .. }
             ) {
                 self.execute(commands.into_iter().next().expect("single command"))
                     .await;
@@ -472,9 +522,89 @@ impl StorageWorker {
             &input.bytes,
             &input.mime_type,
         )?;
+        let feature_patch = load_feature_patch(&tx, project_id, feature_id)?;
         rebuild_project_snapshot(&tx, project_id)?;
         tx.commit().map_err(|e| e.to_string())?;
-        Ok(asset)
+        Ok(media_mutation_result(asset, feature_patch))
+    }
+
+    fn replace_media_asset(
+        &mut self,
+        project_id: &str,
+        feature_id: &str,
+        asset_id: &str,
+        data_url: Option<String>,
+        file_path: Option<String>,
+    ) -> Result<Value, String> {
+        let input = read_media_input(data_url, file_path)?;
+        let old_record: Option<(String, i64, i64)> = self
+            .db
+            .conn
+            .query_row(
+                "SELECT ma.rel_path, fm.sort_order, fm.is_primary
+                 FROM media_assets ma
+                 JOIN feature_media fm ON fm.asset_id = ma.id
+                 WHERE ma.project_id = ?1 AND ma.id = ?2 AND fm.feature_id = ?3
+                 LIMIT 1",
+                params![project_id, asset_id, feature_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+        let Some((old_rel_path, sort_order, is_primary)) = old_record else {
+            return Err(format!("Media asset link not found: {asset_id}"));
+        };
+
+        let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
+        let asset = persist_media_asset(
+            &tx,
+            &self.db.base_dir,
+            &self.db.pmp_path,
+            project_id,
+            Some(feature_id),
+            &input.bytes,
+            &input.mime_type,
+        )?;
+        let new_asset_id = asset
+            .get("assetId")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "Imported media asset is missing id".to_string())?
+            .to_string();
+
+        if new_asset_id != asset_id {
+            tx.execute(
+                "DELETE FROM feature_media WHERE feature_id = ?1 AND asset_id = ?2",
+                params![feature_id, new_asset_id],
+            )
+            .map_err(|e| e.to_string())?;
+            tx.execute(
+                "DELETE FROM feature_media WHERE feature_id = ?1 AND asset_id = ?2",
+                params![feature_id, asset_id],
+            )
+            .map_err(|e| e.to_string())?;
+            tx.execute(
+                "INSERT INTO feature_media (feature_id, asset_id, sort_order, is_primary)
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![feature_id, new_asset_id, sort_order, is_primary],
+            )
+            .map_err(|e| e.to_string())?;
+            tx.execute(
+                "DELETE FROM media_assets WHERE project_id = ?1 AND id = ?2",
+                params![project_id, asset_id],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+
+        restore_feature_media_links_from_metadata(&tx, &self.db.base_dir, project_id)?;
+        sync_feature_media_metadata(&tx, project_id)?;
+        let feature_patch = load_feature_patch(&tx, project_id, feature_id)?;
+        rebuild_project_snapshot(&tx, project_id)?;
+        tx.commit().map_err(|e| e.to_string())?;
+        if new_asset_id != asset_id {
+            let old_full_path = self.db.base_dir.join(old_rel_path);
+            let _ = fs::remove_file(old_full_path);
+        }
+        Ok(media_mutation_result(asset, feature_patch))
     }
 
     fn analyze_pmp_import(&self, source_path: &Path) -> Result<Value, String> {
@@ -532,7 +662,7 @@ impl StorageWorker {
         }))
     }
 
-    fn delete_media_asset(&mut self, project_id: &str, asset_id: &str) -> Result<(), String> {
+    fn delete_media_asset(&mut self, project_id: &str, asset_id: &str) -> Result<Value, String> {
         let asset_record: Option<(String, Option<String>)> = self
             .db
             .conn
@@ -561,13 +691,18 @@ impl StorageWorker {
             params![project_id, asset_id],
         )
         .map_err(|e| e.to_string())?;
+        let feature_patch = if let Some((_, Some(feature_id))) = &asset_record {
+            load_feature_patch(&tx, project_id, feature_id)?
+        } else {
+            None
+        };
         rebuild_project_snapshot(&tx, project_id)?;
         tx.commit().map_err(|e| e.to_string())?;
         if let Some((rel_path, _)) = asset_record {
             let full_path = self.db.base_dir.join(rel_path);
             let _ = fs::remove_file(full_path);
         }
-        Ok(())
+        Ok(json!({ "featurePatch": feature_patch }))
     }
 
     fn resolve_media_asset(&self, project_id: &str, asset_id: &str) -> Result<Value, String> {
@@ -648,6 +783,88 @@ impl StorageWorker {
                 .map_err(|e| e.to_string())?;
         }
         Ok(asset)
+    }
+
+    fn analyze_project_media_recovery(&self, project_id: &str) -> Result<Value, String> {
+        let candidates = build_recovery_candidates(&self.db.conn, project_id)?;
+        let missing_files = missing_media_files(&self.db.conn, &self.db.base_dir, project_id)?;
+        let broken_links = broken_media_links(&self.db.conn, project_id)?;
+        Ok(json!({
+            "projectId": project_id,
+            "candidates": candidates,
+            "missingMediaFiles": missing_files,
+            "brokenLinks": broken_links,
+            "checkedAt": chrono::Local::now().to_rfc3339(),
+        }))
+    }
+
+    fn apply_project_media_recovery(
+        &mut self,
+        project_id: &str,
+        items: &Value,
+    ) -> Result<Value, String> {
+        let selected = items
+            .as_array()
+            .ok_or_else(|| "Recovery items must be an array".to_string())?;
+        let backup_path = backup_project_media_recovery(&self.db.pmp_path, project_id)?;
+        let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
+        let mut restored_features = 0usize;
+        let mut restored_fields = 0usize;
+
+        for item in selected {
+            let Some(feature_id) = item.get("featureId").and_then(Value::as_str) else {
+                continue;
+            };
+            let Some(fields) = item.get("fields").and_then(Value::as_array) else {
+                continue;
+            };
+            let metadata_text: Option<String> = tx
+                .query_row(
+                    "SELECT metadata_json FROM features WHERE project_id = ?1 AND id = ?2",
+                    params![project_id, feature_id],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(|e| e.to_string())?;
+            let Some(metadata_text) = metadata_text else {
+                continue;
+            };
+            let mut metadata =
+                serde_json::from_str::<Value>(&metadata_text).unwrap_or_else(|_| json!({}));
+            let mut changed = false;
+            for field in fields {
+                let Some(path) = field.get("path").and_then(Value::as_str) else {
+                    continue;
+                };
+                let value = field.get("recovered").cloned().unwrap_or(Value::Null);
+                if !is_recoverable_metadata_path(path) || !is_useful_value(&value) {
+                    continue;
+                }
+                set_json_path(&mut metadata, path, value);
+                changed = true;
+                restored_fields += 1;
+            }
+            if changed {
+                tx.execute(
+                    "UPDATE features SET metadata_json = ?1, updated_at = CURRENT_TIMESTAMP WHERE project_id = ?2 AND id = ?3",
+                    params![metadata.to_string(), project_id, feature_id],
+                )
+                .map_err(|e| e.to_string())?;
+                restored_features += 1;
+            }
+        }
+
+        restore_feature_media_links_from_metadata(&tx, &self.db.base_dir, project_id)?;
+        sync_feature_media_metadata(&tx, project_id)?;
+        rebuild_project_snapshot(&tx, project_id)?;
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok(json!({
+            "projectId": project_id,
+            "backupPath": backup_path.to_string_lossy().to_string(),
+            "restoredFeatures": restored_features,
+            "restoredFields": restored_fields,
+            "appliedAt": chrono::Local::now().to_rfc3339(),
+        }))
     }
 
     fn optimize_project_storage(&mut self, project_id: &str) -> Result<Value, String> {
@@ -868,11 +1085,14 @@ impl StorageWorker {
                 | StorageCommand::GetPendingSyncOutbox { .. }
                 | StorageCommand::MarkOutboxSynced { .. }
                 | StorageCommand::ImportMediaAsset { .. }
+                | StorageCommand::ReplaceMediaAsset { .. }
                 | StorageCommand::AnalyzePmpImport { .. }
                 | StorageCommand::ImportPmpIntoProject { .. }
                 | StorageCommand::DeleteMediaAsset { .. }
                 | StorageCommand::ResolveMediaAsset { .. }
-                | StorageCommand::OptimizeProjectStorage { .. } => {}
+                | StorageCommand::OptimizeProjectStorage { .. }
+                | StorageCommand::AnalyzeProjectMediaRecovery { .. }
+                | StorageCommand::ApplyProjectMediaRecovery { .. } => {}
             }
         }
         tx.commit().map_err(|e| e.to_string())
@@ -2017,6 +2237,40 @@ fn unlink_media_asset_from_feature_metadata(
     Ok(())
 }
 
+fn media_mutation_result(asset: Value, feature_patch: Option<Value>) -> Value {
+    let mut result = asset.as_object().cloned().unwrap_or_default();
+    result.insert("asset".to_string(), asset);
+    result.insert(
+        "featurePatch".to_string(),
+        feature_patch.unwrap_or(Value::Null),
+    );
+    Value::Object(result)
+}
+
+fn load_feature_patch(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    feature_id: &str,
+) -> Result<Option<Value>, String> {
+    tx.query_row(
+        "SELECT id, name, metadata_json, properties_json
+         FROM features
+         WHERE project_id = ?1 AND id = ?2",
+        params![project_id, feature_id],
+        |row| {
+            let properties_text: String = row.get(3)?;
+            Ok(json!({
+                "id": row.get::<_, String>(0)?,
+                "name": row.get::<_, String>(1)?,
+                "metadata": row.get::<_, String>(2)?,
+                "properties": serde_json::from_str::<Value>(&properties_text).unwrap_or_else(|_| json!({})),
+            }))
+        },
+    )
+    .optional()
+    .map_err(|e| e.to_string())
+}
+
 fn media_hierarchy_segments(
     tx: &Transaction<'_>,
     project_id: &str,
@@ -2237,6 +2491,29 @@ fn backup_project_storage_optimization(
     Ok(backup_path)
 }
 
+fn backup_project_media_recovery(pmp_path: &Path, project_id: &str) -> Result<PathBuf, String> {
+    let backup_dir = pmp_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."))
+        .join("backups")
+        .join(project_id)
+        .join("media_recovery");
+    fs::create_dir_all(&backup_dir)
+        .map_err(|e| format!("Failed to create media recovery backup directory: {e}"))?;
+    let stem = pmp_path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("project");
+    let backup_path = backup_dir.join(format!(
+        "{}_before_media_recovery_{}.pmp",
+        safe_path_segment(stem, project_id),
+        chrono::Local::now().format("%Y%m%d_%H%M%S")
+    ));
+    backup_database_snapshot(pmp_path, &backup_path)
+        .map_err(|e| format!("Failed to backup .pmp before media recovery: {e}"))?;
+    Ok(backup_path)
+}
+
 fn project_storage_summary(
     conn: &rusqlite::Connection,
     pmp_path: &Path,
@@ -2284,6 +2561,10 @@ fn project_storage_summary(
         )
         .map_err(|e| e.to_string())?;
     let legacy_media_ref_count: i64 = legacy_media_ref_count(conn, project_id)?;
+    let base_dir = pmp_path.parent().unwrap_or_else(|| Path::new("."));
+    let missing_media_file_count = missing_media_files(conn, base_dir, project_id)?.len();
+    let broken_media_link_count = broken_media_links(conn, project_id)?.len();
+    let recoverable_feature_count = build_recovery_candidates(conn, project_id)?.len();
     let table_sizes = table_size_summary_for_conn(conn).unwrap_or_else(|_| json!([]));
     Ok(json!({
         "databaseSizeBytes": db_size,
@@ -2297,9 +2578,264 @@ fn project_storage_summary(
         "largeEventCount": large_event_count,
         "legacyMediaRefCount": legacy_media_ref_count,
         "mediaAssetCount": media_count,
+        "missingMediaFileCount": missing_media_file_count,
+        "brokenMediaLinkCount": broken_media_link_count,
+        "recoverableFeatureCount": recoverable_feature_count,
         "mediaAssetsSizeBytes": media_bytes,
         "tableSizes": table_sizes,
     }))
+}
+
+fn missing_media_files(
+    conn: &rusqlite::Connection,
+    base_dir: &Path,
+    project_id: &str,
+) -> Result<Vec<Value>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, sha256, rel_path, mime_type
+             FROM media_assets
+             WHERE project_id = ?1
+             ORDER BY id",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![project_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut missing = Vec::new();
+    for row in rows {
+        let (asset_id, sha256, rel_path, mime_type) = row.map_err(|e| e.to_string())?;
+        let full_path = base_dir.join(&rel_path);
+        if !full_path.exists() {
+            missing.push(json!({
+                "assetId": asset_id,
+                "sha256": sha256,
+                "relPath": rel_path,
+                "mimeType": mime_type,
+            }));
+        }
+    }
+    Ok(missing)
+}
+
+fn broken_media_links(conn: &rusqlite::Connection, project_id: &str) -> Result<Vec<Value>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT fm.feature_id, fm.asset_id
+             FROM feature_media fm
+             LEFT JOIN features f ON f.id = fm.feature_id
+             LEFT JOIN media_assets ma ON ma.id = fm.asset_id
+             WHERE COALESCE(f.project_id, ma.project_id) = ?1
+               AND (f.id IS NULL OR ma.id IS NULL)
+             ORDER BY fm.feature_id, fm.asset_id",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![project_id], |row| {
+            Ok(json!({
+                "featureId": row.get::<_, String>(0)?,
+                "assetId": row.get::<_, String>(1)?,
+            }))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut links = Vec::new();
+    for row in rows {
+        links.push(row.map_err(|e| e.to_string())?);
+    }
+    Ok(links)
+}
+
+fn build_recovery_candidates(
+    conn: &rusqlite::Connection,
+    project_id: &str,
+) -> Result<Vec<Value>, String> {
+    let mut historical: HashMap<String, HashMap<String, Value>> = HashMap::new();
+    let mut stmt = conn
+        .prepare(
+            "SELECT entity_id, event_type, payload_json
+             FROM events
+             WHERE project_id = ?1 AND event_type IN ('FeatureCreated', 'FeatureUpdated')
+             ORDER BY global_seq",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![project_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+    for row in rows {
+        let (feature_id, event_type, payload_text) = row.map_err(|e| e.to_string())?;
+        let payload = serde_json::from_str::<Value>(&payload_text).unwrap_or_else(|_| json!({}));
+        let metadata = if event_type == "FeatureCreated" {
+            payload.get("metadata").cloned()
+        } else {
+            payload
+                .get("changes")
+                .and_then(|changes| changes.get("metadata"))
+                .map(|value| parse_json_field(value, json!({})))
+        };
+        let Some(metadata) = metadata else {
+            continue;
+        };
+        let fields = historical.entry(feature_id).or_default();
+        collect_recovery_fields("", &metadata, fields);
+    }
+    drop(stmt);
+
+    let mut features = conn
+        .prepare(
+            "SELECT id, name, metadata_json
+             FROM features
+             WHERE project_id = ?1
+             ORDER BY updated_at DESC, id",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = features
+        .query_map(params![project_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut candidates = Vec::new();
+    for row in rows {
+        let (feature_id, name, metadata_text) = row.map_err(|e| e.to_string())?;
+        let Some(history_fields) = historical.get(&feature_id) else {
+            continue;
+        };
+        let current = serde_json::from_str::<Value>(&metadata_text).unwrap_or_else(|_| json!({}));
+        let mut fields = Vec::new();
+        for (path, recovered) in history_fields {
+            if !is_recoverable_metadata_path(path) || !is_useful_value(recovered) {
+                continue;
+            }
+            let current_value = get_json_path(&current, path)
+                .cloned()
+                .unwrap_or(Value::Null);
+            if is_useful_value(&current_value) {
+                continue;
+            }
+            fields.push(json!({
+                "path": path,
+                "current": current_value,
+                "recovered": recovered,
+            }));
+        }
+        fields.sort_by_key(|field| {
+            field
+                .get("path")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string()
+        });
+        if !fields.is_empty() {
+            candidates.push(json!({
+                "featureId": feature_id,
+                "name": name,
+                "fields": fields,
+            }));
+        }
+        if candidates.len() >= 50 {
+            break;
+        }
+    }
+    Ok(candidates)
+}
+
+fn collect_recovery_fields(prefix: &str, value: &Value, out: &mut HashMap<String, Value>) {
+    match value {
+        Value::Object(map) => {
+            for (key, child) in map {
+                let path = if prefix.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{prefix}.{key}")
+                };
+                if is_recoverable_metadata_path(&path) && is_useful_value(child) {
+                    out.insert(path.clone(), child.clone());
+                }
+                if child.is_object() {
+                    collect_recovery_fields(&path, child, out);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn is_recoverable_metadata_path(path: &str) -> bool {
+    if path.contains("__proto__") || path.contains("constructor") || path.contains("prototype") {
+        return false;
+    }
+    path == "display_order"
+        || path == "stt"
+        || path == "STT"
+        || path == "color"
+        || path == "size"
+        || path == "icon"
+        || path == "type"
+        || path == "weight"
+        || path == "rotation"
+        || path.starts_with("gis.")
+        || path.starts_with("specs.")
+        || path.starts_with("business.")
+        || path.starts_with("infrastructure.")
+        || path.starts_with("media.")
+}
+
+fn is_useful_value(value: &Value) -> bool {
+    match value {
+        Value::Null => false,
+        Value::String(text) => !text.trim().is_empty(),
+        Value::Array(items) => !items.is_empty(),
+        Value::Object(map) => !map.is_empty(),
+        Value::Bool(_) | Value::Number(_) => true,
+    }
+}
+
+fn get_json_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
+    let mut current = value;
+    for part in path.split('.') {
+        current = current.get(part)?;
+    }
+    Some(current)
+}
+
+fn set_json_path(value: &mut Value, path: &str, next_value: Value) {
+    if !value.is_object() {
+        *value = json!({});
+    }
+    let mut current = value;
+    let mut parts = path.split('.').peekable();
+    while let Some(part) = parts.next() {
+        if parts.peek().is_none() {
+            if let Some(obj) = current.as_object_mut() {
+                obj.insert(part.to_string(), next_value);
+            }
+            return;
+        }
+        if let Some(obj) = current.as_object_mut() {
+            current = obj.entry(part.to_string()).or_insert_with(|| json!({}));
+            if !current.is_object() {
+                *current = json!({});
+            }
+        } else {
+            return;
+        }
+    }
 }
 
 fn count_project_rows(
@@ -2604,6 +3140,68 @@ fn sync_feature_media_metadata(tx: &Transaction<'_>, project_id: &str) -> Result
         repaired += 1;
     }
     Ok(repaired)
+}
+
+fn restore_feature_media_links_from_metadata(
+    tx: &Transaction<'_>,
+    base_dir: &Path,
+    project_id: &str,
+) -> Result<usize, String> {
+    let mut stmt = tx
+        .prepare("SELECT id, metadata_json FROM features WHERE project_id = ?1")
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![project_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|e| e.to_string())?;
+    let mut records = Vec::new();
+    for row in rows {
+        records.push(row.map_err(|e| e.to_string())?);
+    }
+    drop(stmt);
+
+    let mut restored = 0usize;
+    for (feature_id, metadata_text) in records {
+        let metadata = serde_json::from_str::<Value>(&metadata_text).unwrap_or_else(|_| json!({}));
+        let asset_ids = metadata
+            .get("media")
+            .and_then(|media| media.get("imageAssetIds"))
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        for (index, asset_id) in asset_ids.iter().enumerate() {
+            let asset_path: Option<String> = tx
+                .query_row(
+                    "SELECT rel_path FROM media_assets WHERE project_id = ?1 AND id = ?2",
+                    params![project_id, asset_id],
+                    |row| row.get(0),
+                )
+                .optional()
+                .map_err(|e| e.to_string())?;
+            let Some(asset_path) = asset_path else {
+                continue;
+            };
+            if !base_dir.join(asset_path).exists() {
+                continue;
+            }
+            let inserted = tx
+                .execute(
+                    "INSERT OR IGNORE INTO feature_media (feature_id, asset_id, sort_order, is_primary)
+                     VALUES (?1, ?2, ?3, ?4)",
+                    params![feature_id, asset_id, index as i64, if index == 0 { 1 } else { 0 }],
+                )
+                .map_err(|e| e.to_string())?;
+            restored += inserted;
+        }
+    }
+    Ok(restored)
 }
 
 fn backup_legacy_media_migration(pmp_path: &Path) -> Result<(), String> {
@@ -3244,7 +3842,7 @@ fn apply_event_to_read_models(
             note,
             bbox,
             metadata,
-            .. 
+            ..
         } => {
             tx.execute(
                 "INSERT OR REPLACE INTO features (id, project_id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json, is_visible, note, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, CURRENT_TIMESTAMP)",
@@ -3264,7 +3862,7 @@ fn apply_event_to_read_models(
                 ],
             )
             .map_err(|e| e.to_string())?;
-            project_fiber_cable_if_eligible(tx, &project_id, &id.to_string(), geom_type, &metadata)?;
+            project_fiber_cable_if_eligible(tx, &project_id, &id.to_string(), geom_type, metadata)?;
         }
         AppEvent::FeatureUpdated { id, changes } => {
             let mut current = fetch_feature_snapshot(tx, &id.to_string())?.unwrap_or_else(|| {
@@ -3280,11 +3878,63 @@ fn apply_event_to_read_models(
                     "bbox": null
                 })
             });
-            merge_objects(&mut current, changes);
+            let mut safe_changes = changes.clone();
+            if let Some(changes_obj) = safe_changes.as_object_mut() {
+                changes_obj.remove("geom_type");
+                if changes_obj.contains_key("metadata")
+                    && !changes_obj.contains_key("group_id")
+                    && !changes_obj.contains_key("layer_id")
+                {
+                    let current_metadata = parse_json_field(
+                        current.get("metadata").unwrap_or(&Value::Null),
+                        json!({}),
+                    );
+                    let mut incoming_metadata = parse_json_field(
+                        changes_obj.get("metadata").unwrap_or(&Value::Null),
+                        json!({}),
+                    );
+                    if let (Some(current_obj), Some(incoming_obj)) = (
+                        current_metadata.as_object(),
+                        incoming_metadata.as_object_mut(),
+                    ) {
+                        for key in [
+                            "parent_feature_id",
+                            "source_parent_feature_id",
+                            "snap_links",
+                            "network",
+                            "start_node_id",
+                            "end_node_id",
+                        ] {
+                            if !incoming_obj.contains_key(key) {
+                                if let Some(value) = current_obj.get(key) {
+                                    if !value.is_null() {
+                                        incoming_obj.insert(key.to_string(), value.clone());
+                                    }
+                                }
+                            }
+                        }
+                        changes_obj.insert(
+                            "metadata".to_string(),
+                            Value::String(incoming_metadata.to_string()),
+                        );
+                    }
+                }
+            }
+            merge_objects(&mut current, &safe_changes);
             write_feature_snapshot(tx, &project_id, &current)?;
-            let geom_type = current.get("geom_type").and_then(Value::as_str).unwrap_or("Point");
-            let metadata = parse_json_field(current.get("metadata").unwrap_or(&Value::Null), json!({}));
-            project_fiber_cable_if_eligible(tx, &project_id, &id.to_string(), geom_type, &metadata)?;
+            let geom_type = current
+                .get("geom_type")
+                .and_then(Value::as_str)
+                .unwrap_or("Point");
+            let metadata =
+                parse_json_field(current.get("metadata").unwrap_or(&Value::Null), json!({}));
+            project_fiber_cable_if_eligible(
+                tx,
+                &project_id,
+                &id.to_string(),
+                geom_type,
+                &metadata,
+            )?;
         }
         AppEvent::FeatureDeleted { id } => {
             tx.execute(
@@ -3404,7 +4054,11 @@ fn apply_event_to_read_models(
                 .map_err(|e| e.to_string())?;
             }
         }
-        AppEvent::FiberStrandsInitialized { cable_id, fiber_count, strands } => {
+        AppEvent::FiberStrandsInitialized {
+            cable_id,
+            fiber_count,
+            strands,
+        } => {
             tx.execute(
                 "UPDATE fiber_cables SET fiber_count = ?2, updated_at = CURRENT_TIMESTAMP WHERE id = ?1",
                 params![cable_id.to_string(), fiber_count],
@@ -3442,10 +4096,7 @@ fn apply_event_to_read_models(
                         .and_then(Value::as_str)
                         .map(|s| s.to_string())
                         .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
-                    let strand_no = strand
-                        .get("strand_no")
-                        .and_then(Value::as_i64)
-                        .unwrap_or(0);
+                    let strand_no = strand.get("strand_no").and_then(Value::as_i64).unwrap_or(0);
                     let color = strand
                         .get("color")
                         .and_then(Value::as_str)
@@ -3664,10 +4315,7 @@ fn apply_event_to_read_models(
             )
             .map_err(|e| e.to_string())?;
             for hop in hops {
-                let sequence_no = hop
-                    .get("sequence_no")
-                    .and_then(Value::as_i64)
-                    .unwrap_or(0);
+                let sequence_no = hop.get("sequence_no").and_then(Value::as_i64).unwrap_or(0);
                 let strand_id = hop
                     .get("strand_id")
                     .and_then(Value::as_str)
@@ -3767,7 +4415,10 @@ fn replace_state_tables(
     for record in object_values(state.get("features")) {
         write_feature_snapshot(tx, project_id, &record)?;
         let id = record.get("id").and_then(Value::as_str).unwrap_or_default();
-        let geom_type = record.get("geom_type").and_then(Value::as_str).unwrap_or("Point");
+        let geom_type = record
+            .get("geom_type")
+            .and_then(Value::as_str)
+            .unwrap_or("Point");
         let metadata = parse_json_field(record.get("metadata").unwrap_or(&Value::Null), json!({}));
         project_fiber_cable_if_eligible(tx, project_id, id, geom_type, &metadata)?;
     }
@@ -4261,20 +4912,30 @@ fn project_fiber_cable_if_eligible(
         .unwrap_or_else(|| "planned".to_string());
 
     let network = metadata.get("network").and_then(Value::as_object);
-    let has_network_route = network.map(|net| {
-        let from_feature = net.get("from_feature_id").and_then(Value::as_str).is_some();
-        let to_feature = net.get("to_feature_id").and_then(Value::as_str).is_some();
-        let from_endpoint = net.get("from_endpoint").and_then(Value::as_object).is_some();
-        let to_endpoint = net.get("to_endpoint").and_then(Value::as_object).is_some();
-        (from_feature && to_feature) || (from_endpoint && to_endpoint)
-    }).unwrap_or(false);
-    let has_snap_route = metadata.get("start_node_id").and_then(Value::as_str).is_some()
-        && metadata.get("end_node_id").and_then(Value::as_str).is_some();
-    let should_project_fiber_cable =
-        geom_type_lower == "networklink"
-            || legacy_type == "signalline"
-            || legacy_type == "networklink"
-            || (geom_type_lower.contains("line") && (has_network_route || has_snap_route));
+    let has_network_route = network
+        .map(|net| {
+            let from_feature = net.get("from_feature_id").and_then(Value::as_str).is_some();
+            let to_feature = net.get("to_feature_id").and_then(Value::as_str).is_some();
+            let from_endpoint = net
+                .get("from_endpoint")
+                .and_then(Value::as_object)
+                .is_some();
+            let to_endpoint = net.get("to_endpoint").and_then(Value::as_object).is_some();
+            (from_feature && to_feature) || (from_endpoint && to_endpoint)
+        })
+        .unwrap_or(false);
+    let has_snap_route = metadata
+        .get("start_node_id")
+        .and_then(Value::as_str)
+        .is_some()
+        && metadata
+            .get("end_node_id")
+            .and_then(Value::as_str)
+            .is_some();
+    let should_project_fiber_cable = geom_type_lower == "networklink"
+        || legacy_type == "signalline"
+        || legacy_type == "networklink"
+        || (geom_type_lower.contains("line") && (has_network_route || has_snap_route));
 
     if !should_project_fiber_cable {
         return Ok(());
@@ -4420,13 +5081,16 @@ mod tests {
 
         // 1. Tạo feature
         let mut feature_metadata = serde_json::Map::new();
-        feature_metadata.insert("infrastructure".to_string(), json!({
-            "type": "signalline",
-            "cable_type": "ADSS 200",
-            "core_count": 12,
-            "owner": "Viettel",
-            "status": "planned"
-        }));
+        feature_metadata.insert(
+            "infrastructure".to_string(),
+            json!({
+                "type": "signalline",
+                "cable_type": "ADSS 200",
+                "core_count": 12,
+                "owner": "Viettel",
+                "status": "planned"
+            }),
+        );
         let feature_created = AppEvent::FeatureCreated {
             id: cable_feat_id,
             layer_id,
@@ -4442,15 +5106,24 @@ mod tests {
             note: None,
             bbox: None,
         };
-        let env_feature = EventEnvelope::new(project_uuid, "feature", cable_feat_id, feature_created, "test-device", None);
+        let env_feature = EventEnvelope::new(
+            project_uuid,
+            "feature",
+            cable_feat_id,
+            feature_created,
+            "test-device",
+            None,
+        );
         apply_event_to_read_models(&tx, &env_feature).unwrap();
 
         // Kiểm tra cable_id được tạo ra
-        let cable_id: String = tx.query_row(
-            "SELECT id FROM fiber_cables WHERE feature_id = ?1",
-            params![cable_feat_id.to_string()],
-            |row| row.get(0),
-        ).unwrap();
+        let cable_id: String = tx
+            .query_row(
+                "SELECT id FROM fiber_cables WHERE feature_id = ?1",
+                params![cable_feat_id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
         let cable_uuid = Uuid::parse_str(&cable_id).unwrap();
 
         // 2. Khởi tạo Strands (không cấp sẵn ID)
@@ -4459,19 +5132,29 @@ mod tests {
             fiber_count: 12,
             strands: vec![],
         };
-        let env_strands = EventEnvelope::new(project_uuid, "fiber", cable_uuid, strands_init, "test-device", None);
+        let env_strands = EventEnvelope::new(
+            project_uuid,
+            "fiber",
+            cable_uuid,
+            strands_init,
+            "test-device",
+            None,
+        );
         apply_event_to_read_models(&tx, &env_strands).unwrap();
 
         // Kiểm tra có 12 strands
-        let strand_count: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM fiber_strands WHERE cable_id = ?1",
-            params![cable_id],
-            |row| row.get(0),
-        ).unwrap();
+        let strand_count: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_strands WHERE cable_id = ?1",
+                params![cable_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(strand_count, 12);
 
         // Lấy 2 strand IDs
-        let strand_ids: Vec<String> = tx.prepare("SELECT id FROM fiber_strands WHERE cable_id = ?1 LIMIT 2")
+        let strand_ids: Vec<String> = tx
+            .prepare("SELECT id FROM fiber_strands WHERE cable_id = ?1 LIMIT 2")
             .unwrap()
             .query_map(params![cable_id], |row| row.get(0))
             .unwrap()
@@ -4492,15 +5175,24 @@ mod tests {
                 json!({"id": s2, "strand_no": 2, "status": "reserved"}),
             ],
         };
-        let env_strands2 = EventEnvelope::new(project_uuid, "fiber", cable_uuid, strands_init_with_id, "test-device", None);
+        let env_strands2 = EventEnvelope::new(
+            project_uuid,
+            "fiber",
+            cable_uuid,
+            strands_init_with_id,
+            "test-device",
+            None,
+        );
         apply_event_to_read_models(&tx, &env_strands2).unwrap();
 
         // Đảm bảo s1, s2 vẫn tồn tại và count = 2
-        let strand_count_2: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM fiber_strands WHERE cable_id = ?1",
-            params![cable_id],
-            |row| row.get(0),
-        ).unwrap();
+        let strand_count_2: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_strands WHERE cable_id = ?1",
+                params![cable_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(strand_count_2, 2);
 
         // 4. Tạo một feature khác làm tủ nối (enclosure)
@@ -4520,7 +5212,14 @@ mod tests {
             note: None,
             bbox: None,
         };
-        let env_enc = EventEnvelope::new(project_uuid, "feature", enclosure_feat_id, enclosure_created, "test-device", None);
+        let env_enc = EventEnvelope::new(
+            project_uuid,
+            "feature",
+            enclosure_feat_id,
+            enclosure_created,
+            "test-device",
+            None,
+        );
         apply_event_to_read_models(&tx, &env_enc).unwrap();
 
         // 5. Gắn Port vào enclosure
@@ -4533,7 +5232,14 @@ mod tests {
             direction: Some("bidirectional".to_string()),
             status: Some("available".to_string()),
         };
-        let env_port = EventEnvelope::new(project_uuid, "fiber", port_id, port_upsert, "test-device", None);
+        let env_port = EventEnvelope::new(
+            project_uuid,
+            "fiber",
+            port_id,
+            port_upsert,
+            "test-device",
+            None,
+        );
         apply_event_to_read_models(&tx, &env_port).unwrap();
 
         let port_b_id = Uuid::new_v4();
@@ -4545,7 +5251,14 @@ mod tests {
             direction: Some("bidirectional".to_string()),
             status: Some("available".to_string()),
         };
-        let env_port_b = EventEnvelope::new(project_uuid, "fiber", port_b_id, port_b_upsert, "test-device", None);
+        let env_port_b = EventEnvelope::new(
+            project_uuid,
+            "fiber",
+            port_b_id,
+            port_b_upsert,
+            "test-device",
+            None,
+        );
         apply_event_to_read_models(&tx, &env_port_b).unwrap();
 
         let termination_id = Uuid::new_v4();
@@ -4557,7 +5270,14 @@ mod tests {
             side: "left".to_string(),
             status: Some("active".to_string()),
         };
-        let env_termination = EventEnvelope::new(project_uuid, "fiber", termination_id, termination_upsert, "test-device", None);
+        let env_termination = EventEnvelope::new(
+            project_uuid,
+            "fiber",
+            termination_id,
+            termination_upsert,
+            "test-device",
+            None,
+        );
         apply_event_to_read_models(&tx, &env_termination).unwrap();
 
         let patch_id = Uuid::new_v4();
@@ -4568,20 +5288,31 @@ mod tests {
             status: Some("active".to_string()),
             loss_db: Some(0.05),
         };
-        let env_patch = EventEnvelope::new(project_uuid, "fiber", patch_id, patch_upsert, "test-device", None);
+        let env_patch = EventEnvelope::new(
+            project_uuid,
+            "fiber",
+            patch_id,
+            patch_upsert,
+            "test-device",
+            None,
+        );
         apply_event_to_read_models(&tx, &env_patch).unwrap();
 
-        let termination_count: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM fiber_port_terminations WHERE id = ?1",
-            params![termination_id.to_string()],
-            |row| row.get(0),
-        ).unwrap();
+        let termination_count: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_port_terminations WHERE id = ?1",
+                params![termination_id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(termination_count, 1);
-        let patch_count: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM fiber_port_patches WHERE id = ?1",
-            params![patch_id.to_string()],
-            |row| row.get(0),
-        ).unwrap();
+        let patch_count: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_port_patches WHERE id = ?1",
+                params![patch_id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(patch_count, 1);
 
         // 6. Tạo Splice giữa s1 và s2 tại enclosure
@@ -4595,7 +5326,14 @@ mod tests {
             to_direction: "end".to_string(),
             loss_db: Some(0.1),
         };
-        let env_splice = EventEnvelope::new(project_uuid, "fiber", splice_id, splice_upsert, "test-device", None);
+        let env_splice = EventEnvelope::new(
+            project_uuid,
+            "fiber",
+            splice_id,
+            splice_upsert,
+            "test-device",
+            None,
+        );
         apply_event_to_read_models(&tx, &env_splice).unwrap();
 
         // 7. Tạo Circuit
@@ -4609,89 +5347,137 @@ mod tests {
             a_feature_id: cable_feat_id,
             z_feature_id: enclosure_feat_id,
         };
-        let env_circ = EventEnvelope::new(project_uuid, "fiber", circuit_id, circuit_upsert, "test-device", None);
+        let env_circ = EventEnvelope::new(
+            project_uuid,
+            "fiber",
+            circuit_id,
+            circuit_upsert,
+            "test-device",
+            None,
+        );
         apply_event_to_read_models(&tx, &env_circ).unwrap();
 
         // 8. Hops Replace
         let hops_replace = AppEvent::FiberCircuitHopsReplaced {
-            circuit_id: circuit_id,
+            circuit_id,
             hops: vec![
                 json!({"sequence_no": 1, "strand_id": s1, "port_id": Value::Null}),
                 json!({"sequence_no": 2, "strand_id": Value::Null, "port_id": port_id.to_string()}),
             ],
         };
-        let env_hops = EventEnvelope::new(project_uuid, "fiber", circuit_id, hops_replace, "test-device", None);
+        let env_hops = EventEnvelope::new(
+            project_uuid,
+            "fiber",
+            circuit_id,
+            hops_replace,
+            "test-device",
+            None,
+        );
         apply_event_to_read_models(&tx, &env_hops).unwrap();
 
         // Verify hops
-        let hop_count: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM fiber_circuit_hops WHERE circuit_id = ?1",
-            params![circuit_id.to_string()],
-            |row| row.get(0),
-        ).unwrap();
+        let hop_count: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_circuit_hops WHERE circuit_id = ?1",
+                params![circuit_id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(hop_count, 2);
 
         // 9. Cascade Delete Feature -> Kiểm tra Port, Splice biến mất không?
         let enclosure_deleted = AppEvent::FeatureDeleted {
             id: enclosure_feat_id,
         };
-        let env_del_enc = EventEnvelope::new(project_uuid, "feature", enclosure_feat_id, enclosure_deleted, "test-device", None);
+        let env_del_enc = EventEnvelope::new(
+            project_uuid,
+            "feature",
+            enclosure_feat_id,
+            enclosure_deleted,
+            "test-device",
+            None,
+        );
         apply_event_to_read_models(&tx, &env_del_enc).unwrap();
 
-        let port_count: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM fiber_ports WHERE feature_id = ?1",
-            params![enclosure_feat_id.to_string()],
-            |row| row.get(0),
-        ).unwrap();
+        let port_count: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_ports WHERE feature_id = ?1",
+                params![enclosure_feat_id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(port_count, 0, "Port failed to cascade delete");
 
-        let splice_count: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM fiber_splices WHERE enclosure_feature_id = ?1",
-            params![enclosure_feat_id.to_string()],
-            |row| row.get(0),
-        ).unwrap();
-        assert_eq!(splice_count, 0, "Splice failed to cascade delete from enclosure");
+        let splice_count: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_splices WHERE enclosure_feature_id = ?1",
+                params![enclosure_feat_id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            splice_count, 0,
+            "Splice failed to cascade delete from enclosure"
+        );
 
         // Vì z_feature_id (enclosure) bị xoá, circuit cũng bị xoá cascade
-        let remaining_circuit: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM fiber_circuits WHERE id = ?1",
-            params![circuit_id.to_string()],
-            |row| row.get(0),
-        ).unwrap();
-        assert_eq!(remaining_circuit, 0, "Circuit failed to cascade delete when z_feature deleted");
+        let remaining_circuit: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_circuits WHERE id = ?1",
+                params![circuit_id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            remaining_circuit, 0,
+            "Circuit failed to cascade delete when z_feature deleted"
+        );
 
         // Hops cũng sẽ bị xoá cascade theo circuit
-        let hop_count_after: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM fiber_circuit_hops WHERE circuit_id = ?1",
-            params![circuit_id.to_string()],
-            |row| row.get(0),
-        ).unwrap();
-        assert_eq!(hop_count_after, 0, "Hops should be deleted when circuit is deleted");
+        let hop_count_after: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_circuit_hops WHERE circuit_id = ?1",
+                params![circuit_id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            hop_count_after, 0,
+            "Hops should be deleted when circuit is deleted"
+        );
 
         // 10. Cascade Delete Cable Feature -> Kiểm tra Cable, Strands
-        let cable_deleted = AppEvent::FeatureDeleted {
-            id: cable_feat_id,
-        };
-        let env_del_cab = EventEnvelope::new(project_uuid, "feature", cable_feat_id, cable_deleted, "test-device", None);
+        let cable_deleted = AppEvent::FeatureDeleted { id: cable_feat_id };
+        let env_del_cab = EventEnvelope::new(
+            project_uuid,
+            "feature",
+            cable_feat_id,
+            cable_deleted,
+            "test-device",
+            None,
+        );
         apply_event_to_read_models(&tx, &env_del_cab).unwrap();
 
-        let cable_count: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM fiber_cables WHERE feature_id = ?1",
-            params![cable_feat_id.to_string()],
-            |row| row.get(0),
-        ).unwrap();
+        let cable_count: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_cables WHERE feature_id = ?1",
+                params![cable_feat_id.to_string()],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(cable_count, 0, "Cable failed to cascade delete");
 
-        let remaining_strands: i64 = tx.query_row(
-            "SELECT COUNT(*) FROM fiber_strands WHERE cable_id = ?1",
-            params![cable_id],
-            |row| row.get(0),
-        ).unwrap();
+        let remaining_strands: i64 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM fiber_strands WHERE cable_id = ?1",
+                params![cable_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(remaining_strands, 0, "Strands failed to cascade delete");
-        
+
         tx.commit().unwrap();
     }
-
 
     fn make_worker(db: PmpDatabase) -> StorageWorker {
         let (_tx, rx) = mpsc::channel(1);

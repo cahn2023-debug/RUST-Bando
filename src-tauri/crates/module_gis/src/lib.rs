@@ -10,31 +10,31 @@ use sha1::Sha1;
 pub struct GisService;
 
 impl GisService {
-    pub fn calculate_ppm(
-        specs: &CameraSpecs,
-        distance: f64,
-    ) -> f64 {
+    pub fn calculate_ppm(specs: &CameraSpecs, distance: f64) -> f64 {
         if distance <= 0.0 {
             return 0.0;
         }
-        
-        let hfov_rad: f64 = 2.0 * (specs.sensor_width as f64 / (2.0 * specs.focal_length as f64)).atan();
+
+        let hfov_rad: f64 =
+            2.0 * (specs.sensor_width as f64 / (2.0 * specs.focal_length as f64)).atan();
         let height_diff = (specs.install_height - specs.target_height).max(0.0) as f64;
         let slant_range = (distance.powi(2) + height_diff.powi(2)).sqrt();
-        
+
         let field_width = 2.0 * slant_range * (hfov_rad / 2.0).tan();
         if field_width <= 0.0 {
             return 0.0;
         }
-        
+
         specs.resolution_width as f64 / field_width
     }
 
     pub fn calculate_dori_distances(specs: &CameraSpecs) -> DoriDistances {
-        let hfov_rad: f64 = 2.0 * (specs.sensor_width as f64 / (2.0 * specs.focal_length as f64)).atan();
+        let hfov_rad: f64 =
+            2.0 * (specs.sensor_width as f64 / (2.0 * specs.focal_length as f64)).atan();
         let hfov_deg = hfov_rad.to_degrees();
 
-        let base = (specs.resolution_width as f64 * specs.focal_length as f64) / specs.sensor_width as f64;
+        let base =
+            (specs.resolution_width as f64 * specs.focal_length as f64) / specs.sensor_width as f64;
 
         let get_ground_dist = |slant_range: f64| -> f64 {
             let height_diff = (specs.install_height - specs.target_height).max(0.0) as f64;

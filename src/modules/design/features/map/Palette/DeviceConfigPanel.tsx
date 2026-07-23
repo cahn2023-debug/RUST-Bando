@@ -11,7 +11,8 @@ import {
         calculateNearestRoadAngle,
 } from '@TOOL/utils/featureUtils';
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
-import { buildFeaturePropertiesForPersistence } from '@TOOL/utils/featurePersistence';
+import { buildFeaturePropertiesForPersistence, normalizeFeatureMetadataForPersistence } from '@TOOL/utils/featurePersistence';
+import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 
 
 export const DeviceConfigPanel: React.FC = () => {
@@ -40,70 +41,34 @@ export const DeviceConfigPanel: React.FC = () => {
     });
 
     useEffect(() => {
-        let cancelled = false;
-        const syncTimer = window.setTimeout(() => {
-            if (cancelled) return;
+        if (!feature) {
+            setLocalMeta({});
+            return;
+        }
 
-            if (!feature) {
-                setLocalMeta({});
-                return;
-            }
-
-            try {
-                const parsed = typeof feature.metadata === 'string'
-                    ? JSON.parse(feature.metadata || '{}')
-                    : (feature.metadata || {});
-                setLocalMeta(parsed);
-            } catch (e) {
-                console.warn('[DeviceConfigPanel] Failed to parse feature metadata:', e);
-                setLocalMeta({});
-            }
-        }, 0);
-
-        return () => {
-            cancelled = true;
-            window.clearTimeout(syncTimer);
-        };
+        try {
+            const parsed = typeof feature.metadata === 'string'
+                ? JSON.parse(feature.metadata || '{}')
+                : (feature.metadata || {});
+            setLocalMeta(parsed);
+        } catch (e) {
+            console.warn('[DeviceConfigPanel] Failed to parse feature metadata:', e);
+            setLocalMeta({});
+        }
     }, [feature?.id, feature?.metadata]);
 
     // Sync with previewMetadata (from other palettes)
     useEffect(() => {
         if (previewMetadata?.id === selectedFeatureId && previewMetadata.metadata) {
-            const syncTimer = window.setTimeout(() => {
-                setLocalMeta((prev: any) => {
-                    const incoming = previewMetadata.metadata;
-                    if (JSON.stringify(prev) !== JSON.stringify(incoming)) {
-                        return incoming;
-                    }
-                    return prev;
-                });
-            }, 0);
-            return () => window.clearTimeout(syncTimer);
+            setLocalMeta((prev: any) => {
+                const incoming = previewMetadata.metadata;
+                if (JSON.stringify(prev) !== JSON.stringify(incoming)) {
+                    return incoming;
+                }
+                return prev;
+            });
         }
     }, [previewMetadata, selectedFeatureId]);
-
-    // Debounced Preview for Map rendering
-    useEffect(() => {
-        if (!selectedFeatureId || !localMeta) return;
-
-        // Skip preview if matching persisted state to avoid re-render loops
-        const currentMetaJson = JSON.stringify(localMeta);
-        const featureMeta = typeof feature?.metadata === 'string'
-            ? feature.metadata
-            : JSON.stringify(feature?.metadata || {});
-
-        if (currentMetaJson === featureMeta) return;
-
-        const timer = setTimeout(() => {
-            setPreview(selectedFeatureId, localMeta);
-        }, 50); // Small debounce to avoid jank on sliders
-
-        return () => clearTimeout(timer);
-    }, [localMeta, selectedFeatureId, setPreview]);
-
-    // Multi-selection check moved below hooks to avoid violation.
-
-
 
     const getMetaValue = (path: string, defaultValue: any) => {
         const parts = path.split('.');
@@ -172,11 +137,15 @@ export const DeviceConfigPanel: React.FC = () => {
 
     const handleSave = async () => {
         if (!selectedFeatureId || !isDirty || isSaving) return;
+        if (!confirmUserAction('Xác nhận lưu thay đổi cấu hình thiết bị?')) return;
         setIsSaving(true);
         setShowSuccess(false);
 
         try {
-            const standardizedMeta = normalizeMetadataObject(draftMeta);
+            const standardizedMeta = normalizeFeatureMetadataForPersistence(
+                normalizeMetadataObject(draftMeta),
+                feature?.properties
+            );
             await queueEvent({
                 type: 'FeatureUpdated',
                 payload: {

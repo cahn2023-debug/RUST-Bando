@@ -1,13 +1,13 @@
+use anyhow::Result;
+use futures::StreamExt;
 use libp2p::{
     gossipsub, identify, mdns, noise,
     swarm::{NetworkBehaviour, SwarmEvent},
     tcp, yamux, Swarm,
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::sync::mpsc;
-use anyhow::Result;
-use futures::StreamExt;
 
 #[derive(NetworkBehaviour)]
 pub struct AntigravityBehaviour {
@@ -63,7 +63,10 @@ impl P2PService {
 
                 Ok(AntigravityBehaviour {
                     gossipsub,
-                    mdns: mdns::tokio::Behaviour::new(mdns::Config::default(), key.public().to_peer_id())?,
+                    mdns: mdns::tokio::Behaviour::new(
+                        mdns::Config::default(),
+                        key.public().to_peer_id(),
+                    )?,
                     identify: identify::Behaviour::new(identify::Config::new(
                         "/antigravity/1.0.0".into(),
                         key.public(),
@@ -85,7 +88,10 @@ impl P2PService {
             last_seq,
         };
         let data = serde_json::to_vec(&msg)?;
-        self.swarm.behaviour_mut().gossipsub.publish(self.topic.clone(), data)?;
+        self.swarm
+            .behaviour_mut()
+            .gossipsub
+            .publish(self.topic.clone(), data)?;
         Ok(())
     }
 
@@ -96,7 +102,7 @@ impl P2PService {
                 Some(last_seq) = event_rx.recv() => {
                     let _ = self.broadcast_head(last_seq).await;
                 }
-                
+
                 event = self.swarm.select_next_some() => match event {
                     SwarmEvent::NewListenAddr { address, .. } => {
                         log::info!("Local node is listening on {:?}", address);
@@ -123,4 +129,3 @@ impl P2PService {
         }
     }
 }
-

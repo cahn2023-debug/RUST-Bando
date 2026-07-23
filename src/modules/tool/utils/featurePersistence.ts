@@ -1,5 +1,6 @@
 import type { FeatureCoordinates, FeatureMetadata, FeatureProperties, IconType } from '@CONTRACT/types';
 import { syncDisplayOrderAliases } from './featureMapping';
+import { canonicalizeObjectType, getObjectTypeForIcon, normalizeIconKey } from './featureDisplay';
 
 type FeaturePayloadBase = {
   id: string;
@@ -15,42 +16,50 @@ type FeatureCreatePayloadInput = FeaturePayloadBase & {
   properties?: FeatureProperties;
 };
 
-const getNormalizedIcon = (icon: unknown): IconType => {
-  switch (icon) {
-    case 'cctv':
-    case 'ptz':
-    case 'speed':
-    case 'lpr':
-    case 'intersection':
-      return icon;
-    default:
-      return 'default';
+const getExistingIcon = (properties?: FeatureProperties): IconType => (
+  normalizeIconKey(properties?.icon ?? properties?.iconKey)
+);
+
+const hasMeaningfulValue = (value: unknown): boolean => (
+  value !== undefined && value !== null && value !== ''
+);
+
+const isLegacyPointType = (value: unknown): boolean => {
+  if (typeof value !== 'string') return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'point' || normalized === 'default';
+};
+
+const resolveTypeForPersistence = (
+  metadataType: unknown,
+  icon: IconType,
+  existingType: string,
+  hasMetadataIcon: boolean
+): string => {
+  if (typeof metadataType === 'string' && metadataType && !isLegacyPointType(metadataType)) {
+    return canonicalizeObjectType(metadataType);
   }
+  if (hasMetadataIcon) return getTypeForIcon(icon);
+  return existingType || getTypeForIcon(icon);
 };
 
 export const getTypeForIcon = (icon: IconType): string => {
-  switch (icon) {
-    case 'cctv':
-      return 'cctv';
-    case 'ptz':
-      return 'ptz';
-    case 'speed':
-      return 'speed';
-    case 'lpr':
-      return 'lpr';
-    case 'intersection':
-      return 'intersection';
-    default:
-      return 'point';
-  }
+  return getObjectTypeForIcon(icon);
 };
 
 export const normalizeFeatureMetadataForPersistence = (
   metadata: FeatureMetadata,
   properties?: FeatureProperties
 ): FeatureMetadata => {
-  const normalizedIcon = getNormalizedIcon(metadata.icon);
-  const nextType = typeof metadata.type === 'string' && metadata.type ? metadata.type : getTypeForIcon(normalizedIcon);
+  const hasMetadataIcon = hasMeaningfulValue(metadata.icon);
+  const hasMetadataType = hasMeaningfulValue(metadata.type);
+  const normalizedIcon = hasMetadataIcon ? normalizeIconKey(metadata.icon) : getExistingIcon(properties);
+  const existingType = typeof properties?.type === 'string' && properties.type ? properties.type : '';
+  const nextType = hasMetadataType
+    ? resolveTypeForPersistence(metadata.type, normalizedIcon, existingType, hasMetadataIcon)
+    : hasMetadataIcon
+      ? getTypeForIcon(normalizedIcon)
+      : existingType || getTypeForIcon(normalizedIcon);
 
   return syncDisplayOrderAliases(
     {
@@ -68,10 +77,15 @@ export const buildFeaturePropertiesForPersistence = (
   metadata: FeatureMetadata
 ): FeatureProperties => {
   const normalizedMetadata = normalizeFeatureMetadataForPersistence(metadata, properties);
-  const nextIcon = getNormalizedIcon(normalizedMetadata.icon);
-  const nextType = typeof normalizedMetadata.type === 'string' && normalizedMetadata.type
-    ? normalizedMetadata.type
-    : getTypeForIcon(nextIcon);
+  const hasMetadataIcon = hasMeaningfulValue(metadata.icon);
+  const hasMetadataType = hasMeaningfulValue(metadata.type);
+  const nextIcon = hasMetadataIcon ? normalizeIconKey(metadata.icon) : getExistingIcon(properties);
+  const existingType = typeof properties?.type === 'string' && properties.type ? properties.type : '';
+  const nextType = hasMetadataType
+    ? resolveTypeForPersistence(normalizedMetadata.type, nextIcon, existingType, hasMetadataIcon)
+    : hasMetadataIcon
+      ? getTypeForIcon(nextIcon)
+      : existingType || getTypeForIcon(nextIcon);
 
   return {
     ...(properties || {}),

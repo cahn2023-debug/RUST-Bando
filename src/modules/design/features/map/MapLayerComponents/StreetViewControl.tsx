@@ -4,11 +4,18 @@ import { listen, TauriEvent } from '@tauri-apps/api/event';
 import { invoke } from '@tauri-apps/api/core';
 import { useMap, Marker } from 'react-leaflet';
 import L from 'leaflet';
+import { X } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getEffectiveCameraSpecs, getParsedMetadata } from '@TOOL/utils/featureMetadata';
 import { calculateHFOV, mapRotationToHeading, SENSOR_SIZES } from '@TOOL/utils/cameraMath';
 import { checkStreetViewMetadata } from '@TOOL/utils/googleMapsLoader';
 import { getGoogleMapsApiKey } from '@TOOL/utils/googleMapsRuntime';
+import { getCleanName } from '@TOOL/utils/featureUtils';
+import { ImageEditorModal, type ImageEditorSaveResult } from '@DESIGN/components/ui/ImageEditorModal';
+import { importMediaAsset } from '@IMPLEMENT/services/mediaAssetService';
+import { requestStorageHealthRefresh } from '@IMPLEMENT/services/projectStorageService';
+import { buildFeaturePropertiesForPersistence, normalizeFeatureMetadataForPersistence } from '@TOOL/utils/featurePersistence';
+import type { FeatureMetadata, FeatureProperties } from '@CONTRACT/types';
 
 const STREET_VIEW_WINDOW_LABEL = 'street-view-window';
 const DEFAULT_FOV = 90;
@@ -309,6 +316,91 @@ const SURVIVOR_SYNC_SCRIPT = `
   })();
 `;
 
+const STREET_VIEW_CROP_BUTTON_SCRIPT = `
+  (() => {
+    const btnId = 'street-view-crop-btn';
+    if (document.getElementById(btnId)) return;
+
+    const btn = document.createElement('button');
+    btn.id = btnId;
+    btn.innerHTML = '✂ CROP PHOTO';
+    btn.style.cssText = 'position:fixed;top:16px;right:60px;z-index:99999;background:#6366f1;color:#fff;font-family:sans-serif;font-size:11px;font-weight:bold;padding:6px 12px;border:none;border-radius:4px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5);letter-spacing:0.5px;';
+
+    btn.addEventListener('click', () => {
+      if (document.getElementById('street-view-crop-overlay')) return;
+
+      const overlay = document.createElement('div');
+      overlay.id = 'street-view-crop-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,0.35);cursor:crosshair;user-select:none;';
+
+      const box = document.createElement('div');
+      box.style.cssText = 'position:absolute;border:2px dashed #facc15;background:rgba(250,204,21,0.15);display:none;pointer-events:none;';
+      overlay.appendChild(box);
+
+      let startX = 0, startY = 0, isDragging = false;
+
+      overlay.addEventListener('pointerdown', (e) => {
+        startX = e.clientX;
+        startY = e.clientY;
+        isDragging = true;
+        box.style.left = startX + 'px';
+        box.style.top = startY + 'px';
+        box.style.width = '0px';
+        box.style.height = '0px';
+        box.style.display = 'block';
+      });
+
+      overlay.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        const curX = e.clientX;
+        const curY = e.clientY;
+        const left = Math.min(startX, curX);
+        const top = Math.min(startY, curY);
+        const width = Math.abs(curX - startX);
+        const height = Math.abs(curY - startY);
+        box.style.left = left + 'px';
+        box.style.top = top + 'px';
+        box.style.width = width + 'px';
+        box.style.height = height + 'px';
+      });
+
+      const finishCrop = () => {
+        if (!isDragging) return;
+        isDragging = false;
+
+        const rectLeft = parseFloat(box.style.left || '0');
+        const rectTop = parseFloat(box.style.top || '0');
+        const rectWidth = parseFloat(box.style.width || '0');
+        const rectHeight = parseFloat(box.style.height || '0');
+
+        overlay.remove();
+
+        if (rectWidth < 10 || rectHeight < 10) return;
+
+        const normX = (rectLeft / window.innerWidth).toFixed(4);
+        const normY = (rectTop / window.innerHeight).toFixed(4);
+        const normW = (rectWidth / window.innerWidth).toFixed(4);
+        const normH = (rectHeight / window.innerHeight).toFixed(4);
+
+        const requestId = 'req_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        window.__streetViewCropPayload = 'SYNC_CROP:' + requestId + ':' + normX + ',' + normY + ',' + normW + ',' + normH;
+
+        if (window.__streetViewSyncInstalled) {
+          const payload = window.__streetViewSyncPayload || '';
+          const baseTitle = (document.title || 'Street View').replace(/SYNC_CROP:[^|]+\\|?\\s*/g, '').trim();
+          document.title = payload + ' ' + window.__streetViewCropPayload + ' | ' + baseTitle;
+        }
+      };
+
+      overlay.addEventListener('pointerup', finishCrop);
+
+      document.body.appendChild(overlay);
+    });
+
+    document.body.appendChild(btn);
+  })();
+`;
+
 export function StreetViewControl() {
   const map = useMap();
   const [isActive, setIsActive] = useState(false);
@@ -320,7 +412,16 @@ export function StreetViewControl() {
   const pegmanState = useDesignSync((s) => s.pegmanState);
   const setPegmanState = useDesignSync((s) => s.setPegmanState);
   const selectedFeatureId = useDesignSync((s) => s.selectedFeatureId);
+  const selectFeature = useDesignSync((s) => s.selectFeature);
+  const projectId = useDesignSync((s) => s.projectId);
+  const queueEvent = useDesignSync((s) => s.queueEvent);
   const state = useDesignSync((s) => s.state);
+
+  const [pendingStreetViewCroppedImage, setPendingStreetViewCroppedImage] = useState<string | null>(null);
+  const [showTargetFeaturePicker, setShowTargetFeaturePicker] = useState(false);
+  const [targetFeatureId, setTargetFeatureId] = useState<string | null>(null);
+  const [showStreetViewImageEditor, setShowStreetViewImageEditor] = useState(false);
+  const processedCropRequestIds = useRef<Set<string>>(new Set());
 
   const latestPegmanState = useRef(pegmanState);
   
@@ -414,6 +515,121 @@ export function StreetViewControl() {
       console.warn('[StreetViewControl] Survivor sync injection skipped:', error);
     }
   }, []);
+
+  const injectCropButton = useCallback(async () => {
+    try {
+      await invoke('eval_webview', {
+        label: STREET_VIEW_WINDOW_LABEL,
+        script: STREET_VIEW_CROP_BUTTON_SCRIPT
+      });
+    } catch (error) {
+      console.warn('[StreetViewControl] Crop button injection skipped:', error);
+    }
+  }, []);
+
+  const handleStreetViewCropRequest = useCallback(async (normX: number, normY: number, normW: number, normH: number) => {
+    try {
+      const captureResult = await invoke<{ dataUrl?: string }>('capture_webview_png', {
+        label: STREET_VIEW_WINDOW_LABEL
+      });
+
+      if (!captureResult || !captureResult.dataUrl) {
+        showFeedback('Chụp màn hình Street View thất bại.');
+        return;
+      }
+
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = captureResult.dataUrl!;
+      });
+
+      const cropX = Math.round(normX * img.naturalWidth);
+      const cropY = Math.round(normY * img.naturalHeight);
+      const cropW = Math.round(normW * img.naturalWidth);
+      const cropH = Math.round(normH * img.naturalHeight);
+
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = Math.max(1, cropW);
+      tempCanvas.height = Math.max(1, cropH);
+      const tempCtx = tempCanvas.getContext('2d');
+      if (!tempCtx) return;
+
+      tempCtx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, tempCanvas.width, tempCanvas.height);
+      const croppedDataUrl = tempCanvas.toDataURL('image/png');
+
+      setPendingStreetViewCroppedImage(croppedDataUrl);
+      setTargetFeatureId(selectedFeatureId || null);
+      setShowTargetFeaturePicker(true);
+    } catch (error) {
+      console.error('[StreetViewControl] Failed to process Street View crop:', error);
+      showFeedback('Lỗi khi chụp hoặc cắt ảnh Street View.');
+    }
+  }, [selectedFeatureId, showFeedback]);
+
+  const handleSaveStreetViewPhoto = useCallback(async (result: ImageEditorSaveResult) => {
+    const currentProjectId = projectId || useDesignSync.getState().projectId;
+    const targetId = targetFeatureId || selectedFeatureId;
+    if (!currentProjectId || !targetId) {
+      showFeedback('Thiếu đối tượng hoặc dự án để lưu ảnh.');
+      return;
+    }
+
+    try {
+      const imported = await importMediaAsset(String(currentProjectId), targetId, result.dataUrl);
+      const targetFeature = state?.features?.[targetId];
+
+      if (targetFeature && result.textAnnotations.length > 0) {
+        let patchMeta: FeatureMetadata = {};
+        if (imported.featurePatch?.metadata) {
+          try {
+            patchMeta = JSON.parse(imported.featurePatch.metadata);
+          } catch {
+            patchMeta = {};
+          }
+        }
+        let existingDesc = '';
+        if (typeof patchMeta.description === 'string') {
+          existingDesc = patchMeta.description;
+        } else if (typeof targetFeature.metadata === 'string') {
+          try {
+            existingDesc = JSON.parse(targetFeature.metadata || '{}').description || '';
+          } catch {
+            existingDesc = '';
+          }
+        }
+        const existingLines = (existingDesc || '').split('\n').map((l: string) => l.trim()).filter(Boolean);
+        const newUnique = result.textAnnotations.filter((t) => !existingLines.includes(t.trim()));
+
+        if (newUnique.length > 0) {
+          const nextDesc = [existingDesc, ...newUnique].filter(Boolean).join('\n');
+          const nextMeta = { ...patchMeta, description: nextDesc };
+          const standardized = normalizeFeatureMetadataForPersistence(nextMeta, targetFeature.properties as FeatureProperties);
+          const nextProps = buildFeaturePropertiesForPersistence(targetFeature.properties as FeatureProperties | undefined, standardized);
+
+          await queueEvent({
+            type: 'FeatureUpdated',
+            payload: {
+              id: targetId,
+              name: targetFeature.name,
+              metadata: JSON.stringify(standardized),
+              properties: nextProps,
+            },
+          });
+        }
+      }
+
+      selectFeature(targetId);
+      requestStorageHealthRefresh();
+      showFeedback('Đã lưu ảnh Street View thành công vào Site Photos!');
+      setShowStreetViewImageEditor(false);
+      setPendingStreetViewCroppedImage(null);
+    } catch (error) {
+      console.error('[StreetViewControl] Failed to save Street View photo:', error);
+      showFeedback('Lưu ảnh Street View vào đối tượng thất bại.');
+    }
+  }, [projectId, targetFeatureId, selectedFeatureId, state?.features, queueEvent, selectFeature, showFeedback]);
 
   const syncPegmanState = useCallback(
     (payload: Partial<typeof pegmanState> & { source?: PegmanSource }) => {
@@ -620,6 +836,7 @@ export function StreetViewControl() {
           window.setTimeout(() => {
             void injectCleanup();
             void injectSurvivorSync();
+            void injectCropButton();
           }, 900);
         } else {
           const newWindow = new WebviewWindow(STREET_VIEW_WINDOW_LABEL, {
@@ -641,6 +858,7 @@ export function StreetViewControl() {
             window.setTimeout(() => {
               void injectCleanup();
               void injectSurvivorSync();
+              void injectCropButton();
             }, 1200);
           });
 
@@ -788,6 +1006,21 @@ export function StreetViewControl() {
         const current = latestPegmanState.current;
         let syncPayload = '';
         const title = await webviewRef.title().catch(() => null);
+
+        if (title && title.includes('SYNC_CROP:')) {
+          const cropStr = title.substring(title.indexOf('SYNC_CROP:') + 'SYNC_CROP:'.length).split('|')[0].trim();
+          const cropParts = cropStr.split(':');
+          if (cropParts.length >= 2) {
+            const reqId = cropParts[0];
+            if (!processedCropRequestIds.current.has(reqId)) {
+              processedCropRequestIds.current.add(reqId);
+              const coords = cropParts[1].split(',').map(Number);
+              if (coords.length === 4 && coords.every((n) => !isNaN(n))) {
+                void handleStreetViewCropRequest(coords[0], coords[1], coords[2], coords[3]);
+              }
+            }
+          }
+        }
 
         if (title && title.includes('SYNC_POS:')) {
           syncPayload = title.substring(title.indexOf('SYNC_POS:') + 'SYNC_POS:'.length).split('|')[0].trim();
@@ -1000,6 +1233,71 @@ export function StreetViewControl() {
               `Chon vi tri de mo Street View | ${formatCoords(pegmanState.location)}`}
           </span>
         </div>
+      )}
+
+      {showTargetFeaturePicker && pendingStreetViewCroppedImage && (
+        <div className="fixed inset-0 z-[6500] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#1f1f1f] border border-[#333] rounded-xl shadow-2xl w-full max-w-md p-5 space-y-4 text-white font-mono">
+            <div className="flex items-center justify-between border-b border-[#333] pb-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-indigo-400">Chọn đối tượng đính kèm ảnh</h3>
+              <button onClick={() => setShowTargetFeaturePicker(false)} className="text-[#aaa] hover:text-white"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="aspect-video w-full rounded border border-[#333] overflow-hidden bg-black flex items-center justify-center">
+              <img src={pendingStreetViewCroppedImage} alt="Street View Crop" className="max-h-full max-w-full object-contain" />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-bold text-[#aaa] uppercase tracking-wider">Đối tượng nhận ảnh (Feature Target)</label>
+              <select
+                value={targetFeatureId || ''}
+                onChange={(e) => setTargetFeatureId(e.target.value || null)}
+                className="w-full bg-[#111] border border-[#333] rounded px-3 py-2 text-xs text-white outline-none focus:border-indigo-400"
+              >
+                <option value="">-- Chọn đối tượng trong dự án --</option>
+                {Object.values(state?.features || {}).map((feat) => (
+                  <option key={feat.id} value={feat.id}>
+                    {getCleanName(feat) || feat.id} ({feat.geom_type})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#333]">
+              <button
+                onClick={() => setShowTargetFeaturePicker(false)}
+                className="px-4 py-2 rounded bg-[#111] border border-[#333] text-[10px] font-black uppercase text-[#aaa] hover:text-white"
+              >
+                Hủy
+              </button>
+              <button
+                disabled={!targetFeatureId}
+                onClick={() => {
+                  setShowTargetFeaturePicker(false);
+                  setShowStreetViewImageEditor(true);
+                }}
+                className="px-4 py-2 rounded bg-indigo-500 text-white text-[10px] font-black uppercase hover:bg-indigo-400 disabled:opacity-40"
+              >
+                Chỉnh sửa & Lưu ảnh
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showStreetViewImageEditor && pendingStreetViewCroppedImage && (
+        <ImageEditorModal
+          imageUrl={pendingStreetViewCroppedImage}
+          title="CHỈNH SỬA ẢNH STREET VIEW"
+          saveLabel="LƯU ẢNH VÀO ĐỐI TƯỢNG"
+          onCancel={() => {
+            setShowStreetViewImageEditor(false);
+            setPendingStreetViewCroppedImage(null);
+          }}
+          onSave={async (result) => {
+            await handleSaveStreetViewPhoto(result);
+          }}
+        />
       )}
     </>
   );

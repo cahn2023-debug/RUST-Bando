@@ -1,23 +1,23 @@
-# Tong hop cau truc moi va kiem tra luu du lieu
+# Tổng hợp cấu trúc mới và kiểm tra lưu dữ liệu
 
-Ngay cap nhat: 2026-04-17
+Ngày cập nhật: 2026-04-17
 
-## Muc dich
+## Mục đích
 
-Tai lieu nay tong hop nhanh hien trang codebase sau dot refactor moi, tap trung vao:
+Tài liệu này tổng hợp nhanh hiện trạng codebase sau đợt refactor mới, tập trung vào:
 
-- Cau truc frontend/backend theo domain
-- Cach luu du lieu hien tai
-- Cac diem lech giua cau truc moi va persistence thuc te
-- Thu tu uu tien de hop nhat he thong
+- Cấu trúc frontend/backend theo domain
+- Cách lưu dữ liệu hiện tại
+- Các điểm lệch giữa cấu trúc mới và persistence thực tế
+- Thứ tự ưu tiên để hợp nhất hệ thống
 
-Danh gia nay duoc lap tu viec doc code va trace luong goi ham, chua bao gom viec chay thu nghiem end-to-end.
+Đánh giá này được lập từ việc đọc code và trace luồng gọi hàm, chưa bao gồm việc chạy thử nghiệm end-to-end.
 
-## 1. Tong quan cau truc moi
+## 1. Tổng quan cấu trúc mới
 
 ### 1.1 Frontend
 
-Frontend da duoc tach theo domain, cac alias chinh nam trong `tsconfig.json`:
+Frontend đã được tách theo domain, các alias chính nằm trong `tsconfig.json`:
 
 - `@HOME -> src/HOME`
 - `@DESIGN -> src/DESIGN`
@@ -26,18 +26,18 @@ Frontend da duoc tach theo domain, cac alias chinh nam trong `tsconfig.json`:
 - `@RESOURCES -> src/RESOURCES`
 - `@TOOL -> src/TOOL`
 
-Diem vao giao dien:
+Điểm vào giao diện:
 
-- `src/HOME/main.tsx`: bootstrap app, lazy-load cac window lon
-- `src/HOME/App.tsx`: shell chinh cua ung dung
-- `src/IMPLEMENT/features/project-management/ProjectMainView.tsx`: dieu huong vao cac module `Design`, `Contract`, `Implement`, `Resources` va cac content type dong
+- `src/HOME/main.tsx`: bootstrap app, lazy-load các window lớn
+- `src/HOME/App.tsx`: shell chính của ứng dụng
+- `src/IMPLEMENT/features/project-management/ProjectMainView.tsx`: điều hướng vào các module `Design`, `Contract`, `Implement`, `Resources` và các content type động
 
-State map/design da duoc tach thanh nhieu slice thay vi mot store lon:
+State map/design đã được tách thành nhiều slice thay vì một store lớn:
 
 - `src/IMPLEMENT/stores/useDesignSync.ts`
 - `src/DESIGN/features/map/stores/*`
 
-Nhom slice hien tai gom:
+Nhóm slice hiện tại gồm:
 
 - Map state
 - Selection
@@ -47,40 +47,40 @@ Nhom slice hien tai gom:
 - UI sync
 - Action
 
-Huong tach nay dung va de mo rong hon cau truc cu.
+Hướng tách này đúng và dễ mở rộng hơn cấu trúc cũ.
 
 ### 1.2 Backend
 
-Backend trong `src-tauri/src` dang mirror lai cach tach domain:
+Backend trong `src-tauri/src` đang mirror lại cách tách domain:
 
-- `HOME` khong xuat hien ro nhu frontend, nhung phan ung dung duoc bootstrap o `lib.rs`
+- `HOME` không xuất hiện rõ như frontend, nhưng phần ứng dụng được bootstrap ở `lib.rs`
 - `DESIGN`
 - `CONTRACT`
 - `IMPLEMENT`
 - `RESOURCES`
 - `TOOL`
 
-Trong do:
+Trong đó:
 
-- `IMPLEMENT/commands`: lop Tauri command
-- `IMPLEMENT/db`: tang SQLite hien tai
-- `IMPLEMENT/modules`: gom `core`, `ingestion`, `v2`, `ai`
-- `IMPLEMENT/modules/v2`: he thong persistence moi theo huong event-sourcing + projection
+- `IMPLEMENT/commands`: lớp Tauri command
+- `IMPLEMENT/db`: tầng SQLite hiện tại
+- `IMPLEMENT/modules`: gồm `core`, `ingestion`, `v2`, `ai`
+- `IMPLEMENT/modules/v2`: hệ thống persistence mới theo hướng event-sourcing + projection
 
-Bootstrap runtime dang chia thanh hai tang:
+Bootstrap runtime đang chia thành hai tầng:
 
-- `IMPLEMENT/modules/bootstrap.rs`: khoi tao config, `DatabaseState`, `MapState`, preview service, legacy bridge
-- `lib.rs`: dang ky command va khoi dong worker V2
+- `IMPLEMENT/modules/bootstrap.rs`: khởi tạo config, `DatabaseState`, `MapState`, preview service, legacy bridge
+- `lib.rs`: đăng ký command và khởi động worker V2
 
-## 2. Cach luu du lieu hien tai
+## 2. Cách lưu dữ liệu hiện tại
 
-He thong luu du lieu hien tai la hybrid. Refactor moi da tao ra tang V2, nhung phan doc/ghi du lieu thuc te van chay song song giua legacy va V2.
+Hệ thống lưu dữ liệu hiện tại là hybrid. Refactor mới đã tạo ra tầng V2, nhưng phần đọc/ghi dữ liệu thực tế vẫn chạy song song giữa legacy và V2.
 
-### 2.1 Cau hinh ung dung
+### 2.1 Cấu hình ứng dụng
 
-Cau hinh app duoc luu rieng trong `settings.json` thong qua `AppConfig`.
+Cấu hình app được lưu riêng trong `settings.json` thông qua `AppConfig`.
 
-No chua cac thong tin:
+Nó chứa các thông tin:
 
 - `last_opened_pmp`
 - `recent_pmps`
@@ -90,57 +90,57 @@ No chua cac thong tin:
 - `user_roles`
 - `pending_pmp_path`
 
-File lien quan:
+File liên quan:
 
 - `src-tauri/src/IMPLEMENT/modules/core/config.rs`
 
-### 2.2 File du an `.pmp`
+### 2.2 File dự án `.pmp`
 
-Khi nguoi dung mo du an, backend van mo file `.pmp` nhu SQLite database chinh.
+Khi người dùng mở dự án, backend vẫn mở file `.pmp` như SQLite database chính.
 
-Lop legacy DB dang:
+Lớp legacy DB đang:
 
-- Tao `read connection`
-- Tao `write connection`
-- Duy tri connection pool
-- Luu active project path
+- Tạo `read connection`
+- Tạo `write connection`
+- Duy trì connection pool
+- Lưu active project path
 - Detect version DB
 
-File lien quan:
+File liên quan:
 
 - `src-tauri/src/IMPLEMENT/db/mod.rs`
 
-Version database hien dang duoc phan loai nhu sau:
+Version database hiện đang được phân loại như sau:
 
-- Co `event_store` -> `new_v2`
-- Co `projects.title` -> `core_v2`
-- Nguoc lai -> `v1`
+- Có `event_store` -> `new_v2`
+- Có `projects.title` -> `core_v2`
+- Ngược lại -> `v1`
 
-### 2.3 Luu trang thai design/map theo legacy
+### 2.3 Lưu trạng thái design/map theo legacy
 
-Phan nap state cho map hien tai van dua tren bang legacy:
+Phần nạp state cho map hiện tại vẫn dựa trên bảng legacy:
 
 - `design_snapshots`
 - `design_events`
 
-Luong nay duoc dung de:
+Luồng này được dùng để:
 
-- Hydrate lai `MapState`
+- Hydrate lại `MapState`
 - Undo/redo
 - Deduplicate
-- Khoi phuc state ban dau cua project
+- Khôi phục state ban đầu của project
 
-Frontend van goi `load_design_state` trong initialization slice, nghia la luong doc design hien tai van chua chuyen hoan toan sang V2.
+Frontend vẫn gọi `load_design_state` trong initialization slice, nghĩa là luồng đọc design hiện tại vẫn chưa chuyển hoàn toàn sang V2.
 
-File lien quan:
+File liên quan:
 
 - `src-tauri/src/DESIGN/design_events/mod.rs`
 - `src/DESIGN/features/map/stores/initializationSlice.ts`
 - `src-tauri/src/IMPLEMENT/db/schema.rs`
 
-### 2.4 Luu su kien V2 theo event store
+### 2.4 Lưu sự kiện V2 theo event store
 
-Song song voi legacy, luong ghi moi cua design da bat dau di vao V2.
+Song song với legacy, luồng ghi mới của design đã bắt đầu đi vào V2.
 
 Frontend:
 
@@ -152,21 +152,21 @@ Backend:
 - `src-tauri/src/IMPLEMENT/modules/v2/storage/worker.rs`
 - `src-tauri/src/IMPLEMENT/modules/v2/storage/schema.rs`
 
-Luong nay co dac diem:
+Luồng này có đặc điểm:
 
-- Frontend tao event batch
-- Backend chuyen event sang `AppEvent`
-- Worker ghi vao `event_store`
-- Sau do chay projector de cap nhat projection table
-- Ghi `manifest` va `last_global_seq`
+- Frontend tạo event batch
+- Backend chuyển event sang `AppEvent`
+- Worker ghi vào `event_store`
+- Sau đó chạy projector để cập nhật projection table
+- Ghi `manifest` và `last_global_seq`
 
-V2 schema da co cac bang nen tang:
+V2 schema đã có các bảng nền tảng:
 
 - `event_store`
 - `entity_index`
 - `blob_registry`
 
-Va mot so projection table:
+Và một số projection table:
 
 - `projects`
 - `tasks`
@@ -177,70 +177,70 @@ Va mot so projection table:
 - `content_items`
 - `project_settings`
 
-### 2.5 Search va content van dang lai
+### 2.5 Search và content vẫn đang lai
 
-He thong search hien chia lam hai:
+Hệ thống search hiện chia làm hai:
 
-- Legacy FTS tren `file_search`
-- V2 search dua tren `entity_index` / `entity_search`
+- Legacy FTS trên `file_search`
+- V2 search dựa trên `entity_index` / `entity_search`
 
-He thong content linh hoat va project settings van co phan di truc tiep vao bang SQL thay vi di qua event sourcing.
+Hệ thống content linh hoạt và project settings vẫn có phần đi trực tiếp vào bảng SQL thay vì đi qua event sourcing.
 
-File lien quan:
+File liên quan:
 
 - `src-tauri/src/IMPLEMENT/commands/search.rs`
 - `src-tauri/src/IMPLEMENT/commands/content.rs`
 
-## 3. Diem lech quan trong can chu y
+## 3. Điểm lệch quan trọng cần chú ý
 
-### 3.1 Worker V2 dang tro vao duong dan cung
+### 3.1 Worker V2 đang trỏ vào đường dẫn cứng
 
-Phat hien quan trong nhat: worker V2 duoc khoi tao tu dau voi database path cung la `project_v4.pmp`.
+Phát hiện quan trọng nhất: worker V2 được khởi tạo từ đầu với database path cứng là `project_v4.pmp`.
 
-Y nghia:
+Ý nghĩa:
 
-- User co the mo mot file `.pmp` khac
-- `DatabaseState` legacy da tro vao file dang mo
-- Nhung worker V2 co kha nang van ghi vao file mac dinh thay vi file active
+- User có thể mở một file `.pmp` khác
+- `DatabaseState` legacy đã trỏ vào file đang mở
+- Nhưng worker V2 có khả năng vẫn ghi vào file mặc định thay vì file active
 
-Neu nhan dinh nay dung trong runtime, day la loi nghiem trong nhat cua tang persistence moi.
+Nếu nhận định này đúng trong runtime, đây là lỗi nghiêm trọng nhất của tầng persistence mới.
 
-File lien quan:
+File liên quan:
 
 - `src-tauri/src/lib.rs`
 
-### 3.2 Design dang ghi vao V2 nhung doc tu legacy
+### 3.2 Design đang ghi vào V2 nhưng đọc từ legacy
 
-Hien tai co su lech ro rang:
+Hiện tại có sự lệch rõ ràng:
 
 - Ghi: `uiSyncSlice` -> `invoke_design_event_batch` -> `event_store`
-- Doc/hydrate/undo/redo: `design_events` + `design_snapshots`
+- Đọc/hydrate/undo/redo: `design_events` + `design_snapshots`
 
-Neu khong co cau noi dong bo hai huong nay, du lieu map co nguy co:
+Nếu không có cầu nối đồng bộ hai hướng này, dữ liệu map có nguy cơ:
 
-- Ghi thanh cong nhung khong nap lai duoc
-- Undo/redo khong phan anh dung event moi
-- Projection moi khong tro thanh nguon su that thuc su
+- Ghi thành công nhưng không nạp lại được
+- Undo/redo không phản ánh đúng event mới
+- Projection mới không trở thành nguồn sự thật thực sự
 
-Day la diem can quyet dinh kien truc som: chon mot nguon su that duy nhat cho map state.
+Đây là điểm cần quyết định kiến trúc sớm: chọn một nguồn sự thật duy nhất cho map state.
 
-### 3.3 Projector V2 chua day du
+### 3.3 Projector V2 chưa đầy đủ
 
-He thong V2 da co projector cho mot so entity, nhung chua day du cho toan bo domain.
+Hệ thống V2 đã có projector cho một số entity, nhưng chưa đầy đủ cho toàn bộ domain.
 
-Kiem tra code cho thay:
+Kiểm tra code cho thấy:
 
-- Co `ContractProjector` trong code
-- Nhung chua thay duoc register day du trong qua trinh setup projector
-- Chua thay projector ro rang cho `note` va `material`
+- Có `ContractProjector` trong code
+- Nhưng chưa thấy được register đầy đủ trong quá trình setup projector
+- Chưa thấy projector rõ ràng cho `note` và `material`
 
-Hau qua co the la:
+Hậu quả có thể là:
 
-- Command create da ghi event
-- Nhung bang projection doc cho UI khong duoc cap nhat
-- UI khong thay du lieu vua tao
+- Command create đã ghi event
+- Nhưng bảng projection đọc cho UI không được cập nhật
+- UI không thấy dữ liệu vừa tạo
 
-File lien quan:
+File liên quan:
 
 - `src-tauri/src/IMPLEMENT/modules/v2/mod.rs`
 - `src-tauri/src/IMPLEMENT/modules/v2/projections/engine.rs`
@@ -248,94 +248,94 @@ File lien quan:
 - `src-tauri/src/IMPLEMENT/commands/note.rs`
 - `src-tauri/src/IMPLEMENT/commands/material.rs`
 
-### 3.4 Frontend con goi command backend chua ro trang thai
+### 3.4 Frontend còn gọi command backend chưa rõ trạng thái
 
-Trong frontend van con cac lenh invoke nhu:
+Trong frontend vẫn còn các lệnh invoke như:
 
 - `get_projects`
 - `delete_project`
 - `close_active_project`
 - `update_project_details`
 
-Can doi chieu lai danh sach command dang ky trong `lib.rs`, vi neu command da doi ten hoac chua port xong thi day la diem gay loi runtime.
+Cần đối chiếu lại danh sách command đăng ký trong `lib.rs`, vì nếu command đã đổi tên hoặc chưa port xong thì đây là điểm gây lỗi runtime.
 
-File lien quan:
+File liên quan:
 
 - `src/IMPLEMENT/hooks/useProjectManager.ts`
 - `src/IMPLEMENT/features/project-management/hooks/useProjectDetailLogic.ts`
 - `src-tauri/src/lib.rs`
 
-### 3.5 Mo hinh ID dang lai giua number va UUID
+### 3.5 Mô hình ID đang lai giữa number và UUID
 
-Frontend van co dau vet cua mo hinh `project.id` kieu so, trong khi tang V2 chuyen sang UUID.
+Frontend vẫn có dấu vết của mô hình `project.id` kiểu số, trong khi tầng V2 chuyển sang UUID.
 
-Hien tai co lop chuyen doi tu `number` sang UUID de tuong thich. Cach nay giup qua do, nhung co mot so chi phi:
+Hiện tại có lớp chuyển đổi từ `number` sang UUID để tương thích. Cách này giúp quá độ, nhưng có một số chi phí:
 
-- Kho debug
-- Kho truy vet join logic
-- Tang nguy co sai map ID giua frontend va backend
+- Khó debug
+- Khó truy vết join logic
+- Tăng nguy cơ sai map ID giữa frontend và backend
 
-Day la khoan no ky thuat nen duoc don khi persistence V2 on dinh.
+Đây là khoản nợ kỹ thuật nên được dọn khi persistence V2 ổn định.
 
-## 4. Ket luan
+## 4. Kết luận
 
-Codebase moi da tien bo ro ve mat to chuc:
+Codebase mới đã tiến bộ rõ về mặt tổ chức:
 
-- Tach domain ro rang
-- Tach slice cho state map
-- Co huong di V2 bai ban hon legacy
+- Tách domain rõ ràng
+- Tách slice cho state map
+- Có hướng đi V2 bài bản hơn legacy
 
-Tuy nhien, tang luu du lieu hien chua thong nhat. He thong dang o trang thai chuyen tiep:
+Tuy nhiên, tầng lưu dữ liệu hiện chưa thống nhất. Hệ thống đang ở trạng thái chuyển tiếp:
 
-- Legacy van la nguon doc chinh cho design
-- V2 da tham gia vao luong ghi
-- Search, content, project data va projection dang song song nhieu cach luu
+- Legacy vẫn là nguồn đọc chính cho design
+- V2 đã tham gia vào luồng ghi
+- Search, content, project data và projection đang song song nhiều cách lưu
 
-Noi ngan gon:
+Nói ngắn gọn:
 
-- Cau truc code moi: kha tot
-- Persistence hien tai: chua dong bo hoan toan
-- Rui ro lon nhat: worker V2 co the khong ghi vao dung project dang mo
+- Cấu trúc code mới: khá tốt
+- Persistence hiện tại: chưa đồng bộ hoàn toàn
+- Rủi ro lớn nhất: worker V2 có thể không ghi vào đúng project đang mở
 
-## 5. Uu tien de xuat
+## 5. Ưu tiên đề xuất
 
-### Uu tien 1
+### Ưu tiên 1
 
-Buoc worker V2 phai bind theo project dang active, khong duoc dung duong dan cung.
+Buộc worker V2 phải bind theo project đang active, không được dùng đường dẫn cứng.
 
-### Uu tien 2
+### Ưu tiên 2
 
-Chon mot nguon su that duy nhat cho design/map:
+Chọn một nguồn sự thật duy nhất cho design/map:
 
-- Hoac doc/ghi hoan toan bang legacy
-- Hoac doc/ghi hoan toan bang V2
+- Hoặc đọc/ghi hoàn toàn bằng legacy
+- Hoặc đọc/ghi hoàn toàn bằng V2
 
-Khong nen de mot he thong ghi va he thong con lai doc lau dai.
+Không nên để một hệ thống ghi và hệ thống còn lại đọc lâu dài.
 
-### Uu tien 3
+### Ưu tiên 3
 
-Hoan tat registration projector va read model cho:
+Hoàn tất registration projector và read model cho:
 
 - Contract
 - Note
 - Material
-- Cac entity con lai dang ghi event nhung chua projection day du
+- Các entity còn lại đang ghi event nhưng chưa projection đầy đủ
 
-### Uu tien 4
+### Ưu tiên 4
 
-Ra soat lai toan bo Tauri command ma frontend dang invoke, dam bao:
+Rà soát lại toàn bộ Tauri command mà frontend đang invoke, đảm bảo:
 
-- Command ton tai
-- Ten command khop
-- Signature khop voi frontend
+- Command tồn tại
+- Tên command khớp
+- Signature khớp với frontend
 
-### Uu tien 5
+### Ưu tiên 5
 
-Len ke hoach bo hinh ID lai, chot mo hinh chuan cho project/entity trong giai doan sau khi V2 on dinh.
+Lên kế hoạch bỏ hình ID lai, chốt mô hình chuẩn cho project/entity trong giai đoạn sau khi V2 ổn định.
 
-## 6. Tai lieu va diem vao can doc tiep
+## 6. Tài liệu và điểm vào cần đọc tiếp
 
-Neu can dao sau hon, nen doc tiep cac file sau:
+Nếu cần đào sâu hơn, nên đọc tiếp các file sau:
 
 - `tsconfig.json`
 - `src/HOME/main.tsx`
@@ -352,4 +352,3 @@ Neu can dao sau hon, nen doc tiep cac file sau:
 - `src-tauri/src/IMPLEMENT/modules/v2/storage/schema.rs`
 - `src-tauri/src/IMPLEMENT/modules/v2/storage/worker.rs`
 - `src-tauri/src/IMPLEMENT/modules/v2/mod.rs`
-
