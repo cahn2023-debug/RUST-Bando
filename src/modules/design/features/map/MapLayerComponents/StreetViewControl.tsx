@@ -12,7 +12,7 @@ import { checkStreetViewMetadata } from '@TOOL/utils/googleMapsLoader';
 import { getGoogleMapsApiKey } from '@TOOL/utils/googleMapsRuntime';
 import { getCleanName } from '@TOOL/utils/featureUtils';
 import { ImageEditorModal, type ImageEditorSaveResult } from '@DESIGN/components/ui/ImageEditorModal';
-import { importMediaAsset } from '@IMPLEMENT/services/mediaAssetService';
+import { importMediaAsset, type MediaFeaturePatch } from '@IMPLEMENT/services/mediaAssetService';
 import { requestStorageHealthRefresh } from '@IMPLEMENT/services/projectStorageService';
 import { buildFeaturePropertiesForPersistence, normalizeFeatureMetadataForPersistence } from '@TOOL/utils/featurePersistence';
 import type { FeatureMetadata, FeatureProperties } from '@CONTRACT/types';
@@ -323,7 +323,7 @@ const STREET_VIEW_CROP_BUTTON_SCRIPT = `
 
     const btn = document.createElement('button');
     btn.id = btnId;
-    btn.innerHTML = '✂ CROP PHOTO';
+    btn.innerHTML = 'CROP PHOTO';
     btn.style.cssText = 'position:fixed;top:16px;right:60px;z-index:99999;background:#6366f1;color:#fff;font-family:sans-serif;font-size:11px;font-weight:bold;padding:6px 12px;border:none;border-radius:4px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.5);letter-spacing:0.5px;';
 
     btn.addEventListener('click', () => {
@@ -385,11 +385,12 @@ const STREET_VIEW_CROP_BUTTON_SCRIPT = `
         const requestId = 'req_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
         window.__streetViewCropPayload = 'SYNC_CROP:' + requestId + ':' + normX + ',' + normY + ',' + normW + ',' + normH;
 
-        if (window.__streetViewSyncInstalled) {
-          const payload = window.__streetViewSyncPayload || '';
-          const baseTitle = (document.title || 'Street View').replace(/SYNC_CROP:[^|]+\\|?\\s*/g, '').trim();
-          document.title = payload + ' ' + window.__streetViewCropPayload + ' | ' + baseTitle;
-        }
+        const payload = window.__streetViewSyncPayload || '';
+        const baseTitle = (document.title || 'Street View')
+          .replace(/SYNC_CROP:[^|]+\\|?\\s*/g, '')
+          .replace(/SYNC_POS:[^|]+\\|?\\s*/g, '')
+          .trim();
+        document.title = [payload, window.__streetViewCropPayload, '|', baseTitle || 'Street View'].filter(Boolean).join(' ');
       };
 
       overlay.addEventListener('pointerup', finishCrop);
@@ -445,6 +446,27 @@ export function StreetViewControl() {
       setFeedback(null);
       feedbackTimerRef.current = null;
     }, 2800);
+  }, []);
+
+  const applyFeaturePatch = useCallback((patch: MediaFeaturePatch | null | undefined) => {
+    if (!patch) return;
+    const currentState = useDesignSync.getState().state;
+    const currentFeature = currentState?.features?.[patch.id];
+    if (!currentState || !currentFeature) return;
+    useDesignSync.setState({
+      state: {
+        ...currentState,
+        features: {
+          ...currentState.features,
+          [patch.id]: {
+            ...currentFeature,
+            ...(patch.name !== undefined ? { name: patch.name } : {}),
+            metadata: patch.metadata,
+            ...(patch.properties ? { properties: patch.properties as FeatureProperties } : {}),
+          },
+        },
+      },
+    });
   }, []);
 
   useEffect(() => {
@@ -579,6 +601,7 @@ export function StreetViewControl() {
     try {
       const imported = await importMediaAsset(String(currentProjectId), targetId, result.dataUrl);
       const targetFeature = state?.features?.[targetId];
+      let queuedTextPatch = false;
 
       if (targetFeature && result.textAnnotations.length > 0) {
         let patchMeta: FeatureMetadata = {};
@@ -617,9 +640,13 @@ export function StreetViewControl() {
               properties: nextProps,
             },
           });
+          queuedTextPatch = true;
         }
       }
 
+      if (!queuedTextPatch) {
+        applyFeaturePatch(imported.featurePatch);
+      }
       selectFeature(targetId);
       requestStorageHealthRefresh();
       showFeedback('Đã lưu ảnh Street View thành công vào Site Photos!');
@@ -629,7 +656,7 @@ export function StreetViewControl() {
       console.error('[StreetViewControl] Failed to save Street View photo:', error);
       showFeedback('Lưu ảnh Street View vào đối tượng thất bại.');
     }
-  }, [projectId, targetFeatureId, selectedFeatureId, state?.features, queueEvent, selectFeature, showFeedback]);
+  }, [applyFeaturePatch, projectId, targetFeatureId, selectedFeatureId, state?.features, queueEvent, selectFeature, showFeedback]);
 
   const syncPegmanState = useCallback(
     (payload: Partial<typeof pegmanState> & { source?: PegmanSource }) => {
@@ -980,6 +1007,19 @@ export function StreetViewControl() {
       return;
     }
 
+    void injectCropButton();
+    const intervalId = window.setInterval(() => {
+      void injectCropButton();
+    }, 2000);
+
+    return () => window.clearInterval(intervalId);
+  }, [injectCropButton, pegmanState.windowOpen]);
+
+  useEffect(() => {
+    if (!pegmanState.windowOpen) {
+      return;
+    }
+
     let webviewRef: { title: () => Promise<string>; } | null = null;
     let isWindowAlive = true;
 
@@ -1090,7 +1130,7 @@ export function StreetViewControl() {
       }
       pendingStreetViewSyncRef.current = null;
     };
-  }, [closeStreetViewSession, injectSurvivorSync, pegmanState.windowOpen, syncPegmanState]);
+  }, [closeStreetViewSession, handleStreetViewCropRequest, injectSurvivorSync, pegmanState.windowOpen, syncPegmanState]);
 
   useEffect(() => {
     if (!isActive) {

@@ -221,7 +221,7 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
   };
 
   const handleSave = async () => {
-    if (!confirmUserAction(`Xác nhận lưu cấu hình và vị trí của đối tượng "${name}"?`)) return;
+    if (!(await confirmUserAction(`Xác nhận lưu cấu hình và vị trí của đối tượng "${name}"?`))) return;
     const metadata = {
       description,
       imageUrl,

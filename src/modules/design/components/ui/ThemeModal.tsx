@@ -105,8 +105,8 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
     onClose();
   };
 
-  const handleApply = () => {
-    if (!confirmUserAction('Xác nhận áp dụng biểu tượng và giao diện cho các đối tượng đã chọn?')) return;
+  const handleApply = async () => {
+    if (!(await confirmUserAction('Xác nhận áp dụng biểu tượng và giao diện cho các đối tượng đã chọn?'))) return;
     if (!state) return;
 
     setIsApplying(true);

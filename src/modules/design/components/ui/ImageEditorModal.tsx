@@ -692,7 +692,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white">
             <Pencil className="w-4 h-4 text-indigo-400" /> {title}
           </div>
-          <button onClick={onCancel} className="p-1.5 text-[#aaa] hover:text-white hover:bg-[#333] rounded">
+          <button aria-label="Close editor" onClick={onCancel} className="p-1.5 text-[#aaa] hover:text-white hover:bg-[#333] rounded">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -727,7 +727,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             <Radio className="w-4 h-4" />
           </button>
 
-          <button onClick={rotateCanvas} title="Rotate 90° clockwise" className="p-2 rounded bg-[#111] border border-[#333] text-[#aaa] hover:text-white">
+          <button aria-label="Rotate 90 deg" onClick={rotateCanvas} title="Rotate 90 deg clockwise" className="p-2 rounded bg-[#111] border border-[#333] text-[#aaa] hover:text-white">
             <RotateCw className="w-4 h-4" />
           </button>
           <button
@@ -805,20 +805,21 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             />
           </div>
 
-          {tool === 'stamp' && (
-            <select
-              aria-label="Asset stamp"
-              value={assetStamp}
-              onChange={e => setAssetStamp(e.target.value as AssetStamp)}
-              className="bg-[#111] border border-[#333] rounded px-2 py-1.5 text-xs text-white outline-none"
-            >
+          <select
+            aria-label="Asset stamp"
+            value={assetStamp}
+            onChange={e => setAssetStamp(e.target.value as AssetStamp)}
+            className={cn(
+              "bg-[#111] border border-[#333] rounded px-2 py-1.5 text-xs text-white outline-none",
+              tool === 'stamp' ? "opacity-100" : "opacity-60"
+            )}
+          >
               <option value="pole-4m">Cột 6m tay vươn 4m</option>
               <option value="pole-6m">Cột 6m tay vươn 6m</option>
               <option value="pole-8m">Cột 6m tay vươn 8m</option>
               <option value="cabinet-300x520">Tủ 300x520</option>
               <option value="camera-sim">Camera mô phỏng</option>
-            </select>
-          )}
+          </select>
 
           {/* Text Controls */}
           <div className="flex items-center gap-2">
@@ -861,6 +862,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             {/* Base Image Layer */}
             <canvas
               ref={bgCanvasRef}
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
               className="absolute inset-0 w-full h-full pointer-events-none"
             />
             {/* Annotation Drawing Layer */}

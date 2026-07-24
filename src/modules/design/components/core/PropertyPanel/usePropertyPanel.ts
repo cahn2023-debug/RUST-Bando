@@ -111,7 +111,7 @@ export function usePropertyPanel() {
 
   const handleSave = async () => {
     if (!feature) return;
-    if (!confirmUserAction(`Xác nhận lưu thay đổi cho đối tượng "${localName}"?`)) return;
+    if (!(await confirmUserAction(`Xác nhận lưu thay đổi cho đối tượng "${localName}"?`))) return;
     setIsSaving(true);
     setIsSaved(false);
     try {

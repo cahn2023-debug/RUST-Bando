@@ -112,7 +112,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
     }
 
     if (Object.keys(payload).length > 1) {
-      if (!confirmUserAction(`Xác nhận cập nhật ${field === 'lng' || field === 'lat' ? 'vị trí' : 'dữ liệu'} của đối tượng "${feature.name}"?`)) return;
+      if (!(await confirmUserAction(`Xác nhận cập nhật ${field === 'lng' || field === 'lat' ? 'vị trí' : 'dữ liệu'} của đối tượng "${feature.name}"?`))) return;
       await dispatchEvent({ type: 'FeatureUpdated', payload });
     }
   };

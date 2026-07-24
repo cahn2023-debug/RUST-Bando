@@ -40,7 +40,7 @@ describe('ImageEditorModal', () => {
       />
     );
 
-    expect(screen.getByText('Chỉnh Sửa Ảnh')).toBeInTheDocument();
+    expect(screen.getByText('Edit Photo')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pencil tool (B)' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Eraser tool (E)' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Line tool (L)' })).toBeInTheDocument();

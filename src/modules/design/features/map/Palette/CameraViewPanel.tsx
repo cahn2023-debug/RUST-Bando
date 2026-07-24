@@ -147,7 +147,7 @@ export const CameraViewPanel: React.FC = () => {
 
     const handleSave = async () => {
         if (!selectedFeatureId || !isDirty || isSaving) return;
-        if (!confirmUserAction('Xác nhận lưu thay đổi cấu hình camera?')) return;
+        if (!(await confirmUserAction('Xác nhận lưu thay đổi cấu hình camera?'))) return;
         setIsSaving(true);
 
         try {

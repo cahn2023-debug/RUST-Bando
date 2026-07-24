@@ -155,7 +155,7 @@ export const VertexEditor = () => {
             }
 
             try {
-                if (!confirmUserAction('Xác nhận thay đổi vị trí điểm này?')) {
+                if (!(await confirmUserAction('Xác nhận thay đổi vị trí điểm này?'))) {
                     setPreviewCoords(null);
                     clearSnap();
                     return;
@@ -222,7 +222,7 @@ export const VertexEditor = () => {
                 }
 
                 try {
-                    if (!confirmUserAction('Xác nhận thay đổi vị trí điểm này?')) {
+                    if (!(await confirmUserAction('Xác nhận thay đổi vị trí điểm này?'))) {
                         setPreviewCoords(null);
                         clearSnap();
                         return;
@@ -242,8 +242,8 @@ export const VertexEditor = () => {
         } as any)
     });
 
-    const handleContextMenu = useCallback((_: any, i: number) => {
-        if (confirmUserAction('Xác nhận xóa điểm này khỏi đối tượng?')) {
+    const handleContextMenu = useCallback(async (_: any, i: number) => {
+        if (await confirmUserAction('Xác nhận xóa điểm này khỏi đối tượng?')) {
             logEditor(`Delete vertex ${i}`);
             void useDesignSync.getState().deleteDrawingPoint(i);
         }

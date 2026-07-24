@@ -348,7 +348,7 @@ export const PointLayer = React.memo(({
                         try {
                             isMovingRef.current.delete(f.id);
                             const { lat, lng } = e.target.getLatLng();
-                            if (!confirmUserAction(`Xác nhận di chuyển đối tượng "${f.name}" đến vị trí mới?`)) {
+                            if (!(await confirmUserAction(`Xác nhận di chuyển đối tượng "${f.name}" đến vị trí mới?`))) {
                                 e.target.setLatLng([coords[1], coords[0]]);
                                 return;
                             }
@@ -391,7 +391,7 @@ export const PointLayer = React.memo(({
                             try {
                                 isMovingRef.current.delete(f.id);
                                 const ll = ev.target.getLatLng();
-                                if (!confirmUserAction(`Xác nhận di chuyển đối tượng "${f.name}" đến vị trí mới?`)) {
+                                if (!(await confirmUserAction(`Xác nhận di chuyển đối tượng "${f.name}" đến vị trí mới?`))) {
                                     ev.target.setLatLng([coords[1], coords[0]]);
                                     return;
                                 }

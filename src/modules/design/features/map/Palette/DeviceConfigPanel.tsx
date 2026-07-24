@@ -137,7 +137,7 @@ export const DeviceConfigPanel: React.FC = () => {
 
     const handleSave = async () => {
         if (!selectedFeatureId || !isDirty || isSaving) return;
-        if (!confirmUserAction('Xác nhận lưu thay đổi cấu hình thiết bị?')) return;
+        if (!(await confirmUserAction('Xác nhận lưu thay đổi cấu hình thiết bị?'))) return;
         setIsSaving(true);
         setShowSuccess(false);
 

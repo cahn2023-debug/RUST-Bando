@@ -1277,6 +1277,7 @@ pub async fn capture_webview_png(
     #[cfg(target_os = "windows")]
     {
         use tauri::Manager;
+        use std::sync::{Arc, Mutex};
         use tokio::sync::oneshot;
 
         let window = app
@@ -1284,50 +1285,78 @@ pub async fn capture_webview_png(
             .ok_or_else(|| format!("Webview not found: {}", label))?;
 
         let (tx, rx) = oneshot::channel::<Result<String, String>>();
+        let tx = Arc::new(Mutex::new(Some(tx)));
 
         window.with_webview(move |webview| {
             unsafe {
                 use webview2_com::Microsoft::Web::WebView2::Win32::COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT_PNG;
-                use windows_sys::Win32::System::Com::{CreateStreamOnHGlobal, GetHGlobalFromStream};
+                use windows::Win32::Foundation::HGLOBAL;
+                use windows::Win32::System::Com::StructuredStorage::{CreateStreamOnHGlobal, GetHGlobalFromStream};
                 use windows_sys::Win32::System::Memory::{GlobalLock, GlobalUnlock, GlobalSize};
 
-                let mut stream_ptr = std::ptr::null_mut();
-                if CreateStreamOnHGlobal(std::ptr::null_mut(), 1, &mut stream_ptr) != 0 || stream_ptr.is_null() {
-                    let _ = tx.send(Err("Failed to create IStream".into()));
-                    return;
-                }
+                let stream = match CreateStreamOnHGlobal(HGLOBAL(std::ptr::null_mut()), true) {
+                    Ok(stream) => stream,
+                    Err(e) => {
+                        if let Ok(mut sender) = tx.lock() {
+                            if let Some(sender) = sender.take() {
+                                let _ = sender.send(Err(format!("Failed to create IStream: {:?}", e)));
+                            }
+                        }
+                        return;
+                    }
+                };
 
-                let stream: windows::Win32::System::Com::IStream = std::mem::transmute(stream_ptr);
                 let controller = webview.controller();
 
+                let handler_tx = Arc::clone(&tx);
+                let stream_for_handler = stream.clone();
                 let handler = webview2_com::CapturePreviewCompletedHandler::create(Box::new(move |res| {
                     if res.is_err() {
-                        let _ = tx.send(Err("CapturePreview failed".into()));
+                        if let Ok(mut sender) = handler_tx.lock() {
+                            if let Some(sender) = sender.take() {
+                                let _ = sender.send(Err("CapturePreview failed".into()));
+                            }
+                        }
                         return Ok(());
                     }
-                    let mut hglobal = std::ptr::null_mut();
-                    if GetHGlobalFromStream(stream_ptr, &mut hglobal) == 0 && !hglobal.is_null() {
-                        let size = GlobalSize(hglobal);
-                        let ptr = GlobalLock(hglobal) as *const u8;
+                    if let Ok(hglobal) = GetHGlobalFromStream(&stream_for_handler) {
+                        let size = GlobalSize(hglobal.0);
+                        let ptr = GlobalLock(hglobal.0) as *const u8;
                         if !ptr.is_null() && size > 0 {
                             let bytes = std::slice::from_raw_parts(ptr, size as usize);
                             let base64_str = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, bytes);
-                            GlobalUnlock(hglobal);
+                            GlobalUnlock(hglobal.0);
                             let data_url = format!("data:image/png;base64,{}", base64_str);
-                            let _ = tx.send(Ok(data_url));
+                            if let Ok(mut sender) = handler_tx.lock() {
+                                if let Some(sender) = sender.take() {
+                                    let _ = sender.send(Ok(data_url));
+                                }
+                            }
                             return Ok(());
                         }
                     }
-                    let _ = tx.send(Err("Failed to read captured stream".into()));
+                    if let Ok(mut sender) = handler_tx.lock() {
+                        if let Some(sender) = sender.take() {
+                            let _ = sender.send(Err("Failed to read captured stream".into()));
+                        }
+                    }
                     Ok(())
                 }));
 
                 if let Ok(core) = controller.CoreWebView2() {
                     if let Err(e) = core.CapturePreview(COREWEBVIEW2_CAPTURE_PREVIEW_IMAGE_FORMAT_PNG, &stream, &handler) {
-                        let _ = tx.send(Err(format!("CapturePreview error: {:?}", e)));
+                        if let Ok(mut sender) = tx.lock() {
+                            if let Some(sender) = sender.take() {
+                                let _ = sender.send(Err(format!("CapturePreview error: {:?}", e)));
+                            }
+                        }
                     }
                 } else {
-                    let _ = tx.send(Err("Failed to get CoreWebView2".into()));
+                    if let Ok(mut sender) = tx.lock() {
+                        if let Some(sender) = sender.take() {
+                            let _ = sender.send(Err("Failed to get CoreWebView2".into()));
+                        }
+                    }
                 }
             }
         }).map_err(|e| e.to_string())?;

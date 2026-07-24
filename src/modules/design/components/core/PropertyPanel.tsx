@@ -139,10 +139,13 @@ const readFileAsDataUrl = (file: File): Promise<string> =>
   });
 
 const readClipboardImageDataUrls = async (clipboardData: DataTransfer): Promise<string[]> => {
-  const imageFiles = Array.from(clipboardData.items)
+  const itemFiles = Array.from(clipboardData.items)
     .filter((item) => item.kind === 'file' && item.type.startsWith('image/'))
     .map((item) => item.getAsFile())
     .filter((file): file is File => !!file);
+  const listFiles = Array.from(clipboardData.files || [])
+    .filter((file) => file.type.startsWith('image/'));
+  const imageFiles = itemFiles.length > 0 ? itemFiles : listFiles;
 
   return Promise.all(imageFiles.map(readFileAsDataUrl));
 };
@@ -425,7 +428,7 @@ export const PropertyPanel: React.FC = () => {
       setMediaImportError('Không thể lưu ảnh khi thiếu project hoặc đối tượng.');
       return;
     }
-    if (!confirmUserAction(`Xác nhận thêm ${dataUrls.length} ảnh vào đối tượng này?`)) return;
+    if (!(await confirmUserAction(`Xác nhận thêm ${dataUrls.length} ảnh vào đối tượng này?`, { fallbackOnDialogError: true }))) return;
 
     setIsImportingMedia(true);
     setMediaImportError(null);
@@ -488,7 +491,7 @@ export const PropertyPanel: React.FC = () => {
   };
 
   const removeImageUrl = async (index: number) => {
-    if (!confirmUserAction('Xác nhận xóa ảnh này khỏi đối tượng?')) return;
+    if (!(await confirmUserAction('Xác nhận xóa ảnh này khỏi đối tượng?'))) return;
     if (index < imageAssetIds.length) {
       const removedAssetId = imageAssetIds[index];
       const nextAssetIds = [...imageAssetIds];
@@ -529,55 +532,60 @@ export const PropertyPanel: React.FC = () => {
 
   const replaceImageUrl = async (index: number, dataUrl: string, textAnnotations: string[] = []) => {
     if (!feature) return;
-    if (!confirmUserAction('Xác nhận thay thế ảnh của đối tượng?')) return;
     let nextMeta: FeatureMetadata;
 
-    if (index < imageAssetIds.length && projectId) {
-      const imported = await replaceMediaAsset(String(projectId), feature.id, imageAssetIds[index], dataUrl);
-      const assetId = imported.assetId || imported.id;
-      const nextAssetIds = [...imageAssetIds];
-      nextAssetIds[index] = assetId;
-      setResolvedMediaUrls((prev) => ({
-        ...prev,
-        [assetId]: dataUrl,
-      }));
-      applyFeaturePatch(imported.featurePatch);
-      nextMeta = withMediaAssets(localMeta, nextAssetIds);
-    } else {
-      const legacyIndex = Math.max(index - imageAssetIds.length, 0);
-      const nextImageUrls = [...legacyImageUrls];
-      nextImageUrls[legacyIndex] = dataUrl;
-      nextMeta = updateMediaImages(nextImageUrls);
-    }
+    try {
+      if (index < imageAssetIds.length && projectId) {
+        const imported = await replaceMediaAsset(String(projectId), feature.id, imageAssetIds[index], dataUrl);
+        const assetId = imported.assetId || imported.id;
+        const nextAssetIds = [...imageAssetIds];
+        nextAssetIds[index] = assetId;
+        setResolvedMediaUrls((prev) => ({
+          ...prev,
+          [assetId]: dataUrl,
+        }));
+        applyFeaturePatch(imported.featurePatch);
+        nextMeta = withMediaAssets(localMeta, nextAssetIds);
+      } else {
+        const legacyIndex = Math.max(index - imageAssetIds.length, 0);
+        const nextImageUrls = [...legacyImageUrls];
+        nextImageUrls[legacyIndex] = dataUrl;
+        nextMeta = updateMediaImages(nextImageUrls);
+      }
 
-    const nextMetaWithText = appendTextAnnotationsToDescription(nextMeta, textAnnotations);
-    if (textAnnotations.length > 0) {
-      setLocalMeta(nextMetaWithText);
-    }
+      const nextMetaWithText = appendTextAnnotationsToDescription(nextMeta, textAnnotations);
+      if (textAnnotations.length > 0) {
+        setLocalMeta(nextMetaWithText);
+      }
 
-    const standardizedMeta = appendTextAnnotationsToDescription(
-      preparePropertyMetadata(nextMeta, feature.properties as FeatureProperties),
-      textAnnotations
-    );
-    const nextProperties = buildFeaturePropertiesForPersistence(
-      feature.properties as FeatureProperties | undefined,
-      standardizedMeta
-    );
+      const standardizedMeta = appendTextAnnotationsToDescription(
+        preparePropertyMetadata(nextMeta, feature.properties as FeatureProperties),
+        textAnnotations
+      );
+      const nextProperties = buildFeaturePropertiesForPersistence(
+        feature.properties as FeatureProperties | undefined,
+        standardizedMeta
+      );
 
-    if (!(index < imageAssetIds.length && projectId) || textAnnotations.length > 0) {
-      await queueEvent({
-        type: 'FeatureUpdated',
-        payload: {
-          id: feature.id,
-          name: localName,
-          metadata: JSON.stringify(standardizedMeta),
-          properties: nextProperties,
-        },
-      });
+      if (!(index < imageAssetIds.length && projectId) || textAnnotations.length > 0) {
+        await queueEvent({
+          type: 'FeatureUpdated',
+          payload: {
+            id: feature.id,
+            name: localName,
+            metadata: JSON.stringify(standardizedMeta),
+            properties: nextProperties,
+          },
+        });
+      }
+      setPreview(null, null);
+      setEditingImage(null);
+      requestStorageHealthRefresh();
+    } catch (error) {
+      console.error('[PropertyPanel] Failed to save edited image:', error);
+      setMediaImportError('Không thể lưu ảnh đã chỉnh sửa. Vui lòng thử lại.');
+      throw error;
     }
-    setPreview(null, null);
-    setEditingImage(null);
-    requestStorageHealthRefresh();
   };
 
   const pasteClipboardImages = async (
@@ -588,17 +596,18 @@ export const PropertyPanel: React.FC = () => {
   ) => {
     const items = Array.from(clipboardData.items);
     const imageItems = items.filter((item) => item.kind === 'file' && item.type.startsWith('image/'));
+    const imageFiles = Array.from(clipboardData.files || []).filter((file) => file.type.startsWith('image/'));
 
     console.log('[PropertyPanel][Paste] event', {
       source,
       selectedFeatureId,
       itemCount: items.length,
       items: items.map((item) => ({ kind: item.kind, type: item.type })),
-      imageCount: imageItems.length,
+      imageCount: imageItems.length + imageFiles.length,
       activeElement: document.activeElement?.tagName ?? null,
     });
 
-    if (imageItems.length === 0) return;
+    if (imageItems.length === 0 && imageFiles.length === 0) return;
 
     preventDefault();
     stopPropagation?.();
@@ -758,7 +767,7 @@ export const PropertyPanel: React.FC = () => {
 
   const handleSave = async () => {
     if (!feature || (!isNameDirty && !isMetadataDirty)) return;
-    if (!confirmUserAction(`Xác nhận lưu thay đổi cho đối tượng "${draftName}"?`)) return;
+    if (!(await confirmUserAction(`Xác nhận lưu thay đổi cho đối tượng "${draftName}"?`))) return;
     setIsSaving(true);
     setIsSaved(false);
 

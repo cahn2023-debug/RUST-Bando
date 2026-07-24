@@ -557,7 +557,8 @@ describe('PropertyPanel clipboard images', () => {
 
     fireEvent.keyDown(window, { key: 't' });
     fireEvent.change(screen.getByLabelText('Text value'), { target: { value: 'Photo label' } });
-    const canvas = document.querySelector('canvas');
+    const canvases = document.querySelectorAll('canvas');
+    const canvas = canvases[canvases.length - 1];
     if (!canvas) throw new Error('Image editor canvas not found');
     fireEvent.pointerDown(canvas, { clientX: 10, clientY: 10 });
     fireEvent.click(screen.getByRole('button', { name: 'OK text' }));

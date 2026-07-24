@@ -100,7 +100,7 @@ export function useVirtualDrag({
         draggingIdsRef.current = virtualDragRef.current?.ids || [];
     }, [isVirtualDragging]);
 
-    const handleExecuteMove = useCallback((currentDrag: { type: string; ids: string[] }, targetType: 'region' | 'group' | 'feature', targetId: string) => {
+    const handleExecuteMove = useCallback(async (currentDrag: { type: string; ids: string[] }, targetType: 'region' | 'group' | 'feature', targetId: string) => {
         logDragDrop("execute:start", { dragType: currentDrag?.type, ids: currentDrag?.ids, targetType, targetId });
         if (!currentDrag) {
             logDragDrop("execute:skip:no-current-drag");
@@ -230,7 +230,7 @@ export function useVirtualDrag({
         });
 
         if (events.length > 0) {
-            if (!confirmUserAction(`Xác nhận di chuyển ${events.length} đối tượng/nhóm đến vị trí mới?`)) {
+            if (!(await confirmUserAction(`Xác nhận di chuyển ${events.length} đối tượng/nhóm đến vị trí mới?`))) {
                 logDragDrop("execute:cancelled", { eventCount: events.length });
                 return;
             }
