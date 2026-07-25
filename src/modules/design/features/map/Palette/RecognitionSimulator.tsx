@@ -22,15 +22,15 @@ export const RecognitionSimulator: React.FC<RecognitionSimulatorProps> = ({ ppm 
     return (
         <div className="space-y-2 mt-4">
             <div className="flex justify-between items-center px-1">
-                <label className="text-[10px] text-gray-300 uppercase font-black tracking-wider flex items-center gap-1.5">
-                    <Scan className="w-3 h-3 text-cyan-400" /> Mô phỏng Nhận diện AI
+                <label className="text-[10px] text-cad-text-secondary uppercase font-black tracking-wider flex items-center gap-1.5">
+                    <Scan className="w-3 h-3 text-cad-active" /> Mô phỏng Nhận diện AI
                 </label>
                 <div className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${isRecognized ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30'}`}>
                     {isRecognized ? (isId ? 'Level: Identification' : 'Level: Recognition') : 'Level: Observation/Low'}
                 </div>
             </div>
 
-            <div className="relative aspect-video rounded-xl bg-black overflow-hidden border border-white/10 group shadow-2xl">
+            <div className="relative aspect-video rounded-xl bg-black overflow-hidden border border-cad-border group shadow-2xl">
                 {/* Background Image (User provided license plate) */}
                 <div className="absolute inset-0 overflow-hidden">
                     <img

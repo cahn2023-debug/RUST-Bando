@@ -1,29 +1,33 @@
-# Design System: RUST CAD Dark
+# DESIGN
 
-## 1. Visual Theme
-Quiet, technical, dense, and operator-focused. The app stays in a CAD-dark language: deep charcoal surfaces, restrained green accents, sharp hierarchy, and compact spacing.
+> **Tài liệu này là stub.** Nguồn sự thật duy nhất cho design system của dự án là:
+>
+> **[`design-system/MASTER.md`](design-system/MASTER.md)**
 
-## 2. Color Palette
-- Deep Graphite `#0F1115` - base app background
-- Header Slate `#101217` - top chrome and shell rails
-- Surface Slate `#171B21` - panels, cards, modal bodies
-- Elevated Slate `#20252D` - selected sections and active surfaces
-- Border Slate `#2B313B` - separators and outlines
-- Signal Green `#10B981` - primary action and active state
-- Active Mint `#34D399` - hover / live feedback
-- Amber Notice `#F59E0B` - warnings and attention states
-- Primary Text `#E5E7EB` - main content
-- Secondary Text `#9CA3AF` - supporting labels
-- Muted Text `#4B5563` - low-priority metadata
+Mọi token màu, typography, spacing, thang z-index, chiều cao chrome và quy ước component
+đều được định nghĩa tại đó, và phải khớp với hiện thực trong
+`src/modules/design/index.css`.
 
-## 3. Typography
-Inter for body and UI, Space Grotesk for display headers, Roboto Mono for technical fields. Uppercase is used sparingly for machine-like labels, not for body copy.
+## Vì sao có stub này
 
-## 4. Component Rules
-- Buttons: compact, squared-to-soft corners, one primary accent per surface.
-- Cards / panels: dark surfaces with 1px borders, low-shadow elevation, no bright glass blobs.
-- Inputs: dark fill, clear border, visible focus ring, no oversized rounding.
-- Tabs / ribbon: dense horizontal rails with clear active states and keyboard support.
+Trước 2026-07-25 dự án tồn tại 5 tài liệu design mô tả 4 palette khác nhau
+(`DESIGN.md`, `docs/DESIGN.md`, `design-system/MASTER.md`,
+`design-system/rust-cad/MASTER.md`, `design-system/bando-network-graph/MASTER.md`).
+Điều này khiến người viết code — và cả AI agent — sinh ra UI lệch màu so với
+theme thật đang chạy.
 
-## 5. Layout
-Use full-width shells with fixed-height chrome, dense content bands, and stable spacing. Keep panel widths, button heights, and icon sizes consistent across modules. Prefer scan-friendly grids and split panes over decorative framing.
+Các tài liệu sinh tự động bị loại đã được chuyển vào `BAK/design-system-deprecated/`
+kèm ghi chú, không dùng để tham chiếu.
+
+## Nếu bạn đang tìm
+
+| Bạn cần | Đọc ở đâu |
+|---|---|
+| Token màu, dual theme light/dark | `design-system/MASTER.md` §1 |
+| Typography | `design-system/MASTER.md` §2 |
+| Spacing, chiều cao chrome | `design-system/MASTER.md` §3, §4 |
+| Thang z-index | `design-system/MASTER.md` §5 |
+| Quy ước component / primitive | `design-system/MASTER.md` §6 |
+| i18n | `design-system/MASTER.md` §7 |
+| Accessibility | `design-system/MASTER.md` §8 |
+| Kiến trúc module DESIGN (event sourcing, hierarchy) | `docs/DESIGN_DOC.md` |

@@ -544,39 +544,39 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
 
   if (!projectId) {
     return (
-      <div className="rounded-lg border border-white/5 bg-black/20 p-3 text-[10.5px] text-zinc-500">
+      <div className="rounded-lg border border-cad-border bg-cad-surface p-3 text-[10.5px] text-cad-text-muted">
         Chưa có project để tải dữ liệu FiberMap.
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 rounded-lg border border-white/5 bg-black/20 p-3">
+    <div className="space-y-3 rounded-lg border border-cad-border bg-cad-bg p-3">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-[11px] font-semibold text-zinc-100">
-          <Route size={13} className="text-cyan-300" />
+        <div className="flex items-center gap-2 text-[11px] font-semibold text-cad-text-primary">
+          <Route size={13} className="text-cad-accent" />
           FiberMap
         </div>
         <button
           type="button"
           onClick={() => void refresh()}
           disabled={loading || saving}
-          className="inline-flex items-center gap-1 rounded border border-white/10 px-2 py-1 text-[9px] font-semibold text-zinc-300 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded border border-cad-border px-2 py-1 text-[9px] font-semibold text-cad-text-primary hover:bg-cad-text-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? <Loader2 size={10} className="animate-spin" /> : <RefreshCcw size={10} />}
           Làm mới
         </button>
       </div>
 
-      <div className="grid grid-cols-5 gap-1 rounded-lg border border-white/5 bg-black/25 p-1">
+      <div className="grid grid-cols-5 gap-1 rounded-lg border border-cad-border bg-cad-surface p-1">
         {tabs.map(tab => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setActiveTab(tab.id)}
             className={activeTab === tab.id
-              ? 'rounded bg-cyan-500/15 px-2 py-1 text-[9px] font-semibold text-cyan-200'
-              : 'rounded px-2 py-1 text-[9px] font-semibold text-zinc-500 hover:bg-white/5 hover:text-zinc-200'}
+              ? 'rounded bg-cad-accent/15 px-2 py-1 text-[9px] font-semibold text-cad-accent'
+              : 'rounded px-2 py-1 text-[9px] font-semibold text-cad-text-muted hover:bg-cad-text-primary/5 hover:text-cad-text-primary'}
           >
             {tab.label}
           </button>
@@ -584,16 +584,16 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
       </div>
 
       {statusMessage && (
-        <div className="rounded border border-white/5 bg-black/25 p-2 text-[10px] text-zinc-300">
+        <div className="rounded border border-cad-border bg-cad-surface p-2 text-[10px] text-cad-text-primary">
           {statusMessage}
         </div>
       )}
 
-      <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-3">
-        <div className="flex items-center gap-2 text-[10px] font-semibold text-zinc-300">
+      <div className="rounded-lg border border-cad-border bg-cad-surface p-3 space-y-3">
+        <div className="flex items-center gap-2 text-[10px] font-semibold text-cad-text-primary">
           <Sigma size={11} /> Cấu hình Cáp
         </div>
-        <div className="text-[9px] text-zinc-500">
+        <div className="text-[9px] text-cad-text-muted">
           {canConfigureCable
             ? `${cableConfigIsMaterialized ? 'Đang chọn cáp' : 'Đang chọn polyline'}: ${cableConfigLabel}`
             : 'Chọn một polyline/cáp trên bản đồ hoặc trong danh sách cáp để cấu hình.'}
@@ -601,7 +601,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
 
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
-            <label className="text-[9px] text-zinc-400">Loại cáp</label>
+            <label className="text-[9px] text-cad-text-secondary">Loại cáp</label>
             <input
               type="text"
               list="cable-types"
@@ -609,7 +609,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
               onChange={event => setCableType(event.target.value)}
               placeholder="VD: ADSS khoảng vượt 100"
               disabled={!canConfigureCable || saving}
-              className="w-full rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none focus:border-cyan-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded border border-cad-border bg-cad-bg px-2 py-1 text-[10px] text-cad-text-primary outline-none focus:border-cad-accent/50 disabled:cursor-not-allowed disabled:opacity-50"
             />
             <datalist id="cable-types">
               {PREDEFINED_CABLE_TYPES.map(type => (
@@ -618,7 +618,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
             </datalist>
           </div>
           <div className="space-y-1">
-            <label className="text-[9px] text-zinc-400">Dung lượng (FO)</label>
+            <label className="text-[9px] text-cad-text-secondary">Dung lượng (FO)</label>
             <input
               type="number"
               list="cable-capacities"
@@ -627,7 +627,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
               onChange={event => setFiberCount(event.target.value === '' ? '' : Number(event.target.value))}
               placeholder="VD: 48"
               disabled={!canConfigureCable || saving}
-              className="w-full rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none focus:border-cyan-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded border border-cad-border bg-cad-bg px-2 py-1 text-[10px] text-cad-text-primary outline-none focus:border-cad-accent/50 disabled:cursor-not-allowed disabled:opacity-50"
             />
             <datalist id="cable-capacities">
               {PREDEFINED_CAPACITIES.map(cap => (
@@ -642,7 +642,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
             type="button"
             onClick={() => void handleSaveCableConfig()}
             disabled={!canConfigureCable || saving}
-            className="rounded border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-[10px] font-semibold text-cyan-200 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+            className="rounded border border-cad-accent/30 bg-cad-accent/10 px-3 py-1.5 text-[10px] font-semibold text-cad-accent hover:bg-cad-accent/20 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
           >
             Lưu cấu hình
           </button>
@@ -652,7 +652,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
               type="button"
               onClick={() => void handleInitialize()}
               disabled={!selectedCable?.fiber_count || selectedCable.fiber_count < 1 || saving}
-              className="rounded border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[10px] font-semibold text-amber-200 hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+              className="rounded border border-cad-warn/30 bg-cad-warn/10 px-3 py-1.5 text-[10px] font-semibold text-cad-warn hover:bg-cad-warn/20 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
             >
               Khởi tạo sợi
             </button>
@@ -660,12 +660,12 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
         </div>
 
         {!cableConfigIsMaterialized && selectedLegacyCandidate && (
-          <div className="text-[9px] text-amber-300">
+          <div className="text-[9px] text-cad-warn">
             Polyline này chưa có cable trong FiberMap. Nhấn Lưu cấu hình để tạo cable và lưu loại/dung lượng.
           </div>
         )}
         {cableConfigIsMaterialized && !selectedCableInitialized && selectedCableId && (
-          <div className="text-[9px] text-amber-300">
+          <div className="text-[9px] text-cad-warn">
             Cáp này chưa có danh sách sợi. Hãy lưu cấu hình trước, rồi nhấn Khởi tạo sợi.
           </div>
         )}
@@ -673,11 +673,11 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
 
       {activeTab === 'inventory' && (
         <div className="space-y-3">
-          <div className="rounded-lg border border-cyan-500/15 bg-cyan-500/5 p-3 text-[10px] text-cyan-100">
+          <div className="rounded-lg border border-cad-accent/15 bg-cad-accent/5 p-3 text-[10px] text-cad-text-primary">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <div className="font-semibold text-cyan-100">Nhận diện tuyến fiber từ polyline</div>
-                <div className="mt-0.5 text-cyan-100/70">
+                <div className="font-semibold text-cad-accent">Nhận diện tuyến fiber từ polyline</div>
+                <div className="mt-0.5 text-cad-text-secondary">
                   Tạo cable từ polyline, dùng điểm đầu/cuối đã có và chỉ sinh măng xông tại điểm rẽ/giao tuyến.
                 </div>
               </div>
@@ -685,7 +685,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
                 type="button"
                 onClick={() => void handleMaterializePolylines()}
                 disabled={saving || loading || Object.keys(featuresById).length === 0}
-                className="rounded border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 font-semibold text-cyan-100 hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded border border-cad-accent/30 bg-cad-accent/10 px-2 py-1 font-semibold text-cad-accent hover:bg-cad-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Nhận diện tuyến fiber từ polyline
               </button>
@@ -693,7 +693,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
           </div>
 
           {!hasCableInventory && legacyCableCandidates.length > 0 && (
-            <div className="space-y-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-[10px] text-amber-200">
+            <div className="space-y-2 rounded-lg border border-cad-warn/20 bg-cad-warn/5 p-3 text-[10px] text-cad-warn">
               <div>
                 Chưa có cáp fiber trong bảng. Có {legacyCableCandidates.length} tuyến Network có thể chuyển thành cáp.
               </div>
@@ -702,7 +702,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
                   type="button"
                   onClick={() => void handleCreateLegacyCable(selectedLegacyCandidateId || legacyCableCandidates[0].id)}
                   disabled={!selectedLegacyCandidateId || saving}
-                  className="rounded border border-amber-400/30 bg-amber-400/10 px-2 py-1 font-semibold text-amber-100 disabled:opacity-50"
+                  className="rounded border border-cad-warn/30 bg-cad-warn/10 px-2 py-1 font-semibold text-cad-warn disabled:opacity-50"
                 >
                   Tạo cable từ tuyến đã chọn
                 </button>
@@ -710,23 +710,23 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
                   type="button"
                   onClick={() => void handleCreateAllLegacyCables()}
                   disabled={saving}
-                  className="rounded border border-white/10 px-2 py-1 font-semibold text-zinc-200 hover:bg-white/10 disabled:opacity-50"
+                  className="rounded border border-cad-border px-2 py-1 font-semibold text-cad-text-primary hover:bg-cad-text-primary/10 disabled:opacity-50"
                 >
                   Tự tạo từ tất cả tuyến Network
                 </button>
               </div>
-              <div className="max-h-28 overflow-auto rounded border border-white/5 bg-black/20">
+              <div className="max-h-28 overflow-auto rounded border border-cad-border bg-cad-surface">
                 {legacyCableCandidates.map(candidate => (
                   <button
                     key={candidate.id}
                     type="button"
                     onClick={() => setSelectedLegacyCandidateId(candidate.id)}
                     className={selectedLegacyCandidateId === candidate.id
-                      ? 'block w-full border-b border-amber-500/10 bg-amber-500/10 px-3 py-2 text-left'
-                      : 'block w-full border-b border-white/5 px-3 py-2 text-left hover:bg-white/5'}
+                      ? 'block w-full border-b border-cad-warn/10 bg-cad-warn/10 px-3 py-2 text-left'
+                      : 'block w-full border-b border-cad-border px-3 py-2 text-left hover:bg-cad-text-primary/5'}
                   >
-                    <div className="font-semibold text-zinc-100">{candidate.label}</div>
-                    <div className="text-[9px] text-zinc-500">
+                    <div className="font-semibold text-cad-text-primary">{candidate.label}</div>
+                    <div className="text-[9px] text-cad-text-muted">
                       {candidate.source_type} · {candidate.cable_type || 'Cáp'} · {candidate.fiber_count ?? 'fiber_count chưa rõ'}
                     </div>
                   </button>
@@ -743,9 +743,9 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
               ['Đang dùng', inventory?.summary.active_strands || 0],
               ['Lỗi', inventory?.summary.damaged_strands || 0],
             ].map(([label, value]) => (
-              <div key={label as string} className="rounded border border-white/5 bg-black/30 p-2">
-                <div className="text-zinc-500">{label}</div>
-                <div className="text-[12px] font-semibold text-zinc-100">{value as number}</div>
+              <div key={label as string} className="rounded border border-cad-border bg-cad-surface p-2">
+                <div className="text-cad-text-muted">{label}</div>
+                <div className="text-[12px] font-semibold text-cad-text-primary">{value as number}</div>
               </div>
             ))}
           </div>
@@ -757,11 +757,11 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
               onSelectCable={setSelectedCableId}
             />
           ) : legacyCableCandidates.length > 0 ? (
-            <div className="rounded-lg border border-white/5 bg-black/20 p-3 text-[10px] text-zinc-500">
+            <div className="rounded-lg border border-cad-border bg-cad-surface p-3 text-[10px] text-cad-text-muted">
               Hãy tạo cable legacy ở khung trên để bắt đầu workflow FiberMap.
             </div>
           ) : (
-            <div className="rounded-lg border border-white/5 bg-black/20 p-3 text-[10px] text-zinc-500">
+            <div className="rounded-lg border border-cad-border bg-cad-surface p-3 text-[10px] text-cad-text-muted">
               Chưa có cáp fiber trong bảng. Fiber tab sẽ hiện khi project có tuyến Network hợp lệ.
             </div>
           )}
@@ -775,7 +775,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
             <select
               value={selectedCableId || ''}
               onChange={event => setSelectedCableId(event.target.value || null)}
-              className="rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none"
+              className="rounded border border-cad-border bg-cad-bg px-2 py-1 text-[10px] text-cad-text-primary outline-none"
             >
               <option value="">Chọn cáp</option>
               {cableRows.map(row => (
@@ -788,7 +788,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
               type="button"
               onClick={() => selectedCable && focusFeature(selectedCable.feature_id)}
               disabled={!selectedCable}
-              className="rounded border border-white/10 px-2 py-1 text-[9px] font-semibold text-zinc-300 hover:bg-white/10 disabled:opacity-50"
+              className="rounded border border-cad-border px-2 py-1 text-[9px] font-semibold text-cad-text-primary hover:bg-cad-text-primary/10 disabled:opacity-50"
             >
               Focus
             </button>
@@ -798,7 +798,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
             <select
               value={strandStatusFilter}
               onChange={event => setStrandStatusFilter(event.target.value as FiberStrandStatus | 'all')}
-              className="w-28 rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none"
+              className="w-28 rounded border border-cad-border bg-cad-bg px-2 py-1 text-[10px] text-cad-text-primary outline-none"
             >
               {statusOptions.map(option => (
                 <option key={option} value={option}>{statusLabel(option)}</option>
@@ -808,28 +808,28 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
               value={strandQuery}
               onChange={event => setStrandQuery(event.target.value)}
               placeholder="Tìm số sợi, màu, ID"
-              className="min-w-0 flex-1 rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none"
+              className="min-w-0 flex-1 rounded border border-cad-border bg-cad-bg px-2 py-1 text-[10px] text-cad-text-primary outline-none"
             />
           </div>
 
           {filteredStrands.length === 0 ? (
-            <div className="rounded-lg border border-white/5 bg-black/20 p-3 text-[10px] text-zinc-500">
+            <div className="rounded-lg border border-cad-border bg-cad-surface p-3 text-[10px] text-cad-text-muted">
               {selectedCableId ? 'Cáp chưa initialize hoặc không có sợi khớp bộ lọc.' : 'Chọn một cáp để xem danh sách sợi.'}
             </div>
           ) : (
-            <div className="max-h-56 overflow-auto rounded-lg border border-white/5 bg-black/20">
+            <div className="max-h-56 overflow-auto rounded-lg border border-cad-border bg-cad-surface">
               {filteredStrands.map(strand => (
                 <button
                   type="button"
                   key={strand.id}
                   onClick={() => toggleStrand(strand.id)}
                   className={selectedStrandIds.has(strand.id)
-                    ? 'flex w-full items-center justify-between gap-2 border-b border-cyan-500/10 bg-cyan-500/10 px-3 py-2 text-left'
-                    : 'flex w-full items-center justify-between gap-2 border-b border-white/5 px-3 py-2 text-left hover:bg-white/5'}
+                    ? 'flex w-full items-center justify-between gap-2 border-b border-cad-accent/10 bg-cad-accent/10 px-3 py-2 text-left'
+                    : 'flex w-full items-center justify-between gap-2 border-b border-cad-border px-3 py-2 text-left hover:bg-cad-text-primary/5'}
                 >
                   <span className="min-w-0">
-                    <span className="block text-[10px] font-semibold text-zinc-100">Sợi #{strand.strand_no}</span>
-                    <span className="block truncate text-[9px] text-zinc-500">{strand.color || 'Chưa gán màu'} · {strand.id}</span>
+                    <span className="block text-[10px] font-semibold text-cad-text-primary">Sợi #{strand.strand_no}</span>
+                    <span className="block truncate text-[9px] text-cad-text-muted">{strand.color || 'Chưa gán màu'} · {strand.id}</span>
                   </span>
                   <span className={`shrink-0 rounded border px-2 py-0.5 text-[9px] ${fiberStrandStatusClass[strand.status]}`}>
                     {fiberStrandStatusLabel[strand.status]}
@@ -839,8 +839,8 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
             </div>
           )}
 
-          <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2">
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-zinc-300">
+          <div className="rounded-lg border border-cad-border bg-cad-surface p-3 space-y-2">
+            <div className="flex items-center gap-2 text-[10px] font-semibold text-cad-text-primary">
               <ListChecks size={11} /> Thao tác sợi đã chọn ({selectedStrandIds.size})
             </div>
             <div className="grid grid-cols-4 gap-1">
@@ -850,7 +850,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
                   type="button"
                   onClick={() => void handleChangeSelectedStatus(status)}
                   disabled={selectedStrandIds.size === 0 || saving}
-                  className="rounded border border-white/10 px-2 py-1 text-[9px] font-semibold text-zinc-300 hover:bg-white/10 disabled:opacity-50"
+                  className="rounded border border-cad-border px-2 py-1 text-[9px] font-semibold text-cad-text-primary hover:bg-cad-text-primary/10 disabled:opacity-50"
                 >
                   {fiberStrandStatusLabel[status]}
                 </button>
@@ -858,14 +858,14 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
             </div>
           </div>
 
-          <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2">
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-zinc-300">
+          <div className="rounded-lg border border-cad-border bg-cad-surface p-3 space-y-2">
+            <div className="flex items-center gap-2 text-[10px] font-semibold text-cad-text-primary">
               <GitBranch size={11} /> Mối nối
             </div>
-            <div className="text-[9px] text-zinc-500">
+            <div className="text-[9px] text-cad-text-muted">
               Chọn đúng 2 sợi trong bảng để tạo splice. Loss mặc định nhẹ, có thể chỉnh trước khi lưu.
             </div>
-            <div className="rounded border border-white/5 bg-black/25 p-2 text-[9px] text-zinc-400">
+            <div className="rounded border border-cad-border bg-cad-elevated p-2 text-[9px] text-cad-text-secondary">
               Măng xông sử dụng:{' '}
               {selectedCableEnclosures[0]
                 ? getFeatureLabel(featuresById, selectedCableEnclosures[0].feature_id)
@@ -878,26 +878,26 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
                 min={0}
                 value={spliceLossDb}
                 onChange={event => setSpliceLossDb(Number(event.target.value))}
-                className="w-20 rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none"
+                className="w-20 rounded border border-cad-border bg-cad-bg px-2 py-1 text-[10px] text-cad-text-primary outline-none"
               />
               <button
                 type="button"
                 onClick={() => void handleCreateSplice()}
                 disabled={pickedStrands.length !== 2 || saving}
-                className="rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10px] font-semibold text-cyan-200 hover:bg-cyan-500/20 disabled:opacity-50"
+                className="rounded border border-cad-accent/30 bg-cad-accent/10 px-2 py-1 text-[10px] font-semibold text-cad-accent hover:bg-cad-accent/20 disabled:opacity-50"
               >
                 Tạo mối nối
               </button>
             </div>
             {selectedStrand && (
-              <div className="rounded border border-white/5 bg-black/25 p-2 text-[9px] text-zinc-400">
-                <div className="font-semibold text-zinc-300">Splice chain của sợi #{selectedStrand.strand_no}</div>
+              <div className="rounded border border-cad-border bg-cad-elevated p-2 text-[9px] text-cad-text-secondary">
+                <div className="font-semibold text-cad-text-primary">Splice chain của sợi #{selectedStrand.strand_no}</div>
                 {spliceChain.length === 0 ? (
-                  <div className="mt-1 text-zinc-500">Chưa có mối nối.</div>
+                  <div className="mt-1 text-cad-text-muted">Chưa có mối nối.</div>
                 ) : (
                   <div className="mt-1 space-y-1">
                     {spliceChain.map(item => (
-                      <div key={item.splice.id} className="rounded bg-black/30 px-2 py-1">
+                      <div key={item.splice.id} className="rounded bg-cad-bg px-2 py-1">
                         → Sợi #{item.peerStrand?.strand_no || '?'} · loss {item.splice.loss_db ?? 0} dB
                       </div>
                     ))}
@@ -920,21 +920,21 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
 
       {activeTab === 'circuits' && (
         <div className="space-y-3">
-          <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2">
-            <div className="flex items-center gap-2 text-[10px] font-semibold text-zinc-300">
+          <div className="rounded-lg border border-cad-border bg-cad-surface p-3 space-y-2">
+            <div className="flex items-center gap-2 text-[10px] font-semibold text-cad-text-primary">
               <CircleDot size={11} /> Tạo tuyến A–Z
             </div>
             <input
               value={circuitName}
               onChange={event => setCircuitName(event.target.value)}
               placeholder="Tên tuyến / circuit"
-              className="w-full rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none"
+              className="w-full rounded border border-cad-border bg-cad-bg px-2 py-1 text-[10px] text-cad-text-primary outline-none"
             />
             <div className="grid grid-cols-2 gap-2">
               <select
                 value={aFeatureId}
                 onChange={event => setAFeatureId(event.target.value)}
-                className="min-w-0 rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none"
+                className="min-w-0 rounded border border-cad-border bg-cad-bg px-2 py-1 text-[10px] text-cad-text-primary outline-none"
               >
                 <option value="">Chọn A endpoint</option>
                 {featureOptions.map(feature => (
@@ -944,7 +944,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
               <select
                 value={zFeatureId}
                 onChange={event => setZFeatureId(event.target.value)}
-                className="min-w-0 rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none"
+                className="min-w-0 rounded border border-cad-border bg-cad-bg px-2 py-1 text-[10px] text-cad-text-primary outline-none"
               >
                 <option value="">Chọn Z endpoint</option>
                 {featureOptions.map(feature => (
@@ -956,7 +956,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
               <select
                 value={serviceType}
                 onChange={event => setServiceType(event.target.value as FiberCircuitServiceType)}
-                className="min-w-0 flex-1 rounded border border-white/10 bg-black/40 px-2 py-1 text-[10px] text-zinc-100 outline-none"
+                className="min-w-0 flex-1 rounded border border-cad-border bg-cad-bg px-2 py-1 text-[10px] text-cad-text-primary outline-none"
               >
                 <option value="data">Data</option>
                 <option value="voice">Voice</option>
@@ -968,12 +968,12 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
                 type="button"
                 onClick={() => void handleCreateCircuit()}
                 disabled={!circuitName.trim() || !aFeatureId || !zFeatureId || saving}
-                className="rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10px] font-semibold text-cyan-200 hover:bg-cyan-500/20 disabled:opacity-50"
+                className="rounded border border-cad-accent/30 bg-cad-accent/10 px-2 py-1 text-[10px] font-semibold text-cad-accent hover:bg-cad-accent/20 disabled:opacity-50"
               >
                 Tạo tuyến
               </button>
             </div>
-            <div className="text-[9px] text-zinc-500">
+            <div className="text-[9px] text-cad-text-muted">
               Hops sẽ lấy theo thứ tự các sợi đang chọn trong tab Strands: {pickedStrands.length} sợi.
             </div>
           </div>
@@ -993,27 +993,27 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
       {activeTab === 'diagnostics' && (
         <div className="space-y-3">
           {diagnostics.length === 0 ? (
-            <div className="flex items-center gap-1.5 rounded-lg border border-emerald-500/10 bg-emerald-500/5 p-3 text-[10px] text-emerald-300">
+            <div className="flex items-center gap-1.5 rounded-lg border border-cad-accent/10 bg-cad-accent/5 p-3 text-[10px] text-cad-accent">
               <CheckCircle2 size={12} /> Không có lỗi FiberMap đang phát hiện.
             </div>
           ) : (
             diagnosticGroups.map(group => (
-              <div key={group.type} className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3">
+              <div key={group.type} className="rounded-lg border border-cad-warn/20 bg-cad-warn/5 p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-[10px] font-semibold text-purple-200">
+                  <div className="flex items-center gap-2 text-[10px] font-semibold text-cad-warn">
                     <TriangleAlert size={11} /> {group.type}
                   </div>
-                  <span className="rounded bg-black/25 px-2 py-0.5 text-[9px] text-purple-200">{group.count}</span>
+                  <span className="rounded bg-cad-surface px-2 py-0.5 text-[9px] text-cad-warn">{group.count}</span>
                 </div>
                 <div className="space-y-2">
                   {group.diagnostics.map((diagnostic, index) => (
-                    <div key={`${diagnostic.type}-${index}`} className="rounded border border-white/5 bg-black/25 p-2 text-[9px]">
-                      <div className="text-zinc-300">{diagnostic.message}</div>
+                    <div key={`${diagnostic.type}-${index}`} className="rounded border border-cad-border bg-cad-surface p-2 text-[9px]">
+                      <div className="text-cad-text-primary">{diagnostic.message}</div>
                       <div className="mt-2 flex flex-wrap gap-1">
                         <button
                           type="button"
                           onClick={() => handleDiagnosticFocus(diagnostic)}
-                          className="rounded border border-white/10 px-2 py-0.5 font-semibold text-zinc-300 hover:bg-white/10"
+                          className="rounded border border-cad-border px-2 py-0.5 font-semibold text-cad-text-primary hover:bg-cad-text-primary/10"
                         >
                           Focus đối tượng
                         </button>
@@ -1025,7 +1025,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
                               void handleInitialize(diagnostic.cable_id || null);
                             }}
                             disabled={saving}
-                            className="rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 font-semibold text-cyan-200 disabled:opacity-50"
+                            className="rounded border border-cad-accent/30 bg-cad-accent/10 px-2 py-0.5 font-semibold text-cad-accent disabled:opacity-50"
                           >
                             Initialize cable
                           </button>
@@ -1037,7 +1037,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
                               setSelectedCircuitId(diagnostic.circuit_id || null);
                               setActiveTab('circuits');
                             }}
-                            className="rounded border border-white/10 px-2 py-0.5 font-semibold text-zinc-300 hover:bg-white/10"
+                            className="rounded border border-cad-border px-2 py-0.5 font-semibold text-cad-text-primary hover:bg-cad-text-primary/10"
                           >
                             Mở tuyến lỗi
                           </button>
@@ -1053,7 +1053,7 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
       )}
 
       {(loading || saving) && (
-        <div className="text-[10px] text-zinc-500">
+        <div className="text-[10px] text-cad-text-muted">
           {saving ? 'Đang lưu thay đổi FiberMap...' : 'Đang tải dữ liệu FiberMap...'}
         </div>
       )}

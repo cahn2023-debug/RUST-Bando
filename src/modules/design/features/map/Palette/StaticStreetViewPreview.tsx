@@ -255,7 +255,7 @@ export const StaticStreetViewPreview: React.FC<StaticStreetViewPreviewProps> = (
     }
 
     return (
-        <div className="relative w-full aspect-video rounded-lg bg-white border border-slate-200 overflow-hidden shadow-2xl select-none group">
+        <div className="relative w-full aspect-video rounded-lg bg-cad-surface border border-cad-border overflow-hidden shadow-2xl select-none group">
             {resolvedUrl && (
                 <img
                     src={resolvedUrl}

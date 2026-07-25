@@ -23,7 +23,7 @@ export function CADNavigation({
             <button
                 onClick={onLocateMe}
                 title="Xác định vị trí"
-                className="p-2 border backdrop-blur-sm transition-all rounded-sm mb-2 bg-cad-surface/80 border-cad-border text-cad-text-secondary hover:text-cyan-400 hover:border-cyan-400 hover:bg-cad-elevated"
+                className="p-2 border backdrop-blur-sm transition-all rounded-sm mb-2 bg-cad-surface/80 border-cad-border text-cad-text-secondary hover:text-cad-active hover:border-cad-active hover:bg-cad-elevated"
             >
                 <Crosshair size={14} />
             </button>

@@ -83,41 +83,41 @@ export const PropertyImportControls = ({
 
   return (
     <div className="pt-2 space-y-3">
-      <div className="space-y-2 rounded-md border border-orange-500/10 bg-orange-500/5 p-3">
-        <p className="mb-2 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-orange-400">
+      <div className="space-y-2 rounded-md border border-cad-warn/10 bg-cad-warn/5 p-3">
+        <p className="mb-2 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-cad-warn">
           <Grid3X3 size={12} /> Bảng điều khiển Nút giao
         </p>
         <button
           onClick={handleFileUpload}
           disabled={isImporting}
-          className="flex w-full items-center justify-center gap-2 rounded-md bg-orange-600 px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-white transition-all hover:bg-orange-700 disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded-md bg-cad-warn px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-white transition-all hover:bg-cad-warn/90 disabled:opacity-60"
         >
           {isImporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileUp className="h-3.5 w-3.5" />}
           {isImporting ? 'Đang import...' : 'Upload dữ liệu (Excel/KML/KMZ)'}
         </button>
-        <p className="px-1 text-[7px] leading-relaxed text-[#555]">
+        <p className="px-1 text-[7px] leading-relaxed text-cad-text-muted">
           Hỗ trợ: .xlsx, .xls, .xlsm, .xlsb, .kml, .kmz
         </p>
-        <div className="my-1 h-px bg-orange-500/10" />
-        <p className="mb-1 text-[8px] font-bold uppercase tracking-wider text-[#666]">Thêm thủ công:</p>
+        <div className="my-1 h-px bg-cad-warn/10" />
+        <p className="mb-1 text-[8px] font-bold uppercase tracking-wider text-cad-text-muted">Thêm thủ công:</p>
         <div className="grid grid-cols-1 gap-1.5">
           <button
             onClick={() => { setDrawingMode('point'); setSelectedGroup(feature.group_id); setActiveParentFeature(feature.id); }}
-            className="flex items-center gap-2 rounded bg-[#252525] px-3 py-1.5 text-[8px] font-bold uppercase text-white transition-all hover:bg-indigo-600"
+            className="flex items-center gap-2 rounded bg-cad-elevated px-3 py-1.5 text-[8px] font-bold uppercase text-cad-text-primary transition-all hover:bg-cad-accent/20"
           >
-            <MapPin size={10} className="text-indigo-400" /> Thêm điểm khảo sát
+            <MapPin size={10} className="text-cad-accent" /> Thêm điểm khảo sát
           </button>
           <button
             onClick={() => { setDrawingMode('polyline'); setSelectedGroup(feature.group_id); setActiveParentFeature(feature.id); }}
-            className="flex items-center gap-2 rounded bg-[#252525] px-3 py-1.5 text-[8px] font-bold uppercase text-white transition-all hover:bg-emerald-600"
+            className="flex items-center gap-2 rounded bg-cad-elevated px-3 py-1.5 text-[8px] font-bold uppercase text-cad-text-primary transition-all hover:bg-cad-accent/20"
           >
-            <Route size={10} className="text-emerald-400" /> Thêm tuyến/cáp
+            <Route size={10} className="text-cad-accent" /> Thêm tuyến/cáp
           </button>
           <button
             onClick={() => { setDrawingMode('image'); setSelectedGroup(feature.group_id); setActiveParentFeature(feature.id); }}
-            className="flex items-center gap-2 rounded bg-[#252525] px-3 py-1.5 text-[8px] font-bold uppercase text-white transition-all hover:bg-amber-600"
+            className="flex items-center gap-2 rounded bg-cad-elevated px-3 py-1.5 text-[8px] font-bold uppercase text-cad-text-primary transition-all hover:bg-cad-warn/20"
           >
-            <ImageIcon size={10} className="text-amber-400" /> Thêm ảnh hiện trường
+            <ImageIcon size={10} className="text-cad-warn" /> Thêm ảnh hiện trường
           </button>
         </div>
       </div>

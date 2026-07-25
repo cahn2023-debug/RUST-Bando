@@ -3,6 +3,7 @@ import { Settings2, X, Play } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getParsedMetadata, normalizeFeatureSymbolData } from '@TOOL/utils/featureUtils';
 import { confirmUserAction } from '@TOOL/utils/userConfirmation';
+import { Button } from '@DESIGN/components/ui/Button';
 
 interface ThemeModalProps {
   groupId: string;
@@ -258,7 +259,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
   ];
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-cad-modal flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-cad-surface border border-cad-border rounded-lg shadow-2xl w-full max-w-sm overflow-hidden flex flex-col font-sans">
 
         {/* Header */}
@@ -268,12 +269,13 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
             <h2 className="text-sm font-bold text-cad-text-primary uppercase tracking-wider">Group Theme</h2>
             <span className="text-[10px] text-cad-text-muted bg-cad-bg px-2 py-0.5 rounded-full">{groupName}</span>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={X}
+            ariaLabel="Đóng"
             onClick={handleCancel}
-            className="text-cad-text-muted hover:text-cad-text-primary transition-colors"
-          >
-            <X size={16} />
-          </button>
+          />
         </div>
 
         {/* Content */}
@@ -299,7 +301,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
                 {/* Preview current icon */}
                 {iconType === 'cctv' && <div className="w-4 h-4 rounded-sm border-2 border-current flex items-center justify-center text-[8px] font-bold">C</div>}
                 {iconType === 'ptz' && <div className="w-4 h-4 rounded-full border-2 border-current"></div>}
-                {iconType === 'speed' && <div className="w-4 h-4 bg-current rounded-sm flex items-center justify-center text-[6px] text-[#1A1A1A] font-black">S</div>}
+                {iconType === 'speed' && <div className="w-4 h-4 bg-current rounded-sm flex items-center justify-center text-[6px] text-black font-black">S</div>}
                 {iconType === 'lpr' && <div className="w-4 h-4 border-2 border-current skew-x-[-12deg] flex items-center justify-center text-[6px] font-black">L</div>}
                 {iconType === 'intersection' && <div className="text-sm scale-125">✖</div>}
                 {iconType === 'point_circle' && <div className="w-2.5 h-2.5 rounded-full bg-current mx-auto shadow-[0_0_5px_currentColor]"></div>}
@@ -318,7 +320,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
                 <div
                   key={c}
                   onClick={() => setColor(c)}
-                  className={`w-6 h-6 rounded-full cursor-pointer border-2 transition-all ${color === c ? 'border-white scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                  className={`w-6 h-6 rounded-full cursor-pointer border-2 transition-all ${color === c ? 'border-cad-text-primary scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
                   style={{ backgroundColor: c }}
                 />
               ))}
@@ -357,27 +359,24 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
 
         {/* Footer */}
         <div className="p-4 border-t border-cad-border bg-cad-elevated flex justify-end gap-2">
-          <button
+          <Button
+            variant="ghost"
+            size="md"
             onClick={handleCancel}
-            className="px-4 py-2 rounded text-xs font-semibold text-cad-text-secondary hover:text-cad-text-primary transition-colors"
             disabled={isApplying}
           >
             Hủy
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
+            size="md"
             onClick={handleApply}
             disabled={isApplying}
-            className="px-4 py-2 rounded text-xs font-bold bg-cad-accent text-black hover:bg-cad-accent/90 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            loading={isApplying}
+            icon={isApplying ? undefined : Play}
           >
-            {isApplying ? (
-              <span className="animate-pulse">Đang áp dụng...</span>
-            ) : (
-              <>
-                <Play size={12} fill="currentColor" />
-                Áp dụng
-              </>
-            )}
-          </button>
+            {isApplying ? 'Đang áp dụng...' : 'Áp dụng'}
+          </Button>
         </div>
 
       </div>

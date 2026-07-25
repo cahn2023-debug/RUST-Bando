@@ -34,25 +34,25 @@ export const NetworkNodeWidget = ({ data }: { data: NetworkNodeData }) => {
             className={cn(
                 'w-[152px] rounded-lg border backdrop-blur-md px-2.5 py-2 text-left shadow transition-all duration-300 ease-out hover:-translate-y-0.5 font-sans',
                 statusClass[data.status || 'unknown'],
-                data.isSelected && 'ring-2 ring-cyan-400 border-cyan-400/50 shadow-[0_0_15px_rgba(34,211,238,0.25)]'
+                data.isSelected && 'ring-2 ring-cad-active border-cad-active/50 shadow-[0_0_15px_rgba(34,211,238,0.25)]'
             )}
         >
             <Handle
                 type="target"
                 position={Position.Left}
-                className="h-2 w-2 !border-zinc-950 !bg-cyan-400 !shadow-[0_0_6px_rgba(34,211,238,0.6)]"
+                className="h-2 w-2 !border-cad-bg !bg-cad-active !shadow-[0_0_6px_rgba(34,211,238,0.6)]"
             />
             <div className="flex items-start justify-between gap-1.5">
-                <span className="truncate text-[10.5px] font-bold leading-tight text-zinc-100" title={data.label}>
+                <span className="truncate text-[10.5px] font-bold leading-tight text-cad-text-primary" title={data.label}>
                     {data.label}
                 </span>
                 <div className="flex shrink-0 items-center gap-1">
                     {!!data.memberCount && data.memberCount > 1 && (
-                        <span className="rounded bg-cyan-400/15 px-1 py-0.5 text-[7.5px] font-bold uppercase tracking-wider text-cyan-200">
+                        <span className="rounded bg-cad-active/15 px-1 py-0.5 text-[7.5px] font-bold uppercase tracking-wider text-cad-active">
                             {data.memberCount} obj
                         </span>
                     )}
-                    <span className="rounded bg-black/45 px-1 py-0.5 text-[7.5px] font-bold uppercase tracking-wider text-zinc-300">
+                    <span className="rounded bg-cad-bg/45 px-1 py-0.5 text-[7.5px] font-bold uppercase tracking-wider text-cad-text-secondary">
                         {data.role}
                     </span>
                 </div>
@@ -65,13 +65,13 @@ export const NetworkNodeWidget = ({ data }: { data: NetworkNodeData }) => {
                     </div>
                 )}
             </div>
-            <div className="mt-1.5 font-mono text-[8px] text-zinc-400 bg-black/35 px-1 py-0.5 rounded truncate select-all" title={data.telemetryId || data.label}>
+            <div className="mt-1.5 font-mono text-[8px] text-cad-text-muted bg-cad-bg/35 px-1 py-0.5 rounded truncate select-all" title={data.telemetryId || data.label}>
                 ID: {data.telemetryId || 'Chưa gán'}
             </div>
             <Handle
                 type="source"
                 position={Position.Right}
-                className="h-2 w-2 !border-zinc-950 !bg-cyan-400 !shadow-[0_0_6px_rgba(34,211,238,0.6)]"
+                className="h-2 w-2 !border-cad-bg !bg-cad-active !shadow-[0_0_6px_rgba(34,211,238,0.6)]"
             />
         </div>
     );

@@ -10,17 +10,19 @@ interface IconSelectorProps {
 export const IconSelector: React.FC<IconSelectorProps> = ({ value, onChange, className }) => {
   return (
     <div className={`space-y-2 ${className || ''}`}>
-      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Biểu tượng</label>
+      <label className="text-[10px] font-black text-cad-text-secondary uppercase tracking-widest block">Biểu tượng</label>
       <div className="grid grid-cols-5 gap-2">
         {SYMBOL_ICON_OPTIONS.map((item) => (
           <button
             key={item.id}
+            type="button"
             onClick={() => onChange(item.id)}
+            aria-pressed={value === item.id}
             className={`
-              flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all gap-1
+              flex flex-col items-center justify-center p-2 rounded-md border transition-colors gap-1 cursor-pointer
               ${value === item.id
-                ? 'border-indigo-500 bg-indigo-50 text-indigo-700'
-                : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'}
+                ? 'border-cad-accent bg-cad-accent/10 text-cad-accent'
+                : 'border-cad-border bg-cad-surface text-cad-text-muted hover:border-cad-accent/40 hover:text-cad-text-primary'}
             `}
             title={item.label}
           >

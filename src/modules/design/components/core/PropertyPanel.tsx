@@ -7,6 +7,7 @@ import {
   Layers, Zap, Radio, Construction, Pencil, RotateCw, Circle, Square, MoveUpRight
 } from "lucide-react";
 import { IconSelector } from '@DESIGN/components/ui/IconSelector';
+import { Button } from '@DESIGN/components/ui/Button';
 import { ImageEditorModal } from '@DESIGN/components/ui/ImageEditorModal';
 import { designLogic } from '@TOOL/utils/designLogic';
 import { getFeatureDisplayInfo, safeString, getCleanName, isCameraIcon, getParsedMetadata, getPointCoordinates } from '@TOOL/utils/featureUtils';
@@ -911,7 +912,14 @@ export const PropertyPanel: React.FC = () => {
                 <Settings className="w-3.5 h-3.5 text-cad-text-muted" />
                 <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÔNG SỐ THIẾT KẾ</span>
             </div>
-            <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-cad-elevated hover:text-cad-text-primary transition-all rounded"><X size={12} /></button>
+            <Button
+              onClick={onClose}
+              variant="ghost"
+              size="sm"
+              icon={X}
+              ariaLabel="Đóng bảng thông số"
+              className="text-cad-text-muted hover:bg-cad-elevated hover:text-cad-text-primary rounded"
+            />
         </div>
         <div className="p-4 overflow-y-auto flex-1 flex flex-col items-center justify-center text-center opacity-70">
           <div className="w-16 h-16 bg-cad-elevated rounded-full flex items-center justify-center mb-4 text-cad-accent">
@@ -922,12 +930,14 @@ export const PropertyPanel: React.FC = () => {
             Please use the <strong>Bulk Edit</strong> palette to modify multiple items.
           </p>
           <div className="flex gap-2">
-            <button
+            <Button
               onClick={() => selectFeature(null)}
-              className="px-3 py-1 bg-cad-bg border border-cad-border text-[8px] font-bold uppercase rounded-sm hover:bg-cad-elevated text-cad-text-primary"
+              variant="secondary"
+              size="sm"
+              className="px-3 text-[8px] font-bold uppercase rounded-sm"
             >
               Deselect All
-            </button>
+            </Button>
           </div>
         </div>
       </aside>
@@ -942,7 +952,14 @@ export const PropertyPanel: React.FC = () => {
                 <Settings className="w-3.5 h-3.5 text-cad-text-muted" />
                 <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÔNG SỐ THIẾT KẾ</span>
             </div>
-            <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-cad-elevated hover:text-cad-text-primary transition-all rounded"><X size={12} /></button>
+            <Button
+              onClick={onClose}
+              variant="ghost"
+              size="sm"
+              icon={X}
+              ariaLabel="Đóng bảng thông số"
+              className="text-cad-text-muted hover:bg-cad-elevated hover:text-cad-text-primary rounded"
+            />
         </div>
         <div className="p-4 overflow-y-auto flex-1 flex flex-col items-center justify-center text-center opacity-70">
           <div className="w-16 h-16 bg-cad-elevated rounded-full flex items-center justify-center mb-4">
@@ -973,11 +990,11 @@ export const PropertyPanel: React.FC = () => {
     >
       {/* Camera UI Overlay */}
       {isCameraOpen && (
-        <div className="absolute inset-0 z-[100] bg-black flex flex-col">
+        <div className="absolute inset-0 z-10 bg-black flex flex-col">
           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
           <canvas ref={canvasRef} className="hidden" />
           <div className="absolute top-4 left-4 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-lg text-[10px] text-white flex items-center gap-2 border border-white/10">
-            <Clock className="w-3 h-3 text-indigo-400" /> {new Date().toLocaleTimeString()}
+            <Clock className="w-3 h-3 text-cad-accent" /> {new Date().toLocaleTimeString()}
           </div>
           <div className="absolute bottom-10 left-0 right-0 flex justify-center items-center gap-8 px-4">
             <button onClick={stopCamera} className="w-12 h-12 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center backdrop-blur-md border border-white/10">
@@ -986,7 +1003,7 @@ export const PropertyPanel: React.FC = () => {
             <button
               onClick={capture}
               disabled={isCapturing}
-              className="w-16 h-16 bg-white text-indigo-600 rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform"
+              className="w-16 h-16 bg-white text-cad-accent rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform"
             >
               {isCapturing ? <Loader2 className="w-8 h-8 animate-spin" /> : <Camera className="w-8 h-8" />}
             </button>
@@ -1008,21 +1025,23 @@ export const PropertyPanel: React.FC = () => {
           <h2 className="text-[10px] font-black tracking-widest uppercase text-cad-accent">THÔNG SỐ THIẾT KẾ</h2>
         </div>
         <div className="flex items-center gap-1">
-          <button
+          <Button
             onClick={handleDelete}
-            className="p-1 px-2 hover:bg-red-500/20 text-red-400 rounded transition-colors text-[9px] font-bold uppercase border border-red-500/10"
+            variant="ghost"
+            size="sm"
+            className="px-2 rounded text-[9px] font-bold uppercase text-cad-danger border-cad-danger/10 hover:bg-cad-danger/20 hover:text-cad-danger"
             title="Xóa đối tượng"
           >
             Delete
-          </button>
+          </Button>
           {(isPolyline || feature.geom_type === 'Polygon') && (
             <button
               onClick={() => setEditingFeatureId(editingFeatureId === feature.id ? null : feature.id)}
               className={cn(
                 "p-1 px-2 rounded transition-all text-[9px] font-bold uppercase border",
                 editingFeatureId === feature.id
-                  ? "bg-amber-500/20 text-amber-400 border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.2)]"
-                  : "hover:bg-[#333] text-cad-text-muted border-transparent"
+                  ? "bg-cad-warn/20 text-cad-warn border-cad-warn/30 shadow-[0_0_8px_rgba(245,158,11,0.2)]"
+                  : "hover:bg-cad-elevated text-cad-text-muted border-transparent"
               )}
               title="Chỉnh sửa điểm (Vertex Editing)"
             >
@@ -1032,19 +1051,26 @@ export const PropertyPanel: React.FC = () => {
               </div>
             </button>
           )}
-          <button
+          <Button
             onClick={onPin}
-            className={`p-1 px-2 hover:bg-[#333] transition-colors rounded text-[9px] font-bold uppercase ${isPinned ? 'text-cad-accent bg-[#333]' : 'text-cad-text-muted'}`}
+            variant="ghost"
+            size="sm"
+            className={cn(
+              'px-2 rounded text-[9px] font-bold uppercase hover:bg-cad-elevated',
+              isPinned ? 'text-cad-accent bg-cad-elevated' : 'text-cad-text-muted'
+            )}
             title={isPinned ? "Auto-hide" : "Pin"}
           >
             {isPinned ? 'Unpin' : 'Pin'}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => { if(onClose) onClose(); selectFeature(null); setActiveParentFeature(null); }}
-            className="p-1 px-2 hover:bg-[#333] text-cad-text-muted rounded transition-colors text-[9px] font-bold uppercase"
+            variant="ghost"
+            size="sm"
+            className="px-2 rounded text-[9px] font-bold uppercase text-cad-text-muted hover:bg-cad-elevated"
           >
             Close
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1052,7 +1078,7 @@ export const PropertyPanel: React.FC = () => {
 
         {/* IDENTIFICATION */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-[#555] uppercase">
+          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
             <Info className="w-3 h-3" /> Identification
           </div>
           <div className="space-y-3">
@@ -1088,8 +1114,8 @@ export const PropertyPanel: React.FC = () => {
                 className={cn(
                   'w-full rounded border px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all',
                   localMeta.network?.is_origin
-                    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-                    : 'border-[#333] bg-[#111] text-white hover:border-emerald-500/40 hover:bg-emerald-500/10'
+                    ? 'border-cad-accent/30 bg-cad-accent/10 text-cad-accent'
+                    : 'border-cad-border bg-cad-bg text-cad-text-primary hover:border-cad-accent/40 hover:bg-cad-accent/10'
                 )}
               >
                 {localMeta.network?.is_origin ? 'Bỏ điểm gốc Network' : 'Đặt điểm gốc Network'}
@@ -1121,21 +1147,21 @@ export const PropertyPanel: React.FC = () => {
 
         {templateFields.length > 0 && (
           <section className="space-y-4">
-            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-emerald-400 uppercase">
+            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-accent uppercase">
               <List className="w-3 h-3" /> Template Fields
             </div>
-            <div className="bg-[#111] p-3 rounded border border-emerald-500/10 space-y-3">
+            <div className="bg-cad-bg p-3 rounded border border-cad-accent/10 space-y-3">
               {templateFields.map((field) => {
                 const value = getTemplateFieldValue(feature, field.key);
                 if (field.type === 'boolean') {
                   return (
-                    <label key={field.key} className="flex items-center justify-between rounded border border-[#333] bg-[#0a0a0a] px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">
+                    <label key={field.key} className="flex items-center justify-between rounded border border-cad-border bg-cad-bg px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">
                       <span className="flex items-center gap-1.5">
                         <Edit3 className="w-3 h-3" /> {field.label}
                       </span>
                       <input
                         type="checkbox"
-                        className="h-3.5 w-3.5 accent-emerald-500"
+                        className="h-3.5 w-3.5 accent-cad-accent"
                         checked={Boolean(value)}
                         onChange={(e) => updateNestedMeta(field.key, e.target.checked)}
                       />
@@ -1148,7 +1174,7 @@ export const PropertyPanel: React.FC = () => {
                     <div key={field.key} className="space-y-1">
                       <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{field.label}</label>
                       <select
-                        className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
+                        className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all"
                         value={asStringValue(value)}
                         onChange={(e) => updateNestedMeta(field.key, e.target.value)}
                       >
@@ -1177,10 +1203,10 @@ export const PropertyPanel: React.FC = () => {
 
         {/* GEOMETRY & VN2000 */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-[#555] uppercase">
+          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
             <Calculator className="w-3 h-3" /> Coordinates (VN-2000)
           </div>
-          <div className="grid grid-cols-2 gap-2 bg-[#111] p-3 rounded border border-[#333]">
+          <div className="grid grid-cols-2 gap-2 bg-cad-bg p-3 rounded border border-cad-border">
             {(() => {
               let parsedCoords: any = null;
               try {
@@ -1198,7 +1224,7 @@ export const PropertyPanel: React.FC = () => {
                     <ReadOnlyField label="Lat" value={first[1]?.toFixed(6) || '0'} />
                     {vnx && vny ? (
                       <>
-                        <div className="col-span-2 h-[1px] bg-[#333] my-1"></div>
+                        <div className="col-span-2 h-[1px] bg-cad-border my-1"></div>
                         <ReadOnlyField label="X (VN2000)" value={Number(vnx).toFixed(3)} />
                         <ReadOnlyField label="Y (VN2000)" value={Number(vny).toFixed(3)} />
                       </>
@@ -1213,7 +1239,7 @@ export const PropertyPanel: React.FC = () => {
 
         {/* STYLING */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-[#555] uppercase">
+          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
             <Palette className="w-3 h-3" /> Styling & Symbols
           </div>
           <div className="space-y-4">
@@ -1231,7 +1257,7 @@ export const PropertyPanel: React.FC = () => {
                 <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{isPolyline ? 'Stroke' : 'Size'}</label>
                 <input
                   type="number"
-                  className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white mt-1 focus:border-cad-accent outline-none"
+                  className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary mt-1 focus:border-cad-accent outline-none"
                   value={asNumberValue(getMetaValue('size', 'size'), isPolyline ? 4 : 32)}
                   onChange={e => updateNestedMeta('size', Number(e.target.value))}
                 />
@@ -1250,10 +1276,10 @@ export const PropertyPanel: React.FC = () => {
 
         {/* INFRASTRUCTURE SPECS */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-indigo-400 uppercase">
+          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-accent uppercase">
             <Settings className="w-3 h-3" /> Infrastructure Details
           </div>
-          <div className="bg-[#111] p-3 rounded border border-indigo-500/10 space-y-4">
+          <div className="bg-cad-bg p-3 rounded border border-cad-accent/10 space-y-4">
             {isPolyline && (
               <>
                 <ReadOnlyField label="Loại hạ tầng" value="Cáp quang" />
@@ -1268,7 +1294,7 @@ export const PropertyPanel: React.FC = () => {
             <div className="space-y-1">
               <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Type</label>
               <select
-                className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white outline-none active:border-indigo-500"
+                className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary outline-none active:border-cad-accent"
                 value={asStringValue(getMetaValue('infrastructure.type'), polyType)}
                 onChange={e => updateNestedMeta('infrastructure.type', e.target.value)}
               >
@@ -1307,23 +1333,23 @@ export const PropertyPanel: React.FC = () => {
         {/* AUTOMATED SEGMENTS */}
         {isPolyline && feature.properties?.segments && (
           <section className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
-            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-[#555] uppercase">
-              <Sparkles className="w-3 h-3 text-amber-400" /> Automated Segments
+            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
+              <Sparkles className="w-3 h-3 text-cad-warn" /> Automated Segments
             </div>
             <div className="space-y-1.5">
               {((feature.properties.segments ?? []) as SegmentItem[]).map((seg, idx) => (
                 <div
                   key={seg.id || idx}
-                  className="p-2.5 bg-[#111] border border-[#333] rounded-md flex items-center justify-between hover:border-indigo-500/30 transition-all hover:bg-[#161616] animate-in fade-in slide-in-from-right-2 fill-mode-both"
+                  className="p-2.5 bg-cad-elevated border border-cad-border rounded-md flex items-center justify-between hover:border-cad-accent/30 transition-all hover:bg-cad-surface animate-in fade-in slide-in-from-right-2 fill-mode-both"
                   style={{ animationDelay: `${idx * 50}ms` }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 bg-[#222] rounded flex items-center justify-center text-[9px] font-bold text-cad-text-muted border border-[#333]">
+                    <div className="w-5 h-5 bg-cad-bg rounded flex items-center justify-center text-[9px] font-bold text-cad-text-muted border border-cad-border">
                       {idx + 1}
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-white uppercase tracking-tight">{seg.segment_type || 'Unknown'}</p>
-                      <p className="text-[8px] text-[#444] font-mono">ID: {typeof seg.id === 'string' ? seg.id.slice(0, 8) : seg.id ?? ''}</p>
+                      <p className="text-[10px] font-bold text-cad-text-primary uppercase tracking-tight">{seg.segment_type || 'Unknown'}</p>
+                      <p className="text-[8px] text-cad-text-muted font-mono">ID: {typeof seg.id === 'string' ? seg.id.slice(0, 8) : seg.id ?? ''}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1343,7 +1369,7 @@ export const PropertyPanel: React.FC = () => {
 
         {/* DESIGN SPECS */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-[#555] uppercase">
+          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
             <Settings className="w-3 h-3" /> Construction Info
           </div>
           <div className="space-y-3">
@@ -1355,7 +1381,7 @@ export const PropertyPanel: React.FC = () => {
                 <Briefcase className="w-3 h-3" /> Contract
               </label>
               <select
-                className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
+                className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all"
                 value={asStringValue(getMetaValue('business.contract_id', 'contract_id'))}
                 onChange={e => updateNestedMeta('business.contract_id', e.target.value ? e.target.value : null)}
               >
@@ -1371,28 +1397,28 @@ export const PropertyPanel: React.FC = () => {
         {/* CALCULATIONS */}
         {isPolyline && (
           <section className="space-y-4">
-            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-amber-500 uppercase">
+            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-warn uppercase">
               <Sparkles className="w-3 h-3" /> Technical Stats
             </div>
-            <div className="bg-amber-500/5 border border-amber-500/10 rounded p-4 space-y-3">
+            <div className="bg-cad-warn/5 border border-cad-warn/10 rounded p-4 space-y-3">
               <div className="flex justify-between items-center text-[10px]">
-                <span className="text-[#666]">Length</span>
-                <span className="font-bold text-amber-500">{asNumberValue(getMetaValue('gis.lengthKm', 'lengthKm')).toFixed(3)} KM</span>
+                <span className="text-cad-text-muted">Length</span>
+                <span className="font-bold text-cad-warn">{asNumberValue(getMetaValue('gis.lengthKm', 'lengthKm')).toFixed(3)} KM</span>
               </div>
-              <div className="flex justify-between items-center border-t border-amber-500/5 pt-2 text-[10px]">
-                <span className="text-[#666]">Est. Loss</span>
-                <span className="font-bold text-amber-500">{linkBudget.toFixed(2)} dB</span>
+              <div className="flex justify-between items-center border-t border-cad-warn/5 pt-2 text-[10px]">
+                <span className="text-cad-text-muted">Est. Loss</span>
+                <span className="font-bold text-cad-warn">{linkBudget.toFixed(2)} dB</span>
               </div>
             </div>
           </section>
         )}
 
         {/* METADATA CARDS */}
-        <section className="space-y-4 pt-4 border-t border-[#333]">
-          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-indigo-400 uppercase">
+        <section className="space-y-4 pt-4 border-t border-cad-border">
+          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-accent uppercase">
             <Settings className="w-3 h-3" /> Object Metadata
           </div>
-          <div className="bg-[#111] p-3 rounded border border-indigo-500/10 space-y-3">
+          <div className="bg-cad-bg p-3 rounded border border-cad-accent/10 space-y-3">
             <DesignField
               label="Object Type"
               icon={<Info className="w-3 h-3" />}
@@ -1409,11 +1435,11 @@ export const PropertyPanel: React.FC = () => {
         </section>
 
         {isCameraFeature && (
-          <section className="space-y-4 pt-4 border-t border-[#333]">
-            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-blue-400 uppercase">
+          <section className="space-y-4 pt-4 border-t border-cad-border">
+            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-accent uppercase">
               <Camera className="w-3 h-3" /> Camera Metadata
             </div>
-            <div className="bg-[#111] p-3 rounded border border-blue-500/10 space-y-3">
+            <div className="bg-cad-bg p-3 rounded border border-cad-accent/10 space-y-3">
               <div className="grid grid-cols-2 gap-2">
                 <DesignField label="Telemetry ID" icon={<Radio className="w-3 h-3" />} value={getMetaValue('network.telemetry_id')} onChange={v => updateNestedMeta('network.telemetry_id', v)} />
                 <DesignField label="Install Height" icon={<MoveUpRight className="w-3 h-3" />} value={getMetaValue('specs.install_height')} onChange={v => updateNestedMeta('specs.install_height', asNumberValue(v))} />
@@ -1427,11 +1453,11 @@ export const PropertyPanel: React.FC = () => {
                 <DesignField label="Target Distance" icon={<MapPin className="w-3 h-3" />} value={getMetaValue('specs.target_distance')} onChange={v => updateNestedMeta('specs.target_distance', asNumberValue(v))} />
                 <DesignField label="Target Height" icon={<MoveUpRight className="w-3 h-3" />} value={getMetaValue('specs.target_height')} onChange={v => updateNestedMeta('specs.target_height', asNumberValue(v))} />
               </div>
-              <label className="flex items-center justify-between rounded border border-[#333] bg-[#0a0a0a] px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">
+              <label className="flex items-center justify-between rounded border border-cad-border bg-cad-bg px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">
                 <span className="flex items-center gap-1.5"><Circle className="w-3 h-3" /> Show FOV</span>
                 <input
                   type="checkbox"
-                  className="h-3.5 w-3.5 accent-blue-500"
+                  className="h-3.5 w-3.5 accent-cad-accent"
                   checked={getMetaValue('gis.fov_visible', 'fov_visible') === true}
                   onChange={e => updateNestedMeta('gis.fov_visible', e.target.checked)}
                 />
@@ -1441,22 +1467,22 @@ export const PropertyPanel: React.FC = () => {
         )}
 
         {isIntersectionFeature && (
-          <section className="space-y-4 pt-4 border-t border-[#333]">
-            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-orange-400 uppercase">
+          <section className="space-y-4 pt-4 border-t border-cad-border">
+            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-warn uppercase">
               <Grid3X3 className="w-3 h-3" /> Intersection Metadata
             </div>
-            <div className="bg-[#111] p-3 rounded border border-orange-500/10 space-y-3">
+            <div className="bg-cad-bg p-3 rounded border border-cad-warn/10 space-y-3">
               <DesignField
                 label="Network Role"
                 icon={<Radio className="w-3 h-3" />}
                 value={getMetaValue('network.role')}
                 onChange={v => updateNestedMeta('network.role', v)}
               />
-              <label className="flex items-center justify-between rounded border border-[#333] bg-[#0a0a0a] px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">
+              <label className="flex items-center justify-between rounded border border-cad-border bg-cad-bg px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">
                 <span className="flex items-center gap-1.5"><Zap className="w-3 h-3" /> Network Origin</span>
                 <input
                   type="checkbox"
-                  className="h-3.5 w-3.5 accent-orange-500"
+                  className="h-3.5 w-3.5 accent-cad-warn"
                   checked={getMetaValue('network.is_origin') === true}
                   onChange={e => updateNestedMeta('network.is_origin', e.target.checked)}
                 />
@@ -1466,11 +1492,11 @@ export const PropertyPanel: React.FC = () => {
         )}
 
         {isPolyline && (
-          <section className="space-y-4 pt-4 border-t border-[#333]">
-            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-emerald-400 uppercase">
+          <section className="space-y-4 pt-4 border-t border-cad-border">
+            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-accent uppercase">
               <Route className="w-3 h-3" /> Line Metadata
             </div>
-            <div className="bg-[#111] p-3 rounded border border-emerald-500/10 space-y-3">
+            <div className="bg-cad-bg p-3 rounded border border-cad-accent/10 space-y-3">
               <ReadOnlyField label="Đối tượng đi qua" value={routeDisplay || 'Chưa liên kết'} />
             </div>
           </section>
@@ -1478,33 +1504,35 @@ export const PropertyPanel: React.FC = () => {
 
         {/* MEDIA */}
         <section
-          className="space-y-4 pt-4 border-t border-[#333] outline-none focus-visible:ring-1 focus-visible:ring-indigo-400/60"
+          className="space-y-4 pt-4 border-t border-cad-border outline-none focus-visible:ring-1 focus-visible:ring-cad-accent/60"
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
           tabIndex={0}
           onPaste={handleMediaPaste}
           onClick={(event) => event.currentTarget.focus()}
         >
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-[#555] uppercase">
+            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
               <ImageIcon className="w-3 h-3" /> Site Photos
             </div>
-            <button
+            <Button
               onClick={startCamera}
-              disabled={isImportingMedia}
-              className="text-[10px] font-black text-indigo-400 hover:text-indigo-300 uppercase flex items-center gap-1"
+              loading={isImportingMedia}
+              variant="ghost"
+              size="sm"
+              icon={isImportingMedia ? undefined : Camera}
+              className="px-0 text-[10px] font-black uppercase text-cad-accent hover:bg-transparent hover:text-cad-active"
             >
-              {isImportingMedia ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
               {isImportingMedia ? 'Saving...' : 'Capture'}
-            </button>
+            </Button>
           </div>
 
           {mediaImportError ? (
-            <div className="rounded border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wide text-red-300">
+            <div className="rounded border border-cad-danger/30 bg-cad-danger/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wide text-cad-danger">
               {mediaImportError}
             </div>
           ) : null}
           {brokenMediaCount > 0 ? (
-            <div className="rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wide text-amber-300">
+            <div className="rounded border border-cad-warn/30 bg-cad-warn/10 px-2 py-1.5 text-[9px] font-bold uppercase tracking-wide text-cad-warn">
               {brokenMediaCount} photo file link is missing. Valid photos are still shown; use Storage Health to review or recover.
             </div>
           ) : null}
@@ -1513,28 +1541,32 @@ export const PropertyPanel: React.FC = () => {
           <div className="grid grid-cols-2 gap-2">
             {displayImageEntries.length > 0 ? (
               displayImageEntries.map(({ url, index }) => (
-                <div key={`${index}:${url}`} className="aspect-video rounded overflow-hidden border border-[#333] relative group">
+                <div key={`${index}:${url}`} className="aspect-video rounded overflow-hidden border border-cad-border relative group">
                   <img src={url} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
-                    <button
+                    <Button
                       onClick={() => setEditingImage({ index, url })}
-                      className="p-1 px-2 bg-indigo-500 text-white rounded text-[10px] font-bold"
+                      variant="secondary"
+                      size="sm"
+                      className="rounded text-[10px] font-bold"
                     >
                       Edit
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => removeImageUrl(index)}
-                      className="p-1 px-2 bg-red-500 text-white rounded text-[10px] font-bold"
+                      variant="danger"
+                      size="sm"
+                      className="rounded text-[10px] font-bold"
                     >
                       Remove
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))
             ) : (
               <div
                 onClick={startCamera}
-                className="col-span-2 py-8 border border-dashed border-[#333] rounded flex flex-col items-center justify-center gap-2 text-[#444] cursor-pointer hover:border-[#555] transition-colors"
+                className="col-span-2 py-8 border border-dashed border-cad-border rounded flex flex-col items-center justify-center gap-2 text-cad-text-muted cursor-pointer hover:border-cad-accent/40 transition-colors"
               >
                 <ImageIcon className="w-5 h-5" />
                 <span className="text-[9px] font-black uppercase tracking-widest">No photos attached</span>
@@ -1547,14 +1579,14 @@ export const PropertyPanel: React.FC = () => {
 
       {/* Footer Actions */}
       <div className="p-3 border-t border-cad-border bg-cad-elevated">
-        <button
+        <Button
           onClick={handleSave}
           disabled={isSaving || (!isNameDirty && !isMetadataDirty)}
+          variant="primary"
+          size="lg"
           className={cn(
-            "w-full py-2.5 rounded text-[10px] font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2 active:scale-95",
-            isSaved
-              ? "bg-emerald-500 text-white"
-              : "bg-cad-accent hover:bg-cad-accent/90 disabled:bg-[#333] text-[#111]"
+            "w-full h-auto py-2.5 rounded text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95",
+            isSaved && "bg-cad-active border-cad-active"
           )}
         >
           {isSaving ? (
@@ -1565,7 +1597,7 @@ export const PropertyPanel: React.FC = () => {
             <Save className="w-3.5 h-3.5" />
           )}
           {isSaving ? 'PERSISTING...' : isSaved ? 'SAVED SUCCESSFUL' : 'SAVE SPECS'}
-        </button>
+        </Button>
       </div>
       <DeleteConfirmationModal
         isOpen={showDeleteModal}

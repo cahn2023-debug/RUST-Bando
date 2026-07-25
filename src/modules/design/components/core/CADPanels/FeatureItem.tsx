@@ -190,7 +190,7 @@ export const FeatureItem = React.memo(({
               e.stopPropagation();
               onDelete();
             }}
-            className="rounded p-1 text-cad-text-secondary transition-colors hover:bg-red-500 hover:text-white"
+            className="rounded p-1 text-cad-text-secondary transition-colors hover:bg-cad-danger hover:text-white"
             title="Delete feature"
           >
             <Trash2 size={12} />

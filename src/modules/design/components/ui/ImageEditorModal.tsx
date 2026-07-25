@@ -5,6 +5,7 @@ import {
   Undo2, Radio, Eraser, X, Check
 } from 'lucide-react';
 import { cn } from '@TOOL/utils/cn';
+import { Button } from '@DESIGN/components/ui/Button';
 
 export interface ImageEditorSaveResult {
   dataUrl: string;
@@ -681,24 +682,22 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   const toolButtonClass = (candidate: ImageEditTool) =>
     cn(
       "p-2 rounded border text-[10px] font-black uppercase transition-colors flex items-center justify-center gap-1",
-      tool === candidate ? "bg-indigo-500 border-indigo-400 text-white" : "bg-[#111] border-[#333] text-[#aaa] hover:text-white"
+      tool === candidate ? "bg-cad-accent border-cad-accent text-black" : "bg-cad-bg border-cad-border text-cad-text-secondary hover:text-cad-text-primary"
     );
 
   return createPortal(
-    <div className="fixed inset-0 z-[7000] bg-black/90 backdrop-blur-sm flex flex-col">
-      <div className="h-full w-full bg-[#1f1f1f] border border-[#333] shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-cad-modal bg-black/90 backdrop-blur-sm flex flex-col">
+      <div className="h-full w-full bg-cad-surface border border-cad-border shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b border-[#333] flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white">
-            <Pencil className="w-4 h-4 text-indigo-400" /> {title}
+        <div className="p-4 border-b border-cad-border flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-cad-text-primary">
+            <Pencil className="w-4 h-4 text-cad-accent" /> {title}
           </div>
-          <button aria-label="Close editor" onClick={onCancel} className="p-1.5 text-[#aaa] hover:text-white hover:bg-[#333] rounded">
-            <X className="w-4 h-4" />
-          </button>
+          <Button variant="ghost" size="md" icon={X} ariaLabel="Close editor" onClick={onCancel} />
         </div>
 
         {/* Toolbar */}
-        <div className="p-4 border-b border-[#333] flex flex-wrap items-center gap-3 shrink-0 bg-[#191919]">
+        <div className="p-4 border-b border-cad-border flex flex-wrap items-center gap-3 shrink-0 bg-cad-surface">
           <button aria-label="Crop tool" title="Crop tool (Select region)" onClick={() => setTool('crop')} className={toolButtonClass('crop')}>
             <Crop className="w-4 h-4" />
           </button>
@@ -727,7 +726,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             <Radio className="w-4 h-4" />
           </button>
 
-          <button aria-label="Rotate 90 deg" onClick={rotateCanvas} title="Rotate 90 deg clockwise" className="p-2 rounded bg-[#111] border border-[#333] text-[#aaa] hover:text-white">
+          <button aria-label="Rotate 90 deg" onClick={rotateCanvas} title="Rotate 90 deg clockwise" className="p-2 rounded bg-cad-bg border border-cad-border text-cad-text-secondary hover:text-cad-text-primary">
             <RotateCw className="w-4 h-4" />
           </button>
           <button
@@ -735,7 +734,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             title="Undo (Ctrl+Z)"
             onClick={undoLastEdit}
             disabled={undoStack.length === 0}
-            className="p-2 rounded bg-[#111] border border-[#333] text-[#aaa] hover:text-white disabled:opacity-40 disabled:hover:text-[#aaa]"
+            className="p-2 rounded bg-cad-bg border border-cad-border text-cad-text-secondary hover:text-cad-text-primary disabled:opacity-40 disabled:hover:text-cad-text-secondary"
           >
             <Undo2 className="w-4 h-4" />
           </button>
@@ -743,19 +742,19 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           <button
             onClick={applyCrop}
             disabled={!cropRect}
-            className="px-3 py-2 rounded bg-indigo-600/30 border border-indigo-500/50 text-[10px] font-black uppercase text-indigo-300 hover:bg-indigo-600/50 disabled:opacity-40"
+            className="px-3 py-2 rounded bg-cad-accent/30 border border-cad-accent/50 text-[10px] font-black uppercase text-cad-accent hover:bg-cad-accent/50 disabled:opacity-40"
           >
             Apply crop
           </button>
 
-          <div className="h-6 w-px bg-[#333] mx-1" />
+          <div className="h-6 w-px bg-cad-border mx-1" />
 
           {/* Stroke pattern & width */}
           <select
             aria-label="Stroke pattern"
             value={strokePattern}
             onChange={e => setStrokePattern(e.target.value as StrokePattern)}
-            className="bg-[#111] border border-[#333] rounded px-2 py-1.5 text-xs text-white outline-none"
+            className="bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary outline-none"
           >
             <option value="solid">Nét liền</option>
             <option value="dashed">Nét đứt</option>
@@ -765,7 +764,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           </select>
 
           {/* Quick Swatches */}
-          <div className="flex items-center gap-1 bg-[#111] border border-[#333] p-1 rounded">
+          <div className="flex items-center gap-1 bg-cad-bg border border-cad-border p-1 rounded">
             {QUICK_SWATCHES.map((swatch) => (
               <button
                 key={swatch.color}
@@ -773,7 +772,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 title={swatch.label}
                 className={cn(
                   "w-5 h-5 rounded-full border border-black/40 transition-transform flex items-center justify-center",
-                  strokeColor === swatch.color ? "scale-110 ring-2 ring-indigo-400" : "hover:scale-105"
+                  strokeColor === swatch.color ? "scale-110 ring-2 ring-cad-accent" : "hover:scale-105"
                 )}
                 style={{ backgroundColor: swatch.color }}
               >
@@ -793,7 +792,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[9px] text-[#aaa] font-mono">W: {strokeWidth}px</span>
+            <span className="text-[9px] text-cad-text-secondary font-mono">W: {strokeWidth}px</span>
             <input
               aria-label="Stroke width"
               type="range"
@@ -801,7 +800,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
               max={18}
               value={strokeWidth}
               onChange={e => setStrokeWidth(Number(e.target.value))}
-              className="w-20 accent-indigo-500 cursor-pointer"
+              className="w-20 accent-cad-accent cursor-pointer"
             />
           </div>
 
@@ -810,7 +809,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             value={assetStamp}
             onChange={e => setAssetStamp(e.target.value as AssetStamp)}
             className={cn(
-              "bg-[#111] border border-[#333] rounded px-2 py-1.5 text-xs text-white outline-none",
+              "bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary outline-none",
               tool === 'stamp' ? "opacity-100" : "opacity-60"
             )}
           >
@@ -830,30 +829,32 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
               max={120}
               value={textSize}
               onChange={e => setTextSize(Number(e.target.value))}
-              className="w-16 bg-[#111] border border-[#333] rounded px-2 py-1.5 text-xs text-white outline-none"
+              className="w-16 bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary outline-none"
               placeholder="Size"
             />
             <input
               aria-label="Text value"
               value={textValue}
               onChange={e => setTextValue(e.target.value)}
-              className="min-w-32 flex-1 bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white outline-none"
+              className="min-w-32 flex-1 bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary outline-none"
               placeholder="Nội dung ghi chú..."
             />
-            <button
+            <Button
+              variant="primary"
+              size="md"
               onClick={applyPendingText}
               disabled={!pendingTextPoint}
-              className="px-3 py-1.5 rounded bg-indigo-500 text-white text-[10px] font-black uppercase hover:bg-indigo-400 disabled:opacity-40"
+              className="uppercase"
             >
               OK text
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Canvas Display Viewport */}
-        <div ref={containerRef} className="relative flex-1 min-h-0 bg-[#111] p-4 overflow-hidden flex items-center justify-center">
+        <div ref={containerRef} className="relative flex-1 min-h-0 bg-cad-bg p-4 overflow-hidden flex items-center justify-center">
           <div
-            className="relative border border-[#333] rounded bg-black overflow-hidden"
+            className="relative border border-cad-border rounded bg-black overflow-hidden"
             style={{
               width: canvasDisplaySize ? `${canvasDisplaySize.width}px` : 'auto',
               height: canvasDisplaySize ? `${canvasDisplaySize.height}px` : 'auto',
@@ -891,7 +892,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                   applyPendingText();
                 }
               }}
-              className="absolute min-w-24 max-w-[420px] bg-white/95 text-black border-2 border-indigo-500 rounded px-2 py-1 font-bold shadow-lg outline-none"
+              className="absolute min-w-24 max-w-[420px] bg-white/95 text-black border-2 border-cad-accent rounded px-2 py-1 font-bold shadow-lg outline-none"
               style={{
                 left: `calc(50% - ${canvasDisplaySize.width / 2}px + ${(pendingTextPoint.x / canvasSize.width) * canvasDisplaySize.width}px)`,
                 top: `calc(50% - ${canvasDisplaySize.height / 2}px + ${(pendingTextPoint.y / canvasSize.height) * canvasDisplaySize.height}px)`,
@@ -907,25 +908,28 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
           {/* Crop Preview Box */}
           {cropRect && cropPreviewUrl && (
-            <div className="absolute right-6 top-6 w-64 rounded-lg border border-indigo-400 bg-[#1f1f1f]/95 p-2 shadow-2xl z-20">
-              <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-indigo-300">Crop preview</div>
-              <img src={cropPreviewUrl} alt="Crop preview" className="max-h-48 w-full rounded border border-[#333] object-contain bg-black" />
+            <div className="absolute right-6 top-6 w-64 rounded-lg border border-cad-accent bg-cad-surface/95 p-2 shadow-2xl z-20">
+              <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-cad-accent">Crop preview</div>
+              <img src={cropPreviewUrl} alt="Crop preview" className="max-h-48 w-full rounded border border-cad-border object-contain bg-black" />
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-[#333] flex justify-end gap-3 shrink-0 bg-[#191919]">
-          <button onClick={onCancel} className="px-4 py-2 rounded bg-[#111] border border-[#333] text-[10px] font-black uppercase text-[#aaa] hover:text-white">
+        <div className="p-4 border-t border-cad-border flex justify-end gap-3 shrink-0 bg-cad-surface">
+          <Button variant="secondary" size="lg" onClick={onCancel} className="uppercase">
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
+            size="lg"
             onClick={handleSavePhoto}
             disabled={isSaving}
-            className="px-4 py-2 rounded bg-indigo-500 text-white text-[10px] font-black uppercase hover:bg-indigo-400 disabled:opacity-50 flex items-center gap-2"
+            loading={isSaving}
+            className="uppercase"
           >
             {saveLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

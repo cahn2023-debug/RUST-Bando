@@ -112,11 +112,11 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
       data-tauri-drag-region
       onKeyDown={handleContainerKeyDown}
       onDoubleClick={handleMaximize}
-      className="h-10 bg-[#2B2B2B] flex items-center justify-between border-b border-[#1A1A1A] select-none"
+      className="h-10 bg-cad-header flex items-center justify-between border-b border-cad-border select-none"
     >
       {/* LEFT: App Icon & Quick Access */}
       <div className="flex items-center h-full px-1 gap-1" role="toolbar" aria-label="Quick access toolbar">
-        <div className="w-9 h-9 flex items-center justify-center bg-[#A70000] hover:bg-[#850000] cursor-pointer transition-colors rounded-sm ml-1 group">
+        <div className="w-9 h-9 flex items-center justify-center bg-cad-danger hover:bg-cad-danger/80 cursor-pointer transition-colors rounded-sm ml-1 group">
           <span className="text-white font-black text-xl italic group-hover:scale-110 transition-transform">P</span>
         </div>
 
@@ -130,7 +130,7 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
                 disabled={!project}
                 className={cn(
                   "p-1.5 rounded-sm text-cad-text-secondary transition-colors",
-                  project ? "hover:bg-white/10 cursor-pointer" : "opacity-30 cursor-not-allowed"
+                  project ? "hover:bg-cad-text-primary/10 cursor-pointer" : "opacity-30 cursor-not-allowed"
                 )}
                 title={`${t('common.save')} (Force Save - Ctrl+S)`}
                 aria-label={t('common.save')}
@@ -138,21 +138,21 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
                 <Save size={14} className={cn(onForceSave && "text-cad-accent")} aria-hidden="true" />
               </button>
               <button
-                className="p-1.5 hover:bg-white/10 rounded-sm text-cad-text-secondary transition-colors"
+                className="p-1.5 hover:bg-cad-text-primary/10 rounded-sm text-cad-text-secondary transition-colors"
                 title={t('common.refresh')}
                 aria-label={t('common.refresh')}
               >
                 <RefreshCw size={14} aria-hidden="true" />
               </button>
               <button
-                className="p-1.5 hover:bg-white/10 rounded-sm text-cad-text-secondary transition-colors"
+                className="p-1.5 hover:bg-cad-text-primary/10 rounded-sm text-cad-text-secondary transition-colors"
                 title={t('common.undo')}
                 aria-label={t('common.undo')}
               >
                 <RotateCcw size={14} aria-hidden="true" />
               </button>
               <button
-                className="p-1.5 hover:bg-white/10 rounded-sm text-cad-text-secondary transition-colors"
+                className="p-1.5 hover:bg-cad-text-primary/10 rounded-sm text-cad-text-secondary transition-colors"
                 title={t('common.redo')}
                 aria-label={t('common.redo')}
               >
@@ -219,10 +219,10 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
               </button>
 
               {showUserMenu && (
-                <div className="absolute top-full right-1 mt-1 w-56 bg-cad-elevated border border-cad-border rounded-lg shadow-[0_20px_50px_rgba(0,0,0,0.5)] py-2 z-[100] animate-in fade-in zoom-in-95 duration-100 backdrop-blur-xl">
+                <div className="absolute top-full right-1 mt-1 w-56 bg-cad-elevated border border-cad-border rounded-lg shadow-[0_20px_50px_rgba(0,0,0,0.5)] py-2 z-cad-dropdown animate-in fade-in zoom-in-95 duration-100 backdrop-blur-xl">
                   <div className="px-4 py-3 border-b border-cad-border mb-1">
                     <p className="text-[9px] font-black uppercase text-cad-text-muted tracking-widest mb-1">Authenticated Identity</p>
-                    <p className="text-xs font-bold text-white truncate">{user?.email}</p>
+                    <p className="text-xs font-bold text-cad-text-primary truncate">{user?.email}</p>
                     <p className="text-[8px] font-bold text-cad-accent uppercase mt-1">Role: {isAdmin ? 'System Admin' : 'Workspace User'}</p>
                   </div>
 
@@ -233,7 +233,7 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
                         onClick={() => setThemeMode('dark')}
                         className={cn(
                           "flex items-center justify-center gap-1 py-1 px-1 rounded text-[10px] font-bold transition-all cursor-pointer",
-                          themeMode === 'dark' ? "bg-cad-accent text-black font-black" : "bg-cad-bg text-cad-text-secondary hover:text-white"
+                          themeMode === 'dark' ? "bg-cad-accent text-black font-black" : "bg-cad-bg text-cad-text-secondary hover:text-cad-text-primary"
                         )}
                       >
                         <Moon size={11} /> {t('settings.dark', 'Dark')}
@@ -242,7 +242,7 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
                         onClick={() => setThemeMode('light')}
                         className={cn(
                           "flex items-center justify-center gap-1 py-1 px-1 rounded text-[10px] font-bold transition-all cursor-pointer",
-                          themeMode === 'light' ? "bg-cad-accent text-black font-black" : "bg-cad-bg text-cad-text-secondary hover:text-white"
+                          themeMode === 'light' ? "bg-cad-accent text-black font-black" : "bg-cad-bg text-cad-text-secondary hover:text-cad-text-primary"
                         )}
                       >
                         <Sun size={11} /> {t('settings.light', 'Light')}
@@ -251,7 +251,7 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
                         onClick={() => setThemeMode('system')}
                         className={cn(
                           "flex items-center justify-center gap-1 py-1 px-1 rounded text-[10px] font-bold transition-all cursor-pointer",
-                          themeMode === 'system' ? "bg-cad-accent text-black font-black" : "bg-cad-bg text-cad-text-secondary hover:text-white"
+                          themeMode === 'system' ? "bg-cad-accent text-black font-black" : "bg-cad-bg text-cad-text-secondary hover:text-cad-text-primary"
                         )}
                       >
                         Auto
@@ -262,7 +262,7 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
                   <button
                     onClick={() => { logout(); setShowUserMenu(false); }}
                     aria-label={t('common.close')}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] font-bold text-red-400 hover:bg-red-500/10 transition-colors group"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-[11px] font-bold text-cad-danger hover:bg-cad-danger/10 transition-colors group"
                   >
                     <LogOut size={14} className="group-hover:-translate-x-1 transition-transform" aria-hidden="true" />
                     {t('common.close').toUpperCase()}
@@ -280,21 +280,21 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
                 className={cn(
                   "flex items-center justify-center w-7 h-7 rounded-md border transition-all cursor-pointer shadow-[0_0_8px_rgba(16,185,129,0.25)]",
                   resolvedTheme === 'dark'
-                    ? "border-emerald-500/90 bg-emerald-500/10 text-amber-400 hover:bg-emerald-500/20 hover:border-emerald-400"
-                    : "border-emerald-600/90 bg-emerald-600/10 text-indigo-600 hover:bg-emerald-600/20 hover:border-emerald-500"
+                    ? "border-cad-accent/90 bg-cad-accent/10 text-cad-warn hover:bg-cad-accent/20 hover:border-cad-active"
+                    : "border-cad-accent/90 bg-cad-accent/10 text-indigo-600 hover:bg-cad-accent/20 hover:border-cad-active"
                 )}
                 title={resolvedTheme === 'dark' ? t('settings.light', 'Switch to Light Mode') : t('settings.dark', 'Switch to Dark Mode')}
                 aria-label="Toggle Theme"
               >
                 {resolvedTheme === 'dark' ? (
-                  <Sun size={15} className="text-amber-400 stroke-[2.2]" aria-hidden="true" />
+                  <Sun size={15} className="text-cad-warn stroke-[2.2]" aria-hidden="true" />
                 ) : (
                   <Moon size={15} className="text-indigo-400 stroke-[2.2]" aria-hidden="true" />
                 )}
               </button>
 
               <button
-                className="p-2 hover:bg-white/10 text-cad-text-secondary"
+                className="p-2 hover:bg-cad-text-primary/10 text-cad-text-secondary"
                 aria-label={t('common.help')}
                 title={t('common.help')}
               >
@@ -309,18 +309,18 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
           <button
             onClick={handleMinimize}
             aria-label="Minimize window"
-            className="w-11 h-full flex items-center justify-center hover:bg-white/10 text-white transition-colors"
+            className="w-11 h-full flex items-center justify-center hover:bg-cad-text-primary/10 text-cad-text-primary transition-colors"
           >
             <Minus size={16} aria-hidden="true" />
           </button>
           <button
             onClick={handleMaximize}
             aria-label={isMaximized ? "Restore window" : "Maximize window"}
-            className="w-11 h-full flex items-center justify-center hover:bg-white/10 text-white transition-colors"
+            className="w-11 h-full flex items-center justify-center hover:bg-cad-text-primary/10 text-cad-text-primary transition-colors"
           >
             {isMaximized ? (
-              <div className="relative w-3 h-3 border border-white top-[1px] left-[1px]" aria-hidden="true">
-                <div className="absolute -top-1 -right-1 w-3 h-3 border border-white bg-[#2B2B2B]" />
+              <div className="relative w-3 h-3 border border-cad-text-primary top-[1px] left-[1px]" aria-hidden="true">
+                <div className="absolute -top-1 -right-1 w-3 h-3 border border-cad-text-primary bg-cad-header" />
               </div>
             ) : (
               <Square size={12} aria-hidden="true" />
@@ -329,7 +329,7 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
           <button
             onClick={handleClose}
             aria-label="Close window"
-            className="w-11 h-full flex items-center justify-center hover:bg-[#E81123] text-white transition-colors"
+            className="w-11 h-full flex items-center justify-center hover:bg-cad-danger text-cad-text-primary hover:text-white transition-colors"
           >
             <X size={18} aria-hidden="true" />
           </button>

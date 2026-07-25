@@ -159,7 +159,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
           <Settings className="h-3.5 w-3.5 text-cad-accent" />
           <span className="text-[10px] font-bold uppercase tracking-wider text-cad-text-primary">Cấu hình hệ thống</span>
           {(isDirty || isSaving || showSuccess) && (
-            <div className={`h-1.5 w-1.5 rounded-full ${showSuccess ? 'bg-green-500' : 'bg-cad-accent'} animate-pulse`} />
+            <div className={`h-1.5 w-1.5 rounded-full ${showSuccess ? 'bg-cad-active' : 'bg-cad-accent'} animate-pulse`} />
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -172,7 +172,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
           </button>
           <button
             onClick={onClose}
-            className="rounded p-1 text-cad-text-muted transition-all hover:bg-red-500 hover:text-white"
+            className="rounded p-1 text-cad-text-muted transition-all hover:bg-cad-danger hover:text-white"
           >
             <X size={12} />
           </button>
@@ -182,7 +182,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
       <div className="flex-1 overflow-y-auto p-3 custom-scrollbar">
         <section className="space-y-3">
           <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
-            <Ruler className="h-3.5 w-3.5 text-blue-400" />
+            <Ruler className="h-3.5 w-3.5 text-cad-accent" />
             <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Thông số mặc định dự án</span>
             <div className="ml-2 h-px flex-1 bg-cad-border" />
           </div>
@@ -206,7 +206,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
 
         <section className="mt-6 space-y-4">
           <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
-            <Grid3X3 className="h-3.5 w-3.5 text-green-400" />
+            <Grid3X3 className="h-3.5 w-3.5 text-cad-accent" />
             <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Database mẫu theo đối tượng</span>
             <div className="ml-2 h-px flex-1 bg-cad-border" />
           </div>
@@ -242,7 +242,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                           onChange={(e) => updateGroup(typeId, groupIndex, 'label', e.target.value)}
                           className="w-32 bg-transparent text-[10px] text-cad-text-primary outline-none"
                         />
-                        <button onClick={() => removeGroup(typeId, group.id)} className="text-cad-text-muted hover:text-rose-400">
+                        <button onClick={() => removeGroup(typeId, group.id)} className="text-cad-text-muted hover:text-cad-danger">
                           <Trash2 size={11} />
                         </button>
                       </div>
@@ -315,7 +315,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                               className="h-3.5 w-3.5 accent-cad-accent"
                             />
                           </label>
-                          <button onClick={() => removeField(typeId, fieldIndex)} className="rounded p-1 text-cad-text-muted hover:text-rose-400">
+                          <button onClick={() => removeField(typeId, fieldIndex)} className="rounded p-1 text-cad-text-muted hover:text-cad-danger">
                             <Trash2 size={11} />
                           </button>
                         </div>
@@ -330,7 +330,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
 
         <section className="mt-6 space-y-4">
           <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
-            <Camera className="h-3.5 w-3.5 text-green-400" />
+            <Camera className="h-3.5 w-3.5 text-cad-accent" />
             <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Thông số mẫu camera</span>
             <div className="ml-2 h-px flex-1 bg-cad-border" />
           </div>
@@ -398,9 +398,9 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
           onClick={handleSave}
           disabled={!isDirty || isSaving || showSuccess}
           className={`flex-[2] flex items-center justify-center gap-2 rounded py-2 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${showSuccess
-            ? 'bg-green-500 text-white'
+            ? 'bg-cad-accent text-black'
             : isDirty
-              ? 'bg-cad-accent text-black hover:bg-white'
+              ? 'bg-cad-accent text-black hover:bg-cad-active'
               : 'cursor-not-allowed bg-cad-elevated text-cad-text-muted opacity-50'
             }`}
         >

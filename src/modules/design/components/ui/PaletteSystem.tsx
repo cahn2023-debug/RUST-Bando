@@ -111,7 +111,7 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
             ))}
         </div>
         {bottomPalettes.length > 0 && (
-            <div className="absolute left-0 right-[32px] bottom-0 z-[1900] pointer-events-auto">
+            <div className="absolute left-0 right-[32px] bottom-0 z-cad-panel pointer-events-auto">
                 {bottomPalettes.map(id => (
                     <PalettePanel key={id} id={id}>
                         <div className="flex-1 overflow-hidden p-1.5 custom-scrollbar h-full">

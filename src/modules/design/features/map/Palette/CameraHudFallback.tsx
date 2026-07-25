@@ -43,7 +43,7 @@ export const CameraHudFallback: React.FC<CameraHudFallbackProps> = ({
     const gridDistances = [10, 20, 50, 100, 200];
 
     return (
-        <div className="relative w-full h-full bg-[#070b12] border border-white/5 overflow-hidden rounded-lg">
+        <div className="relative w-full h-full bg-[#070b12] border border-cad-border overflow-hidden rounded-lg">
             <svg viewBox="0 0 320 180" className="w-full h-full overflow-visible">
                 <defs>
                     <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
@@ -230,7 +230,7 @@ export const CameraHudFallback: React.FC<CameraHudFallbackProps> = ({
             <div className="absolute top-2.5 right-2.5 bg-[#030712]/80 border border-white/10 rounded-md p-2 font-mono text-[9px] text-gray-300 w-32 shadow-xl backdrop-blur-md">
                 <div className="flex justify-between border-b border-white/5 pb-1 mb-1 font-bold text-gray-400">
                     <span>HUD READOUT</span>
-                    <span className="text-amber-500 animate-pulse">● FBCK</span>
+                    <span className="text-cad-warn animate-pulse">● FBCK</span>
                 </div>
                 <div className="space-y-1">
                     <div className="flex justify-between">

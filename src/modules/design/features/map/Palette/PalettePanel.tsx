@@ -184,7 +184,7 @@ export const PalettePanel = React.memo(({ id, children }: PalettePanelProps) => 
             <div
                 ref={containerRef}
                 className={cn(
-                    "bg-cad-surface border border-cad-border flex flex-col transition-shadow duration-300 ease-in-out z-[2000] will-change-layout",
+                    "bg-cad-surface border border-cad-border flex flex-col transition-shadow duration-300 ease-in-out z-cad-floating will-change-layout",
                     isFloating ? "fixed shadow-2xl rounded-sm" : "relative transition-all",
                     !isFloating && isBottomDocked ? "border-t" : "border-l",
                     !isFloating && !isPinned ? "absolute right-0 top-0 bottom-0 shadow-2xl" : "",
@@ -206,25 +206,25 @@ export const PalettePanel = React.memo(({ id, children }: PalettePanelProps) => 
                 {isFloating ? (
                     <>
                         {/* Edges */}
-                        <div className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-cad-accent/50 z-[52]" onMouseDown={handleResize('n')} />
-                        <div className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-cad-accent/50 z-[52]" onMouseDown={handleResize('s')} />
-                        <div className="absolute top-0 bottom-0 left-0 w-1 cursor-ew-resize hover:bg-cad-accent/50 z-[52]" onMouseDown={handleResize('w')} />
-                        <div className="absolute top-0 bottom-0 right-0 w-1 cursor-ew-resize hover:bg-cad-accent/50 z-[52]" onMouseDown={handleResize('e')} />
+                        <div className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-cad-accent/50 z-10" onMouseDown={handleResize('n')} />
+                        <div className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-cad-accent/50 z-10" onMouseDown={handleResize('s')} />
+                        <div className="absolute top-0 bottom-0 left-0 w-1 cursor-ew-resize hover:bg-cad-accent/50 z-10" onMouseDown={handleResize('w')} />
+                        <div className="absolute top-0 bottom-0 right-0 w-1 cursor-ew-resize hover:bg-cad-accent/50 z-10" onMouseDown={handleResize('e')} />
 
                         {/* Corners */}
-                        <div className="absolute top-0 left-0 w-2 h-2 cursor-nwse-resize z-[53]" onMouseDown={handleResize('nw')} />
-                        <div className="absolute top-0 right-0 w-2 h-2 cursor-nesw-resize z-[53]" onMouseDown={handleResize('ne')} />
-                        <div className="absolute bottom-0 left-0 w-2 h-2 cursor-nesw-resize z-[53]" onMouseDown={handleResize('sw')} />
-                        <div className="absolute bottom-0 right-0 w-2 h-2 cursor-nwse-resize z-[53]" onMouseDown={handleResize('se')} />
+                        <div className="absolute top-0 left-0 w-2 h-2 cursor-nwse-resize z-20" onMouseDown={handleResize('nw')} />
+                        <div className="absolute top-0 right-0 w-2 h-2 cursor-nesw-resize z-20" onMouseDown={handleResize('ne')} />
+                        <div className="absolute bottom-0 left-0 w-2 h-2 cursor-nesw-resize z-20" onMouseDown={handleResize('sw')} />
+                        <div className="absolute bottom-0 right-0 w-2 h-2 cursor-nwse-resize z-20" onMouseDown={handleResize('se')} />
                     </>
                 ) : isBottomDocked ? (
                     <div
-                        className="absolute left-0 right-0 top-0 h-1 cursor-ns-resize hover:bg-cad-accent transition-colors z-[51]"
+                        className="absolute left-0 right-0 top-0 h-1 cursor-ns-resize hover:bg-cad-accent transition-colors z-10"
                         onMouseDown={handleResize('n')}
                     />
                 ) : (
                     <div
-                        className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-cad-accent transition-colors z-[51]"
+                        className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-cad-accent transition-colors z-10"
                         onMouseDown={handleResize('w')}
                     />
                 )}

@@ -39,26 +39,26 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="h-full w-full min-h-0 min-w-0 bg-[#0A0A0B] flex items-center justify-center p-6 font-sans">
-          <div className="max-w-2xl w-full bg-cad-surface border-2 border-red-500/50 rounded-sm shadow-[0_0_50px_rgba(239,68,68,0.15)] overflow-hidden">
-            <div className="bg-red-500/10 border-b border-red-500/20 p-4 flex items-center gap-3">
-              <ShieldAlert className="text-red-500" size={24} />
-              <h1 className="text-white font-display font-black uppercase tracking-tighter text-lg">{t('errors.generic')}</h1>
+        <div className="h-full w-full min-h-0 min-w-0 bg-cad-bg flex items-center justify-center p-6 font-sans">
+          <div className="max-w-2xl w-full bg-cad-surface border-2 border-cad-danger/50 rounded-sm shadow-[0_0_50px_rgba(239,68,68,0.15)] overflow-hidden">
+            <div className="bg-cad-danger/10 border-b border-cad-danger/20 p-4 flex items-center gap-3">
+              <ShieldAlert className="text-cad-danger" size={24} />
+              <h1 className="text-cad-text-primary font-display font-black uppercase tracking-tighter text-lg">{t('errors.generic')}</h1>
             </div>
 
             <div className="p-8">
               <div className="flex items-start gap-6">
-                <div className="p-4 bg-red-500/10 rounded-lg">
-                  <AlertTriangle className="text-red-500" size={32} />
+                <div className="p-4 bg-cad-danger/10 rounded-lg">
+                  <AlertTriangle className="text-cad-danger" size={32} />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-white font-bold mb-2">{t('errors.saveFailed')}</h2>
+                  <h2 className="text-cad-text-primary font-bold mb-2">{t('errors.saveFailed')}</h2>
                   <p className="text-cad-text-muted text-xs leading-relaxed mb-6">
                     {t('errors.loadFailed')}
                   </p>
                   
-                  <div className="bg-black/40 border border-cad-border p-4 rounded mb-6 overflow-auto max-h-48 custom-scrollbar">
-                    <p className="text-red-400 font-mono text-[10px] whitespace-pre-wrap">
+                  <div className="bg-cad-bg border border-cad-border p-4 rounded mb-6 overflow-auto max-h-48 custom-scrollbar">
+                    <p className="text-cad-danger font-mono text-[10px] whitespace-pre-wrap">
                       {this.state.error?.stack || this.state.error?.toString()}
                     </p>
                   </div>
@@ -66,7 +66,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   <div className="flex gap-4">
                     <button
                       onClick={this.handleReset}
-                      className="flex-1 bg-red-500 hover:bg-red-600 text-white font-black uppercase text-[10px] tracking-widest py-3 rounded-sm transition-all flex items-center justify-center gap-2"
+                      className="flex-1 bg-cad-danger hover:bg-cad-danger/90 text-white font-black uppercase text-[10px] tracking-widest py-3 rounded-sm transition-all flex items-center justify-center gap-2"
                     >
                       <RefreshCcw size={14} /> {t('common.refresh').toUpperCase()}
                     </button>
@@ -75,7 +75,7 @@ export class ErrorBoundary extends Component<Props, State> {
                         localStorage.clear();
                         window.location.reload();
                       }}
-                      className="px-6 border border-cad-border hover:border-white text-cad-text-muted hover:text-white font-bold uppercase text-[10px] tracking-widest transition-all"
+                      className="px-6 border border-cad-border hover:border-cad-text-primary text-cad-text-muted hover:text-cad-text-primary font-bold uppercase text-[10px] tracking-widest transition-all"
                     >
                       {t('common.reset').toUpperCase()}
                     </button>

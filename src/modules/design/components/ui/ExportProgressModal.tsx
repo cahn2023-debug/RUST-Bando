@@ -1,6 +1,7 @@
 import React from 'react';
 import { useExportStore } from '@IMPLEMENT/stores/useExportStore';
 import { Loader2, XCircle, CheckCircle2, FileDown } from 'lucide-react';
+import { Button } from '@DESIGN/components/ui/Button';
 
 export const ExportProgressModal: React.FC = () => {
   const { isExporting, progress, statusText, error } = useExportStore();
@@ -8,7 +9,7 @@ export const ExportProgressModal: React.FC = () => {
   if (!isExporting) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-cad-toast flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="w-[400px] bg-cad-surface border border-cad-border p-6 shadow-2xl rounded-sm">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-cad-accent/10 rounded-sm">
@@ -34,23 +35,25 @@ export const ExportProgressModal: React.FC = () => {
           </div>
 
           {error ? (
-              <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-sm mt-4">
-                <XCircle className="text-red-500 shrink-0" size={16} />
+              <div className="flex items-start gap-2 p-3 bg-cad-danger/10 border border-cad-danger/20 rounded-sm mt-4">
+                <XCircle className="cad-icon-danger shrink-0" size={16} />
                 <div className="flex-1 min-w-0">
-                   <p className="text-[10px] text-red-500 font-bold uppercase">Lỗi quá trình:</p>
+                   <p className="text-[10px] text-cad-danger font-bold uppercase">Lỗi quá trình:</p>
                    <p className="text-[10px] text-cad-text-primary mt-1 break-words">{error}</p>
-                   <button 
+                   <Button
+                     variant="danger"
+                     size="sm"
+                     className="mt-3"
                      onClick={() => useExportStore.setState({ isExporting: false })}
-                     className="mt-3 px-3 py-1 bg-red-500 text-white text-[9px] font-bold uppercase rounded-sm hover:bg-red-600 transition-colors"
                    >
-                     Đóng & Thử lại
-                   </button>
+                     Đóng &amp; Thử lại
+                   </Button>
                 </div>
               </div>
           ) : progress === 100 ? (
-              <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-sm mt-4 animate-in fade-in slide-in-from-bottom-2">
-                 <CheckCircle2 className="text-green-500" size={16} />
-                 <p className="text-[10px] text-green-500 font-bold uppercase text-center flex-1">
+              <div className="flex items-center gap-2 p-3 bg-cad-accent/10 border border-cad-accent/20 rounded-sm mt-4 animate-in fade-in slide-in-from-bottom-2">
+                 <CheckCircle2 className="text-cad-accent" size={16} />
+                 <p className="text-[10px] text-cad-accent font-bold uppercase text-center flex-1">
                    Xuất thành công!
                  </p>
               </div>

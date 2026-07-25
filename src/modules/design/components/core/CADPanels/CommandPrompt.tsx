@@ -19,15 +19,15 @@ export function CommandPrompt() {
           <span className="text-[9px] font-black tracking-widest text-cad-text-muted uppercase">Command Console</span>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-1 text-[8px] text-[#A855F7] hover:text-[#C084FC] transition-colors font-bold uppercase"><Sparkles size={10} /> AI Command</button>
+          <button className="flex items-center gap-1 text-[8px] text-cad-accent hover:text-cad-active transition-colors font-bold uppercase"><Sparkles size={10} /> AI Command</button>
         </div>
       </div>
       <div className="p-2 flex flex-col gap-1 max-h-[80px] overflow-y-auto text-[9px] font-mono text-cad-text-muted scrollbar-hide">
         <div className="opacity-50 tracking-tighter lowercase">sys: v0.4.2 stable build</div>
         <div className="text-cad-accent/40">drawing: viewport normalized (0,0,1024,1024)</div>
-        <div className="flex gap-2"><span>cmd:</span> <span className="text-white">_LINE</span></div>
+        <div className="flex gap-2"><span>cmd:</span> <span className="text-cad-text-primary">_LINE</span></div>
       </div>
-      <div className="flex items-center bg-black/40 border-t border-cad-border/30 p-1">
+      <div className="flex items-center bg-cad-bg border-t border-cad-border/30 p-1">
         <span className="text-cad-accent font-black mx-2 text-[12px] font-mono select-none">_</span>
         <input 
           type="text" 
@@ -35,7 +35,7 @@ export function CommandPrompt() {
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleCommand}
           placeholder="ENTER COMMAND OR ASK AI ASSISTANT..."
-          className="flex-1 bg-transparent text-white font-mono text-[10px] outline-none placeholder:text-cad-text-muted/30 uppercase tracking-tight"
+          className="flex-1 bg-transparent text-cad-text-primary font-mono text-[10px] outline-none placeholder:text-cad-text-muted/30 uppercase tracking-tight"
         />
         <button onClick={() => setInput("")} className="p-1.5 text-cad-text-muted hover:text-cad-accent transition-colors"><Send size={12}/></button>
       </div>

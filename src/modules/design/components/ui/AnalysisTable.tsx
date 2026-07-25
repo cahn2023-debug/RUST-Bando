@@ -434,7 +434,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
 
     return (
         <div className={cn(
-            "z-[100] flex flex-col animate-in fade-in duration-200",
+            "z-cad-modal flex flex-col animate-in fade-in duration-200",
             isStandalone ? "h-full w-full min-h-0 min-w-0 relative bg-cad-surface" : (
                 isFullscreen ? "fixed inset-0 bg-cad-surface" : "fixed inset-10 rounded-xl shadow-2xl border border-cad-border overflow-hidden bg-cad-surface"
             )
@@ -468,23 +468,23 @@ export function AnalysisTable<TData extends { id: string | number }>({
                     {dataSourceStatus && (
                         <div className="flex items-center gap-2 ml-2">
                             {dataSourceStatus === 'synced' && (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Đã đồng bộ
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cad-accent/10 border border-cad-accent/30 text-cad-accent">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-cad-accent animate-pulse" /> Đã đồng bộ
                                 </span>
                             )}
                             {dataSourceStatus === 'modified' && (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 border border-amber-500/30 text-amber-400">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Có thay đổi
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cad-warn/10 border border-cad-warn/30 text-cad-warn">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-cad-warn" /> Có thay đổi
                                 </span>
                             )}
                             {dataSourceStatus === 'unlinked' && (
-                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-500/10 border border-slate-500/30 text-slate-400">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cad-elevated border border-cad-border text-cad-text-muted">
                                     Chưa liên kết Excel
                                 </span>
                             )}
                             {dataSourceStatus === 'error' && (
                                 <div className="flex items-center gap-1.5">
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 border border-rose-500/30 text-rose-400">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cad-danger/10 border border-cad-danger/30 text-cad-danger">
                                         Lỗi / Mất file
                                     </span>
                                     {onRelinkWorkbook && (
@@ -527,7 +527,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                         </button>
 
                         {openVisibilityMenu && (
-                            <div className="absolute right-0 top-full mt-2 w-56 bg-cad-elevated border border-cad-border rounded-lg shadow-xl z-[9999] p-2 flex flex-col gap-1 max-h-[400px] overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-150">
+                            <div className="absolute right-0 top-full mt-2 w-56 bg-cad-elevated border border-cad-border rounded-lg shadow-xl z-cad-dropdown p-2 flex flex-col gap-1 max-h-[400px] overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-150">
                                 <div className="px-2 py-1 text-[10px] font-bold text-cad-text-muted border-b border-cad-border mb-1 uppercase tracking-wider">Chọn cột hiển thị</div>
                                 {table.getAllLeafColumns().map(column => {
                                     if (column.id === 'select' || column.id === 'index_stt') return null;
@@ -591,7 +591,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                             </button>
                         )}
                         {onClose && (!isStandalone || showWindowControls) && (
-                            <button onClick={onClose} className="p-2.5 hover:bg-rose-500 hover:text-white text-cad-text-secondary transition-colors">
+                            <button onClick={onClose} className="p-2.5 hover:bg-cad-danger hover:text-white text-cad-text-secondary transition-colors">
                                 <X size={16} />
                             </button>
                         )}
@@ -689,7 +689,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                                                 key={header.id}
                                                 colSpan={header.colSpan}
                                                 rowSpan={rowSpan}
-                                                className="sticky z-30 bg-cad-elevated border-r border-b border-cad-border/70 px-3 py-2 text-[11px] font-bold text-white uppercase tracking-wider relative group/h shadow-sm text-center align-middle"
+                                                className="sticky z-30 bg-cad-elevated border-r border-b border-cad-border/70 px-3 py-2 text-[11px] font-bold text-cad-text-primary uppercase tracking-wider relative group/h shadow-sm text-center align-middle"
                                                 style={{
                                                     top: `${topStickyOffset}px`,
                                                     width: header.getSize(),
@@ -786,7 +786,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                     {rowContextMenu && (
                         <div
                             data-row-context-menu
-                            className="absolute z-[80] min-w-40 rounded-md border border-cad-border bg-cad-elevated shadow-xl shadow-black/30 p-1"
+                            className="absolute z-cad-dropdown min-w-40 rounded-md border border-cad-border bg-cad-elevated shadow-xl shadow-black/30 p-1"
                             style={{ left: rowContextMenu.x, top: rowContextMenu.y }}
                             onMouseDown={(event) => event.stopPropagation()}
                         >

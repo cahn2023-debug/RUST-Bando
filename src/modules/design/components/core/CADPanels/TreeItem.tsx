@@ -80,9 +80,9 @@ export const TreeItem = React.memo(({
     >
       <div
         className={cn(
-          "flex items-center justify-between hover:bg-emerald-500/5 px-2 py-1 relative rounded-sm cursor-pointer group transition-all select-none",
-          expanded && "bg-emerald-500/[0.02] border-b border-white/5",
-          isDropTarget && "ring-1 ring-emerald-500 bg-emerald-500/10",
+          "flex items-center justify-between hover:bg-cad-accent/5 px-2 py-1 relative rounded-sm cursor-pointer group transition-all select-none",
+          expanded && "bg-cad-accent/[0.02] border-b border-cad-border",
+          isDropTarget && "ring-1 ring-cad-accent bg-cad-accent/10",
           className
         )}
         onClick={onClick}

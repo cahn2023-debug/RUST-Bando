@@ -45,7 +45,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
 
   if (!selectedFeatureId || !inventory) {
     return (
-      <div className="rounded-lg border border-white/5 bg-black/20 p-3 text-[10px] text-zinc-400">
+      <div className="rounded-lg border border-cad-border bg-cad-surface p-3 text-[10px] text-cad-text-secondary">
         Vui lòng chọn một Point trên bản đồ để xem thiết bị.
       </div>
     );
@@ -68,28 +68,28 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-lg border border-white/5 bg-black/20 p-3 text-[10px] text-zinc-400">
+      <div className="rounded-lg border border-cad-border bg-cad-surface p-3 text-[10px] text-cad-text-secondary">
         <div className="space-y-2">
-          <div className="font-semibold text-zinc-300">
+          <div className="font-semibold text-cad-text-secondary">
             Thiết bị tại: {featureLabel}
           </div>
 
           {equipment && equipment.length > 0 && (
             <div className="grid grid-cols-2 gap-1">
               {equipment.map(item => (
-                <div key={item.id} className="rounded border border-white/5 bg-black/25 px-2 py-1">
-                  <div className="font-semibold text-zinc-200">{item.equipment_type}</div>
-                  <div className="text-zinc-500">{item.status}</div>
+                <div key={item.id} className="rounded border border-cad-border bg-cad-elevated px-2 py-1">
+                  <div className="font-semibold text-cad-text-primary">{item.equipment_type}</div>
+                  <div className="text-cad-text-muted">{item.status}</div>
                 </div>
               ))}
             </div>
           )}
 
           {isOdf && (
-            <div className="rounded border border-emerald-500/10 bg-emerald-500/5 p-2">
-              <div className="mb-2 font-semibold text-emerald-200">ODF ports</div>
+            <div className="rounded border border-cad-accent/10 bg-cad-accent/5 p-2">
+              <div className="mb-2 font-semibold text-cad-accent">ODF ports</div>
               {odfPorts.length === 0 ? (
-                <div className="text-zinc-500">Chưa khai báo số cổng quang cho ODF này.</div>
+                <div className="text-cad-text-muted">Chưa khai báo số cổng quang cho ODF này.</div>
               ) : (
                 <div className="grid grid-cols-2 gap-1">
                   {odfPorts.map(port => {
@@ -97,13 +97,13 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
                     const patchCount = patchesByPort.get(port.id) || 0;
                     const status = termination ? patchCount > 0 ? 'Thông tuyến' : 'Một hướng' : 'Trống';
                     return (
-                      <div key={port.id} className="rounded border border-white/5 bg-black/25 px-2 py-1">
+                      <div key={port.id} className="rounded border border-cad-border bg-cad-elevated px-2 py-1">
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-zinc-200">{port.port_label}</span>
-                          <span className={status === 'Thông tuyến' ? 'text-emerald-300' : status === 'Một hướng' ? 'text-amber-300' : 'text-zinc-500'}>{status}</span>
+                          <span className="font-semibold text-cad-text-primary">{port.port_label}</span>
+                          <span className={status === 'Thông tuyến' ? 'text-emerald-300' : status === 'Một hướng' ? 'text-amber-300' : 'text-cad-text-muted'}>{status}</span>
                         </div>
                         {termination && (
-                          <div className="truncate text-zinc-500">
+                          <div className="truncate text-cad-text-muted">
                             {termination.side.toUpperCase()} · {termination.strand_direction}
                           </div>
                         )}
@@ -121,7 +121,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
 
           {nodeEquipmentData?.type === 'one-end' && (
             <div>
-              <div className="mb-2 flex items-center gap-1.5 text-zinc-300">
+              <div className="mb-2 flex items-center gap-1.5 text-cad-text-secondary">
                 <Share2 size={12} /> <span>ODF / Điểm cuối cáp</span>
               </div>
               <OneEndEquipmentUI
@@ -136,7 +136,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
 
           {nodeEquipmentData?.type === 'two-end' && (
             <div>
-              <div className="mb-2 flex items-center gap-1.5 text-zinc-300">
+              <div className="mb-2 flex items-center gap-1.5 text-cad-text-secondary">
                 <Route size={12} /> <span>Măng xông / điểm nối tuyến</span>
               </div>
               <TwoEndEquipmentUI

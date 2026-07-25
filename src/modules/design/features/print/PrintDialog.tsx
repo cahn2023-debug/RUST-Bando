@@ -7,6 +7,7 @@ import html2canvas from 'html2canvas';
 import L from 'leaflet';
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { PRINT_COLORS, PRINT_PREVIEW_COLORS } from '@DESIGN/features/print/printColors';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -231,10 +232,10 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
       finalCanvas.width = isA4 ? 2480 : 3508;
       finalCanvas.height = isA4 ? 3508 : 4961;
 
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = PRINT_COLORS.paper;
       ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
 
-      ctx.strokeStyle = '#000000';
+      ctx.strokeStyle = PRINT_COLORS.stroke;
       ctx.lineWidth = 10;
       ctx.strokeRect(40, 40, finalCanvas.width - 80, finalCanvas.height - 80);
       ctx.lineWidth = 2;
@@ -265,13 +266,13 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
 
       ctx.drawImage(mapCanvas, drawX, drawY, drawW, drawH);
 
-      ctx.fillStyle = '#1a1a1a';
+      ctx.fillStyle = PRINT_COLORS.text;
       ctx.font = 'bold 80px Arial';
       ctx.textAlign = 'center';
       ctx.fillText(printTitle.toUpperCase(), finalCanvas.width / 2, mapY + drawH + 120);
 
       ctx.font = '36px Arial';
-      ctx.fillStyle = '#666';
+      ctx.fillStyle = PRINT_COLORS.textMuted;
       ctx.fillText(`Project: ${projectId || 'N/A'} | Paper Size: ${paperSize} | Date: ${new Date().toLocaleDateString('vi-VN')}`, finalCanvas.width / 2, mapY + drawH + 180);
 
       if (legendCanvas) {
@@ -295,11 +296,11 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
 
   return (
     <div className={cn(
-      "z-[200] flex items-center justify-center animate-in fade-in duration-200",
+      "z-cad-modal flex items-center justify-center animate-in fade-in duration-200",
       isStandalone ? "w-full h-full min-h-0 min-w-0 bg-transparent p-0" : "fixed inset-0 bg-black/60 backdrop-blur-sm p-8"
     )}>
       <div className={cn(
-        "bg-[#1e1e1e] border border-[#333] shadow-2xl overflow-hidden flex flex-col",
+        "bg-cad-surface border border-cad-border shadow-2xl overflow-hidden flex flex-col",
         isStandalone ? "w-full h-full rounded-none border-none" : "w-full max-w-5xl rounded-xl h-[90vh]"
       )}>
         {/* Header */}
@@ -313,36 +314,36 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
             }
           }}
           data-tauri-drag-region
-          className="p-4 border-b border-[#333] flex items-center justify-between bg-[#252526] select-none"
+          className="p-4 border-b border-cad-border flex items-center justify-between bg-cad-header select-none"
         >          <div data-tauri-drag-region className="flex items-center gap-3">
-            <div data-tauri-drag-region className="p-2 bg-yellow-500/20 rounded-lg">
-              <Printer data-tauri-drag-region className="w-5 h-5 text-yellow-500" />
+            <div data-tauri-drag-region className="p-2 bg-cad-warn/20 rounded-lg">
+              <Printer data-tauri-drag-region className="w-5 h-5 text-cad-warn" />
             </div>
             <div data-tauri-drag-region>
-              <h2 data-tauri-drag-region className="text-lg font-bold tracking-tight text-white">XUẤT BẢN ĐỒ & HỒ SƠ</h2>
-              <p data-tauri-drag-region className="text-xs text-gray-500 uppercase tracking-widest font-mono">DPI: 300 | CAD EXPORT SYSTEM</p>
+              <h2 data-tauri-drag-region className="text-lg font-bold tracking-tight text-cad-text-primary">XUẤT BẢN ĐỒ & HỒ SƠ</h2>
+              <p data-tauri-drag-region className="text-xs text-cad-text-muted uppercase tracking-widest font-mono">DPI: 300 | CAD EXPORT SYSTEM</p>
             </div>
           </div>
-          <div className="flex bg-[#2d2d2d] border border-[#444] rounded-lg overflow-hidden border-separate">
+          <div className="flex bg-cad-elevated border border-cad-border rounded-lg overflow-hidden border-separate">
             {isStandalone && (
               <>
                 <button
                   onClick={() => import('@tauri-apps/api/webviewWindow').then(m => m.getCurrentWebviewWindow().minimize())}
-                  className="p-2.5 hover:bg-[#3d3d3d] text-gray-400 transition-colors border-r border-[#444]"
+                  className="p-2.5 hover:bg-cad-elevated text-cad-text-muted transition-colors border-r border-cad-border"
                   title="Thu nhỏ"
                 >
                   <Minus size={16} />
                 </button>
                 <button
                   onClick={() => import('@tauri-apps/api/webviewWindow').then(m => m.getCurrentWebviewWindow().toggleMaximize())}
-                  className="p-2.5 hover:bg-[#3d3d3d] text-gray-400 transition-colors border-r border-[#444]"
+                  className="p-2.5 hover:bg-cad-elevated text-cad-text-muted transition-colors border-r border-cad-border"
                   title={isMaximized ? "Khôi phục" : "Phóng to"}
                 >
                   {isMaximized ? <Copy size={14} className="rotate-180" /> : <Square size={14} />}
                 </button>
               </>
             )}
-            <button onClick={onClose} className="p-2.5 hover:bg-rose-500 hover:text-white text-gray-400 transition-colors" title="Đóng">
+            <button onClick={onClose} className="p-2.5 hover:bg-cad-danger hover:text-white text-cad-text-muted transition-colors" title="Đóng">
               <X size={16} />
             </button>
           </div>
@@ -350,24 +351,24 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
 
         <div className="flex-1 overflow-hidden flex">
           {/* Settings Panel */}
-          <div className="w-80 border-r border-[#333] p-5 flex flex-col gap-6 bg-[#252526] overflow-y-auto custom-scrollbar">
+          <div className="w-80 border-r border-cad-border p-5 flex flex-col gap-6 bg-cad-header overflow-y-auto custom-scrollbar">
             <section className="space-y-4">
-              <div className="flex items-center gap-2 text-white font-black text-[10px] uppercase tracking-widest border-b border-[#333] pb-2">
-                <span className="w-5 h-5 rounded bg-yellow-500 text-[#1e1e1e] flex items-center justify-center font-bold">1</span>
+              <div className="flex items-center gap-2 text-cad-text-primary font-black text-[10px] uppercase tracking-widest border-b border-cad-border pb-2">
+                <span className="w-5 h-5 rounded bg-cad-warn text-cad-bg flex items-center justify-center font-bold">1</span>
                 Vùng chọn in
               </div>
 
               {printArea ? (
-                <div className="space-y-3 p-3 bg-black/40 rounded-lg border border-[#444] shadow-inner">
-                  <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-emerald-400">
-                    <div className="p-1.5 bg-black/30 rounded border border-[#333]">S: {printArea[0].toFixed(4)}</div>
-                    <div className="p-1.5 bg-black/30 rounded border border-[#333]">W: {printArea[1].toFixed(4)}</div>
-                    <div className="p-1.5 bg-black/30 rounded border border-[#333]">N: {printArea[2].toFixed(4)}</div>
-                    <div className="p-1.5 bg-black/30 rounded border border-[#333]">E: {printArea[3].toFixed(4)}</div>
+                <div className="space-y-3 p-3 bg-cad-surface rounded-lg border border-cad-border shadow-inner">
+                  <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-cad-accent">
+                    <div className="p-1.5 bg-cad-bg rounded border border-cad-border">S: {printArea[0].toFixed(4)}</div>
+                    <div className="p-1.5 bg-cad-bg rounded border border-cad-border">W: {printArea[1].toFixed(4)}</div>
+                    <div className="p-1.5 bg-cad-bg rounded border border-cad-border">N: {printArea[2].toFixed(4)}</div>
+                    <div className="p-1.5 bg-cad-bg rounded border border-cad-border">E: {printArea[3].toFixed(4)}</div>
                   </div>
                   <button
                     onClick={() => setPrintArea(null)}
-                    className="w-full py-2 bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-widest rounded border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all shadow-sm"
+                    className="w-full py-2 bg-cad-danger/10 text-cad-danger text-[10px] font-black uppercase tracking-widest rounded border border-cad-danger/30 hover:bg-cad-danger hover:text-white transition-all shadow-sm"
                   >
                     Hủy vùng chọn
                   </button>
@@ -383,8 +384,8 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
                   className={cn(
                     "w-full flex flex-col items-center justify-center gap-3 py-8 rounded-xl border-2 border-dashed transition-all active:scale-95",
                     drawingMode === 'print_area'
-                      ? 'bg-yellow-500/10 border-yellow-500 text-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.1)]'
-                      : 'bg-[#2d2d2d] border-[#444] text-gray-500 hover:border-yellow-500/50 hover:text-yellow-500/70'
+                      ? 'bg-cad-warn/10 border-cad-warn text-cad-warn shadow-[0_0_20px_rgba(234,179,8,0.1)]'
+                      : 'bg-cad-elevated border-cad-border text-cad-text-muted hover:border-cad-warn/50 hover:text-cad-warn/70'
                   )}
                 >
                   <MousePointer2 className={cn("w-6 h-6", drawingMode === 'print_area' && "animate-pulse")} />
@@ -394,21 +395,21 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
             </section>
 
             <section className="space-y-4">
-              <div className="flex items-center gap-2 text-white font-black text-[10px] uppercase tracking-widest border-b border-[#333] pb-2">
+              <div className="flex items-center gap-2 text-cad-text-primary font-black text-[10px] uppercase tracking-widest border-b border-cad-border pb-2">
                 <span className="w-5 h-5 rounded bg-blue-500 text-white flex items-center justify-center font-bold">2</span>
                 Tiêu đề & Khổ giấy
               </div>
 
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1">Tiêu đề bản in</label>
+                <label className="text-[9px] font-black text-cad-text-muted uppercase tracking-widest px-1">Tiêu đề bản in</label>
                 <div className="relative group">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 group-focus-within:text-blue-500" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-cad-text-muted group-focus-within:text-blue-500" />
                   <input
                     type="text"
                     value={printTitle}
                     onChange={e => setPrintTitle(e.target.value)}
                     placeholder="Tên bản vẽ..."
-                    className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg pl-9 pr-4 py-2 text-xs text-white focus:border-blue-500 outline-none transition-all placeholder:text-gray-700 font-bold"
+                    className="w-full bg-cad-bg border border-cad-border rounded-lg pl-9 pr-4 py-2 text-xs text-cad-text-primary focus:border-blue-500 outline-none transition-all placeholder:text-cad-text-muted/60 font-bold"
                   />
                 </div>
               </div>
@@ -422,7 +423,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
                       "p-2 rounded border text-[10px] uppercase font-black tracking-widest transition-all",
                       paperSize === size
                         ? 'bg-blue-500/20 border-blue-500 text-blue-500 shadow-sm'
-                        : 'bg-[#1a1a1a] border-[#333] text-gray-600 hover:border-gray-500 hover:text-gray-400'
+                        : 'bg-cad-bg border-cad-border text-cad-text-muted hover:border-cad-text-muted hover:text-cad-text-secondary'
                     )}
                   >
                     {size}
@@ -432,8 +433,8 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
             </section>
 
             <section className="space-y-4">
-              <div className="flex items-center gap-2 text-white font-black text-[10px] uppercase tracking-widest border-b border-[#333] pb-2">
-                <span className="w-5 h-5 rounded bg-emerald-500 text-white flex items-center justify-center font-bold">3</span>
+              <div className="flex items-center gap-2 text-cad-text-primary font-black text-[10px] uppercase tracking-widest border-b border-cad-border pb-2">
+                <span className="w-5 h-5 rounded bg-cad-accent text-black flex items-center justify-center font-bold">3</span>
                 Nội dung chú giải
               </div>
               <div className="space-y-2">
@@ -442,18 +443,18 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
                   { id: 'features', label: 'Dữ liệu thiết kế', state: includeFeatures, setter: setIncludeFeatures },
                   { id: 'legend', label: 'Bảng chú giải', state: includeLegend, setter: setIncludeLegend },
                 ].map(layer => (
-                  <label key={layer.id} className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded border border-[#333] cursor-pointer hover:bg-[#252526] transition-colors group">
+                  <label key={layer.id} className="flex items-center justify-between p-3 bg-cad-bg rounded border border-cad-border cursor-pointer hover:bg-cad-header transition-colors group">
                     <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-gray-400 group-hover:text-gray-200 transition-colors uppercase tracking-tight">{layer.label}</span>
+                      <span className="text-[10px] font-bold text-cad-text-secondary group-hover:text-cad-text-primary transition-colors uppercase tracking-tight">{layer.label}</span>
                       {layer.id === 'features' && includeFeatures && (
-                        <span className="text-[8px] text-gray-600 font-mono mt-0.5">Filter by Layer/Group enabled</span>
+                        <span className="text-[8px] text-cad-text-muted font-mono mt-0.5">Filter by Layer/Group enabled</span>
                       )}
                     </div>
                     <input
                       type="checkbox"
                       checked={layer.state}
                       onChange={e => layer.setter(e.target.checked)}
-                      className="w-4 h-4 rounded-sm border-[#333] bg-[#000] text-emerald-500 focus:ring-emerald-500 focus:ring-offset-[#1a1a1a]"
+                      className="w-4 h-4 rounded-sm border-cad-border bg-cad-bg text-cad-accent focus:ring-cad-accent focus:ring-offset-cad-surface"
                     />
                   </label>
                 ))}
@@ -461,10 +462,10 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
 
               {includeFeatures && (
                 <div className="space-y-4 pt-2">
-                  <div className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1">Lọc theo lớp dữ liệu</div>
+                  <div className="text-[9px] font-black text-cad-text-muted uppercase tracking-widest px-1">Lọc theo lớp dữ liệu</div>
                   <div className="max-h-40 overflow-y-auto custom-scrollbar pr-1 space-y-1">
                     {Object.values(state?.layers || {}).map(layer => (
-                      <label key={layer.id} className="flex items-center justify-between p-2 bg-black/20 rounded border border-[#333] cursor-pointer hover:bg-black/30 transition-colors">
+                      <label key={layer.id} className="flex items-center justify-between p-2 bg-black/20 rounded border border-cad-border cursor-pointer hover:bg-black/30 transition-colors">
                         <span className="text-[9px] text-gray-400 truncate pr-2 uppercase font-bold">{layer.name}</span>
                         <input
                           type="checkbox"
@@ -475,7 +476,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
                             else next.delete(layer.id);
                             setSelectedLayerIds(next);
                           }}
-                          className="w-3.5 h-3.5 rounded-sm border-[#444] bg-black text-blue-500"
+                          className="w-3.5 h-3.5 rounded-sm border-cad-border bg-black text-blue-500"
                         />
                       </label>
                     ))}
@@ -486,9 +487,12 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
           </div>
 
           {/* Preview Area */}
-          <div className="flex-1 bg-[#0f0f0f] p-10 flex items-center justify-center relative overflow-hidden">
+          <div className="flex-1 bg-cad-bg p-10 flex items-center justify-center relative overflow-hidden">
             <div className="absolute inset-0 opacity-10 pointer-events-none"
-              style={{ backgroundImage: 'radial-gradient(#333 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
+              style={{
+                backgroundImage: `radial-gradient(${PRINT_PREVIEW_COLORS.placeholder} 1px, transparent 1px)`,
+                backgroundSize: '30px 30px',
+              }} />
 
             <div
               className="bg-white shadow-[0_30px_60px_rgba(0,0,0,0.5)] relative flex flex-col overflow-hidden transition-all duration-500"
@@ -498,18 +502,27 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
               }}
             >
               {/* Layout in preview represents the final exported PNG structure */}
-              <div className="flex-1 bg-[#1a1a1a] overflow-hidden relative border-b-2 border-black flex flex-col">
+              <div
+                className="flex-1 overflow-hidden relative border-b-2 border-black flex flex-col"
+                style={{ backgroundColor: PRINT_PREVIEW_COLORS.viewport }}
+              >
                 <div className="p-3 border-b border-white/5 bg-black/40 flex justify-between items-center z-10">
                   <span className="text-[8px] font-black text-gray-600 tracking-widest uppercase">GIS Viewport [{paperSize}]</span>
                   <span className="text-[8px] font-black text-yellow-500 antialiased">CAD SYSTEM V4</span>
                 </div>
                 {!printArea ? (
-                  <div className="flex-1 flex flex-col items-center justify-center text-[#333] p-10 text-center">
+                  <div
+                    className="flex-1 flex flex-col items-center justify-center p-10 text-center"
+                    style={{ color: PRINT_PREVIEW_COLORS.placeholder }}
+                  >
                     <Printer className="w-16 h-16 mb-4 opacity-5" />
                     <p className="text-[10px] font-black uppercase tracking-widest text-gray-800">No area selected</p>
                   </div>
                 ) : (
-                  <div className="flex-1 flex items-center justify-center bg-[#111] relative overflow-hidden">
+                  <div
+                    className="flex-1 flex items-center justify-center relative overflow-hidden"
+                    style={{ backgroundColor: PRINT_PREVIEW_COLORS.viewportFilled }}
+                  >
                     {previewImage ? (
                       <img
                         src={previewImage}
@@ -569,7 +582,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-[#333] flex items-center justify-between bg-[#252526]">
+        <div className="p-5 border-t border-cad-border flex items-center justify-between bg-cad-header">
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -580,7 +593,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
           <div className="flex gap-4">
             <button
               onClick={onClose}
-              className="px-8 py-2.5 rounded-xl border border-[#444] text-xs font-black uppercase tracking-widest text-gray-400 hover:bg-[#333] hover:text-white transition-all active:scale-95"
+              className="px-8 py-2.5 rounded-xl border border-cad-border text-xs font-black uppercase tracking-widest text-gray-400 hover:bg-cad-elevated hover:text-white transition-all active:scale-95"
             >
               Hủy bỏ
             </button>
@@ -588,7 +601,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
               onClick={handlePrint}
               disabled={capturing || !printArea}
               className={cn(
-                "px-10 py-2.5 rounded-xl bg-yellow-500 text-[#1e1e1e] font-black text-xs uppercase tracking-widest shadow-[0_10px_30px_rgba(234,179,8,0.2)] hover:shadow-yellow-500/40 transition-all flex items-center gap-3 group",
+                "px-10 py-2.5 rounded-xl bg-yellow-500 text-cad-bg font-black text-xs uppercase tracking-widest shadow-[0_10px_30px_rgba(234,179,8,0.2)] hover:shadow-yellow-500/40 transition-all flex items-center gap-3 group",
                 capturing ? 'opacity-70 cursor-wait' : 'hover:scale-105 active:scale-95',
                 !printArea && 'opacity-50 grayscale cursor-not-allowed'
               )}
@@ -614,20 +627,20 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
           width: 5px;
         }
         .custom-scrollbar::-webkit-scrollbar-track {
-          background: #1a1a1a;
+          background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #333;
+          background: var(--color-cad-text-muted);
           border-radius: 10px;
         }
         .custom-scrollbar-light::-webkit-scrollbar {
           width: 4px;
         }
         .custom-scrollbar-light::-webkit-scrollbar-track {
-          background: #fafafa;
+          background: ${PRINT_PREVIEW_COLORS.scrollTrack};
         }
         .custom-scrollbar-light::-webkit-scrollbar-thumb {
-          background: #eee;
+          background: ${PRINT_PREVIEW_COLORS.scrollThumb};
           border-radius: 10px;
         }
       `}</style>

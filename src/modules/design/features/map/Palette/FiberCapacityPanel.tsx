@@ -2,6 +2,7 @@ import React from 'react';
 import { TriangleAlert } from 'lucide-react';
 import type { FiberCapacitySummary } from '@CONTRACT/types';
 import type { FiberCableRow } from '@DESIGN/features/map/network/fiberUiModel';
+import { Button } from '@DESIGN/components/ui/Button';
 
 interface FiberCapacityPanelProps {
   rows?: FiberCableRow[];
@@ -43,7 +44,7 @@ export const FiberCapacityPanel: React.FC<FiberCapacityPanelProps> = ({
 
   if (displayRows.length === 0) {
     return (
-      <div className="rounded-lg border border-white/5 bg-black/20 p-3 text-[10.5px] text-zinc-500">
+      <div className="rounded-lg border border-cad-border bg-cad-surface p-3 text-[10.5px] text-cad-text-muted">
         Chưa có cáp fiber. Hãy nhận diện tuyến từ polyline hoặc vẽ tuyến Network trước.
       </div>
     );
@@ -67,8 +68,8 @@ export const FiberCapacityPanel: React.FC<FiberCapacityPanelProps> = ({
           <div
             key={cable.id}
             className={isSelected
-              ? 'rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3'
-              : 'rounded-lg border border-white/5 bg-black/20 p-3 hover:border-white/15 hover:bg-white/[0.03]'}
+              ? 'rounded-lg border border-cad-active/30 bg-cad-active/10 p-3'
+              : 'rounded-lg border border-cad-border bg-cad-surface p-3 hover:border-cad-border hover:bg-cad-text-primary/[0.03]'}
           >
             <button
               type="button"
@@ -77,37 +78,38 @@ export const FiberCapacityPanel: React.FC<FiberCapacityPanelProps> = ({
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="truncate text-[11px] font-semibold text-zinc-100 flex items-center gap-1">
+                  <div className="truncate text-[11px] font-semibold text-cad-text-primary flex items-center gap-1">
                     {row.diagnostics && row.diagnostics.length > 0 && (
-                      <TriangleAlert size={12} className="text-amber-500" />
+                      <TriangleAlert size={12} className="text-cad-warn" />
                     )}
                     {row.label}
                   </div>
-                  <div className="truncate text-[9px] text-zinc-500">
+                  <div className="truncate text-[9px] text-cad-text-muted">
                     {cable.cable_type || 'Cáp'} · {row.initialized ? `${row.strandCount} sợi đã khởi tạo` : 'Chưa khởi tạo sợi'}
                   </div>
-                  <div className="truncate text-[9px] text-cyan-200/80">{pointSummary}</div>
+                  <div className="truncate text-[9px] text-cad-active/80">{pointSummary}</div>
                 </div>
                 <div className="text-right text-[10px]">
-                  <div className="font-semibold text-zinc-100">{cable.fiber_count ?? row.strandCount} sợi</div>
-                  <div className="text-zinc-500">{percent(capacity?.utilization)}%</div>
+                  <div className="font-semibold text-cad-text-primary">{cable.fiber_count ?? row.strandCount} sợi</div>
+                  <div className="text-cad-text-muted">{percent(capacity?.utilization)}%</div>
                 </div>
               </div>
             </button>
-            <div className="mt-2 grid grid-cols-4 gap-1 text-[9px] text-zinc-400">
+            <div className="mt-2 grid grid-cols-4 gap-1 text-[9px] text-cad-text-muted">
               <span>Khả dụng {free}</span>
               <span>Giữ chỗ {reserved}</span>
               <span>Đang dùng {active}</span>
               <span>Lỗi {damaged}</span>
             </div>
             {!row.initialized && onInitializeCable && (
-              <button
-                type="button"
+              <Button
+                variant="accent"
+                size="sm"
                 onClick={() => onInitializeCable(cable.id, defaultFiberCount)}
-                className="mt-2 rounded border border-cyan-500/25 px-2 py-1 text-[9px] font-semibold text-cyan-200 hover:bg-cyan-500/10"
+                className="mt-2"
               >
                 Khởi tạo sợi
-              </button>
+              </Button>
             )}
           </div>
         );

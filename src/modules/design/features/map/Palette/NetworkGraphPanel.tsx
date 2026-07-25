@@ -514,9 +514,9 @@ const layoutGraphNodes = (
 };
 
 const InspectorRow = ({ label, value }: { label: string; value: React.ReactNode }) => (
-    <div className="flex items-start justify-between gap-3 border-b border-white/5 py-2 last:border-b-0">
-        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{label}</span>
-        <span className="min-w-0 text-right text-[11px] text-zinc-200">{value}</span>
+    <div className="flex items-start justify-between gap-3 border-b border-cad-border py-2 last:border-b-0">
+        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-cad-text-muted">{label}</span>
+        <span className="min-w-0 text-right text-[11px] text-cad-text-primary">{value}</span>
     </div>
 );
 
@@ -1144,13 +1144,13 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
     const selectedEdgePresentation = getNetworkLinkPresentation(selectedEdge);
 
     return (
-        <div className="relative flex min-h-0 flex-1 overflow-hidden bg-[#070b0e]">
+        <div className="relative flex min-h-0 flex-1 overflow-hidden bg-cad-bg">
             <div className="relative min-h-0 flex-1">
                 {tab === 'intersection' && selectedIntersection && (
-                    <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/80 px-3 py-2 text-[11px] font-semibold text-zinc-200 shadow-xl backdrop-blur-md">
+                    <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-lg border border-cad-border bg-cad-bg/80 px-3 py-2 text-[11px] font-semibold text-cad-text-primary shadow-xl backdrop-blur-md">
                         <button
                             onClick={() => setDrilldownIntersectionId(null)}
-                            className="rounded border border-white/10 px-2.5 py-1 text-zinc-300 hover:bg-white/10 hover:text-white transition"
+                            className="rounded border border-cad-border px-2.5 py-1 text-cad-text-primary hover:bg-cad-text-primary/10 hover:text-cad-text-primary transition"
                         >
                             Back
                         </button>
@@ -1161,47 +1161,47 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                 <div className={cn("absolute top-4 z-10 pointer-events-none flex flex-wrap gap-3 transition-all duration-300", tab === 'fiber' ? "left-[350px] right-[350px] justify-center" : "left-4 right-4 justify-between md:left-4")}>
                     {tab === 'intersection' && selectedIntersection ? <div className="w-40" /> : <div />}
 
-                    <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/75 px-3 py-1.5 shadow-xl backdrop-blur-md text-[10.5px] font-sans">
-                        <span className="text-zinc-500 font-bold uppercase tracking-wider mr-1">HUD:</span>
-                        <span className="flex items-center gap-1 text-zinc-300 font-medium">
-                            Tổng: <strong className="text-zinc-100">{stats.total}</strong>
+                    <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-cad-border bg-cad-bg/75 px-3 py-1.5 shadow-xl backdrop-blur-md text-[10.5px] font-sans">
+                        <span className="text-cad-text-muted font-bold uppercase tracking-wider mr-1">HUD:</span>
+                        <span className="flex items-center gap-1 text-cad-text-primary font-medium">
+                            Tổng: <strong className="text-cad-text-primary">{stats.total}</strong>
                         </span>
-                        <span className="h-3 w-px bg-white/10 mx-1" />
+                        <span className="h-3 w-px bg-cad-border mx-1" />
                         <span className="flex items-center gap-1 text-emerald-400 font-medium">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                             Online: <strong className="text-emerald-300">{stats.online}</strong>
                         </span>
-                        <span className="h-3 w-px bg-white/10 mx-1" />
+                        <span className="h-3 w-px bg-cad-border mx-1" />
                         <span className="flex items-center gap-1 text-red-400 font-medium">
                             <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
                             Lỗi trực tiếp: <strong className="text-red-300">{stats.directOffline}</strong>
                         </span>
-                        <span className="h-3 w-px bg-white/10 mx-1" />
+                        <span className="h-3 w-px bg-cad-border mx-1" />
                         <span className="flex items-center gap-1 text-orange-400 font-medium">
                             <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
                             Upstream: <strong className="text-orange-300">{stats.upstreamOffline}</strong>
                         </span>
-                        <span className="h-3 w-px bg-white/10 mx-1" />
+                        <span className="h-3 w-px bg-cad-border mx-1" />
                         <span className="flex items-center gap-1 text-purple-400 font-medium">
                             <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
                             Chưa cấu hình: <strong className="text-purple-300">{stats.configError}</strong>
                         </span>
                     </div>
 
-                    <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/75 p-1 shadow-xl backdrop-blur-md font-sans">
+                    <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-cad-border bg-cad-bg/75 p-1 shadow-xl backdrop-blur-md font-sans">
                         <div className="relative flex items-center">
-                            <Search size={12} className="absolute left-2.5 text-zinc-500" />
+                            <Search size={12} className="absolute left-2.5 text-cad-text-muted" />
                             <input
                                 type="text"
                                 placeholder="Tìm nút, telemetry..."
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="w-[140px] rounded border border-white/5 bg-black/40 py-1 pl-7 pr-2.5 text-[10.5px] text-zinc-100 placeholder-zinc-500 outline-none focus:border-cyan-400/40 focus:bg-black/60 transition-all duration-200"
+                                className="w-[140px] rounded border border-cad-border bg-cad-bg py-1 pl-7 pr-2.5 text-[10.5px] text-cad-text-primary placeholder-cad-text-muted outline-none focus:border-cad-accent/40 focus:bg-cad-surface transition-all duration-200"
                             />
                             {searchQuery && (
                                 <button
                                     onClick={() => setSearchQuery('')}
-                                    className="absolute right-2 text-zinc-500 hover:text-zinc-300"
+                                    className="absolute right-2 text-cad-text-muted hover:text-cad-text-primary"
                                 >
                                     <X size={10} />
                                 </button>
@@ -1209,11 +1209,11 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                         </div>
 
                         <div className="relative flex items-center">
-                            <Filter size={11} className="absolute left-2 text-zinc-500" />
+                            <Filter size={11} className="absolute left-2 text-cad-text-muted" />
                             <select
                                 value={statusFilter}
                                 onChange={e => setStatusFilter(e.target.value as any)}
-                                className="rounded border border-white/5 bg-black/40 py-1 pl-6 pr-2 text-[10.5px] text-zinc-300 outline-none hover:bg-black/50 focus:border-cyan-400/40 transition"
+                                className="rounded border border-cad-border bg-cad-bg py-1 pl-6 pr-2 text-[10.5px] text-cad-text-primary outline-none hover:bg-cad-elevated focus:border-cad-accent/40 transition"
                             >
                                 <option value="all">Tất cả trạng thái</option>
                                 <option value="online">Online</option>
@@ -1238,10 +1238,10 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                     connectionMode={ConnectionMode.Loose}
                     fitView
                     deleteKeyCode={['Backspace', 'Delete']}
-                    className="bg-[#080c0f] font-sans"
+                    className="bg-cad-bg font-sans"
                 >
                     <Background color="#38bdf8" gap={16} size={1.2} variant={BackgroundVariant.Dots} className="opacity-[0.03]" />
-                    <Controls className="!border-white/10 !bg-zinc-950/80 !fill-zinc-300 !text-zinc-300 !shadow-lg backdrop-blur-md rounded-lg overflow-hidden [&_button]:hover:!bg-white/10 font-sans" />
+                    <Controls className="!border-cad-border !bg-cad-bg/80 !fill-cad-text-primary !text-cad-text-primary !shadow-lg backdrop-blur-md rounded-lg overflow-hidden [&_button]:hover:!bg-cad-text-primary/10 font-sans" />
                     <MiniMap
                         nodeColor={node => {
                             const status = node.data?.status as NetworkComputedStatus | undefined;
@@ -1251,17 +1251,17 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                             if (status === 'configuration-error') return '#a855f7';
                             return '#71717a';
                         }}
-                        className="!border-white/10 !bg-zinc-950/80 !shadow-lg backdrop-blur-md rounded-lg overflow-hidden font-sans"
+                        className="!border-cad-border !bg-cad-bg/80 !shadow-lg backdrop-blur-md rounded-lg overflow-hidden font-sans"
                         maskColor="rgba(0,0,0,0.6)"
                     />
                 </ReactFlow>
 
                 {scopedNodes.length === 0 && (
                     <div className="absolute inset-0 flex items-center justify-center p-6 bg-black/20 backdrop-blur-[1px] font-sans">
-                        <div className="max-w-md rounded-xl border border-white/10 bg-zinc-950/80 p-6 text-center shadow-2xl backdrop-blur-md">
-                            <Router className="mx-auto mb-3 text-zinc-500 animate-pulse" size={32} />
-                            <div className="text-sm font-bold text-zinc-100">Chưa có topology Network</div>
-                            <div className="mt-2 text-xs leading-5 text-zinc-500">
+                        <div className="max-w-md rounded-xl border border-cad-border bg-cad-bg/80 p-6 text-center shadow-2xl backdrop-blur-md">
+                            <Router className="mx-auto mb-3 text-cad-text-muted animate-pulse" size={32} />
+                            <div className="text-sm font-bold text-cad-text-primary">Chưa có topology Network</div>
+                            <div className="mt-2 text-xs leading-5 text-cad-text-muted">
                                 Chưa có đối tượng không phải line/polyline để hiển thị trong Network.
                             </div>
                         </div>
@@ -1269,8 +1269,8 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                 )}
 
                 {mode === 'realtime' && (isStale || !hasTelemetry) && (
-                    <div className="absolute left-4 bottom-4 z-10 flex items-center gap-2 rounded-lg border border-orange-500/20 bg-orange-950/85 px-3 py-2 text-[10.5px] font-semibold text-orange-200 shadow-xl backdrop-blur-md font-sans">
-                        <WifiOff size={14} className="text-orange-400 animate-pulse" />
+                    <div className="absolute left-4 bottom-4 z-10 flex items-center gap-2 rounded-lg border border-cad-warn/20 bg-cad-warn/10 px-3 py-2 text-[10.5px] font-semibold text-cad-warn shadow-xl backdrop-blur-md font-sans">
+                        <WifiOff size={14} className="cad-icon-warn animate-pulse" />
                         Chưa kết nối telemetry
                     </div>
                 )}
@@ -1279,7 +1279,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                 {!isInspectorOpen && (
                     <button
                         onClick={() => setIsInspectorOpen(true)}
-                        className="absolute right-4 top-4 z-20 flex items-center justify-center rounded-lg border border-white/10 bg-zinc-950/80 p-2.5 text-zinc-300 hover:bg-white/10 hover:text-white shadow-xl backdrop-blur-md transition-all duration-200"
+                        className="absolute right-4 top-4 z-20 flex items-center justify-center rounded-lg border border-cad-border bg-cad-bg/80 p-2.5 text-cad-text-primary hover:bg-cad-text-primary/10 hover:text-cad-text-primary shadow-xl backdrop-blur-md transition-all duration-200"
                         title="Mở Inspector"
                     >
                         <PanelRightOpen size={16} />
@@ -1290,7 +1290,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
             {/* FLOATING COLLAPSIBLE FIBER PANEL (LEFT) */}
             <aside
                 className={cn(
-                    "absolute left-4 top-4 bottom-4 z-20 w-[320px] flex flex-col min-h-0 rounded-xl border border-cyan-500/30 bg-zinc-950/90 shadow-2xl backdrop-blur-lg transition-all duration-300 ease-out",
+                    "absolute left-4 top-4 bottom-4 z-20 w-[320px] flex flex-col min-h-0 rounded-xl border border-cad-active/30 bg-cad-bg/90 shadow-2xl backdrop-blur-lg transition-all duration-300 ease-out",
                     tab === 'fiber' ? "translate-x-0 opacity-100 pointer-events-auto" : "-translate-x-[340px] opacity-0 pointer-events-none"
                 )}
             >
@@ -1302,15 +1302,15 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
             {/* FLOATING COLLAPSIBLE INSPECTOR PANEL */}
             <aside
                 className={cn(
-                    "absolute right-4 top-4 bottom-4 z-20 w-[320px] flex flex-col min-h-0 rounded-xl border border-white/10 bg-zinc-950/90 shadow-2xl backdrop-blur-lg transition-all duration-300 ease-out",
+                    "absolute right-4 top-4 bottom-4 z-20 w-[320px] flex flex-col min-h-0 rounded-xl border border-cad-border bg-cad-bg/90 shadow-2xl backdrop-blur-lg transition-all duration-300 ease-out",
                     isInspectorOpen ? "translate-x-0 opacity-100 pointer-events-auto" : "translate-x-[340px] opacity-0 pointer-events-none"
                 )}
             >
                 {/* Header */}
-                <div className="flex shrink-0 items-center justify-between border-b border-white/5 p-3">
+                <div className="flex shrink-0 items-center justify-between border-b border-cad-border p-3">
                     <div className="flex items-center gap-1.5">
-                        <GitBranch size={14} className="text-cyan-400" />
-                        <div className="text-[11px] font-bold uppercase tracking-wider text-zinc-300">Inspector</div>
+                        <GitBranch size={14} className="cad-icon-accent" />
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-cad-text-primary">Inspector</div>
                     </div>
                     <div className="flex items-center gap-1.5">
                         {selectedEdge && selectedEdge.kind === 'signal' && (
@@ -1318,20 +1318,20 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                                 {selectedEdge.directionState !== 'confirmed' && (
                                     <button
                                         onClick={handleConfirmEdgeDirection}
-                                        className="inline-flex items-center gap-1 rounded bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-[9px] font-bold text-emerald-300 hover:bg-emerald-500/20"
+                                        className="inline-flex items-center gap-1 rounded bg-cad-accent/10 border border-cad-accent/30 px-2 py-0.5 text-[9px] font-bold text-cad-accent hover:bg-cad-accent/20"
                                     >
                                         Xác nhận
                                     </button>
                                 )}
                                 <button
                                     onClick={handleReverseEdge}
-                                    className="inline-flex items-center gap-1 rounded bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 text-[9px] font-bold text-cyan-300 hover:bg-cyan-500/20"
+                                    className="inline-flex items-center gap-1 rounded bg-cad-active/10 border border-cad-active/30 px-2 py-0.5 text-[9px] font-bold text-cad-active hover:bg-cad-active/20"
                                 >
                                     Đảo chiều
                                 </button>
                                 <button
                                     onClick={() => setEdgePendingDelete(selectedEdge)}
-                                    className="inline-flex items-center gap-1 rounded bg-red-500/10 border border-red-500/30 p-1 text-[9px] font-bold text-red-300 hover:bg-red-500/20"
+                                    className="inline-flex items-center gap-1 rounded bg-cad-danger/10 border border-cad-danger/30 p-1 text-[9px] font-bold text-cad-danger hover:bg-cad-danger/20"
                                     title="Xóa tuyến"
                                 >
                                     <Trash2 size={11} />
@@ -1340,7 +1340,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                         )}
                         <button
                             onClick={() => setIsInspectorOpen(false)}
-                            className="rounded p-1 text-zinc-400 hover:bg-white/10 hover:text-white transition font-sans"
+                            className="rounded p-1 text-cad-text-secondary hover:bg-cad-text-primary/10 hover:text-cad-text-primary transition font-sans"
                             title="Thu gọn"
                         >
                             <PanelRightClose size={14} />
@@ -1351,23 +1351,23 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                 {/* Content Area */}
                 <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 scrollbar-thin">
                     {!selectedNode && !selectedEdge && (
-                        <div className="rounded-lg border border-white/5 bg-black/25 p-3 text-[10.5px] leading-relaxed text-zinc-500 font-sans">
+                        <div className="rounded-lg border border-cad-border bg-cad-surface/60 p-3 text-[10.5px] leading-relaxed text-cad-text-muted font-sans">
                             Chọn một node hoặc tuyến trên graph để xem chi tiết. Kéo từ handle bên phải của node sang handle bên trái của node khác để tạo kết nối trong Network.
                         </div>
                     )}
 
                     {selectedNode && (
-                        <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2 shadow-inner">
+                        <div className="rounded-lg border border-cad-border bg-cad-surface/60 p-3 space-y-2 shadow-inner">
                             <div className="mb-2 flex items-center justify-between gap-2">
                                 <div className="flex min-w-0 items-center gap-2">
                                     <span className={cn('h-2.5 w-2.5 rounded-full shadow-[0_0_8px_currentColor]', statusColor[evaluation.nodeStates[selectedNode.id]?.status || 'unknown'])} />
                                     <div className="min-w-0">
-                                        <div className="truncate text-xs font-bold text-zinc-100">
+                                        <div className="truncate text-xs font-bold text-cad-text-primary">
                                             {selectedDisplayNode && selectedDisplayNode.memberCount > 1
                                                 ? `${selectedNode.label} +${selectedDisplayNode.memberCount - 1}`
                                                 : selectedNode.label}
                                         </div>
-                                        <div className="text-[9px] uppercase tracking-wider font-bold text-zinc-500">{selectedNode.role}</div>
+                                        <div className="text-[9px] uppercase tracking-wider font-bold text-cad-text-muted">{selectedNode.role}</div>
                                     </div>
                                 </div>
                                 <button
@@ -1375,8 +1375,8 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                                     className={cn(
                                         'rounded border px-2 py-0.5 text-[9px] font-bold transition duration-200',
                                         selectedNode.isOrigin
-                                            ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                                            : 'border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                            ? 'border-cad-accent/30 bg-cad-accent/10 text-cad-accent'
+                                            : 'border-cad-border text-cad-text-secondary hover:bg-cad-text-primary/10 hover:text-cad-text-primary'
                                     )}
                                 >
                                     {selectedNode.isOrigin ? 'Bỏ gốc' : 'Đặt gốc'}
@@ -1387,8 +1387,8 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                                         className={cn(
                                             'inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[9px] font-bold transition duration-200',
                                             (snapshot.nodes?.[getEntityStatusKey(selectedNode.telemetryId, selectedNode.id)] || 'unknown') === 'online'
-                                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                                                : 'border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                                ? 'border-cad-accent/30 bg-cad-accent/10 text-cad-accent'
+                                                : 'border-cad-border text-cad-text-secondary hover:bg-cad-text-primary/10 hover:text-cad-text-primary'
                                         )}
                                     >
                                         <Power size={10} />
@@ -1397,14 +1397,14 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                                 )}
                             </div>
                             <InspectorRow label="Trạng thái" value={<span className="font-semibold">{statusLabel[evaluation.nodeStates[selectedNode.id]?.status || 'unknown']}</span>} />
-                            <InspectorRow label="Điểm gốc" value={selectedNode.isOrigin ? <span className="text-emerald-400 font-bold">Đã chọn</span> : 'Chưa chọn'} />
-                            <InspectorRow label="Telemetry" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedNode.telemetryId || 'Chưa gán'}</span>} />
-                            <InspectorRow label="Feature" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedNode.id}</span>} />
-                            <InspectorRow label="Lý do" value={<span className="text-zinc-300">{evaluation.nodeStates[selectedNode.id]?.reason || 'Không có'}</span>} />
-                            <InspectorRow label="Downstream" value={<span className="font-bold text-zinc-100">{evaluation.nodeStates[selectedNode.id]?.affectedDownstream.length || 0} node</span>} />
+                            <InspectorRow label="Điểm gốc" value={selectedNode.isOrigin ? <span className="text-cad-accent font-bold">Đã chọn</span> : 'Chưa chọn'} />
+                            <InspectorRow label="Telemetry" value={<span className="font-mono bg-cad-elevated/60 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedNode.telemetryId || 'Chưa gán'}</span>} />
+                            <InspectorRow label="Feature" value={<span className="font-mono bg-cad-elevated/60 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedNode.id}</span>} />
+                            <InspectorRow label="Lý do" value={<span className="text-cad-text-primary">{evaluation.nodeStates[selectedNode.id]?.reason || 'Không có'}</span>} />
+                            <InspectorRow label="Downstream" value={<span className="font-bold text-cad-text-primary">{evaluation.nodeStates[selectedNode.id]?.affectedDownstream.length || 0} node</span>} />
                             {selectedDisplayNode && selectedDisplayNode.memberCount > 1 && (
-                                <div className="mt-3 rounded-lg border border-white/5 bg-black/20 p-2.5">
-                                    <div className="mb-2 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                                <div className="mt-3 rounded-lg border border-cad-border bg-cad-surface/60 p-2.5">
+                                    <div className="mb-2 text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">
                                         Đối tượng trong node gom
                                     </div>
                                     <div className="space-y-2">
@@ -1414,13 +1414,13 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                                             return (
                                                 <div
                                                     key={memberNode.id}
-                                                    className="flex items-center justify-between gap-2 rounded border border-white/5 bg-black/25 px-2 py-1.5"
+                                                    className="flex items-center justify-between gap-2 rounded border border-cad-border bg-cad-elevated/60 px-2 py-1.5"
                                                 >
                                                     <div className="min-w-0">
-                                                        <div className="truncate text-[10.5px] font-semibold text-zinc-100">
+                                                        <div className="truncate text-[10.5px] font-semibold text-cad-text-primary">
                                                             {memberNode.label}
                                                         </div>
-                                                        <div className="truncate text-[9px] text-zinc-500">
+                                                        <div className="truncate text-[9px] text-cad-text-muted">
                                                             {memberNode.telemetryId || memberNode.id}
                                                         </div>
                                                     </div>
@@ -1429,8 +1429,8 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                                                         className={cn(
                                                             'inline-flex shrink-0 items-center gap-1 rounded border px-2 py-0.5 text-[9px] font-bold transition duration-200',
                                                             memberStatus === 'online'
-                                                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                                                                : 'border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                                                ? 'border-cad-accent/30 bg-cad-accent/10 text-cad-accent'
+                                                                : 'border-cad-border text-cad-text-secondary hover:bg-cad-text-primary/10 hover:text-cad-text-primary'
                                                         )}
                                                     >
                                                         <Power size={10} />
@@ -1446,12 +1446,12 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                     )}
 
                     {selectedEdge && (
-                        <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2 shadow-inner">
+                        <div className="rounded-lg border border-cad-border bg-cad-surface/60 p-3 space-y-2 shadow-inner">
                             <div className="mb-3 flex items-center gap-2">
-                                <GitBranch size={14} className="text-cyan-400" />
+                                <GitBranch size={14} className="cad-icon-accent" />
                                 <div className="min-w-0">
-                                    <div className="truncate text-xs font-bold text-zinc-100">{selectedEdge.label}</div>
-                                    <div className="text-[9px] uppercase tracking-wider font-bold text-zinc-500">
+                                    <div className="truncate text-xs font-bold text-cad-text-primary">{selectedEdge.label}</div>
+                                    <div className="text-[9px] uppercase tracking-wider font-bold text-cad-text-muted">
                                         {selectedEdge.kind === 'relationship'
                                             ? 'Relationship'
                                             : edgeSourceLabel[selectedEdge.sourceType]}
@@ -1463,8 +1463,8 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                                         className={cn(
                                             'ml-auto inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[9px] font-bold transition duration-200',
                                             (snapshot.edges?.[getEntityStatusKey(selectedEdge.telemetryId, selectedEdge.id)] || 'unknown') === 'online'
-                                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-                                                : 'border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                                ? 'border-cad-accent/30 bg-cad-accent/10 text-cad-accent'
+                                                : 'border-cad-border text-cad-text-secondary hover:bg-cad-text-primary/10 hover:text-cad-text-primary'
                                         )}
                                     >
                                         <Power size={10} />
@@ -1474,23 +1474,23 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                             </div>
 
                             {selectedEdge.kind === 'signal' && selectedEdge.feature && (
-                                <div className="mb-3 space-y-3 rounded-lg border border-cyan-500/10 bg-cyan-500/5 p-3">
+                                <div className="mb-3 space-y-3 rounded-lg border border-cad-accent/10 bg-cad-accent/5 p-3">
                                     <div>
-                                        <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-zinc-500">Tên kết nối</label>
+                                        <label className="mb-1 block text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">Tên kết nối</label>
                                         <input
                                             key={selectedEdge.id}
                                             defaultValue={selectedEdge.feature.name || selectedEdge.label}
                                             onBlur={event => handleUpdateEdgePresentation({ name: event.target.value })}
-                                            className="w-full rounded border border-white/15 bg-black/45 px-2.5 py-1.5 text-[11px] text-zinc-100 outline-none focus:border-cyan-400/40 focus:bg-black/60 transition"
+                                            className="w-full rounded border border-cad-border bg-cad-bg px-2.5 py-1.5 text-[11px] text-cad-text-primary outline-none focus:border-cad-accent/40 focus:bg-cad-surface transition"
                                         />
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
-                                        <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                                        <label className="block text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">
                                             Biểu tượng
                                             <select
                                                 value={selectedEdgePresentation.iconType}
                                                 onChange={event => handleUpdateEdgePresentation({ iconType: event.target.value as NetworkLinkIcon })}
-                                                className="mt-1 w-full rounded border border-white/15 bg-black/45 px-2 py-1 text-[11px] normal-case text-zinc-100 outline-none focus:border-cyan-400/40 focus:bg-black/60 transition"
+                                                className="mt-1 w-full rounded border border-cad-border bg-cad-bg px-2 py-1 text-[11px] normal-case text-cad-text-primary outline-none focus:border-cad-accent/40 focus:bg-cad-surface transition"
                                             >
                                                 <option value="arrow">Arrow</option>
                                                 <option value="signal">Signal</option>
@@ -1499,13 +1499,13 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                                                 <option value="none">None</option>
                                             </select>
                                         </label>
-                                        <label className="block text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                                        <label className="block text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">
                                             Loại nét
                                             <select
                                                 value={selectedEdge.sourceType === 'map-polyline' ? 'solid' : selectedEdgePresentation.lineStyle}
                                                 onChange={event => handleUpdateEdgePresentation({ lineStyle: event.target.value as NetworkLineStyle })}
                                                 disabled={selectedEdge.sourceType === 'map-polyline'}
-                                                className="mt-1 w-full rounded border border-white/15 bg-black/45 px-2 py-1 text-[11px] normal-case text-zinc-100 outline-none focus:border-cyan-400/40 focus:bg-black/60 transition"
+                                                className="mt-1 w-full rounded border border-cad-border bg-cad-bg px-2 py-1 text-[11px] normal-case text-cad-text-primary outline-none focus:border-cad-accent/40 focus:bg-cad-surface transition"
                                             >
                                                 <option value="solid">Liền</option>
                                                 <option value="dashed">Nét đứt</option>
@@ -1519,12 +1519,12 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                             <InspectorRow label="Trạng thái" value={<span className="font-semibold">{selectedEdge.kind === 'relationship' ? 'display-only' : snapshot.edges?.[selectedEdge.telemetryId || selectedEdge.id] || 'unknown'}</span>} />
                             <InspectorRow label="Nguồn kết nối" value={edgeSourceLabel[selectedEdge.sourceType]} />
                             <InspectorRow label="Hướng" value={<span className="capitalize">{selectedEdge.directionState}</span>} />
-                            <InspectorRow label="Nguồn" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.from}</span>} />
-                            <InspectorRow label="Đích" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.to}</span>} />
-                            <InspectorRow label="Telemetry" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.telemetryId || 'Chưa gán'}</span>} />
-                            <InspectorRow label="Feature" value={<span className="font-mono bg-black/30 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.id}</span>} />
+                            <InspectorRow label="Nguồn" value={<span className="font-mono bg-cad-elevated/60 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.from}</span>} />
+                            <InspectorRow label="Đích" value={<span className="font-mono bg-cad-elevated/60 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.to}</span>} />
+                            <InspectorRow label="Telemetry" value={<span className="font-mono bg-cad-elevated/60 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.telemetryId || 'Chưa gán'}</span>} />
+                            <InspectorRow label="Feature" value={<span className="font-mono bg-cad-elevated/60 px-1 py-0.5 rounded text-[10.5px] select-all">{selectedEdge.id}</span>} />
                             {selectedEdge.directionState !== 'confirmed' && (
-                                <div className="mt-3 rounded border border-amber-500/20 bg-amber-500/10 p-2.5 text-[10px] leading-relaxed text-amber-200 shadow-inner">
+                                <div className="mt-3 rounded border border-cad-warn/20 bg-cad-warn/10 p-2.5 text-[10px] leading-relaxed text-cad-warn shadow-inner">
                                     Tuyến này chưa có hướng hợp lệ cho downstream. Hãy chọn lại điểm gốc hoặc xác nhận thủ công.
                                 </div>
                             )}
@@ -1532,12 +1532,12 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                     )}
 
                     {tab !== 'fiber' && (
-                        <div className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2 font-sans">
-                            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-300">
-                                <TriangleAlert size={13} className="text-zinc-500" /> Cấu hình
+                        <div className="rounded-lg border border-cad-border bg-cad-surface/60 p-3 space-y-2 font-sans">
+                            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-cad-text-primary">
+                                <TriangleAlert size={13} className="text-cad-text-muted" /> Cấu hình
                             </div>
                             {evaluation.diagnostics.length === 0 ? (
-                                <div className="flex items-center gap-1.5 text-[10.5px] text-emerald-400 font-semibold bg-emerald-500/5 border border-emerald-500/15 p-2 rounded-lg">
+                                <div className="flex items-center gap-1.5 text-[10.5px] text-cad-accent font-semibold bg-cad-accent/5 border border-cad-accent/15 p-2 rounded-lg">
                                     <CheckCircle2 size={13} /> Không phát hiện lỗi topology.
                                 </div>
                             ) : (
@@ -1546,9 +1546,9 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                                         <button
                                             key={`${diagnostic.type}-${diagnostic.edgeId || diagnostic.featureId || index}`}
                                             onClick={() => handleDiagnosticSelect(diagnostic.edgeId || diagnostic.featureId)}
-                                            className="w-full rounded-lg border border-purple-500/20 bg-purple-500/5 p-2.5 text-left text-[10.5px] leading-relaxed text-purple-200 hover:bg-purple-500/15 hover:border-purple-500/35 transition duration-200"
+                                            className="w-full rounded-lg border border-cad-border bg-cad-elevated/40 p-2.5 text-left text-[10.5px] leading-relaxed text-cad-text-secondary hover:bg-cad-text-primary/10 hover:border-cad-border transition duration-200"
                                         >
-                                            <div className="mb-1 flex items-center gap-1 font-bold text-purple-400">
+                                            <div className="mb-1 flex items-center gap-1 font-bold text-cad-text-secondary">
                                                 <AlertTriangle size={12} /> {diagnostic.type}
                                             </div>
                                             {diagnostic.message}
@@ -1595,19 +1595,19 @@ export const NetworkGraphPanel: React.FC = () => {
     const resetSimulation = useNetworkStatusStore(s => s.resetSimulation);
 
     return (
-        <div className="flex h-full min-h-0 flex-col bg-[#0b0f12] text-zinc-100 font-sans">
+        <div className="flex h-full min-h-0 flex-col bg-cad-bg text-cad-text-primary font-sans">
             <div
-                className="flex shrink-0 items-center justify-between border-b border-white/10 px-3 py-2 font-sans"
+                className="flex shrink-0 items-center justify-between border-b border-cad-border px-3 py-2 font-sans"
                 {...dragHandleProps}
             >
                 <div className="flex items-center gap-2">
-                    <Router size={15} className="text-cyan-300" />
+                    <Router size={15} className="cad-icon-accent" />
                     <div>
                         <div className="text-xs font-bold uppercase tracking-wide">Network Graph</div>
-                        <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+                        <div className="flex items-center gap-2 text-[10px] text-cad-text-muted">
                             <span>Công cụ vận hành và chỉnh topology</span>
                             {mode === 'realtime' && isStale && (
-                                <span className="rounded border border-orange-500/30 bg-orange-500/10 px-1.5 py-0.5 text-[9px] font-bold text-orange-300">
+                                <span className="rounded border border-cad-warn/30 bg-cad-warn/10 px-1.5 py-0.5 text-[9px] font-bold text-cad-warn">
                                     stale
                                 </span>
                             )}
@@ -1616,44 +1616,44 @@ export const NetworkGraphPanel: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-1">
-                    <button className="rounded border border-white/10 p-1.5 text-zinc-300 hover:bg-white/10 font-sans" onClick={onPin} title={isPinned ? 'Bỏ ghim' : 'Ghim'}>
+                    <button className="rounded border border-cad-border p-1.5 text-cad-text-primary hover:bg-cad-text-primary/10 font-sans" onClick={onPin} title={isPinned ? 'Bỏ ghim' : 'Ghim'}>
                         {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
                     </button>
-                    <button className="rounded border border-white/10 p-1.5 text-zinc-300 hover:bg-white/10 font-sans" onClick={onClose} title="Đóng">
+                    <button className="rounded border border-cad-border p-1.5 text-cad-text-primary hover:bg-cad-text-primary/10 font-sans" onClick={onClose} title="Đóng">
                         <X size={14} />
                     </button>
                 </div>
             </div>
 
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-3 py-2 font-sans">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-cad-border px-3 py-2 font-sans">
                 <div className="flex items-center gap-2">
-                    <div className="flex rounded border border-white/10 bg-black/20 p-0.5 text-[11px] font-semibold">
-                        <button className={cn('rounded px-3 py-1', tab === 'intersection' ? 'bg-cyan-400 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setTab('intersection')}>
+                    <div className="flex rounded border border-cad-border bg-cad-surface/60 p-0.5 text-[11px] font-semibold">
+                        <button className={cn('rounded px-3 py-1', tab === 'intersection' ? 'bg-cad-accent text-black' : 'text-cad-text-secondary hover:text-cad-text-primary')} onClick={() => setTab('intersection')}>
                             Nút giao
                         </button>
-                        <button className={cn('rounded px-3 py-1', tab === 'route' ? 'bg-cyan-400 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setTab('route')}>
+                        <button className={cn('rounded px-3 py-1', tab === 'route' ? 'bg-cad-accent text-black' : 'text-cad-text-secondary hover:text-cad-text-primary')} onClick={() => setTab('route')}>
                             Toàn tuyến
                         </button>
-                        <button className={cn('rounded px-3 py-1', tab === 'fiber' ? 'bg-cyan-400 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setTab('fiber')}>
+                        <button className={cn('rounded px-3 py-1', tab === 'fiber' ? 'bg-cad-accent text-black' : 'text-cad-text-secondary hover:text-cad-text-primary')} onClick={() => setTab('fiber')}>
                             Fiber
                         </button>
                     </div>
                     <button
-                        className="inline-flex items-center gap-1 rounded border border-white/10 px-2 py-1 text-[11px] font-semibold text-zinc-300 hover:bg-white/10"
+                        className="inline-flex items-center gap-1 rounded border border-cad-border px-2 py-1 text-[11px] font-semibold text-cad-text-primary hover:bg-cad-text-primary/10"
                         onClick={() => setFitVersion(version => version + 1)}
                     >
                         <Focus size={12} /> Fit
                     </button>
-                    <div className="flex rounded border border-white/10 bg-black/20 p-0.5 text-[11px] font-semibold">
-                        <button className={cn('rounded px-3 py-1', layoutMode === 'graph' ? 'bg-cyan-400 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setLayoutMode('graph')}>
+                    <div className="flex rounded border border-cad-border bg-cad-surface/60 p-0.5 text-[11px] font-semibold">
+                        <button className={cn('rounded px-3 py-1', layoutMode === 'graph' ? 'bg-cad-accent text-black' : 'text-cad-text-secondary hover:text-cad-text-primary')} onClick={() => setLayoutMode('graph')}>
                             <Share2 size={12} className="inline-block" /> Graph
                         </button>
-                        <button className={cn('rounded px-3 py-1', layoutMode === 'tree' ? 'bg-cyan-400 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setLayoutMode('tree')}>
+                        <button className={cn('rounded px-3 py-1', layoutMode === 'tree' ? 'bg-cad-accent text-black' : 'text-cad-text-secondary hover:text-cad-text-primary')} onClick={() => setLayoutMode('tree')}>
                             Tree
                         </button>
                         {layoutMode === 'tree' && (
                             <button
-                                className="ml-1 inline-flex items-center gap-1 rounded px-3 py-1 text-zinc-300 hover:bg-white/10"
+                                className="ml-1 inline-flex items-center gap-1 rounded px-3 py-1 text-cad-text-primary hover:bg-cad-text-primary/10"
                                 onClick={() => {
                                     setTreeArrangeVersion(version => version + 1);
                                     setFitVersion(version => version + 1);
@@ -1667,21 +1667,21 @@ export const NetworkGraphPanel: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <div className="hidden items-center gap-2 text-[10px] text-zinc-500 md:flex">
+                    <div className="hidden items-center gap-2 text-[10px] text-cad-text-muted md:flex">
                         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-400" />Online</span>
                         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-400" />Direct</span>
                         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-400" />Upstream</span>
                         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-purple-400" />Config</span>
                     </div>
-                    <div className="flex rounded border border-white/10 bg-black/20 p-0.5 text-[11px] font-semibold">
-                        <button className={cn('rounded px-3 py-1', mode === 'realtime' ? 'bg-emerald-400 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setMode('realtime')}>
+                    <div className="flex rounded border border-cad-border bg-cad-surface/60 p-0.5 text-[11px] font-semibold">
+                        <button className={cn('rounded px-3 py-1', mode === 'realtime' ? 'bg-cad-accent text-black' : 'text-cad-text-secondary hover:text-cad-text-primary')} onClick={() => setMode('realtime')}>
                             Realtime
                         </button>
-                        <button className={cn('rounded px-3 py-1', mode === 'simulation' ? 'bg-amber-300 text-black' : 'text-zinc-400 hover:text-zinc-200')} onClick={() => setMode('simulation')}>
+                        <button className={cn('rounded px-3 py-1', mode === 'simulation' ? 'bg-cad-warn text-black' : 'text-cad-text-secondary hover:text-cad-text-primary')} onClick={() => setMode('simulation')}>
                             Simulation
                         </button>
                     </div>
-                    <button className="inline-flex items-center gap-1 rounded border border-white/10 px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/10" onClick={resetSimulation}>
+                    <button className="inline-flex items-center gap-1 rounded border border-cad-border px-2 py-1 text-[11px] text-cad-text-primary hover:bg-cad-text-primary/10" onClick={resetSimulation}>
                         <RefreshCcw size={12} /> Reset
                     </button>
                 </div>

@@ -401,7 +401,7 @@ export function DrawingExplorer() {
     setDeleteModal({ isOpen: false, type: null, id: '', name: '' });
   };
 
-  if (error) return <div className="p-6 text-center text-red-400">{error}</div>;
+  if (error) return <div className="p-6 text-center text-cad-danger">{error}</div>;
   if (isLoading) return <div className="p-6 text-center text-cad-accent animate-pulse">Syncing...</div>;
   if (!isReady) return <div className="p-6 text-center text-cad-text-muted">No design state loaded</div>;
 
@@ -449,7 +449,7 @@ export function DrawingExplorer() {
                       </button>
                       <button 
                         onClick={isLoading ? undefined : (e) => { e.stopPropagation(); setDeleteModal({ isOpen: true, type: 'region', id: item.id, name: item.data.name }); }} 
-                        className={cn("p-0.5 hover:bg-red-500 rounded", isLoading && "opacity-20 cursor-not-allowed")}
+                        className={cn("p-0.5 hover:bg-cad-danger rounded", isLoading && "opacity-20 cursor-not-allowed")}
                         disabled={isLoading}
                       >
                         <Trash2 size={10} />
@@ -467,7 +467,7 @@ export function DrawingExplorer() {
                   dragId={item.id} dragType="group"
                   className={cn(
                     "transition-all",
-                    selectedGroupId === item.id ? "bg-emerald-500/10 border-l-2 border-emerald-500" : ""
+                    selectedGroupId === item.id ? "bg-cad-accent/10 border-l-2 border-cad-accent" : ""
                   )}
                   icon={<GroupIcon type={(item.data as FeatureGroupState).type} name={item.data.name} color={(item.data as FeatureGroupState).is_visible === false ? "#94a3b8" : "#fbbf24"} />}
                   onRename={(newName) => dispatchEvent({ type: 'FeatureGroupUpdated', payload: { id: item.id, name: newName } })}
@@ -477,21 +477,21 @@ export function DrawingExplorer() {
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => { e.stopPropagation(); setThemeTargetFeatureIds(undefined); setThemeGroupId(item.id); }}
-                        className="p-1 hover:bg-emerald-500/20 rounded text-emerald-400 hover:text-emerald-300 transition-colors"
+                        className="p-1 hover:bg-cad-accent/20 rounded text-cad-accent hover:text-cad-active transition-colors"
                         title="Theme"
                       >
                         <Palette size={12} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleImportToGroup(item.id); }}
-                        className="p-1 hover:bg-emerald-500/20 rounded text-emerald-400 hover:text-emerald-300 transition-colors"
+                        className="p-1 hover:bg-cad-accent/20 rounded text-cad-accent hover:text-cad-active transition-colors"
                         title="Import"
                       >
                         <FileUp size={12} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setDeleteModal({ isOpen: true, type: 'group', id: item.id, name: item.data.name }); }}
-                        className="p-1 hover:bg-red-500/20 rounded text-red-500/60 hover:text-red-500 transition-colors"
+                        className="p-1 hover:bg-cad-danger/20 rounded text-cad-danger/60 hover:text-cad-danger transition-colors"
                         title="Delete Group"
                       >
                         <Trash2 size={12} />
@@ -531,7 +531,7 @@ export function DrawingExplorer() {
                       customAction={isIntersectionWithChildren ? (
                         <button
                           onClick={(e) => handleOpenFeatureChildrenTheme(feature, e)}
-                          className="p-0.5 hover:bg-emerald-500/20 rounded text-emerald-400 hover:text-emerald-300 transition-colors"
+                          className="p-0.5 hover:bg-cad-accent/20 rounded text-cad-accent hover:text-cad-active transition-colors"
                           title="Chỉnh giao diện đối tượng trong nút giao"
                         >
                           <Palette size={10} />
@@ -574,13 +574,13 @@ export function DrawingExplorer() {
       {/* Context Menu Overlay */}
       {contextMenu && (
         <div 
-          className="fixed z-[9999] bg-cad-surface border border-cad-border rounded-md shadow-2xl py-1 min-w-[120px]"
+          className="fixed z-cad-dropdown bg-cad-surface border border-cad-border rounded-md shadow-2xl py-1 min-w-[120px]"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={() => setContextMenu(null)}
         >
           <button className="w-full text-left px-3 py-1.5 text-[9px] text-cad-text-primary hover:bg-cad-elevated transition-colors uppercase tracking-wider font-bold">Properties</button>
           <button 
-            className="w-full text-left px-3 py-1.5 text-[9px] hover:bg-red-500/10 text-red-400 transition-colors uppercase tracking-wider font-bold" 
+            className="w-full text-left px-3 py-1.5 text-[9px] hover:bg-cad-danger/10 text-cad-danger transition-colors uppercase tracking-wider font-bold"
             onClick={() => setDeleteModal({ isOpen: true, type: contextMenu.type as any, id: contextMenu.id, name: contextMenu.data.name })}
           >
             Delete

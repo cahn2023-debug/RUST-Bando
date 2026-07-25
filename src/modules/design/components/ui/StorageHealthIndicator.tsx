@@ -159,7 +159,7 @@ export function StorageHealthIndicator() {
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 top-9 z-[2300] w-[340px] border border-cad-border bg-cad-surface shadow-2xl">
+        <div className="absolute left-0 top-9 z-cad-dropdown w-[340px] border border-cad-border bg-cad-surface shadow-2xl">
           <div className="flex items-center justify-between border-b border-cad-border px-3 py-2">
             <div className="flex items-center gap-2">
               {warning ? <AlertTriangle size={15} className="text-cad-warn" /> : <CheckCircle2 size={15} className="text-cad-accent" />}

@@ -69,10 +69,10 @@ const StreetViewPage: React.FC = () => {
 
   if (!location) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#1a1a1a] text-white font-sans">
+      <div className="flex items-center justify-center h-screen bg-cad-bg text-cad-text-primary font-sans">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+          <div className="w-8 h-8 border-4 border-cad-accent border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-semibold uppercase tracking-[0.24em] text-cad-text-muted">
             Đang tải dữ liệu vị trí
           </span>
         </div>

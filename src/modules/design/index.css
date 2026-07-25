@@ -10,9 +10,25 @@
   --color-cad-accent: var(--cad-accent);
   --color-cad-active: var(--cad-active);
   --color-cad-warn: var(--cad-warn);
+  --color-cad-danger: var(--cad-danger);
   --color-cad-text-primary: var(--cad-text-primary);
   --color-cad-text-secondary: var(--cad-text-secondary);
   --color-cad-text-muted: var(--cad-text-muted);
+
+  /* Z-index scale. Leaflet uses 200-1000 internally (panes 200-700, controls 1000),
+     so all app chrome above the map starts at 1100. See design-system/MASTER.md §5.
+     NOTE: Tailwind v4 generates `z-*` utilities from the `--z-index-*` namespace.
+     Naming these `--z-cad-*` would compile to nothing. */
+  --z-index-cad-map-control: 1100;
+  --z-index-cad-panel: 2000;
+  --z-index-cad-floating: 2200;
+  --z-index-cad-dropdown: 3000;
+  --z-index-cad-overlay: 4000;
+  --z-index-cad-modal: 4100;
+  --z-index-cad-modal-nested: 4200;
+  --z-index-cad-toast: 5000;
+  --z-index-cad-tooltip: 5500;
+  --z-index-cad-debug: 6000;
 
   --font-sans: "Inter", "Segoe UI", Roboto, sans-serif;
   --font-display: "Inter", "Segoe UI", Roboto, sans-serif;
@@ -72,6 +88,7 @@
   --cad-accent: #10B981;
   --cad-active: #34D399;
   --cad-warn: #F59E0B;
+  --cad-danger: #F87171;
   --cad-text-primary: #E5E7EB;
   --cad-text-secondary: #9CA3AF;
   --cad-text-muted: #4B5563;
@@ -87,6 +104,7 @@
   --cad-accent: #059669;
   --cad-active: #10B981;
   --cad-warn: #D97706;
+  --cad-danger: #DC2626;
   --cad-text-primary: #0F172A;
   --cad-text-secondary: #334155;
   --cad-text-muted: #64748B;
@@ -221,12 +239,12 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-zinc-700/50 rounded-full;
+    @apply bg-cad-text-muted/50 rounded-full;
     transition: background 0.2s ease;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-zinc-500;
+    @apply bg-cad-text-secondary;
   }
 
   input::selection,
@@ -238,9 +256,23 @@
     @apply bg-cad-accent/30 text-white;
   }
 
+  /* Theme-aware focus ring: accent ring + backdrop-coloured offset so it reads
+     correctly in both light and dark mode. */
   :focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px rgb(16 185 129 / 0.6), 0 0 0 4px rgb(15 17 21 / 1);
+    box-shadow: 0 0 0 2px var(--color-cad-bg), 0 0 0 4px var(--color-cad-accent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -295,11 +327,15 @@
   }
 
   .cad-button-ghost {
-    @apply border-transparent bg-transparent text-cad-text-muted hover:bg-white/5 hover:text-cad-text-primary;
+    @apply border-transparent bg-transparent text-cad-text-muted hover:bg-cad-text-primary/5 hover:text-cad-text-primary;
+  }
+
+  .cad-button-danger {
+    @apply border-cad-danger/40 bg-cad-danger/10 text-cad-danger hover:bg-cad-danger/20;
   }
 
   .cad-icon-button {
-    @apply inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent bg-transparent text-cad-text-muted transition-colors hover:bg-white/5 hover:text-cad-text-primary;
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent bg-transparent text-cad-text-muted transition-colors hover:bg-cad-text-primary/5 hover:text-cad-text-primary;
   }
 
   .cad-icon-xs {
@@ -352,7 +388,7 @@
   }
 
   .cad-icon-danger {
-    color: #f87171;
+    color: var(--color-cad-danger);
   }
 
   .cad-icon-button-active {
@@ -390,7 +426,7 @@
   }
 
   .cad-tab {
-    @apply relative inline-flex h-8 items-center rounded-t-md border border-transparent px-4 text-[10px] font-black uppercase tracking-[0.16em] text-cad-text-muted transition-colors hover:bg-white/5 hover:text-cad-text-primary;
+    @apply relative inline-flex h-8 items-center rounded-t-md border border-transparent px-4 text-[10px] font-black uppercase tracking-[0.16em] text-cad-text-muted transition-colors hover:bg-cad-text-primary/5 hover:text-cad-text-primary;
   }
 
   .cad-tab-active {

@@ -19,7 +19,7 @@ export function StatusBar() {
         {/* Sync Controller keeps its internal design but fits in the bar */}
         <SyncController />
 
-        <div className="flex items-center gap-2 border-l border-white/10 pl-4">
+        <div className="flex items-center gap-2 border-l border-cad-border pl-4">
           <div className={`w-1 h-1 rounded-full ${syncStatus === 0 ? 'bg-cad-accent' : 'bg-cad-warn'}`} />
           <span className="uppercase tracking-tighter text-[8px]">{syncStatus === 0 ? 'Saved' : 'Changes'}</span>
         </div>

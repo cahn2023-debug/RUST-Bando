@@ -140,7 +140,7 @@ export const VisibilityTool: React.FC = () => {
             {isOpen && createPortal(
                 <div
                     id="visibility-dropdown"
-                    className="fixed w-72 bg-cad-elevated border border-cad-border rounded-lg shadow-2xl z-[9999] p-1 animate-in fade-in zoom-in duration-150 overflow-hidden"
+                    className="fixed w-72 bg-cad-elevated border border-cad-border rounded-lg shadow-2xl z-cad-dropdown p-1 animate-in fade-in zoom-in duration-150 overflow-hidden"
                     style={{
                         top: `${coords.top}px`,
                         left: `${coords.left}px`,

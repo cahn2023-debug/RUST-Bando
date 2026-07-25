@@ -1,7 +1,7 @@
 export function CommandLine() {
   return (
-    <div className="h-[60px] bg-black border-t border-cad-border flex flex-col px-4 py-1.5 gap-1 shrink-0">
-      <div className="flex-1 flex items-center bg-[#0a0a0a] border border-cad-border/50 px-3 rounded-sm">
+    <div className="h-[60px] bg-cad-bg border-t border-cad-border flex flex-col px-4 py-1.5 gap-1 shrink-0">
+      <div className="flex-1 flex items-center bg-cad-surface border border-cad-border/50 px-3 rounded-sm">
         <span className="font-mono text-cad-accent text-[11px] mr-2">COMMAND:</span>
         <input 
           type="text" 

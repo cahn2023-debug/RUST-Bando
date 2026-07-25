@@ -108,7 +108,7 @@ export const InteractivePPM: React.FC = () => {
 
     return createPortal(
         <div
-            className="fixed pointer-events-none z-[10000] flex flex-col items-center gap-1 -translate-x-1/2 -translate-y-[calc(100%+15px)] animate-in fade-in duration-200"
+            className="fixed pointer-events-none z-cad-tooltip flex flex-col items-center gap-1 -translate-x-1/2 -translate-y-[calc(100%+15px)] animate-in fade-in duration-200"
             style={{ left: ppmInfo.x, top: ppmInfo.y }}
         >
             <div className="bg-black/80 backdrop-blur-sm border border-white/20 px-2 py-1 rounded shadow-2xl flex flex-col items-center min-w-[80px]">

@@ -5,6 +5,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { Check, ChevronDown, ChevronRight, Download, Eye, FileText, Loader2, X } from "lucide-react";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import { resolveMediaAsset } from "@IMPLEMENT/services/mediaAssetService";
+import { Button } from "@DESIGN/components/ui/Button";
 import { cn } from "@TOOL/utils/cn";
 import {
   buildReportModel,
@@ -369,7 +370,7 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
   }
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/65 backdrop-blur-sm flex items-center justify-center p-6">
+    <div className="fixed inset-0 z-cad-modal bg-black/65 backdrop-blur-sm flex items-center justify-center p-6">
       <div className="w-[min(1180px,96vw)] h-[min(760px,92vh)] bg-cad-surface border border-cad-border shadow-2xl flex flex-col overflow-hidden rounded">
         <div className="h-14 px-5 border-b border-cad-border flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
@@ -381,9 +382,7 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
               <p className="text-[10px] text-cad-text-muted">{reportModel.sections.length} mục chi tiết</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-cad-text-muted hover:text-white hover:bg-white/10 rounded">
-            <X size={18} />
-          </button>
+          <Button variant="ghost" size="md" icon={X} ariaLabel="Đóng hộp thoại báo cáo" onClick={onClose} />
         </div>
 
         <div className="h-12 border-b border-cad-border flex items-center justify-between px-5 shrink-0">
@@ -397,24 +396,27 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
             <button
               onClick={handlePreview}
               disabled={isCapturing}
-              className="px-3 py-1.5 text-[10px] font-bold uppercase rounded border border-cad-border text-cad-text-secondary hover:text-white flex items-center gap-2 disabled:opacity-50"
+              className="px-3 py-1.5 text-[10px] font-bold uppercase rounded border border-cad-border text-cad-text-secondary hover:text-cad-text-primary flex items-center gap-2 disabled:opacity-50"
             >
               {isCapturing ? <Loader2 size={13} className="animate-spin" /> : <Eye size={13} />}
               Preview
             </button>
           </div>
-          <button
+          <Button
+            variant="primary"
+            size="md"
+            icon={Download}
+            loading={isExporting}
+            disabled={reportModel.sections.length === 0}
             onClick={handleExport}
-            disabled={isExporting || reportModel.sections.length === 0}
-            className="px-4 py-2 text-[10px] font-black uppercase rounded bg-cad-accent text-black hover:bg-cad-accent/90 flex items-center gap-2 disabled:opacity-50"
+            className="uppercase tracking-wide"
           >
-            {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
             Xuất Word
-          </button>
+          </Button>
         </div>
 
         {error && (
-          <div className="px-5 py-2 bg-red-500/10 text-red-300 text-xs border-b border-red-500/20">
+          <div className="px-5 py-2 bg-cad-danger/10 text-cad-danger text-xs border-b border-cad-danger/20">
             {error}
           </div>
         )}
@@ -427,7 +429,7 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
 
         <div className="flex-1 min-h-0 grid grid-cols-[320px_1fr]">
           <aside className="border-r border-cad-border overflow-y-auto p-3">
-            <label className="mb-3 flex items-start gap-2 rounded border border-cad-border bg-white/5 p-2 text-[10px] text-cad-text-secondary">
+            <label className="mb-3 flex items-start gap-2 rounded border border-cad-border bg-cad-elevated p-2 text-[10px] text-cad-text-secondary">
               <input
                 type="checkbox"
                 className="mt-0.5"
@@ -448,13 +450,13 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
                 return (
                   <div
                     key={item.key}
-                    className="flex items-center gap-1 rounded px-1 py-1 hover:bg-white/5 text-xs"
+                    className="flex items-center gap-1 rounded px-1 py-1 hover:bg-cad-text-primary/5 text-xs"
                     style={{ paddingLeft: 8 + item.level * 16 }}
                   >
                     <button
                       type="button"
                       onClick={() => hasChildren && toggleSelectionExpanded(item.key)}
-                      className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded text-cad-text-muted", hasChildren && "hover:bg-white/10 hover:text-cad-text-primary")}
+                      className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded text-cad-text-muted", hasChildren && "hover:bg-cad-text-primary/10 hover:text-cad-text-primary")}
                       aria-label={hasChildren ? (isExpanded ? "Thu gọn mục" : "Mở rộng mục") : undefined}
                       disabled={!hasChildren}
                     >

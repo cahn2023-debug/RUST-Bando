@@ -177,7 +177,7 @@ export function MapLayer({
             <InteractivePPM />
 
             {showDORILayers && (
-                <div className="absolute bottom-6 right-16 z-[1000] animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="absolute bottom-6 right-16 z-cad-map-control animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <DORILegend />
                 </div>
             )}

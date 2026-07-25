@@ -47,7 +47,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-cad-modal-nested flex items-center justify-center bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
       <div className="bg-cad-surface border border-cad-border rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col font-sans">
         
         {/* Header */}
@@ -71,9 +71,9 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
 
         {/* Content */}
         <div className="p-6 space-y-6">
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex gap-3">
-            <AlertCircle size={16} className="text-blue-400 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-blue-400 leading-relaxed">
+          <div className="bg-cad-accent/10 border border-cad-accent/20 rounded-lg p-3 flex gap-3">
+            <AlertCircle size={16} className="text-cad-accent shrink-0 mt-0.5" />
+            <p className="text-[11px] text-cad-accent leading-relaxed">
               Vui lòng chọn các cột tương ứng từ file Excel của bạn. Các cột không được chọn sẽ tự động được đưa vào phần <b>Thông tin bổ sung</b> (Properties).
             </p>
           </div>
@@ -160,7 +160,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
         <div className="p-5 border-t border-cad-border bg-cad-elevated flex justify-end gap-3">
           <button 
             onClick={onClose}
-            className="px-5 py-2.5 rounded-lg text-xs font-bold text-cad-text-secondary hover:text-white hover:bg-white/5 transition-all"
+            className="px-5 py-2.5 rounded-lg text-xs font-bold text-cad-text-secondary hover:text-cad-text-primary hover:bg-cad-text-primary/10 transition-all"
           >
             Hủy bỏ
           </button>

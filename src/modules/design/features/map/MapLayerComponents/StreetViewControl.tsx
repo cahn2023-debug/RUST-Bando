@@ -9,6 +9,7 @@ import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getEffectiveCameraSpecs, getParsedMetadata } from '@TOOL/utils/featureMetadata';
 import { calculateHFOV, mapRotationToHeading, SENSOR_SIZES } from '@TOOL/utils/cameraMath';
 import { getCleanName } from '@TOOL/utils/featureUtils';
+import { Button } from '@DESIGN/components/ui/Button';
 import { ImageEditorModal, type ImageEditorSaveResult } from '@DESIGN/components/ui/ImageEditorModal';
 import { importMediaAsset, type MediaFeaturePatch } from '@IMPLEMENT/services/mediaAssetService';
 import { requestStorageHealthRefresh } from '@IMPLEMENT/services/projectStorageService';
@@ -1193,10 +1194,10 @@ export function StreetViewControl() {
           onClick={() => setIsActive((value) => !value)}
           className={`flex items-center justify-center w-[38px] h-[38px] rounded-full transition-all duration-300 ${
             isActive
-              ? 'bg-emerald-500/18 ring-2 ring-emerald-400/70 shadow-[0_0_0_4px_rgba(16,185,129,0.08)]'
+              ? 'bg-cad-accent/20 ring-2 ring-cad-active/70 shadow-lg shadow-cad-accent/10'
               : hasStreetViewWindow
-                ? 'bg-black/20 hover:bg-black/30'
-                : 'bg-transparent hover:bg-black/10'
+                ? 'bg-cad-surface hover:bg-cad-elevated'
+                : 'bg-transparent hover:bg-cad-text-primary/10'
           }`}
           title="Google Street View"
         >
@@ -1246,8 +1247,8 @@ export function StreetViewControl() {
       )}
 
       {(feedback || (isActive && !location)) && (
-        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[5000] bg-[#1B1E24]/92 border border-emerald-400/25 text-emerald-200 px-5 py-2 rounded-full shadow-2xl text-[10px] uppercase font-bold tracking-[0.22em] backdrop-blur-md flex items-center gap-3">
-          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+        <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-cad-toast bg-cad-elevated/92 border border-cad-accent/25 text-cad-accent px-5 py-2 rounded-full shadow-2xl text-[10px] uppercase font-bold tracking-[0.22em] backdrop-blur-md flex items-center gap-3">
+          <div className="w-2 h-2 bg-cad-active rounded-full animate-pulse" />
           <span>
             {feedback ||
               `Chon vi tri de mo Street View | ${formatCoords(pegmanState.location)}`}
@@ -1256,23 +1257,29 @@ export function StreetViewControl() {
       )}
 
       {showTargetFeaturePicker && pendingStreetViewCroppedImage && (
-        <div className="fixed inset-0 z-[6500] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1f1f1f] border border-[#333] rounded-xl shadow-2xl w-full max-w-md p-5 space-y-4 text-white font-mono">
-            <div className="flex items-center justify-between border-b border-[#333] pb-3">
-              <h3 className="text-xs font-black uppercase tracking-widest text-indigo-400">Chọn đối tượng đính kèm ảnh</h3>
-              <button onClick={() => setShowTargetFeaturePicker(false)} className="text-[#aaa] hover:text-white"><X className="w-4 h-4" /></button>
+        <div className="fixed inset-0 z-cad-modal-nested bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-cad-surface border border-cad-border rounded-xl shadow-2xl w-full max-w-md p-5 space-y-4 text-cad-text-primary font-mono">
+            <div className="flex items-center justify-between border-b border-cad-border pb-3">
+              <h3 className="text-xs font-black uppercase tracking-widest text-cad-accent">Chọn đối tượng đính kèm ảnh</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={X}
+                ariaLabel="Đóng"
+                onClick={() => setShowTargetFeaturePicker(false)}
+              />
             </div>
 
-            <div className="aspect-video w-full rounded border border-[#333] overflow-hidden bg-black flex items-center justify-center">
+            <div className="aspect-video w-full rounded border border-cad-border overflow-hidden bg-cad-bg flex items-center justify-center">
               <img src={pendingStreetViewCroppedImage} alt="Street View Crop" className="max-h-full max-w-full object-contain" />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-bold text-[#aaa] uppercase tracking-wider">Đối tượng nhận ảnh (Feature Target)</label>
+              <label className="text-[9px] font-bold text-cad-text-secondary uppercase tracking-wider">Đối tượng nhận ảnh (Feature Target)</label>
               <select
                 value={targetFeatureId || ''}
                 onChange={(e) => setTargetFeatureId(e.target.value || null)}
-                className="w-full bg-[#111] border border-[#333] rounded px-3 py-2 text-xs text-white outline-none focus:border-indigo-400"
+                className="w-full bg-cad-bg border border-cad-border rounded px-3 py-2 text-xs text-cad-text-primary outline-none focus:border-cad-accent"
               >
                 <option value="">-- Chọn đối tượng trong dự án --</option>
                 {Object.values(state?.features || {}).map((feat) => (
@@ -1283,23 +1290,27 @@ export function StreetViewControl() {
               </select>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-[#333]">
-              <button
+            <div className="flex justify-end gap-2 pt-2 border-t border-cad-border">
+              <Button
+                variant="secondary"
+                size="md"
+                className="uppercase"
                 onClick={() => setShowTargetFeaturePicker(false)}
-                className="px-4 py-2 rounded bg-[#111] border border-[#333] text-[10px] font-black uppercase text-[#aaa] hover:text-white"
               >
                 Hủy
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                className="uppercase"
                 disabled={!targetFeatureId}
                 onClick={() => {
                   setShowTargetFeaturePicker(false);
                   setShowStreetViewImageEditor(true);
                 }}
-                className="px-4 py-2 rounded bg-indigo-500 text-white text-[10px] font-black uppercase hover:bg-indigo-400 disabled:opacity-40"
               >
                 Chỉnh sửa & Lưu ảnh
-              </button>
+              </Button>
             </div>
           </div>
         </div>

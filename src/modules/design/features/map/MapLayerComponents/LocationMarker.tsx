@@ -165,7 +165,7 @@ export function LocationMarker({
     return (
         <div
             ref={popupRef}
-            className="absolute z-[1000] min-w-48 -translate-x-1/2 rounded-sm border border-cad-border bg-cad-elevated text-cad-text-primary font-mono shadow-2xl shadow-black/40 pointer-events-auto overflow-hidden"
+            className="absolute z-cad-map-control min-w-48 -translate-x-1/2 rounded-sm border border-cad-border bg-cad-elevated text-cad-text-primary font-mono shadow-2xl shadow-black/40 pointer-events-auto overflow-hidden"
             style={{
                 left: coordinatePopup.x,
                 top: coordinatePopup.y,

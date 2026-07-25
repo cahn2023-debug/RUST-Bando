@@ -33,7 +33,7 @@ export function TopToolbar({ onSave, onUndo, onRedo }: TopToolbarProps) {
           )}
         </button>
         <StorageHealthIndicator />
-        <div className="mx-1 h-4 w-px bg-white/10" />
+        <div className="mx-1 h-4 w-px bg-cad-border" />
         <button
           onClick={onUndo}
           className="cad-icon-button"
@@ -60,7 +60,7 @@ export function TopToolbar({ onSave, onUndo, onRedo }: TopToolbarProps) {
           />
         </div>
 
-        <div className="mx-1 h-4 w-px bg-white/10" />
+        <div className="mx-1 h-4 w-px bg-cad-border" />
 
         <div className="flex items-center gap-1.5">
           <LanguageSwitcher />
@@ -70,21 +70,21 @@ export function TopToolbar({ onSave, onUndo, onRedo }: TopToolbarProps) {
             className={cn(
               "flex items-center justify-center w-7 h-7 rounded-md border transition-all cursor-pointer shadow-[0_0_8px_rgba(16,185,129,0.25)]",
               resolvedTheme === 'dark'
-                ? "border-emerald-500/90 bg-emerald-500/10 text-amber-400 hover:bg-emerald-500/20 hover:border-emerald-400"
-                : "border-emerald-600/90 bg-emerald-600/10 text-indigo-600 hover:bg-emerald-600/20 hover:border-emerald-500"
+                ? "border-cad-accent/90 bg-cad-accent/10 text-cad-warn hover:bg-cad-accent/20 hover:border-cad-accent"
+                : "border-cad-accent/90 bg-cad-accent/10 text-cad-text-secondary hover:bg-cad-accent/20 hover:border-cad-accent"
             )}
             title={resolvedTheme === 'dark' ? t('settings.light', 'Switch to Light Mode') : t('settings.dark', 'Switch to Dark Mode')}
             aria-label="Toggle Theme"
           >
             {resolvedTheme === 'dark' ? (
-              <Sun size={15} className="text-amber-400 stroke-[2.2]" aria-hidden="true" />
+              <Sun size={15} className="text-cad-warn stroke-[2.2]" aria-hidden="true" />
             ) : (
-              <Moon size={15} className="text-indigo-500 stroke-[2.2]" aria-hidden="true" />
+              <Moon size={15} className="text-cad-text-secondary stroke-[2.2]" aria-hidden="true" />
             )}
           </button>
         </div>
 
-        <div className="mx-1 h-4 w-px bg-white/10" />
+        <div className="mx-1 h-4 w-px bg-cad-border" />
 
         <div className="flex items-center gap-2.5">
           <div className="flex flex-col items-end">
@@ -95,7 +95,7 @@ export function TopToolbar({ onSave, onUndo, onRedo }: TopToolbarProps) {
               {'role' in (user ?? {}) ? ((user as { role?: string }).role || "Staff Engineer") : "Staff Engineer"}
             </span>
           </div>
-          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-cad-border bg-gradient-to-br from-cad-accent to-blue-600 shadow-lg shadow-cad-accent/10">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-cad-border bg-gradient-to-br from-cad-accent to-cad-active shadow-lg shadow-cad-accent/10">
             <User size={14} className="text-white" />
           </div>
         </div>

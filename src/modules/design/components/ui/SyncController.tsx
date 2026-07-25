@@ -19,7 +19,7 @@ export const SyncController: React.FC = () => {
     } = useSyncV2();
 
     const getStatusColor = () => {
-        if (lastError) return 'text-red-500';
+        if (lastError) return 'text-cad-danger';
         if (isSyncing) return 'text-cad-warn';
         if (!isOnline) return 'text-cad-text-muted';
         return 'text-cad-accent';
@@ -57,7 +57,7 @@ export const SyncController: React.FC = () => {
                     )}
                 </div>
 
-                {lastError && <AlertCircle size={10} className="text-red-500" />}
+                {lastError && <AlertCircle size={10} className="text-cad-danger" />}
                 {!lastError && !isSyncing && <CheckCircle2 size={10} className="text-cad-accent opacity-50" />}
             </button>
         </div>

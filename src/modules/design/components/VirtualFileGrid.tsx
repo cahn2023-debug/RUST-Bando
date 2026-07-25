@@ -65,7 +65,7 @@ function FilePreviewCard({ file }: { file: FileItemData }) {
 
     return (
         <div className="flex flex-col border border-cad-border rounded relative bg-cad-elevated overflow-hidden group hover:border-cad-accent transition-colors h-full">
-            <div className="h-40 w-full relative bg-[#1a1c23] overflow-hidden flex items-center justify-center pointer-events-none">
+            <div className="h-40 w-full relative bg-cad-bg overflow-hidden flex items-center justify-center pointer-events-none">
                 {error || !previewUrl ? (
                     <div className="text-cad-text-muted text-xs flex flex-col items-center gap-2">
                         <span className="text-2xl">📄</span>

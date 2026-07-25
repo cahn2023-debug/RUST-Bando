@@ -1,4 +1,4 @@
-import React, { forwardRef, KeyboardEvent, MouseEvent } from "react";
+import React, { forwardRef, MouseEvent } from "react";
 import { LucideIcon } from "lucide-react";
 import { cn } from "@TOOL/utils/cn";
 
@@ -22,23 +22,41 @@ export interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonE
   ariaLabel?: string;
 }
 
+/**
+ * Variant styles. All colors come from `cad-*` theme tokens so both light and dark
+ * mode work without `dark:` variants. See `design-system/MASTER.md` §1.
+ *
+ * Note: hover on transparent chrome uses `cad-text-primary/10`, never `white/10`,
+ * which is invisible in light mode.
+ */
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-cad-accent text-white hover:bg-cad-accent/90 focus-visible:ring-cad-accent/50 disabled:bg-cad-accent/40",
+    "bg-cad-accent text-black border border-cad-accent hover:bg-cad-active disabled:bg-cad-accent/40",
   secondary:
-    "bg-cad-elevated text-cad-text-primary border border-cad-border hover:bg-cad-surface focus-visible:ring-cad-accent/50 disabled:opacity-40",
+    "bg-cad-elevated text-cad-text-primary border border-cad-border hover:bg-cad-surface disabled:opacity-40",
   ghost:
-    "bg-transparent text-cad-text-primary hover:bg-white/10 focus-visible:ring-cad-accent/50 disabled:opacity-40",
+    "bg-transparent text-cad-text-muted border border-transparent hover:bg-cad-text-primary/10 hover:text-cad-text-primary disabled:opacity-40",
   danger:
-    "bg-red-600 text-white hover:bg-red-500 focus-visible:ring-red-400/50 disabled:bg-red-600/40",
+    "bg-cad-danger text-white border border-cad-danger hover:bg-cad-danger/80 disabled:bg-cad-danger/40",
   accent:
-    "bg-cad-accent/10 text-cad-accent border border-cad-accent/20 hover:bg-cad-accent/20 focus-visible:ring-cad-accent/50 disabled:opacity-40",
+    "bg-cad-accent/10 text-cad-accent border border-cad-accent/30 hover:bg-cad-accent/20 disabled:opacity-40",
 };
 
+/**
+ * Sizes match the chrome dimensions in MASTER.md §4: `sm` = 24px (compact row),
+ * `md` = 32px (standard row / icon button), `lg` = 40px (toolbar height).
+ */
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: "px-2 py-1 text-[10px] gap-1",
-  md: "px-3 py-1.5 text-[11px] gap-1.5",
-  lg: "px-4 py-2 text-xs gap-2",
+  sm: "h-6 px-2 text-[10px] gap-1",
+  md: "h-8 px-3 text-[11px] gap-1.5",
+  lg: "h-10 px-4 text-xs gap-2",
+};
+
+/** Icon-only buttons are square: same height, no horizontal padding. */
+const iconOnlySizeClasses: Record<ButtonSize, string> = {
+  sm: "h-6 w-6 p-0",
+  md: "h-8 w-8 p-0",
+  lg: "h-10 w-10 p-0",
 };
 
 const iconSizeMap: Record<ButtonSize, number> = {
@@ -48,14 +66,15 @@ const iconSizeMap: Record<ButtonSize, number> = {
 };
 
 /**
- * Accessible Button component — WCAG 2.1 AA compliant.
+ * The shared button primitive for `src/modules/design`.
  *
- * Features:
- * - Proper ARIA attributes (aria-label, aria-disabled, aria-busy)
- * - Keyboard support (Enter, Space activation)
- * - Focus-visible ring style
- * - Loading state with spinner and aria-busy
- * - Icon-only button requires ariaLabel prop
+ * Native `<button>` already handles Enter/Space activation and focus, so this component
+ * deliberately adds no keyboard handling of its own. The focus ring comes from the global
+ * `:focus-visible` rule in `index.css`, which is theme-aware.
+ *
+ * - Colors: `cad-*` tokens only, so light and dark mode both work (MASTER.md §1).
+ * - Sizes: match fixed chrome heights (MASTER.md §4) — sm 24px, md 32px, lg 40px.
+ * - Icon-only buttons render square and require `ariaLabel` (MASTER.md §9).
  */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   {
@@ -76,18 +95,17 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   ref
 ) {
   const hasTextContent = !!children && (typeof children !== "string" || children.trim().length > 0);
+  const isIconOnly = !hasTextContent && (!!Icon || !!TrailingIcon);
 
   const effectiveLabel = ariaLabel || (typeof children === "string" ? children : undefined);
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLButtonElement>): void => {
-    if (onKeyDown) onKeyDown(e);
-
-    // Activate on Enter or Space (native <button> does this, but custom role elements need it)
-    if (e.key === "Enter" || e.key === " ") {
-      // For native button elements this is handled by the browser.
-      // This handler exists so the hook can be observed by parent components.
-    }
-  };
+  if (import.meta.env.DEV && isIconOnly && !effectiveLabel) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[Button] An icon-only button was rendered without `ariaLabel`. " +
+        "Screen readers will announce it as an unlabelled button."
+    );
+  }
 
   const handleClick = (e: MouseEvent<HTMLButtonElement>): void => {
     if (disabled || loading) return;
@@ -100,20 +118,18 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       disabled={disabled || loading}
       aria-label={effectiveLabel}
-      aria-disabled={disabled || loading}
-      aria-busy={loading}
+      aria-busy={loading || undefined}
       className={cn(
-        "inline-flex items-center justify-center font-bold rounded-sm",
+        "inline-flex shrink-0 items-center justify-center rounded-sm font-bold",
         "transition-colors duration-150 ease-in-out",
         "cursor-pointer select-none",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-cad-elevated",
+        "disabled:pointer-events-none",
         variantClasses[variant],
-        sizeClasses[size],
-        (disabled || loading) && "cursor-not-allowed",
+        isIconOnly ? iconOnlySizeClasses[size] : sizeClasses[size],
         className
       )}
       onClick={handleClick}
-      onKeyDown={handleKeyDown}
+      onKeyDown={onKeyDown}
       {...rest}
     >
       {loading && (

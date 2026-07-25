@@ -2,6 +2,7 @@ import React from 'react';
 import { ListTodo, Columns, CalendarDays, Plus, Settings, Layers, Eye } from 'lucide-react';
 import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+import { Button } from '@DESIGN/components/ui/Button';
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -24,7 +25,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ activeTab, viewMode, setViewMo
   if (activeTab === 'CONTRACT' || activeTab === 'DESIGN') return null;
 
   return (
-    <div className={`h-14 bg-cad-surface border-b border-cad-border flex justify-between items-center px-4 gap-2 z-[100] relative shadow-sm`}>
+    <div className={`h-14 bg-cad-surface border-b border-cad-border flex justify-between items-center px-4 gap-2 z-cad-panel relative shadow-sm`}>
 
       {/* Left side: View Toggle or Design Tools */}
       <div className="flex items-center gap-3">
@@ -34,10 +35,15 @@ export const Toolbar: React.FC<ToolbarProps> = ({ activeTab, viewMode, setViewMo
             {onAddTask && (
               <>
                 <div className="w-[1px] h-5 bg-cad-border mx-1"></div>
-                <button onClick={onAddTask} className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-white bg-cad-accent/10 border border-cad-accent/30 hover:bg-cad-accent hover:text-black rounded-lg transition-all shadow-sm group">
-                  <Plus size={12} className="group-hover:scale-110 transition-transform" />
-                  <span className="uppercase tracking-widest">ADD TASK</span>
-                </button>
+                <Button
+                  onClick={onAddTask}
+                  variant="accent"
+                  size="sm"
+                  icon={Plus}
+                  className="px-3 py-1.5 rounded-lg shadow-sm uppercase tracking-widest hover:bg-cad-accent hover:text-black"
+                >
+                  ADD TASK
+                </Button>
               </>
             )}
           </div>
@@ -77,7 +83,7 @@ function DesignToolbarTools({ togglePalette }: { togglePalette: (id: string) => 
 
   return (
     <div className="flex items-center gap-2">
-      <div className="text-[10px] font-black text-cad-text-muted uppercase tracking-[0.2em] px-2 py-1 rounded bg-white/5 border border-white/5 mr-2">
+      <div className="text-[10px] font-black text-cad-text-muted uppercase tracking-[0.2em] px-2 py-1 rounded bg-cad-elevated border border-cad-border mr-2">
         Design Mode
       </div>
 
@@ -118,7 +124,7 @@ function ViewToggle({ current, onChange }: { current: ViewToggleMode, onChange: 
     { id: 'calendar', label: 'Calendar', icon: <CalendarDays size={12} /> }
   ];
   return (
-    <div className="flex bg-[#0f1115] p-1 rounded-xl border border-cad-border shadow-inner">
+    <div className="flex bg-cad-bg p-1 rounded-xl border border-cad-border shadow-inner">
       {modes.map(m => {
         const isActive = current === m.id;
         return (
@@ -128,8 +134,8 @@ function ViewToggle({ current, onChange }: { current: ViewToggleMode, onChange: 
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 text-[10px] font-black rounded-lg transition-all duration-300 uppercase tracking-widest",
               isActive
-                ? "bg-cad-surface text-white shadow-md border border-cad-border/50"
-                : "text-cad-text-muted hover:text-cad-text-secondary hover:bg-white/5 transparent border border-transparent"
+                ? "bg-cad-surface text-cad-text-primary shadow-md border border-cad-border/50"
+                : "text-cad-text-muted hover:text-cad-text-secondary hover:bg-cad-text-primary/5 transparent border border-transparent"
             )}
           >
             {m.icon}

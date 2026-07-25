@@ -1,4 +1,6 @@
+import { useEffect, useRef } from "react";
 import { Trash2, AlertTriangle, X } from "lucide-react";
+import { Button } from "@DESIGN/components/ui/Button";
 
 interface DeleteConfirmationModalProps {
   isOpen: boolean;
@@ -17,61 +19,63 @@ export function DeleteConfirmationModal({
   message = "Bạn có chắc chắn muốn xóa mục này không? Hành động này không thể hoàn tác và dữ liệu sẽ mất vĩnh viễn.",
   itemName,
 }: DeleteConfirmationModalProps) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  // Escape closes; focus lands on the non-destructive action (MASTER.md §7).
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    cancelRef.current?.focus();
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 animate-in fade-in duration-300">
-      {/* Overlay */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-md"
-        onClick={onClose}
-      />
+    <div className="fixed inset-0 z-cad-overlay flex items-center justify-center p-4 animate-in fade-in duration-300">
+      <div className="cad-overlay" onClick={onClose} aria-hidden="true" />
 
-      {/* Modal Card */}
       <div
-        className="relative w-full max-w-md bg-[#1e1e1e] border border-red-500/30 rounded-2xl shadow-[0_0_50px_rgba(239,68,68,0.15)] overflow-hidden animate-in zoom-in-95 duration-300"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-confirmation-title"
+        className="cad-dialog relative z-cad-modal w-full max-w-md border-cad-danger/30 animate-in zoom-in-95 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Top Accent Gradient */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent" />
+        {/* Top accent rule */}
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-cad-danger to-transparent" />
 
-        {/* Subtle Background Glow */}
-        <div className="absolute -top-20 -right-20 w-40 h-40 bg-red-500/10 rounded-full blur-[80px] pointer-events-none" />
-
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-white/5">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-500/10 rounded-lg">
-              <AlertTriangle size={20} className="text-red-500" />
+        <div className="flex items-center justify-between gap-3 border-b border-cad-border p-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="rounded-md bg-cad-danger/10 p-2">
+              <AlertTriangle size={20} className="cad-icon-danger" aria-hidden="true" />
             </div>
-            <h3 className="text-sm font-black text-white uppercase tracking-widest">{title}</h3>
+            <h3
+              id="delete-confirmation-title"
+              className="truncate text-sm font-black uppercase tracking-widest text-cad-text-primary"
+            >
+              {title}
+            </h3>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-white/40 hover:text-white hover:bg-white/5 rounded-full transition-all"
-          >
-            <X size={18} />
-          </button>
+          <Button variant="ghost" size="md" icon={X} onClick={onClose} ariaLabel="Đóng hộp thoại" />
         </div>
 
-        {/* Content */}
-        <div className="p-8 flex flex-col items-center text-center space-y-6">
-          <div className="relative">
-            <div className="w-20 h-20 bg-red-500/5 rounded-full flex items-center justify-center border border-red-500/20 shadow-[0_0_20px_rgba(239,68,68,0.1)]">
-              <Trash2 size={36} className="text-red-500 transition-transform hover:scale-110 duration-500" />
-            </div>
-            <div className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-black rounded-full flex items-center justify-center animate-bounce">
-              <span className="text-[10px] font-black">!</span>
-            </div>
+        <div className="flex flex-col items-center gap-6 p-8 text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border border-cad-danger/20 bg-cad-danger/5">
+            <Trash2 size={36} className="cad-icon-danger" aria-hidden="true" />
           </div>
 
-          <div className="space-y-3">
-            <p className="text-white/70 text-xs leading-relaxed font-medium">
-              {message}
-            </p>
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-medium leading-relaxed text-cad-text-secondary">{message}</p>
             {itemName && (
-              <div className="inline-block px-4 py-2 bg-white/5 border border-white/10 rounded-xl">
-                <span className="text-red-400 font-bold text-xs italic">
+              <div className="inline-block rounded-md border border-cad-border bg-cad-elevated px-4 py-2">
+                <span className="text-xs font-bold italic text-cad-danger">
                   &quot;{itemName}&quot;
                 </span>
               </div>
@@ -79,24 +83,22 @@ export function DeleteConfirmationModal({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-5 bg-white/[0.02] border-t border-white/5 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all border border-white/5"
-          >
+        <div className="flex gap-3 border-t border-cad-border bg-cad-elevated/40 p-5">
+          <Button ref={cancelRef} variant="secondary" size="lg" onClick={onClose} className="flex-1">
             Hủy bỏ
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="danger"
+            size="lg"
+            icon={Trash2}
+            className="flex-1"
             onClick={() => {
               onConfirm();
               onClose();
             }}
-            className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-black text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-red-500/20 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
           >
-            <Trash2 size={14} strokeWidth={3} />
             Xác nhận xóa
-          </button>
+          </Button>
         </div>
       </div>
     </div>

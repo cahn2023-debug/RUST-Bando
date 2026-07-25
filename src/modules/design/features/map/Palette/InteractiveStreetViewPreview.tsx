@@ -51,7 +51,7 @@ export const InteractiveStreetViewPreview: React.FC<InteractiveStreetViewPreview
     }
 
     return (
-        <div className="relative w-full aspect-video rounded-lg bg-white border border-slate-200 overflow-hidden shadow-2xl select-none group pointer-events-none">
+        <div className="relative w-full aspect-video rounded-lg bg-cad-surface border border-cad-border overflow-hidden shadow-2xl select-none group pointer-events-none">
             <iframe
                 src={publicUrl}
                 title="Street View Public Preview"

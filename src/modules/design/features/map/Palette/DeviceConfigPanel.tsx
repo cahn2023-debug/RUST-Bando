@@ -205,12 +205,12 @@ export const DeviceConfigPanel: React.FC = () => {
                 className="flex items-center justify-between p-3 border-b border-cad-border bg-cad-elevated drag-handle cursor-move sticky top-0"
             >
                 <div className="flex items-center gap-2">
-                    <Settings className="w-3.5 h-3.5 text-blue-400" />
+                    <Settings className="w-3.5 h-3.5 text-cad-accent" />
                     <span className="text-[10px] font-black tracking-widest uppercase text-cad-accent">
                         Device Configure
                     </span>
                     {(isDirty || isSaving || showSuccess) && (
-                        <div className={`w-1.5 h-1.5 rounded-full ${showSuccess ? 'bg-green-500' : 'bg-blue-500'} animate-pulse`} />
+                        <div className={`w-1.5 h-1.5 rounded-full ${showSuccess ? 'bg-cad-active' : 'bg-cad-accent'} animate-pulse`} />
                     )}
                 </div>
                 <div className="flex gap-1">
@@ -218,7 +218,7 @@ export const DeviceConfigPanel: React.FC = () => {
                         <button
                             onClick={handleSave}
                             disabled={isSaving || showSuccess}
-                            className={`p-1 px-2 flex items-center gap-1.5 rounded transition-colors text-[9px] font-bold uppercase border ${showSuccess ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'hover:bg-blue-500/20 text-blue-400 border-blue-500/10'
+                            className={`p-1 px-2 flex items-center gap-1.5 rounded transition-colors text-[9px] font-bold uppercase border ${showSuccess ? 'bg-cad-active/20 text-cad-active border-cad-active/30' : 'hover:bg-cad-accent/20 text-cad-accent border-cad-accent/10'
                                 }`}
                             title="Lưu thay đổi"
                         >
@@ -228,14 +228,14 @@ export const DeviceConfigPanel: React.FC = () => {
                     )}
                     <button
                         onClick={onPin}
-                        className={`p-1 px-2 hover:bg-[#333] transition-colors rounded text-[9px] font-bold uppercase ${isPinned ? 'text-cad-accent bg-[#333]' : 'text-cad-text-muted'}`}
+                        className={`p-1 px-2 hover:bg-cad-text-primary/10 transition-colors rounded text-[9px] font-bold uppercase ${isPinned ? 'text-cad-accent bg-cad-text-primary/10' : 'text-cad-text-muted'}`}
                         title={isPinned ? "Auto-hide" : "Pin"}
                     >
                         {isPinned ? 'Unpin' : 'Pin'}
                     </button>
                     <button
                         onClick={onClose}
-                        className="p-1 px-2 hover:bg-[#333] text-cad-text-muted rounded transition-colors text-[9px] font-bold uppercase"
+                        className="p-1 px-2 hover:bg-cad-text-primary/10 text-cad-text-muted rounded transition-colors text-[9px] font-bold uppercase"
                     >
                         Close
                     </button>
@@ -245,10 +245,10 @@ export const DeviceConfigPanel: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
                 {/* 1. GIS Location & Orientation */}
                 <section className="space-y-4">
-                    <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-[#555] uppercase">
+                    <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
                         <Compass className="w-3 h-3" /> Tọa độ & Hướng
                         <div className="flex-1" />
-                        <button onClick={() => toggleSection('gis')} className="p-1 hover:bg-[#333] rounded text-cad-text-muted">
+                        <button onClick={() => toggleSection('gis')} className="p-1 hover:bg-cad-text-primary/10 rounded text-cad-text-muted">
                             {expandedSections.gis ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         </button>
                     </div>
@@ -260,7 +260,7 @@ export const DeviceConfigPanel: React.FC = () => {
                                 <button
                                     onClick={() => updateNestedMeta('gis.show_fov', !showFov)}
                                     className={`flex items-center justify-center gap-1.5 py-1.5 rounded text-[9px] font-bold uppercase transition-all border ${showFov
-                                        ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                                        ? 'bg-cad-accent/20 text-cad-accent border-cad-accent/30'
                                         : 'bg-cad-surface border-cad-border text-cad-text-secondary hover:bg-cad-elevated'
                                         }`}
                                 >
@@ -270,7 +270,7 @@ export const DeviceConfigPanel: React.FC = () => {
                                 <button
                                     onClick={() => setShowDORILayers(!showDORILayers)}
                                     className={`flex items-center justify-center gap-1.5 py-1.5 rounded text-[9px] font-bold uppercase transition-all border ${showDORILayers
-                                        ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                                        ? 'bg-cad-accent/20 text-cad-accent border-cad-accent/30'
                                         : 'bg-cad-surface border-cad-border text-cad-text-secondary hover:bg-cad-elevated'
                                         }`}
                                 >
@@ -297,7 +297,7 @@ export const DeviceConfigPanel: React.FC = () => {
                                             className="p-1.5 bg-cad-surface border border-cad-border hover:bg-cad-elevated hover:border-cad-accent rounded text-cad-text-secondary hover:text-cad-text-primary transition-all group"
                                             title="Tự động hướng ra đường"
                                         >
-                                            <Wand2 size={12} className="group-hover:text-blue-400" />
+                                            <Wand2 size={12} className="group-hover:text-cad-accent" />
                                         </button>
                                     </div>
                                 </div>
@@ -305,14 +305,14 @@ export const DeviceConfigPanel: React.FC = () => {
                                 <div className="space-y-2 pt-4 border-t border-cad-border">
                                     <div className="flex justify-between items-center">
                                         <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Góc nhìn (FOV)</label>
-                                        <span className="text-[10px] font-mono text-blue-400 font-bold mr-1">{getMetaValue('gis.fov_angle', 90)}°</span>
+                                        <span className="text-[10px] font-mono text-cad-accent font-bold mr-1">{getMetaValue('gis.fov_angle', 90)}°</span>
                                     </div>
                                     <div className="flex gap-2">
                                         <input
                                             type="range" min="10" max="180" step="1"
                                             value={getMetaValue('gis.fov_angle', 90)}
                                             onChange={(e) => updateNestedMeta('gis.fov_angle', parseInt(e.target.value))}
-                                            className="flex-1 h-1.5 bg-cad-border rounded-lg appearance-none cursor-pointer accent-blue-500 my-auto"
+                                            className="flex-1 h-1.5 bg-cad-border rounded-lg appearance-none cursor-pointer accent-cad-accent my-auto"
                                         />
                                     </div>
                                 </div>
@@ -320,14 +320,14 @@ export const DeviceConfigPanel: React.FC = () => {
                                 <div className="space-y-2 pt-2">
                                     <div className="flex justify-between items-center">
                                         <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Chiều dài (Radius)</label>
-                                        <span className="text-[10px] font-mono text-purple-400 font-bold mr-1">{getMetaValue('gis.fov_radius', 100)}m</span>
+                                        <span className="text-[10px] font-mono text-cad-accent font-bold mr-1">{getMetaValue('gis.fov_radius', 100)}m</span>
                                     </div>
                                     <div className="flex gap-2">
                                         <input
                                             type="range" min="1" max="1000" step="1"
                                             value={getMetaValue('gis.fov_radius', 100)}
                                             onChange={(e) => updateNestedMeta('gis.fov_radius', parseInt(e.target.value))}
-                                            className="flex-1 h-1.5 bg-cad-border rounded-lg appearance-none cursor-pointer accent-purple-500 my-auto"
+                                            className="flex-1 h-1.5 bg-cad-border rounded-lg appearance-none cursor-pointer accent-cad-accent my-auto"
                                         />
                                     </div>
                                 </div>

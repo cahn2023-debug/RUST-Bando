@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, MapPin, Route, Trash, Camera, Image as ImageIcon, Plus, Loader2, Download, ChevronLeft, ChevronRight, Star, MessageSquare, Clock, Maximize2 } from 'lucide-react';
 import { IconSelector } from '@DESIGN/components/ui/IconSelector';
+import { Button } from '@DESIGN/components/ui/Button';
 import type { IconType, VertexMetadata } from '@CONTRACT/types';
 import { FeatureState } from '@CONTRACT/types';
 import { normalizeMetadataObject, normalizeMetadataWithAI } from '@TOOL/utils/metadataNormalization';
@@ -248,11 +249,11 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white w-full border-l border-gray-100 overflow-hidden">
+    <div className="flex flex-col h-full bg-cad-bg text-cad-text-primary w-full border-l border-cad-border overflow-hidden">
 
       {/* Lightbox / SlideShow */}
       {viewingImageIndex !== null && (
-        <div className="fixed inset-0 z-[6000] bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setViewingImageIndex(null)}>
+        <div className="fixed inset-0 z-cad-modal-nested bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setViewingImageIndex(null)}>
           <div className="absolute top-6 right-6 flex gap-3">
             <button onClick={(e) => { e.stopPropagation(); downloadImage(imageUrls[viewingImageIndex]); }} className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full border border-white/10"><Download className="w-5 h-5" /></button>
             <button onClick={() => setViewingImageIndex(null)} className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full border border-white/10"><X className="w-5 h-5" /></button>
@@ -269,24 +270,31 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
         </div>
       )}
 
-      <div className="p-4 border-b bg-gray-50 flex justify-between items-center shrink-0">
-        <h2 className="font-bold text-gray-800 flex items-center gap-2">
-          {feature.geom_type === 'LineString' ? <Route className="w-4 h-4 text-emerald-500" /> : <MapPin className="w-4 h-4 text-blue-500" />}
+      <div className="p-4 border-b border-cad-border bg-cad-surface flex justify-between items-center shrink-0">
+        <h2 className="font-bold text-cad-text-primary flex items-center gap-2">
+          {feature.geom_type === 'LineString' ? <Route className="w-4 h-4 text-cad-accent" /> : <MapPin className="w-4 h-4 text-cad-accent" />}
           Cấu hình {feature.geom_type === 'LineString' ? 'Tuyến' : 'Điểm'}
         </h2>
-        <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full transition-all"><X className="w-5 h-5" /></button>
+        <Button
+          onClick={onClose}
+          variant="ghost"
+          size="md"
+          icon={X}
+          ariaLabel="Đóng bảng cấu hình"
+          className="rounded-full"
+        />
       </div>
 
       <div className="p-4 overflow-y-auto space-y-6 flex-1 custom-scrollbar">
         {/* Camera UI Overlay */}
         {isCameraOpen && (
-          <div className="absolute inset-0 z-[1000] bg-black flex flex-col">
+          <div className="absolute inset-0 z-10 bg-black flex flex-col">
             <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
             <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${!stream ? 'hidden' : ''}`} />
-            <div className="absolute top-6 left-6 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-lg text-[10px] text-white font-mono flex items-center gap-2 border border-white/10"><Clock className="w-3 h-3 text-indigo-400" /> {currentTime}</div>
+            <div className="absolute top-6 left-6 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-lg text-[10px] text-white font-mono flex items-center gap-2 border border-white/10"><Clock className="w-3 h-3 text-cad-accent" /> {currentTime}</div>
             <div className="absolute bottom-12 left-0 right-0 flex justify-center items-center gap-10 px-4">
               <button onClick={stopCamera} className="w-14 h-14 bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-md flex items-center justify-center border border-white/10"><X className="w-6 h-6" /></button>
-              <button onClick={() => videoRef.current && applyWatermark(videoRef.current)} disabled={!stream || isCapturing} className="w-20 h-20 bg-white text-indigo-600 rounded-full shadow-2xl border-4 border-indigo-100 flex items-center justify-center active:scale-90 transition-transform">{isCapturing ? <Loader2 className="w-10 h-10 animate-spin" /> : <Camera className="w-10 h-10" />}</button>
+              <button onClick={() => videoRef.current && applyWatermark(videoRef.current)} disabled={!stream || isCapturing} className="w-20 h-20 bg-white text-cad-accent rounded-full shadow-2xl border-4 border-cad-accent/20 flex items-center justify-center active:scale-90 transition-transform">{isCapturing ? <Loader2 className="w-10 h-10 animate-spin" /> : <Camera className="w-10 h-10" />}</button>
               <button onClick={() => fileInputRef.current?.click()} className="w-14 h-14 bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-md flex items-center justify-center border border-white/10"><ImageIcon className="w-6 h-6" /></button>
             </div>
           </div>
@@ -296,25 +304,25 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
 
         <div className="space-y-4">
           <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tên đối tượng</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full mt-1 p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" />
+            <label className="text-[10px] font-black text-cad-text-muted uppercase tracking-widest ml-1">Tên đối tượng</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full mt-1 p-3 bg-cad-bg border border-cad-border rounded-xl text-sm font-bold text-cad-text-primary outline-none focus:border-cad-accent" />
           </div>
 
           <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mô tả tổng quát</label>
-            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="w-full mt-1 p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none resize-none" />
+            <label className="text-[10px] font-black text-cad-text-muted uppercase tracking-widest ml-1">Mô tả tổng quát</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="w-full mt-1 p-3 bg-cad-bg border border-cad-border rounded-xl text-sm text-cad-text-primary outline-none resize-none" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Màu sắc</label>
+              <label className="text-[10px] font-black text-cad-text-muted uppercase tracking-widest ml-1">Màu sắc</label>
               <div className="mt-1 flex items-center gap-2">
                 <input type="color" value={color} onChange={e => setColor(e.target.value)} className="h-10 w-full rounded-xl cursor-pointer border-0 p-0" />
               </div>
             </div>
             <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{feature.geom_type === 'Point' ? 'Kích thước' : 'Độ dày'}</label>
-              <div className="mt-1 flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl px-3 h-10">
+              <label className="text-[10px] font-black text-cad-text-muted uppercase tracking-widest ml-1">{feature.geom_type === 'Point' ? 'Kích thước' : 'Độ dày'}</label>
+              <div className="mt-1 flex items-center gap-2 bg-cad-surface border border-cad-border rounded-xl px-3 h-10">
                 <input
                   type="number"
                   value={size}
@@ -323,7 +331,7 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
                   max={100}
                   className="w-full bg-transparent text-sm font-bold outline-none"
                 />
-                <span className="text-xs text-slate-400 font-bold">px</span>
+                <span className="text-xs text-cad-text-muted font-bold">px</span>
               </div>
             </div>
           </div>
@@ -335,8 +343,8 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
           {feature.geom_type === 'LineString' && (
             <div className="space-y-3">
               <div className="flex justify-between items-center px-1">
-                <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Danh sách điểm chốt</label>
-                <span className="text-[9px] font-bold text-slate-300 uppercase">{coords.length} điểm</span>
+                <label className="text-[10px] font-black text-cad-accent uppercase tracking-widest">Danh sách điểm chốt</label>
+                <span className="text-[9px] font-bold text-cad-text-muted uppercase">{coords.length} điểm</span>
               </div>
 
               <div className="max-h-80 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
@@ -348,77 +356,82 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
                   return (
                     <div
                       key={idx}
-                      className={`rounded-2xl border-2 transition-all overflow-hidden ${isSelected ? 'border-emerald-500 bg-emerald-50/30 shadow-md' : 'border-slate-100 bg-white'}`}
+                      className={`rounded-2xl border-2 transition-all overflow-hidden ${isSelected ? 'border-cad-accent bg-cad-accent/10 shadow-md' : 'border-cad-border bg-cad-surface'}`}
                       onClick={() => onVertexSelect?.(idx)}
                     >
                       <div className="p-3 flex items-center justify-between cursor-pointer">
                         <div className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-[10px] ${isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-[10px] ${isSelected ? 'bg-cad-accent text-black' : 'bg-cad-elevated text-cad-text-muted'}`}>
                             #{idx + 1}
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold text-slate-700">Điểm chốt {idx + 1}</p>
-                            <p className="text-[9px] font-mono text-slate-400">{c[0].toFixed(5)}, {c[1].toFixed(5)}</p>
+                            <p className="text-[10px] font-bold text-cad-text-primary">Điểm chốt {idx + 1}</p>
+                            <p className="text-[9px] font-mono text-cad-text-muted">{c[0].toFixed(5)}, {c[1].toFixed(5)}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {images.length > 0 && (
                             <div className="flex -space-x-2">
                               {images.slice(0, 3).map((img, i) => (
-                                <div key={i} className="w-6 h-6 rounded-md border-2 border-white overflow-hidden">
+                                <div key={i} className="w-6 h-6 rounded-md border-2 border-cad-border overflow-hidden">
                                   <img src={img} className="w-full h-full object-cover" />
                                 </div>
                               ))}
-                              {images.length > 3 && <div className="w-6 h-6 rounded-md border-2 border-white bg-slate-200 text-[8px] flex items-center justify-center font-black">+{images.length - 3}</div>}
+                              {images.length > 3 && <div className="w-6 h-6 rounded-md border-2 border-cad-border bg-cad-elevated text-[8px] flex items-center justify-center font-black text-cad-text-primary">+{images.length - 3}</div>}
                             </div>
                           )}
-                          <ChevronRight className={`w-4 h-4 text-slate-300 transition-transform ${isSelected ? 'rotate-90' : ''}`} />
+                          <ChevronRight className={`w-4 h-4 text-cad-text-muted transition-transform ${isSelected ? 'rotate-90' : ''}`} />
                         </div>
                       </div>
 
                       {isSelected && (
                         <div className="p-3 pt-0 space-y-3 animate-in slide-in-from-top-2">
-                          <div className="h-px bg-emerald-100 mx-2" />
+                          <div className="h-px bg-cad-border mx-2" />
 
                           <div className="space-y-2">
-                            <label className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1.5"><MessageSquare className="w-3 h-3" /> Ghi chú cho điểm này</label>
+                            <label className="text-[9px] font-black text-cad-accent uppercase flex items-center gap-1.5"><MessageSquare className="w-3 h-3" /> Ghi chú cho điểm này</label>
                             <textarea
                               value={meta.description || ''}
                               onChange={(e) => setVertexMetadata(v => ({ ...v, [idx]: { ...(v[idx] || {}), description: e.target.value } }))}
                               placeholder="Nhập nội dung quan sát tại điểm..."
-                              className="w-full p-3 bg-white border border-emerald-100 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-200 resize-none"
+                              className="w-full p-3 bg-cad-bg border border-cad-border rounded-xl text-xs text-cad-text-primary outline-none focus:border-cad-accent resize-none"
                               rows={2}
                             />
                           </div>
 
                           <div className="space-y-2">
                             <div className="flex justify-between items-center">
-                              <label className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1.5"><ImageIcon className="w-3 h-3" /> Hình ảnh hiện trường</label>
-                              <button
+                              <label className="text-[9px] font-black text-cad-accent uppercase flex items-center gap-1.5"><ImageIcon className="w-3 h-3" /> Hình ảnh hiện trường</label>
+                              <Button
                                 onClick={(e) => { e.stopPropagation(); startCamera(idx); }}
-                                className="flex items-center gap-1 text-[9px] font-black text-white bg-emerald-600 px-2 py-1 rounded-lg hover:bg-emerald-700 transition-colors"
+                                variant="primary"
+                                size="sm"
+                                icon={Camera}
+                                className="rounded-lg"
                               >
-                                <Camera className="w-3 h-3" /> Chụp ảnh
-                              </button>
+                                Chụp ảnh
+                              </Button>
                             </div>
 
                             {images.length > 0 ? (
                               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                                 {images.map((img, iIdx) => (
-                                  <div key={iIdx} className="relative group shrink-0 w-24 aspect-square rounded-xl overflow-hidden border border-emerald-200">
+                                  <div key={iIdx} className="relative group shrink-0 w-24 aspect-square rounded-xl overflow-hidden border border-cad-border">
                                     <img src={img} className="w-full h-full object-cover" />
-                                    <button
+                                    <Button
                                       onClick={(e) => { e.stopPropagation(); removeVertexImage(idx, iIdx); }}
-                                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                      <Trash className="w-3 h-3" />
-                                    </button>
+                                      variant="danger"
+                                      size="sm"
+                                      icon={Trash}
+                                      ariaLabel="Xóa ảnh điểm chốt"
+                                      className="absolute top-1 right-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                    />
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <div className="py-4 border-2 border-dashed border-emerald-100 rounded-xl text-center">
-                                <p className="text-[9px] font-bold text-slate-300 uppercase">Chưa có ảnh cho điểm này</p>
+                              <div className="py-4 border-2 border-dashed border-cad-border rounded-xl text-center">
+                                <p className="text-[9px] font-bold text-cad-text-muted uppercase">Chưa có ảnh cho điểm này</p>
                               </div>
                             )}
                           </div>
@@ -431,10 +444,18 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
             </div>
           )}
 
-          <div className="pt-4 border-t border-slate-100">
+          <div className="pt-4 border-t border-cad-border">
             <div className="flex justify-between items-center px-1 mb-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ảnh dự án / Hiện trường chung ({imageUrls.length})</label>
-              <button onClick={() => startCamera('main')} className="text-[10px] font-black text-indigo-600 uppercase flex items-center gap-1 hover:underline"><Plus className="w-3 h-3" /> Thêm ảnh</button>
+              <label className="text-[10px] font-black text-cad-text-muted uppercase tracking-widest">Ảnh dự án / Hiện trường chung ({imageUrls.length})</label>
+              <Button
+                onClick={() => startCamera('main')}
+                variant="ghost"
+                size="sm"
+                icon={Plus}
+                className="text-[10px] font-black uppercase text-cad-accent hover:text-cad-active hover:bg-transparent hover:underline"
+              >
+                Thêm ảnh
+              </Button>
             </div>
 
             {imageUrls.length > 0 ? (
@@ -442,19 +463,49 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
                 {imageUrls.map((url, idx) => {
                   const isMain = url === imageUrl;
                   return (
-                    <div key={idx} className={`group relative aspect-video rounded-xl overflow-hidden border-2 transition-all ${isMain ? 'border-indigo-500 shadow-lg' : 'border-slate-100'}`}>
+                    <div key={idx} className={`group relative aspect-video rounded-xl overflow-hidden border-2 transition-all ${isMain ? 'border-cad-accent shadow-lg' : 'border-cad-border'}`}>
                       <img src={url} className="w-full h-full object-cover" />
-                      {isMain && <div className="absolute top-2 left-2 bg-indigo-600 text-white p-1 rounded-md shadow-lg"><Star className="w-3 h-3 fill-current" /></div>}
+                      {isMain && <div className="absolute top-2 left-2 bg-cad-accent text-black p-1 rounded-md shadow-lg"><Star className="w-3 h-3 fill-current" /></div>}
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                         <div className="flex gap-2">
-                          <button onClick={() => setViewingImageIndex(idx)} className="p-2 bg-white text-indigo-600 rounded-lg hover:scale-110 transition-transform"><Maximize2 className="w-4 h-4" /></button>
-                          <button onClick={() => downloadImage(url)} className="p-2 bg-white text-slate-600 rounded-lg hover:scale-110 transition-transform"><Download className="w-4 h-4" /></button>
+                          <Button
+                            onClick={() => setViewingImageIndex(idx)}
+                            variant="secondary"
+                            size="md"
+                            icon={Maximize2}
+                            ariaLabel="Xem ảnh phóng to"
+                            className="bg-cad-surface text-cad-accent rounded-lg hover:bg-cad-surface hover:scale-110 transition-transform"
+                          />
+                          <Button
+                            onClick={() => downloadImage(url)}
+                            variant="secondary"
+                            size="md"
+                            icon={Download}
+                            ariaLabel="Tải ảnh xuống"
+                            className="bg-cad-surface text-cad-text-secondary rounded-lg hover:bg-cad-surface hover:scale-110 transition-transform"
+                          />
                         </div>
                         <div className="flex gap-2">
-                          {!isMain && <button onClick={() => setImageUrl(url)} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-indigo-700">Làm ảnh chính</button>}
-                          <button onClick={() => {
-                            setDeleteModalConfig({ isOpen: true, type: 'image', targetIdx: idx });
-                          }} className="p-2 bg-red-500 text-white rounded-lg hover:scale-110 transition-transform"><Trash className="w-4 h-4" /></button>
+                          {!isMain && (
+                            <Button
+                              onClick={() => setImageUrl(url)}
+                              variant="primary"
+                              size="sm"
+                              className="px-3 rounded-lg text-[8px] font-black uppercase tracking-widest"
+                            >
+                              Làm ảnh chính
+                            </Button>
+                          )}
+                          <Button
+                            onClick={() => {
+                              setDeleteModalConfig({ isOpen: true, type: 'image', targetIdx: idx });
+                            }}
+                            variant="danger"
+                            size="md"
+                            icon={Trash}
+                            ariaLabel="Xóa ảnh"
+                            className="rounded-lg hover:scale-110 transition-transform"
+                          />
                         </div>
                       </div>
                     </div>
@@ -462,7 +513,7 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
                 })}
               </div>
             ) : (
-              <button onClick={() => startCamera('main')} className="w-full aspect-video bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-indigo-500 hover:border-indigo-300 transition-all">
+              <button onClick={() => startCamera('main')} className="w-full aspect-video bg-cad-surface border-2 border-dashed border-cad-border rounded-2xl flex flex-col items-center justify-center gap-3 text-cad-text-muted hover:text-cad-accent hover:border-cad-accent/40 transition-all">
                 <Camera className="w-8 h-8" />
                 <span className="text-[10px] font-black uppercase tracking-widest">Thêm ảnh tổng quát</span>
               </button>
@@ -471,9 +522,24 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
         </div>
       </div>
 
-      <div className="p-4 border-t bg-slate-50 flex justify-between gap-3 shrink-0">
-        <button onClick={handleDelete} className="px-5 py-2 text-xs font-black text-red-500 uppercase hover:bg-red-50 rounded-xl transition-all">Xóa</button>
-        <button onClick={handleSave} className="flex-1 py-4 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-600 shadow-xl transition-all flex items-center justify-center gap-2 active:scale-95"><Save className="w-4 h-4" /> Lưu cấu hình</button>
+      <div className="p-4 border-t border-cad-border bg-cad-surface flex justify-between gap-3 shrink-0">
+        <Button
+          onClick={handleDelete}
+          variant="ghost"
+          size="lg"
+          className="px-5 text-xs font-black uppercase text-cad-danger hover:bg-cad-danger/10 hover:text-cad-danger rounded-xl"
+        >
+          Xóa
+        </Button>
+        <Button
+          onClick={handleSave}
+          variant="primary"
+          size="lg"
+          icon={Save}
+          className="flex-1 h-auto py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-xl active:scale-95"
+        >
+          Lưu cấu hình
+        </Button>
       </div>
       <DeleteConfirmationModal
         isOpen={isDeleteModalOpen}

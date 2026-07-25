@@ -15,21 +15,9 @@ import {
 } from '@DESIGN/features/map/network/fiberService';
 import type { FiberSpliceUpsertInput } from '@DESIGN/features/map/network/fiberService';
 import type { FiberInventory, FiberPort, FiberPortPatch, FiberPortTermination, FiberSplice, FiberStrand } from '@CONTRACT/types';
+import { Button } from '@DESIGN/components/ui/Button';
 
-const TIA_598_COLORS = [
-  { name: 'Blue', hex: '#2563eb', textClass: 'text-white' },
-  { name: 'Orange', hex: '#f97316', textClass: 'text-white' },
-  { name: 'Green', hex: '#16a34a', textClass: 'text-white' },
-  { name: 'Brown', hex: '#8b5a2b', textClass: 'text-white' },
-  { name: 'Slate', hex: '#64748b', textClass: 'text-white' },
-  { name: 'White', hex: '#ffffff', textClass: 'text-zinc-950' },
-  { name: 'Red', hex: '#dc2626', textClass: 'text-white' },
-  { name: 'Black', hex: '#111827', textClass: 'text-white' },
-  { name: 'Yellow', hex: '#facc15', textClass: 'text-zinc-950' },
-  { name: 'Violet', hex: '#7c3aed', textClass: 'text-white' },
-  { name: 'Rose', hex: '#ec4899', textClass: 'text-white' },
-  { name: 'Aqua', hex: '#06b6d4', textClass: 'text-zinc-950' },
-];
+import { DIAGRAM_COLORS, fiberColorAt } from '@DESIGN/features/map/styles/dataColors';
 
 type EndpointDirection = 'start' | 'end';
 type EquipmentKind = 'splice_enclosure' | 'odf';
@@ -82,8 +70,10 @@ const equipmentLabels: Record<EquipmentKind, string> = {
   odf: 'ODF',
 };
 
-const getStrandColor = (strandNo: number) => TIA_598_COLORS[(strandNo - 1) % TIA_598_COLORS.length];
-const getTubeColor = (strandNo: number) => TIA_598_COLORS[Math.floor((strandNo - 1) / 12) % TIA_598_COLORS.length];
+/** Strand color cycles every 12 cores (TIA-598-C). */
+const getStrandColor = (strandNo: number) => fiberColorAt(strandNo);
+/** Buffer tube color advances once per 12-core group. */
+const getTubeColor = (strandNo: number) => fiberColorAt(Math.floor((strandNo - 1) / 12) + 1);
 
 const getStrandBackground = (strandNo: number) => {
   return getStrandColor(strandNo).hex;
@@ -445,7 +435,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         sourceId: patch.id,
         kind: 'patch',
         path: buildPatchPath(from, to),
-        color: '#22c55e',
+        color: DIAGRAM_COLORS.okTrace,
       });
     });
     setOdfPaths(nextPaths);
@@ -828,12 +818,12 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         draggable={false}
         disabled={saving || (!isOdfMode && isOccupied)}
         className={[
-          'flex h-5 w-full items-center overflow-hidden rounded border border-white/10 bg-black/25 text-[9px] font-bold transition',
+          'flex h-5 w-full items-center overflow-hidden rounded border border-cad-border bg-cad-elevated text-[9px] font-bold transition',
           side === 'left' ? 'justify-end' : 'justify-start',
-          isSelected ? 'ring-2 ring-cyan-300 ring-offset-1 ring-offset-black' : '',
-          side === 'right' && draggingLeftStrandId && canSelect ? 'border-cyan-400/60 bg-cyan-500/10' : '',
+          isSelected ? 'ring-2 ring-cad-active ring-offset-1 ring-offset-cad-surface' : '',
+          side === 'right' && draggingLeftStrandId && canSelect ? 'border-cad-active/60 bg-cad-active/10' : '',
           isOccupied && !isOdfMode ? 'opacity-50' : '',
-          canDrag ? 'cursor-grab hover:border-cyan-400/50 active:cursor-grabbing' : (canSelect ? 'cursor-pointer hover:border-cyan-400/50' : 'cursor-default'),
+          canDrag ? 'cursor-grab hover:border-cad-active/50 active:cursor-grabbing' : (canSelect ? 'cursor-pointer hover:border-cad-active/50' : 'cursor-default'),
         ].join(' ')}
         title={`Core: ${color.name} | Tube: ${getTubeColor(strand.strand_no).name} | #${strand.strand_no}`}
       >
@@ -882,8 +872,8 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         disabled={saving}
         className={[
           'pointer-events-auto relative z-40 flex aspect-square w-11 shrink-0 items-center justify-center rounded border text-[10px] font-black transition',
-          isSelected ? 'border-emerald-300 bg-emerald-500/20 text-emerald-100 shadow-[0_0_12px_rgba(52,211,153,0.2)]' : 'border-white/10 bg-black/35 text-zinc-200',
-          isDropReady ? 'border-cyan-400/60 bg-cyan-500/10' : '',
+          isSelected ? 'border-cad-accent/30 bg-cad-accent/10 text-cad-accent' : 'border-cad-border bg-cad-elevated text-cad-text-primary',
+          isDropReady ? 'border-cad-active/60 bg-cad-active/10' : '',
           termination ? (patches.length > 0 ? 'text-emerald-200' : 'text-amber-200') : 'text-zinc-500',
         ].join(' ')}
         title={`${port.port_label} · ${statusLabel}`}
@@ -894,33 +884,31 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-3 backdrop-blur-sm">
-      <div className="flex h-[min(600px,88vh)] w-[min(900px,94vw)] flex-col overflow-hidden rounded-lg border border-white/10 bg-[#0f141a] font-sans shadow-2xl">
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2">
+    <div className="fixed inset-0 z-cad-overlay flex items-center justify-center bg-black/65 p-3 backdrop-blur-sm">
+      <div className="z-cad-modal flex h-[min(600px,88vh)] w-[min(900px,94vw)] flex-col overflow-hidden rounded-lg border border-cad-border bg-cad-elevated font-sans shadow-2xl">
+        <div className="flex items-center justify-between gap-3 border-b border-cad-border px-3 py-2">
           <div className="min-w-0">
-            <h3 className="truncate text-[13px] font-semibold text-zinc-100">{getFeatureName(enclosureId)}</h3>
-            <div className="mt-0.5 text-[9px] text-zinc-500">Sơ đồ nối core quang</div>
+            <h3 className="truncate text-[13px] font-semibold text-cad-text-primary">{getFeatureName(enclosureId)}</h3>
+            <div className="mt-0.5 text-[9px] text-cad-text-muted">Sơ đồ nối core quang</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <label className="text-[9px] font-semibold text-zinc-500">Loại điểm nối</label>
+            <label className="text-[9px] font-semibold text-cad-text-muted">Loại điểm nối</label>
             <select
               value={activeEquipmentKind}
               onChange={event => void handleEquipmentKindChange(event.target.value as EquipmentKind)}
               disabled={saving}
-              className="rounded border border-white/10 bg-black/45 px-2 py-1 text-[10px] font-semibold text-zinc-100 outline-none focus:border-cyan-400/50"
+              className="rounded border border-cad-border bg-cad-surface px-2 py-1 text-[10px] font-semibold text-cad-text-primary outline-none focus:border-cad-active/50"
             >
               <option value="splice_enclosure">Măng xông</option>
               <option value="odf">ODF</option>
             </select>
-            <button onClick={onClose} className="rounded p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white" title="Đóng">
-              <X size={16} />
-            </button>
+            <Button variant="ghost" size="sm" icon={X} ariaLabel="Đóng" title="Đóng" onClick={onClose} />
           </div>
         </div>
 
-        <div className="grid shrink-0 grid-cols-[1fr_1fr] gap-3 border-b border-white/5 px-3 py-2">
+        <div className="grid shrink-0 grid-cols-[1fr_1fr] gap-3 border-b border-cad-border px-3 py-2">
           <select
-            className="min-w-0 rounded border border-white/10 bg-black/45 px-2 py-1 text-[11px] font-semibold text-cyan-300 outline-none focus:border-cyan-400/50"
+            className="min-w-0 rounded border border-cad-border bg-cad-surface px-2 py-1 text-[11px] font-semibold text-cyan-300 outline-none focus:border-cad-active/50"
             value={leftEndpointId}
             onChange={event => {
               setRequestedLeftCableId(event.target.value);
@@ -936,7 +924,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
           </select>
 
           <select
-            className="min-w-0 rounded border border-white/10 bg-black/45 px-2 py-1 text-[11px] font-semibold text-pink-300 outline-none focus:border-pink-400/50"
+            className="min-w-0 rounded border border-cad-border bg-cad-surface px-2 py-1 text-[11px] font-semibold text-pink-300 outline-none focus:border-cad-active/50"
             value={rightEndpointId}
             onChange={event => {
               setRequestedRightCableId(event.target.value);
@@ -952,14 +940,14 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
           </select>
         </div>
 
-        <div className="grid shrink-0 grid-cols-[1fr_1fr_auto_auto_auto] items-end gap-2 border-b border-white/5 px-3 py-2 text-[10px]">
+        <div className="grid shrink-0 grid-cols-[1fr_1fr_auto_auto_auto] items-end gap-2 border-b border-cad-border px-3 py-2 text-[10px]">
           <div className="min-w-0 rounded border border-cyan-500/15 bg-cyan-500/5 px-2 py-1 text-cyan-100">
             IN core: {selectedLeftStrand ? `#${selectedLeftStrand.strand_no}` : 'Chưa chọn'}
           </div>
           <div className="min-w-0 rounded border border-pink-500/15 bg-pink-500/5 px-2 py-1 text-pink-100">
             OUT core: {selectedRightStrand ? `#${selectedRightStrand.strand_no}` : 'Chưa chọn'}
           </div>
-          <label className="flex items-center gap-1 text-zinc-400">
+          <label className="flex items-center gap-1 text-cad-text-muted">
             Loss
             <input
               type="number"
@@ -967,36 +955,36 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
               step={0.01}
               value={lossDb}
               onChange={event => setLossDb(Number(event.target.value) || 0)}
-              className="w-16 rounded border border-white/10 bg-black/45 px-2 py-1 text-zinc-100 outline-none"
+              className="w-16 rounded border border-cad-border bg-cad-surface px-2 py-1 text-cad-text-primary outline-none"
             />
           </label>
-          <button
-            type="button"
+          <Button
+            variant="accent"
+            size="sm"
+            icon={Link2}
             onClick={() => void handleConnectSelectedStrands()}
             disabled={saving || activeEquipmentKind === 'odf' || !selectedLeftStrandId || !selectedRightStrandId}
-            className="inline-flex items-center gap-1 rounded border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-45"
           >
-            <Link2 size={12} />
             Nối core
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={Link2}
             onClick={() => void handleConnectAllStrands()}
             disabled={saving || activeEquipmentKind === 'odf'}
-            className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-45"
             title="Nối tự động các core có cùng số thứ tự giữa 2 cáp"
           >
-            <Link2 size={12} />
             Nối full
-          </button>
+          </Button>
         </div>
 
         {activeEquipmentKind === 'odf' && (
-          <div className="grid shrink-0 grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-white/5 px-3 py-2 text-[10px]">
-            <div className="min-w-0 text-zinc-400">
+          <div className="grid shrink-0 grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-cad-border px-3 py-2 text-[10px]">
+            <div className="min-w-0 text-cad-text-muted">
               ODF: kéo core vào port, sau đó chọn 2 port để patch thông tuyến.
             </div>
-            <label className="flex items-center gap-1 text-zinc-400">
+            <label className="flex items-center gap-1 text-cad-text-muted">
               Số cổng quang
               <input
                 aria-label="Số cổng quang"
@@ -1005,28 +993,28 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
                 max={576}
                 value={odfPortCount || ''}
                 onChange={event => setOdfPortCount(Math.max(0, Number(event.target.value) || 0))}
-                className="w-20 rounded border border-white/10 bg-black/45 px-2 py-1 text-zinc-100 outline-none"
+                className="w-20 rounded border border-cad-border bg-cad-surface px-2 py-1 text-cad-text-primary outline-none"
               />
             </label>
-            <button
-              aria-label="Cập nhật port"
-              type="button"
+            <Button
+              variant="accent"
+              size="sm"
+              ariaLabel="Cập nhật port"
               onClick={() => void handleEnsureOdfPorts()}
               disabled={saving || odfPortCount < 1}
-              className="rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-45"
             >
               Cập nhật port
-            </button>
+            </Button>
           </div>
         )}
 
         <div className="flex min-h-0 flex-1 p-3">
           {connectedCableEndpoints.length < 2 ? (
-            <div className="flex flex-1 items-center justify-center rounded border border-white/5 bg-black/20 text-xs text-zinc-500">
+            <div className="flex flex-1 items-center justify-center rounded border border-cad-border bg-cad-surface text-xs text-cad-text-muted">
               Điểm này chưa có đủ cáp đi qua để tạo splice IN/OUT.
             </div>
           ) : (
-            <div ref={diagramRef} className="relative flex min-h-0 flex-1 overflow-auto rounded border border-white/5 bg-black/20">
+            <div ref={diagramRef} className="relative flex min-h-0 flex-1 overflow-auto rounded border border-cad-border bg-cad-surface">
                 <svg className="pointer-events-none absolute inset-0 z-30 h-full w-full overflow-visible" data-testid="fiber-splice-overlay">
                 {splicePaths.map(({ splice, leftStrand, path }) => (
                   <g key={splice.id}>
@@ -1053,7 +1041,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
                   <path
                     d={previewPath}
                     fill="none"
-                    stroke="#22d3ee"
+                    stroke={DIAGRAM_COLORS.activeTrace}
                     strokeDasharray="6 5"
                     strokeLinecap="round"
                     strokeWidth={2}
@@ -1086,7 +1074,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
                   <path
                     d={odfPreviewPath}
                     fill="none"
-                    stroke="#f59e0b"
+                    stroke={DIAGRAM_COLORS.warnTrace}
                     strokeDasharray="6 5"
                     strokeLinecap="round"
                     strokeWidth={2}
@@ -1098,11 +1086,14 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
 
                 {activeEquipmentKind === 'odf' && (
                     <div className="pointer-events-none absolute left-3 right-3 top-3">
-                      <div className="absolute inset-0 z-20 rounded border border-white/5 bg-[#0f141a]/80 shadow-lg" />
+                      <div
+                        className="absolute inset-0 z-20 rounded border border-cad-border opacity-80 shadow-lg"
+                        style={{ backgroundColor: DIAGRAM_COLORS.canvas }}
+                      />
                       <div className="relative z-40 px-3 py-2">
-                        <div className="mb-2 text-center text-[10px] font-bold uppercase text-emerald-300">ODF ports</div>
+                        <div className="mb-2 text-center text-[10px] font-bold uppercase text-cad-accent">ODF ports</div>
                     {odfPorts.length === 0 ? (
-                      <div className="rounded border border-white/5 bg-black/25 p-2 text-center text-[10px] text-zinc-500">
+                      <div className="rounded border border-cad-border bg-cad-elevated p-2 text-center text-[10px] text-cad-text-muted">
                         Nhập số cổng và bấm Cập nhật port.
                       </div>
                     ) : (
@@ -1127,12 +1118,12 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
           )}
         </div>
 
-        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-white/10 px-3 py-2 text-[11px] text-zinc-500">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-cad-border px-3 py-2 text-[11px] text-cad-text-muted">
           <div className="min-w-0 truncate">
             {statusMessage || 'Kéo core bên IN sang core bên OUT để nối nhanh, hoặc chọn hai core rồi bấm Nối core. Click đường nối để xóa.'}
           </div>
           {saving && (
-            <div className="flex shrink-0 items-center gap-2 text-cyan-300">
+            <div className="flex shrink-0 items-center gap-2 text-cad-active">
               <Loader2 size={13} className="animate-spin" />
               Đang lưu
             </div>
