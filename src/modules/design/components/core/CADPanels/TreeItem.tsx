@@ -32,6 +32,8 @@ export interface TreeItemProps {
   onToggleCheck?: () => void;
   onMouseDown?: (e: React.MouseEvent) => void;
   hasChildren?: boolean;
+  /** Reflected as `aria-selected` on the treeitem row. Optional: leaf/plain rows omit it. */
+  selected?: boolean;
 }
 
 
@@ -62,7 +64,8 @@ export const TreeItem = React.memo(({
   indeterminate,
   onToggleCheck,
   onMouseDown,
-  hasChildren
+  hasChildren,
+  selected
 }: TreeItemProps) => {
   const checkboxRef = React.useRef<HTMLInputElement>(null);
 
@@ -72,11 +75,26 @@ export const TreeItem = React.memo(({
     }
   }, [indeterminate]);
 
+  // Keyboard equivalent of the row click. Guarded on `currentTarget` so Enter typed
+  // inside the rename input (or Space on a nested action button) never toggles the row.
+  const handleKeyDown = React.useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    onClick();
+  }, [onClick]);
+
   return (
     <div
-      className="mb-0.5"
+      className="mb-0.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cad-accent"
       data-drag-id={dragId}
       data-drag-type={dragType}
+      role="treeitem"
+      aria-expanded={(children || hasChildren) ? expanded : undefined}
+      aria-selected={selected}
+      aria-level={level + 1}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
     >
       <div
         className={cn(
@@ -92,14 +110,17 @@ export const TreeItem = React.memo(({
       >
         <div className="flex items-center gap-0 flex-1 min-w-0">
           <div className="w-2 shrink-0 flex items-center justify-center opacity-0 group-hover:opacity-40 transition-opacity">
-            <GripVertical size={8} className="text-white shrink-0 cursor-grab active:cursor-grabbing" />
+            <GripVertical size={8} aria-hidden="true" className="text-cad-text-primary shrink-0 cursor-grab active:cursor-grabbing" />
           </div>
 
           <div className="flex-1 flex items-center gap-1.5 min-w-0" style={{ paddingLeft: level * 14 }}>
-            <span className={cn(
-              "text-cad-text-secondary text-[8px] transition-transform w-3 font-bold shrink-0 text-center -ml-0.5",
-              expanded ? "rotate-0 opacity-80" : "-rotate-90 opacity-50"
-            )}>
+            <span
+              aria-hidden="true"
+              className={cn(
+                "text-cad-text-secondary text-[8px] transition-transform w-3 font-bold shrink-0 text-center -ml-0.5",
+                expanded ? "rotate-0 opacity-80" : "-rotate-90 opacity-50"
+              )}
+            >
               {(children || hasChildren) ? '▼' : ''}
             </span>
 
@@ -108,6 +129,7 @@ export const TreeItem = React.memo(({
                 ref={checkboxRef}
                 type="checkbox"
                 checked={checked}
+                aria-label={`Chọn ${name}`}
                 onChange={() => { }}
                 onClick={(e) => { e.stopPropagation(); onToggleCheck(); }}
                 className="rounded-sm border-cad-border bg-cad-bg text-cad-accent focus:ring-cad-accent cursor-pointer shrink-0 w-3 h-3"
@@ -148,11 +170,16 @@ export const TreeItem = React.memo(({
             {customAction}
             {onToggleVisible && (
               <button
-                className="text-white/40 hover:text-white p-0.5 transition-colors"
+                type="button"
+                className="text-cad-text-primary/40 hover:text-cad-text-primary p-0.5 transition-colors cursor-pointer rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cad-accent"
                 onClick={(e) => { e.stopPropagation(); onToggleVisible(e); }}
-                title={visible ? "Hide" : "Show"}
+                title={visible ? "Ẩn" : "Hiện"}
+                aria-label={visible ? `Ẩn ${name}` : `Hiện ${name}`}
+                aria-pressed={!visible}
               >
-                {visible ? <Eye size={10} className="text-emerald-500" /> : <EyeOff size={10} className="opacity-80 text-emerald-500" />}
+                {visible
+                  ? <Eye size={10} aria-hidden="true" className="text-cad-accent" />
+                  : <EyeOff size={10} aria-hidden="true" className="opacity-80 text-cad-accent" />}
               </button>
             )}
           </div>

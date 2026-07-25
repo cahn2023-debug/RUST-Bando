@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   FiberCapacitySummary,
   FiberCircuitServiceType,
@@ -92,8 +92,44 @@ const isLineFeature = (feature: { geom_type?: string; geometry_type?: string; co
   return (geomType.includes('line') || geomType.includes('polyline')) && Array.isArray(feature.coordinates);
 };
 
+interface StrandRowProps {
+  strand: FiberStrand;
+  selected: boolean;
+  onToggle: (strandId: string) => void;
+}
+
+/**
+ * One row in the strand list. Memoized because the list re-renders on every keystroke
+ * in the filter box, and a cable can carry up to 144 strands.
+ */
+const StrandRow = React.memo<StrandRowProps>(function StrandRow({ strand, selected, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(strand.id)}
+      aria-pressed={selected}
+      className={selected
+        ? 'flex w-full cursor-pointer items-center justify-between gap-2 border-b border-cad-accent/10 bg-cad-accent/10 px-3 py-2 text-left'
+        : 'flex w-full cursor-pointer items-center justify-between gap-2 border-b border-cad-border px-3 py-2 text-left hover:bg-cad-text-primary/5'}
+    >
+      <span className="min-w-0">
+        <span className="block text-[10px] font-semibold text-cad-text-primary">Sợi #{strand.strand_no}</span>
+        <span className="block truncate text-[9px] text-cad-text-muted">{strand.color || 'Chưa gán màu'} · {strand.id}</span>
+      </span>
+      <span className={`shrink-0 rounded border px-2 py-0.5 text-[9px] ${fiberStrandStatusClass[strand.status]}`}>
+        {fiberStrandStatusLabel[strand.status]}
+      </span>
+    </button>
+  );
+});
+
 export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selectedFeatureId }) => {
-  const featuresById = useDesignSync(s => s.state?.features) ?? {};
+  const featuresFromStore = useDesignSync(s => s.state?.features);
+  /**
+   * `?? {}` inline would mint a new object on every render, invalidating every memo
+   * keyed on `featuresById` — including the `NetworkGraphService.build` call below.
+   */
+  const featuresById = useMemo(() => featuresFromStore ?? {}, [featuresFromStore]);
   const selectFeature = useDesignSync(s => s.selectFeature);
   const zoomTo = useDesignSync(s => s.zoomTo);
 
@@ -523,7 +559,11 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
     }
   };
 
-  const toggleStrand = (strandId: string) => {
+  /**
+   * Stable across renders (only setState calls, all in updater form), so the memoized
+   * `StrandRow` children can actually skip re-rendering.
+   */
+  const toggleStrand = useCallback((strandId: string) => {
     setSelectedStrandIds(current => {
       const next = new Set(current);
       if (next.has(strandId)) next.delete(strandId);
@@ -531,10 +571,13 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
       return next;
     });
     setSelectedStrandId(strandId);
-  };
+  }, []);
 
   const total = inventory?.summary.total_strands || 0;
-  const initializedCableIds = new Set((inventory?.strands || []).map(strand => strand.cable_id));
+  const initializedCableIds = useMemo(
+    () => new Set((inventory?.strands || []).map(strand => strand.cable_id)),
+    [inventory?.strands]
+  );
   const selectedCableInitialized = selectedCableId ? initializedCableIds.has(selectedCableId) : false;
   const canConfigureCable = Boolean(selectedCable || selectedLegacyCandidate);
   const cableConfigLabel = selectedCable
@@ -819,22 +862,12 @@ export const FiberInspector: React.FC<FiberInspectorProps> = ({ projectId, selec
           ) : (
             <div className="max-h-56 overflow-auto rounded-lg border border-cad-border bg-cad-surface">
               {filteredStrands.map(strand => (
-                <button
-                  type="button"
+                <StrandRow
                   key={strand.id}
-                  onClick={() => toggleStrand(strand.id)}
-                  className={selectedStrandIds.has(strand.id)
-                    ? 'flex w-full items-center justify-between gap-2 border-b border-cad-accent/10 bg-cad-accent/10 px-3 py-2 text-left'
-                    : 'flex w-full items-center justify-between gap-2 border-b border-cad-border px-3 py-2 text-left hover:bg-cad-text-primary/5'}
-                >
-                  <span className="min-w-0">
-                    <span className="block text-[10px] font-semibold text-cad-text-primary">Sợi #{strand.strand_no}</span>
-                    <span className="block truncate text-[9px] text-cad-text-muted">{strand.color || 'Chưa gán màu'} · {strand.id}</span>
-                  </span>
-                  <span className={`shrink-0 rounded border px-2 py-0.5 text-[9px] ${fiberStrandStatusClass[strand.status]}`}>
-                    {fiberStrandStatusLabel[strand.status]}
-                  </span>
-                </button>
+                  strand={strand}
+                  selected={selectedStrandIds.has(strand.id)}
+                  onToggle={toggleStrand}
+                />
               ))}
             </div>
           )}

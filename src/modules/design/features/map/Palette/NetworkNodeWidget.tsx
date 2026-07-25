@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import { cn } from '@TOOL/utils/cn';
 import type { NetworkComputedStatus } from '../network/NetworkGraphService';
@@ -28,7 +29,7 @@ const statusLabel: Record<NetworkComputedStatus, string> = {
     'configuration-error': 'Chưa cấu hình',
 };
 
-export const NetworkNodeWidget = ({ data }: { data: NetworkNodeData }) => {
+export const NetworkNodeWidget = memo(({ data }: { data: NetworkNodeData }) => {
     return (
         <div
             className={cn(
@@ -75,4 +76,6 @@ export const NetworkNodeWidget = ({ data }: { data: NetworkNodeData }) => {
             />
         </div>
     );
-};
+});
+
+NetworkNodeWidget.displayName = 'NetworkNodeWidget';

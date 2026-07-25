@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Sparkles, Image as ImageIcon, Trash2
 } from "lucide-react";
@@ -36,13 +36,13 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
   const startX = useRef<number>(0);
   const startWidth = useRef<number>(0);
 
-  const onMouseDown = (e: React.MouseEvent, col: keyof typeof columnWidths) => {
+  const onMouseDown = useCallback((e: React.MouseEvent, col: keyof typeof columnWidths) => {
     resizingColumn.current = col;
     startX.current = e.pageX;
     startWidth.current = columnWidths[col];
     document.body.style.cursor = 'col-resize';
     e.preventDefault();
-  };
+  }, [columnWidths]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -68,7 +68,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
     };
   }, []);
 
-  const handleUpdate = async (id: string, field: 'name' | 'note' | 'lng' | 'lat', value: string) => {
+  const handleUpdate = useCallback(async (id: string, field: 'name' | 'note' | 'lng' | 'lat', value: string) => {
     const feature = state?.features[id];
     if (!feature) return;
 
@@ -115,27 +115,32 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
       if (!(await confirmUserAction(`Xác nhận cập nhật ${field === 'lng' || field === 'lat' ? 'vị trí' : 'dữ liệu'} của đối tượng "${feature.name}"?`))) return;
       await dispatchEvent({ type: 'FeatureUpdated', payload });
     }
-  };
+  }, [state, dispatchEvent]);
 
-  if (!boxSelection) {
-    return null;
-  }
-
-  // Debug for user if they experience issues
-  if (boxSelection.count > 0 && (!boxSelection.items || boxSelection.items.length === 0)) {
-    console.warn("[BoxSummary] boxSelection has count but items are missing!", boxSelection);
-  }
-
-  const items = boxSelection.items || [];
-  const totalCount = boxSelection.count || items.length;
+  // Derived data. Computed before the early return so the hook order stays stable
+  // whether or not a box selection exists.
+  const items = useMemo(() => boxSelection?.items ?? [], [boxSelection]);
+  const totalCount = boxSelection?.count || items.length;
 
   // Breakdown by type - Ưu tiên dùng stats từ store (chính xác 100%)
-  const typeCounts = boxSelection.byType || items.reduce((acc, item) => {
-    acc[item.displayType] = (acc[item.displayType] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  const typeCounts = useMemo<Record<string, number>>(() => {
+    if (boxSelection?.byType) return boxSelection.byType;
+    return items.reduce((acc, item) => {
+      acc[item.displayType] = (acc[item.displayType] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+  }, [boxSelection, items]);
 
-  const handleRowClick = (item: any) => {
+  const typeBreakdown = useMemo(() => Object.entries(typeCounts), [typeCounts]);
+
+  const visibleItems = useMemo(() => items.slice(0, MAX_VISIBLE_ROWS), [items]);
+
+  const isAllSelected = useMemo(
+    () => items.length > 0 && items.every(item => selectionSet.has(item.id)),
+    [items, selectionSet]
+  );
+
+  const handleRowClick = useCallback((item: any) => {
     selectFeature(item.id);
     // zoomTo(item.id, 'feature'); // Disabled by user request to keep view constant
 
@@ -143,9 +148,9 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
     if (state?.features?.[item.id]) {
       useDesignSync.getState().setSelectedGroup(state.features[item.id].group_id);
     }
-  };
+  }, [selectFeature, state]);
 
-  const handleToggleView = (e: React.MouseEvent, id: string) => {
+  const handleToggleView = useCallback((e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     setExpandedItems(prev => {
       const newSet = new Set(prev);
@@ -156,14 +161,14 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
       }
       return newSet;
     });
-  };
+  }, []);
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = useCallback((id: string, name: string) => {
     setItemToDelete({ id, name });
     setShowDeleteModal(true);
-  };
+  }, []);
 
-  const confirmDelete = () => {
+  const confirmDelete = useCallback(() => {
     if (itemToDelete) {
       if (itemToDelete.isBatch) {
         deleteSelectedFeatures();
@@ -173,27 +178,31 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
       setItemToDelete(null);
       setShowDeleteModal(false);
     }
-  };
+  }, [itemToDelete, deleteSelectedFeatures, deleteFeature]);
 
-  const isAllSelected = items.length > 0 && items.every(item => selectionSet.has(item.id));
-
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSelectAll = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
       selectAll(items.map(i => i.id));
     } else {
       clearSelection();
     }
-  };
+  }, [items, selectAll, clearSelection]);
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = useCallback(() => {
     if (selectionSet.size > 0) {
       setItemToDelete({ id: 'batch', name: `${selectionSet.size} đối tượng đã chọn`, isBatch: true });
       setShowDeleteModal(true);
     }
-  };
+  }, [selectionSet]);
 
-  const handleExport = () => {
-    const headers = ["STT", "NỘI DUNG", "LOẠI", "X (Kinh độ)", "Y (Vĩ độ)", "GHI CHÚ"];
+  const handleClearSelection = useCallback(() => {
+    setBoxSelection(null);
+    clearSelection();
+  }, [setBoxSelection, clearSelection]);
+
+  const handleCloseDeleteModal = useCallback(() => setShowDeleteModal(false), []);
+
+  const handleExport = useCallback(() => {
     const rows = items.map((item, idx) => {
       return [
         idx + 1,
@@ -204,10 +213,19 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
         item.note
       ].join("\t");
     });
-    const tsvContent = [headers.join("\t"), ...rows].join("\n");
+    const tsvContent = [EXPORT_HEADERS.join("\t"), ...rows].join("\n");
     navigator.clipboard.writeText(tsvContent);
     alert("Đã sao chép " + totalCount + " đối tượng vào bộ nhớ tạm (Định dạng Excel TSV).");
-  };
+  }, [items, totalCount]);
+
+  if (!boxSelection) {
+    return null;
+  }
+
+  // Debug for user if they experience issues
+  if (boxSelection.count > 0 && (!boxSelection.items || boxSelection.items.length === 0)) {
+    console.warn("[BoxSummary] boxSelection has count but items are missing!", boxSelection);
+  }
 
   return (
     <div className={inline ? "flex flex-col h-full bg-cad-bg" : "summary-overlay"}>

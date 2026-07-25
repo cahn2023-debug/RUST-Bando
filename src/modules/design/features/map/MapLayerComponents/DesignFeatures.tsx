@@ -154,8 +154,11 @@ export const DesignFeatures = () => {
             const meta = getParsedMetadata(f, previewMetadata);
             const pid = metadataString(meta.parent_feature_id);
             if (pid) {
-                const children = map.get(pid) || [];
-                map.set(pid, [...children, f.id]);
+                // Push into the existing array instead of copying it per child:
+                // the spread made this O(n^2) in the number of siblings.
+                const children = map.get(pid);
+                if (children) children.push(f.id);
+                else map.set(pid, [f.id]);
             }
         });
         return map;
@@ -219,25 +222,40 @@ export const DesignFeatures = () => {
         [pointsToRender]
     );
 
+    // Previously a new L.DivIcon was constructed inline on every render of this
+    // orchestrator (which re-renders on every throttled map move), forcing the
+    // search marker to rebuild its DOM each time. It only depends on the marker.
+    const searchResultIcon = React.useMemo(() => {
+        if (!searchResultMarker) return null;
+        return new L.DivIcon({
+            className: 'search-result-marker',
+            html: `<div class="relative flex flex-col items-center"><div class="bg-white px-2 py-1 rounded shadow-md border border-cyan-500 text-[10px] font-bold whitespace-nowrap mb-1 opacity-90">${searchResultMarker.name.split(',')[0]}</div><div class="w-10 h-10 flex items-center justify-center filter drop-shadow-lg"><svg viewBox="0 0 24 24" width="36" height="36" fill="#06b6d4" fill-opacity="0.2" stroke="#06b6d4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3" fill="white"></circle></svg></div></div>`,
+            iconSize: [100, 60],
+            iconAnchor: [50, 60]
+        });
+    }, [searchResultMarker]);
+
+    const searchMarkerPosition = React.useMemo<[number, number] | null>(
+        () => (searchResultMarker ? [searchResultMarker.lat, searchResultMarker.lng] : null),
+        [searchResultMarker]
+    );
+
+    const clearSearchResultMarker = useCallback(() => setSearchResultMarker(null), [setSearchResultMarker]);
+
     return (
         <>
             {/* Search Result Layer */}
-            {searchResultMarker && (
+            {searchResultMarker && searchMarkerPosition && searchResultIcon && (
                 <Marker
-                    position={[searchResultMarker.lat, searchResultMarker.lng]}
-                    icon={new L.DivIcon({
-                        className: 'search-result-marker',
-                        html: `<div class="relative flex flex-col items-center"><div class="bg-white px-2 py-1 rounded shadow-md border border-cyan-500 text-[10px] font-bold whitespace-nowrap mb-1 opacity-90">${searchResultMarker.name.split(',')[0]}</div><div class="w-10 h-10 flex items-center justify-center filter drop-shadow-lg"><svg viewBox="0 0 24 24" width="36" height="36" fill="#06b6d4" fill-opacity="0.2" stroke="#06b6d4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3" fill="white"></circle></svg></div></div>`,
-                        iconSize: [100, 60],
-                        iconAnchor: [50, 60]
-                    })}
+                    position={searchMarkerPosition}
+                    icon={searchResultIcon}
                 >
                     <Popup>
                         <div className="p-1 max-w-[200px]">
                             <div className="font-bold text-cyan-700 text-sm mb-1">{searchResultMarker.name}</div>
                             <div className="text-[10px] text-gray-500 mb-2 italic">Địa chỉ từ tìm kiếm</div>
                             <button
-                                onClick={() => setSearchResultMarker(null)}
+                                onClick={clearSearchResultMarker}
                                 className="w-full py-1 text-[10px] bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100 transition-colors"
                             >
                                 Xóa marker này

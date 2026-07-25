@@ -8,6 +8,7 @@ import L from 'leaflet';
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { PRINT_COLORS, PRINT_PREVIEW_COLORS } from '@DESIGN/features/print/printColors';
+import { Button } from '@DESIGN/components/ui/Button';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -465,8 +466,8 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
                   <div className="text-[9px] font-black text-cad-text-muted uppercase tracking-widest px-1">Lọc theo lớp dữ liệu</div>
                   <div className="max-h-40 overflow-y-auto custom-scrollbar pr-1 space-y-1">
                     {Object.values(state?.layers || {}).map(layer => (
-                      <label key={layer.id} className="flex items-center justify-between p-2 bg-black/20 rounded border border-cad-border cursor-pointer hover:bg-black/30 transition-colors">
-                        <span className="text-[9px] text-gray-400 truncate pr-2 uppercase font-bold">{layer.name}</span>
+                      <label key={layer.id} className="flex items-center justify-between p-2 bg-cad-surface rounded border border-cad-border cursor-pointer hover:bg-cad-elevated transition-colors">
+                        <span className="text-[9px] text-cad-text-secondary truncate pr-2 uppercase font-bold">{layer.name}</span>
                         <input
                           type="checkbox"
                           checked={selectedLayerIds.has(layer.id)}
@@ -476,7 +477,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
                             else next.delete(layer.id);
                             setSelectedLayerIds(next);
                           }}
-                          className="w-3.5 h-3.5 rounded-sm border-cad-border bg-black text-blue-500"
+                          className="w-3.5 h-3.5 rounded-sm border-cad-border bg-cad-bg text-cad-accent"
                         />
                       </label>
                     ))}
@@ -585,23 +586,25 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
         <div className="p-5 border-t border-cad-border flex items-center justify-between bg-cad-header">
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">System Ready</span>
+              <span className="w-2 h-2 rounded-full bg-cad-accent animate-pulse" />
+              <span className="text-[10px] font-black text-cad-text-secondary uppercase tracking-widest">System Ready</span>
             </div>
-            <span className="text-[9px] text-gray-500 font-mono">Format: High-Res PNG | Output: {paperSize} Portrait</span>
+            <span className="text-[9px] text-cad-text-muted font-mono">Format: High-Res PNG | Output: {paperSize} Portrait</span>
           </div>
           <div className="flex gap-4">
-            <button
+            <Button
+              variant="secondary"
+              size="lg"
               onClick={onClose}
-              className="px-8 py-2.5 rounded-xl border border-cad-border text-xs font-black uppercase tracking-widest text-gray-400 hover:bg-cad-elevated hover:text-white transition-all active:scale-95"
+              className="px-8 rounded-xl font-black uppercase tracking-widest"
             >
               Hủy bỏ
-            </button>
+            </Button>
             <button
               onClick={handlePrint}
               disabled={capturing || !printArea}
               className={cn(
-                "px-10 py-2.5 rounded-xl bg-yellow-500 text-cad-bg font-black text-xs uppercase tracking-widest shadow-[0_10px_30px_rgba(234,179,8,0.2)] hover:shadow-yellow-500/40 transition-all flex items-center gap-3 group",
+                "px-10 py-2.5 rounded-xl bg-cad-warn text-black font-black text-xs uppercase tracking-widest shadow-lg hover:shadow-cad-warn/40 transition-all flex items-center gap-3 group",
                 capturing ? 'opacity-70 cursor-wait' : 'hover:scale-105 active:scale-95',
                 !printArea && 'opacity-50 grayscale cursor-not-allowed'
               )}

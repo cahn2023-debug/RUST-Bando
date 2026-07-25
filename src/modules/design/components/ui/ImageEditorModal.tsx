@@ -44,6 +44,11 @@ interface ImageEditSnapshot {
   canvasHeight: number;
 }
 
+/**
+ * Annotation ink colors. These are paint values written onto the annotation canvas
+ * and burned into the exported PNG, so they must stay literal hexes regardless of
+ * app theme — see MASTER.md §2. Module scope keeps the array identity stable.
+ */
 const QUICK_SWATCHES = [
   { label: 'Cam', color: '#f97316' },
   { label: 'Vàng', color: '#facc15' },
@@ -198,6 +203,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   const dragStartRef = useRef<DragPoint | null>(null);
   const lastPencilPointRef = useRef<DragPoint | null>(null);
   const cropRectRef = useRef<CropRect | null>(null);
+  /** Initial focus target: the crop tool, a safe non-destructive control. */
+  const initialFocusRef = useRef<HTMLButtonElement>(null);
 
   const [tool, setTool] = useState<ImageEditTool>('crop');
   const [strokeColor, setStrokeColor] = useState('#f97316');
@@ -297,6 +304,13 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       return prev.slice(0, -1);
     });
   };
+
+  // Move focus into the dialog on mount so keyboard users are not left on the
+  // invoking control behind the scrim (MASTER.md §7). Escape handling lives in the
+  // hotkey effect below, which already implements the layered cancel behaviour.
+  useEffect(() => {
+    initialFocusRef.current?.focus();
+  }, []);
 
   // Initialize canvas with imageUrl
   useEffect(() => {
@@ -681,71 +695,80 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
   const toolButtonClass = (candidate: ImageEditTool) =>
     cn(
-      "p-2 rounded border text-[10px] font-black uppercase transition-colors flex items-center justify-center gap-1",
+      "p-2 rounded border text-[10px] font-black uppercase transition-colors flex items-center justify-center gap-1 cursor-pointer",
+      "focus-visible:ring-2 focus-visible:ring-cad-accent focus-visible:ring-offset-1 focus-visible:ring-offset-cad-surface",
       tool === candidate ? "bg-cad-accent border-cad-accent text-black" : "bg-cad-bg border-cad-border text-cad-text-secondary hover:text-cad-text-primary"
     );
 
   return createPortal(
     <div className="fixed inset-0 z-cad-modal bg-black/90 backdrop-blur-sm flex flex-col">
-      <div className="h-full w-full bg-cad-surface border border-cad-border shadow-2xl flex flex-col overflow-hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="image-editor-title"
+        className="h-full w-full bg-cad-surface border border-cad-border shadow-2xl flex flex-col overflow-hidden"
+      >
         {/* Header */}
         <div className="p-4 border-b border-cad-border flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-cad-text-primary">
-            <Pencil className="w-4 h-4 text-cad-accent" /> {title}
+          <div
+            id="image-editor-title"
+            className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-cad-text-primary"
+          >
+            <Pencil className="w-4 h-4 text-cad-accent" aria-hidden="true" /> {title}
           </div>
-          <Button variant="ghost" size="md" icon={X} ariaLabel="Close editor" onClick={onCancel} />
+          <Button variant="ghost" size="md" icon={X} ariaLabel="Đóng trình chỉnh sửa ảnh" onClick={onCancel} />
         </div>
 
         {/* Toolbar */}
         <div className="p-4 border-b border-cad-border flex flex-wrap items-center gap-3 shrink-0 bg-cad-surface">
-          <button aria-label="Crop tool" title="Crop tool (Select region)" onClick={() => setTool('crop')} className={toolButtonClass('crop')}>
-            <Crop className="w-4 h-4" />
+          <button ref={initialFocusRef} type="button" aria-label="Công cụ cắt ảnh" aria-pressed={tool === 'crop'} title="Crop tool (Select region)" onClick={() => setTool('crop')} className={toolButtonClass('crop')}>
+            <Crop className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button aria-label="Pencil tool (B)" title="Pencil tool - Bút vẽ tự do (B)" onClick={() => setTool('pencil')} className={toolButtonClass('pencil')}>
-            <Pencil className="w-4 h-4" />
+          <button type="button" aria-label="Bút vẽ tự do (B)" aria-pressed={tool === 'pencil'} title="Pencil tool - Bút vẽ tự do (B)" onClick={() => setTool('pencil')} className={toolButtonClass('pencil')}>
+            <Pencil className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button aria-label="Eraser tool (E)" title="Eraser tool - Tẩy xóa (E)" onClick={() => setTool('eraser')} className={toolButtonClass('eraser')}>
-            <Eraser className="w-4 h-4" />
+          <button type="button" aria-label="Tẩy xóa (E)" aria-pressed={tool === 'eraser'} title="Eraser tool - Tẩy xóa (E)" onClick={() => setTool('eraser')} className={toolButtonClass('eraser')}>
+            <Eraser className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button aria-label="Line tool (L)" title="Line tool - Đường thẳng (L)" onClick={() => setTool('line')} className={toolButtonClass('line')}>
-            <Minus className="w-4 h-4" />
+          <button type="button" aria-label="Đường thẳng (L)" aria-pressed={tool === 'line'} title="Line tool - Đường thẳng (L)" onClick={() => setTool('line')} className={toolButtonClass('line')}>
+            <Minus className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button aria-label="Arrow tool" title="Arrow tool - Mũi tên" onClick={() => setTool('arrow')} className={toolButtonClass('arrow')}>
-            <MoveUpRight className="w-4 h-4" />
+          <button type="button" aria-label="Mũi tên" aria-pressed={tool === 'arrow'} title="Arrow tool - Mũi tên" onClick={() => setTool('arrow')} className={toolButtonClass('arrow')}>
+            <MoveUpRight className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button aria-label="Circle tool (C)" title="Circle tool - Hình tròn (C)" onClick={() => setTool('circle')} className={toolButtonClass('circle')}>
-            <Circle className="w-4 h-4" />
+          <button type="button" aria-label="Hình tròn (C)" aria-pressed={tool === 'circle'} title="Circle tool - Hình tròn (C)" onClick={() => setTool('circle')} className={toolButtonClass('circle')}>
+            <Circle className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button aria-label="Square tool (R)" title="Square tool - Hình vuông/chữ nhật (R)" onClick={() => setTool('square')} className={toolButtonClass('square')}>
-            <Square className="w-4 h-4" />
+          <button type="button" aria-label="Hình vuông/chữ nhật (R)" aria-pressed={tool === 'square'} title="Square tool - Hình vuông/chữ nhật (R)" onClick={() => setTool('square')} className={toolButtonClass('square')}>
+            <Square className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button aria-label="Text tool (T)" title="Text tool - Chữ ghi chú (T)" onClick={() => setTool('text')} className={toolButtonClass('text')}>
-            <TypeIcon className="w-4 h-4" />
+          <button type="button" aria-label="Chữ ghi chú (T)" aria-pressed={tool === 'text'} title="Text tool - Chữ ghi chú (T)" onClick={() => setTool('text')} className={toolButtonClass('text')}>
+            <TypeIcon className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button aria-label="Stamp tool" title="Stamp tool - Dán tem CAD" onClick={() => setTool('stamp')} className={toolButtonClass('stamp')}>
-            <Radio className="w-4 h-4" />
+          <button type="button" aria-label="Dán tem CAD" aria-pressed={tool === 'stamp'} title="Stamp tool - Dán tem CAD" onClick={() => setTool('stamp')} className={toolButtonClass('stamp')}>
+            <Radio className="w-4 h-4" aria-hidden="true" />
           </button>
 
-          <button aria-label="Rotate 90 deg" onClick={rotateCanvas} title="Rotate 90 deg clockwise" className="p-2 rounded bg-cad-bg border border-cad-border text-cad-text-secondary hover:text-cad-text-primary">
-            <RotateCw className="w-4 h-4" />
-          </button>
-          <button
-            aria-label="Undo"
+          <Button variant="secondary" size="md" icon={RotateCw} ariaLabel="Xoay 90 độ theo chiều kim đồng hồ" title="Rotate 90 deg clockwise" onClick={rotateCanvas} />
+          <Button
+            variant="secondary"
+            size="md"
+            icon={Undo2}
+            ariaLabel="Hoàn tác"
             title="Undo (Ctrl+Z)"
             onClick={undoLastEdit}
             disabled={undoStack.length === 0}
-            className="p-2 rounded bg-cad-bg border border-cad-border text-cad-text-secondary hover:text-cad-text-primary disabled:opacity-40 disabled:hover:text-cad-text-secondary"
-          >
-            <Undo2 className="w-4 h-4" />
-          </button>
+          />
 
-          <button
+          <Button
+            variant="accent"
+            size="md"
             onClick={applyCrop}
             disabled={!cropRect}
-            className="px-3 py-2 rounded bg-cad-accent/30 border border-cad-accent/50 text-[10px] font-black uppercase text-cad-accent hover:bg-cad-accent/50 disabled:opacity-40"
+            className="uppercase"
           >
             Apply crop
-          </button>
+          </Button>
 
           <div className="h-6 w-px bg-cad-border mx-1" />
 
@@ -754,7 +777,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             aria-label="Stroke pattern"
             value={strokePattern}
             onChange={e => setStrokePattern(e.target.value as StrokePattern)}
-            className="bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary outline-none"
+            className="bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cad-accent"
           >
             <option value="solid">Nét liền</option>
             <option value="dashed">Nét đứt</option>
@@ -768,16 +791,23 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             {QUICK_SWATCHES.map((swatch) => (
               <button
                 key={swatch.color}
+                type="button"
                 onClick={() => setStrokeColor(swatch.color)}
                 title={swatch.label}
+                aria-label={`Màu nét vẽ: ${swatch.label}`}
+                aria-pressed={strokeColor === swatch.color}
                 className={cn(
-                  "w-5 h-5 rounded-full border border-black/40 transition-transform flex items-center justify-center",
+                  "w-5 h-5 cursor-pointer rounded-full border border-black/40 transition-transform flex items-center justify-center",
+                  "focus-visible:ring-2 focus-visible:ring-cad-accent focus-visible:ring-offset-1 focus-visible:ring-offset-cad-bg",
                   strokeColor === swatch.color ? "scale-110 ring-2 ring-cad-accent" : "hover:scale-105"
                 )}
                 style={{ backgroundColor: swatch.color }}
               >
                 {strokeColor === swatch.color && (
-                  <Check className={cn("w-3 h-3", swatch.color === '#ffffff' ? "text-black" : "text-white")} />
+                  <Check
+                    aria-hidden="true"
+                    className={cn("w-3 h-3", swatch.color === '#ffffff' ? "text-black" : "text-white")}
+                  />
                 )}
               </button>
             ))}
@@ -809,7 +839,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             value={assetStamp}
             onChange={e => setAssetStamp(e.target.value as AssetStamp)}
             className={cn(
-              "bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary outline-none",
+              "bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cad-accent",
               tool === 'stamp' ? "opacity-100" : "opacity-60"
             )}
           >
@@ -829,14 +859,14 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
               max={120}
               value={textSize}
               onChange={e => setTextSize(Number(e.target.value))}
-              className="w-16 bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary outline-none"
+              className="w-16 bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cad-accent"
               placeholder="Size"
             />
             <input
               aria-label="Text value"
               value={textValue}
               onChange={e => setTextValue(e.target.value)}
-              className="min-w-32 flex-1 bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary outline-none"
+              className="min-w-32 flex-1 bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cad-accent"
               placeholder="Nội dung ghi chú..."
             />
             <Button
@@ -892,7 +922,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                   applyPendingText();
                 }
               }}
-              className="absolute min-w-24 max-w-[420px] bg-white/95 text-black border-2 border-cad-accent rounded px-2 py-1 font-bold shadow-lg outline-none"
+              className="absolute min-w-24 max-w-[420px] bg-white/95 text-black border-2 border-cad-accent rounded px-2 py-1 font-bold shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cad-accent"
               style={{
                 left: `calc(50% - ${canvasDisplaySize.width / 2}px + ${(pendingTextPoint.x / canvasSize.width) * canvasDisplaySize.width}px)`,
                 top: `calc(50% - ${canvasDisplaySize.height / 2}px + ${(pendingTextPoint.y / canvasSize.height) * canvasDisplaySize.height}px)`,

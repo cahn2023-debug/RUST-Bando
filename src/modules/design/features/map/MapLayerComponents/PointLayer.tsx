@@ -192,6 +192,22 @@ const createNativeIcon = (
     });
 }
 
+// createNativeIcon is a pure function of exactly its six arguments, so the icon it
+// produces can only differ when one of those arguments differs. Each marker records
+// the arguments behind its current icon; when they are all identical we skip
+// setIcon(), which otherwise tears down and rebuilds that marker's DOM node on every
+// effect run (any selection / preview / zoom churn re-ran it for every marker).
+const ICON_ARG_COUNT = 6;
+
+const iconArgsUnchanged = (marker: L.Marker, next: readonly unknown[]) => {
+    const prev = (marker as any)._iconArgs as readonly unknown[] | undefined;
+    if (!prev || prev.length !== ICON_ARG_COUNT) return false;
+    for (let i = 0; i < ICON_ARG_COUNT; i++) {
+        if (prev[i] !== next[i]) return false;
+    }
+    return true;
+};
+
 // -------------------------------------------------------------------
 // PointLayer — native Leaflet MarkerClusterGroup, no React children
 // -------------------------------------------------------------------
@@ -330,6 +346,7 @@ export const PointLayer = React.memo(({
             const targetPane = (isSelectedForMove || isClusteringDisabled) ? 'move-tool-pane' : 'markerPane';
 
             let marker = markersMap.get(f.id);
+            const iconArgs = [f, grp, metadata, indexInGroup, isSelected, isClickThrough] as const;
 
             if (!marker) {
                 const icon = createNativeIcon(f, grp, metadata, indexInGroup, isSelected, isClickThrough);
@@ -365,6 +382,7 @@ export const PointLayer = React.memo(({
                 }
 
                 (marker as any)._group = targetGroup;
+                (marker as any)._iconArgs = iconArgs;
                 if (!canUseLeafletPanes(map)) {
                     continue;
                 }
@@ -378,8 +396,12 @@ export const PointLayer = React.memo(({
                     marker.setLatLng([coords[1], coords[0]]);
                 }
 
-                const icon = createNativeIcon(f, grp, metadata, indexInGroup, isSelected, isClickThrough);
-                marker.setIcon(icon);
+                // Only rebuild the icon when an input to it actually changed.
+                if (!iconArgsUnchanged(marker, iconArgs)) {
+                    const icon = createNativeIcon(f, grp, metadata, indexInGroup, isSelected, isClickThrough);
+                    marker.setIcon(icon);
+                    (marker as any)._iconArgs = iconArgs;
+                }
                 (marker.options as any).interactive = !isClickThrough;
 
                 if (marker.dragging) {

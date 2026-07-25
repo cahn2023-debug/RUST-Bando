@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import { CircleMarker, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import type { LatLng, LatLngTuple } from 'leaflet';
 
@@ -13,6 +13,38 @@ const formatDistance = (meters: number) => {
 };
 
 const toTuple = (point: LatLng): LatLngTuple => [point.lat, point.lng];
+
+/**
+ * Leaflet canvas paint values — render data, NOT UI chrome, so these stay literal
+ * hexes (MASTER.md §2: map data colours must be stable across themes; a themed
+ * token here would repaint the measurement geometry when the theme flips).
+ * Hoisted out of render so the option objects keep a stable identity.
+ */
+const MEASURE_LINE_STYLE = {
+    color: '#38bdf8',
+    weight: 3,
+    opacity: 0.95,
+} as const;
+
+const MEASURE_VERTEX_STYLE = {
+    color: '#e0f2fe',
+    fillColor: '#0284c7',
+    fillOpacity: 1,
+    weight: 2,
+} as const;
+
+const MEASURE_HOVER_VERTEX_STYLE = {
+    color: '#bae6fd',
+    fillColor: '#38bdf8',
+    fillOpacity: 0.55,
+    weight: 1,
+} as const;
+
+const MEASURE_PANEL_TITLE_ID = 'measure-panel-title';
+
+/** Keep panel clicks from reaching the Leaflet map behind it. */
+const stopEvent = (event: SyntheticEvent) => event.stopPropagation();
+const preventEvent = (event: SyntheticEvent) => event.preventDefault();
 
 export function MeasurementTool({ active, onDeactivate }: MeasurementToolProps) {
     const map = useMap();
@@ -104,9 +136,7 @@ export function MeasurementTool({ active, onDeactivate }: MeasurementToolProps) 
                     positions={path}
                     interactive={false}
                     pathOptions={{
-                        color: '#38bdf8',
-                        weight: 3,
-                        opacity: 0.95,
+                        ...MEASURE_LINE_STYLE,
                         dashArray: hoverPoint ? '8 8' : undefined,
                     }}
                 />
@@ -118,12 +148,7 @@ export function MeasurementTool({ active, onDeactivate }: MeasurementToolProps) 
                     center={toTuple(point)}
                     radius={5}
                     interactive={false}
-                    pathOptions={{
-                        color: '#e0f2fe',
-                        fillColor: '#0284c7',
-                        fillOpacity: 1,
-                        weight: 2,
-                    }}
+                    pathOptions={MEASURE_VERTEX_STYLE}
                 />
             ))}
 
@@ -132,12 +157,7 @@ export function MeasurementTool({ active, onDeactivate }: MeasurementToolProps) 
                     center={toTuple(hoverPoint)}
                     radius={4}
                     interactive={false}
-                    pathOptions={{
-                        color: '#bae6fd',
-                        fillColor: '#38bdf8',
-                        fillOpacity: 0.55,
-                        weight: 1,
-                    }}
+                    pathOptions={MEASURE_HOVER_VERTEX_STYLE}
                 >
                     <Tooltip permanent direction="top" offset={[0, -8]} opacity={1} className="measure-tooltip">
                         {formatDistance(totalDistance)}
@@ -147,21 +167,25 @@ export function MeasurementTool({ active, onDeactivate }: MeasurementToolProps) 
 
             <div
                 className="measure-panel pointer-events-auto"
-                onClick={(event) => event.stopPropagation()}
-                onMouseDown={(event) => event.stopPropagation()}
-                onContextMenu={(event) => event.preventDefault()}
+                role="group"
+                aria-labelledby={MEASURE_PANEL_TITLE_ID}
+                onClick={stopEvent}
+                onMouseDown={stopEvent}
+                onContextMenu={preventEvent}
             >
-                <div className="text-[9px] font-black uppercase tracking-widest text-cad-text-muted">Đo khoảng cách</div>
-                <div className="mt-1 font-mono text-sm font-black text-cad-text-primary">
-                    {formatDistance(totalDistance)}
+                <div id={MEASURE_PANEL_TITLE_ID} className="text-[9px] font-black uppercase tracking-widest text-cad-text-muted">
+                    Đo khoảng cách
                 </div>
+                <output className="mt-1 block font-mono text-sm font-black text-cad-text-primary" aria-live="polite">
+                    {formatDistance(totalDistance)}
+                </output>
                 <div className="mt-1 text-[9px] text-cad-text-secondary">
                     Click để thêm điểm, chuột phải hoặc ESC để thoát
                 </div>
                 <button
                     type="button"
                     onClick={clearMeasure}
-                    className="mt-2 w-full border border-cad-border px-2 py-1 text-[9px] font-black uppercase text-cad-text-secondary hover:border-cad-accent hover:text-cad-accent"
+                    className="mt-2 w-full cursor-pointer border border-cad-border px-2 py-1 text-[9px] font-black uppercase text-cad-text-secondary hover:border-cad-accent hover:text-cad-accent"
                 >
                     Kết thúc
                 </button>

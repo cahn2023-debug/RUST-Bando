@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link2, Loader2, X } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import {
@@ -106,6 +106,9 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
   const diagramRef = useRef<HTMLDivElement | null>(null);
   const strandRefs = useRef(new Map<string, HTMLButtonElement>());
   const portRefs = useRef(new Map<string, HTMLButtonElement>());
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const titleId = useId();
+  const equipmentKindSelectId = useId();
 
   const storeInventory = state?.inventory as FiberInventory | null | undefined;
   const inventory: FiberInventory | null = localInventory ?? storeInventory ?? null;
@@ -124,6 +127,23 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
     const refreshTimer = window.setTimeout(() => void refreshInventory(), 0);
     return () => window.clearTimeout(refreshTimer);
   }, [refreshInventory]);
+
+  /** Escape closes the dialog (MASTER.md §7). */
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  /** Initial focus lands on the close button — a safe, non-destructive control. */
+  useEffect(() => {
+    const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+    return () => window.clearTimeout(focusTimer);
+  }, []);
 
   const currentEquipment = useMemo(
     () => (inventory?.equipment || []).find(item => item.feature_id === enclosureId) || null,
@@ -781,6 +801,21 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
     await runWrite('Đã xóa patch giữa hai port ODF.', () => deleteFiberPortPatch(projectId, path.sourceId));
   };
 
+  /**
+   * The overlay is a purely visual schematic, so it gets a text summary instead of
+   * exposing the individual <path> elements to assistive tech (MASTER.md §9).
+   */
+  const diagramSummary = useMemo(() => {
+    const parts = [
+      `Sơ đồ nối core: ${leftStrands.length} core IN, ${rightStrands.length} core OUT`,
+      `${splicePaths.length} mối nối đang hiển thị`,
+    ];
+    if (activeEquipmentKind === 'odf') {
+      parts.push(`${odfPorts.length} cổng ODF, ${odfPaths.length} đường đấu nối ODF`);
+    }
+    return `${parts.join('. ')}.`;
+  }, [activeEquipmentKind, leftStrands.length, odfPaths.length, odfPorts.length, rightStrands.length, splicePaths.length]);
+
   const renderStrand = (strand: FiberStrand, side: 'left' | 'right') => {
     const color = getStrandColor(strand.strand_no);
     const endpoint = side === 'left' ? leftEndpoint : rightEndpoint;
@@ -817,6 +852,8 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         }}
         draggable={false}
         disabled={saving || (!isOdfMode && isOccupied)}
+        aria-pressed={isSelected}
+        aria-label={`Core ${side === 'left' ? 'IN' : 'OUT'} #${strand.strand_no}, màu ${color.name}, tube ${getTubeColor(strand.strand_no).name}${isOccupied ? ', đã sử dụng' : ''}`}
         className={[
           'flex h-5 w-full items-center overflow-hidden rounded border border-cad-border bg-cad-elevated text-[9px] font-bold transition',
           side === 'left' ? 'justify-end' : 'justify-start',
@@ -861,6 +898,10 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
     const statusLabel = termination
       ? patches.length > 0 ? 'Thông tuyến' : '1 hướng'
       : 'Trống';
+    /* Exactly one text color wins: status color when terminated, else selection/base. */
+    const textClass = termination
+      ? (patches.length > 0 ? 'text-cad-accent' : 'text-cad-warn')
+      : (isSelected ? 'text-cad-accent' : 'text-cad-text-muted');
 
     return (
       <button
@@ -872,10 +913,12 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         disabled={saving}
         className={[
           'pointer-events-auto relative z-40 flex aspect-square w-11 shrink-0 items-center justify-center rounded border text-[10px] font-black transition',
-          isSelected ? 'border-cad-accent/30 bg-cad-accent/10 text-cad-accent' : 'border-cad-border bg-cad-elevated text-cad-text-primary',
+          isSelected ? 'border-cad-accent/30 bg-cad-accent/10' : 'border-cad-border bg-cad-elevated',
           isDropReady ? 'border-cad-active/60 bg-cad-active/10' : '',
-          termination ? (patches.length > 0 ? 'text-emerald-200' : 'text-amber-200') : 'text-zinc-500',
+          textClass,
         ].join(' ')}
+        aria-pressed={isSelected}
+        aria-label={`Cổng ${port.port_label}: ${statusLabel}`}
         title={`${port.port_label} · ${statusLabel}`}
       >
         <span>{port.port_label}</span>
@@ -885,15 +928,21 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
 
   return (
     <div className="fixed inset-0 z-cad-overlay flex items-center justify-center bg-black/65 p-3 backdrop-blur-sm">
-      <div className="z-cad-modal flex h-[min(600px,88vh)] w-[min(900px,94vw)] flex-col overflow-hidden rounded-lg border border-cad-border bg-cad-elevated font-sans shadow-2xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="z-cad-modal flex h-[min(600px,88vh)] w-[min(900px,94vw)] flex-col overflow-hidden rounded-lg border border-cad-border bg-cad-elevated font-sans shadow-2xl"
+      >
         <div className="flex items-center justify-between gap-3 border-b border-cad-border px-3 py-2">
           <div className="min-w-0">
-            <h3 className="truncate text-[13px] font-semibold text-cad-text-primary">{getFeatureName(enclosureId)}</h3>
+            <h3 id={titleId} className="truncate text-[13px] font-semibold text-cad-text-primary">{getFeatureName(enclosureId)}</h3>
             <div className="mt-0.5 text-[9px] text-cad-text-muted">Sơ đồ nối core quang</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <label className="text-[9px] font-semibold text-cad-text-muted">Loại điểm nối</label>
+            <label htmlFor={equipmentKindSelectId} className="text-[9px] font-semibold text-cad-text-muted">Loại điểm nối</label>
             <select
+              id={equipmentKindSelectId}
               value={activeEquipmentKind}
               onChange={event => void handleEquipmentKindChange(event.target.value as EquipmentKind)}
               disabled={saving}
@@ -902,13 +951,14 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
               <option value="splice_enclosure">Măng xông</option>
               <option value="odf">ODF</option>
             </select>
-            <Button variant="ghost" size="sm" icon={X} ariaLabel="Đóng" title="Đóng" onClick={onClose} />
+            <Button ref={closeButtonRef} variant="ghost" size="sm" icon={X} ariaLabel="Đóng" title="Đóng" onClick={onClose} />
           </div>
         </div>
 
         <div className="grid shrink-0 grid-cols-[1fr_1fr] gap-3 border-b border-cad-border px-3 py-2">
           <select
-            className="min-w-0 rounded border border-cad-border bg-cad-surface px-2 py-1 text-[11px] font-semibold text-cyan-300 outline-none focus:border-cad-active/50"
+            aria-label="Chọn cáp IN"
+            className="min-w-0 rounded border border-cad-border bg-cad-surface px-2 py-1 text-[11px] font-semibold text-cad-active outline-none focus:border-cad-active/50"
             value={leftEndpointId}
             onChange={event => {
               setRequestedLeftCableId(event.target.value);
@@ -924,7 +974,8 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
           </select>
 
           <select
-            className="min-w-0 rounded border border-cad-border bg-cad-surface px-2 py-1 text-[11px] font-semibold text-pink-300 outline-none focus:border-cad-active/50"
+            aria-label="Chọn cáp OUT"
+            className="min-w-0 rounded border border-cad-border bg-cad-surface px-2 py-1 text-[11px] font-semibold text-cad-text-primary outline-none focus:border-cad-active/50"
             value={rightEndpointId}
             onChange={event => {
               setRequestedRightCableId(event.target.value);
@@ -941,10 +992,10 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         </div>
 
         <div className="grid shrink-0 grid-cols-[1fr_1fr_auto_auto_auto] items-end gap-2 border-b border-cad-border px-3 py-2 text-[10px]">
-          <div className="min-w-0 rounded border border-cyan-500/15 bg-cyan-500/5 px-2 py-1 text-cyan-100">
+          <div className="min-w-0 rounded border border-cad-active/15 bg-cad-active/5 px-2 py-1 text-cad-text-primary">
             IN core: {selectedLeftStrand ? `#${selectedLeftStrand.strand_no}` : 'Chưa chọn'}
           </div>
-          <div className="min-w-0 rounded border border-pink-500/15 bg-pink-500/5 px-2 py-1 text-pink-100">
+          <div className="min-w-0 rounded border border-cad-border bg-cad-surface px-2 py-1 text-cad-text-primary">
             OUT core: {selectedRightStrand ? `#${selectedRightStrand.strand_no}` : 'Chưa chọn'}
           </div>
           <label className="flex items-center gap-1 text-cad-text-muted">
@@ -1015,7 +1066,12 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
             </div>
           ) : (
             <div ref={diagramRef} className="relative flex min-h-0 flex-1 overflow-auto rounded border border-cad-border bg-cad-surface">
-                <svg className="pointer-events-none absolute inset-0 z-30 h-full w-full overflow-visible" data-testid="fiber-splice-overlay">
+                <svg
+                  className="pointer-events-none absolute inset-0 z-30 h-full w-full overflow-visible"
+                  data-testid="fiber-splice-overlay"
+                  role="img"
+                  aria-label={diagramSummary}
+                >
                 {splicePaths.map(({ splice, leftStrand, path }) => (
                   <g key={splice.id}>
                     <path
@@ -1104,14 +1160,14 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
                 )}
 
                   <div className={['relative z-40 w-[34%] min-w-[210px] p-3', activeEquipmentKind === 'odf' ? 'pt-28' : ''].join(' ')}>
-                <div className="mb-2 text-[10px] font-bold uppercase text-cyan-300">IN cores</div>
+                <div className="mb-2 text-[10px] font-bold uppercase text-cad-active">IN cores</div>
                 <div className="flex flex-col gap-1">{leftStrands.map(strand => renderStrand(strand, 'left'))}</div>
               </div>
 
                 <div className="relative z-20 w-[32%] min-w-[200px] p-3" />
 
                   <div className={['relative z-40 w-[34%] min-w-[210px] p-3', activeEquipmentKind === 'odf' ? 'pt-28' : ''].join(' ')}>
-                <div className="mb-2 text-right text-[10px] font-bold uppercase text-pink-300">OUT cores</div>
+                <div className="mb-2 text-right text-[10px] font-bold uppercase text-cad-text-primary">OUT cores</div>
                 <div className="flex flex-col gap-1">{rightStrands.map(strand => renderStrand(strand, 'right'))}</div>
               </div>
             </div>
@@ -1119,7 +1175,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         </div>
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-cad-border px-3 py-2 text-[11px] text-cad-text-muted">
-          <div className="min-w-0 truncate">
+          <div className="min-w-0 truncate" role="status" aria-live="polite">
             {statusMessage || 'Kéo core bên IN sang core bên OUT để nối nhanh, hoặc chọn hai core rồi bấm Nối core. Click đường nối để xóa.'}
           </div>
           {saving && (

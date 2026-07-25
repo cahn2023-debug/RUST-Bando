@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, useId } from 'react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import {
   Save, Camera, MapPin, Route,
@@ -256,8 +256,14 @@ export const PropertyPanel: React.FC = () => {
   const [isImportingMedia, setIsImportingMedia] = useState(false);
   const [mediaImportError, setMediaImportError] = useState<string | null>(null);
   const [brokenMediaAssetIds, setBrokenMediaAssetIds] = useState<string[]>([]);
+  // Validation messages for the fiber-line fields, so the existing `alert()` on save
+  // is also surfaced to assistive tech via aria-describedby / aria-invalid.
+  const [fiberFieldErrors, setFiberFieldErrors] = useState<{ cableType?: string; coreCount?: string }>({});
   const togglePalette = useLayoutStore(s => s.togglePalette);
   const paletteConfigs = useLayoutStore(s => s.paletteConfigs);
+  // One stable prefix per panel instance; every `htmlFor`/`aria-*` id below derives
+  // from it so labels stay wired to their control across re-renders.
+  const uid = useId();
   const projectSettings = useMemo(() => normalizeProjectSettings(state?.settings), [state?.settings]);
   const displayInfo = feature && group ? getFeatureDisplayInfo(feature, group.type, group.name, localMeta) : null;
   const isIntersectionFeature = !!displayInfo?.isIntersection;
@@ -265,24 +271,27 @@ export const PropertyPanel: React.FC = () => {
   const isCameraFeature = !!displayInfo?.isCamera || isCameraIcon(asStringValue(localMeta.icon || localMeta.type));
   const templateTypeId = getTemplateTypeIdForFeature(feature, { isCamera: isCameraFeature, isIntersection: isIntersectionFeature });
   const templateType = templateTypeId ? projectSettings.object_data_templates.types[templateTypeId] : null;
-  const templateFields = (templateType?.fields || []).filter((field) => {
-    if (!field.showInPalette) return false;
-    if (!isPolyline) return true;
-    return !['cable_type', 'core_count', 'infrastructure.cable_type', 'infrastructure.core_count'].includes(field.key);
-  });
+  const templateFields = useMemo(
+    () => (templateType?.fields || []).filter((field) => {
+      if (!field.showInPalette) return false;
+      if (!isPolyline) return true;
+      return !['cable_type', 'core_count', 'infrastructure.cable_type', 'infrastructure.core_count'].includes(field.key);
+    }),
+    [templateType, isPolyline]
+  );
 
-  let persistedMeta: FeatureMetadata = {};
-  let persistedMetaJson = '{}';
-  if (feature) {
+  const { persistedMeta, persistedMetaJson } = useMemo<{ persistedMeta: FeatureMetadata; persistedMetaJson: string }>(() => {
+    if (!feature) return { persistedMeta: {}, persistedMetaJson: '{}' };
     try {
       const parsed = getParsedMetadata(feature);
-      persistedMeta = preparePropertyMetadata(parsed, feature.properties as FeatureProperties);
-      persistedMetaJson = JSON.stringify(persistedMeta);
+      const prepared = preparePropertyMetadata(parsed, feature.properties as FeatureProperties);
+      return { persistedMeta: prepared, persistedMetaJson: JSON.stringify(prepared) };
     } catch {
-      persistedMeta = {};
-      persistedMetaJson = '{}';
+      return { persistedMeta: {}, persistedMetaJson: '{}' };
     }
-  }
+    // feature.metadata / feature.properties are listed explicitly because the store
+    // can mutate a feature record in place without changing its object identity.
+  }, [feature, feature?.metadata, feature?.properties]);
 
   const rawOrder = persistedMeta.display_order ?? persistedMeta.stt ?? persistedMeta.STT ?? '';
   const orderStr = (typeof rawOrder === 'string' || typeof rawOrder === 'number') ? String(rawOrder) : '';
@@ -297,15 +306,21 @@ export const PropertyPanel: React.FC = () => {
   const isNameDirty = !!feature && draftName !== persistedName;
   const [resolvedMediaUrls, setResolvedMediaUrls] = useState<Record<string, string>>({});
   const mediaSourceMeta = draftMeta || localMeta;
-  const imageAssetIds = getMediaAssetIds(mediaSourceMeta);
-  const legacyImageUrls = getLegacyImageUrls(mediaSourceMeta).filter(isRenderableImageUrl);
-  const displayImageEntries = [
+  const imageAssetIds = useMemo(() => getMediaAssetIds(mediaSourceMeta), [mediaSourceMeta]);
+  const legacyImageUrls = useMemo(
+    () => getLegacyImageUrls(mediaSourceMeta).filter(isRenderableImageUrl),
+    [mediaSourceMeta]
+  );
+  const displayImageEntries = useMemo(() => [
     ...imageAssetIds
       .map((assetId, index) => ({ url: resolvedMediaUrls[assetId], index }))
       .filter((entry): entry is { url: string; index: number } => !!entry.url),
     ...legacyImageUrls.map((url, offset) => ({ url, index: imageAssetIds.length + offset })),
-  ];
-  const brokenMediaCount = brokenMediaAssetIds.filter((assetId) => imageAssetIds.includes(assetId)).length;
+  ], [imageAssetIds, legacyImageUrls, resolvedMediaUrls]);
+  const brokenMediaCount = useMemo(
+    () => brokenMediaAssetIds.filter((assetId) => imageAssetIds.includes(assetId)).length,
+    [brokenMediaAssetIds, imageAssetIds]
+  );
 
   // Cleanup preview on unmount or when changing feature
   useEffect(() => {
@@ -351,7 +366,7 @@ export const PropertyPanel: React.FC = () => {
   }, [projectId, imageAssetIds.join('|')]);
 
   // Helper to get nested metadata values with legacy fallback
-  const getMetaValue = (path: string, legacyKey?: string): unknown => {
+  const getMetaValue = useCallback((path: string, legacyKey?: string): unknown => {
     const parts = path.split('.');
     let current: unknown = localMeta;
     for (const part of parts) {
@@ -369,10 +384,10 @@ export const PropertyPanel: React.FC = () => {
       if (legacyVal !== undefined) return legacyVal;
     }
     return undefined;
-  };
+  }, [localMeta]);
 
   // Helper to update nested metadata
-  const updateNestedMeta = (path: string, value: unknown) => {
+  const updateNestedMeta = useCallback((path: string, value: unknown) => {
     const next = { ...localMeta } as Record<string, unknown>;
     const parts = path.split('.');
     let current: Record<string, unknown> = next;
@@ -390,10 +405,13 @@ export const PropertyPanel: React.FC = () => {
     if (selectedFeatureId) {
       setPreview(selectedFeatureId, next as FeatureMetadata, localName);
     }
-  };
+  }, [localMeta, localName, selectedFeatureId, setPreview]);
 
-  const orderFieldLabel = getOrderFieldLabel(localMeta as Record<string, unknown>, feature?.properties as FeatureProperties | undefined);
-  const updateOrderMeta = (value: string) => {
+  const orderFieldLabel = useMemo(
+    () => getOrderFieldLabel(localMeta as Record<string, unknown>, feature?.properties as FeatureProperties | undefined),
+    [localMeta, feature?.properties]
+  );
+  const updateOrderMeta = useCallback((value: string) => {
     const next = syncDisplayOrderAliases(
       localMeta as Record<string, unknown>,
       value,
@@ -403,7 +421,28 @@ export const PropertyPanel: React.FC = () => {
     if (selectedFeatureId) {
       setPreview(selectedFeatureId, next, localName);
     }
-  };
+  }, [localMeta, localName, selectedFeatureId, setPreview, feature?.properties]);
+
+  // `updateNestedMeta` must close over the newest `localMeta`, but the per-field
+  // handlers handed to the memoized rows have to keep a stable identity or the
+  // rows re-render on every keystroke anywhere in the panel. Keep the latest
+  // updater in a ref and hand out cached handlers that read through it.
+  const updateNestedMetaRef = useRef(updateNestedMeta);
+  useEffect(() => {
+    updateNestedMetaRef.current = updateNestedMeta;
+  }, [updateNestedMeta]);
+
+  const fieldHandlerCache = useRef(new Map<string, (v: string) => void>());
+  const getFieldHandler = useCallback((path: string, asNumber = false): ((v: string) => void) => {
+    const cacheKey = `${path}|${asNumber ? 'number' : 'text'}`;
+    const cached = fieldHandlerCache.current.get(cacheKey);
+    if (cached) return cached;
+    const handler = (v: string) => {
+      updateNestedMetaRef.current(path, asNumber ? asNumberValue(v) : v);
+    };
+    fieldHandlerCache.current.set(cacheKey, handler);
+    return handler;
+  }, []);
 
   const applyFeaturePatch = (patch?: MediaFeaturePatch | null) => {
     if (!patch) return;
@@ -795,13 +834,16 @@ export const PropertyPanel: React.FC = () => {
       const cableType = asStringValue(standardizedMeta.infrastructure?.cable_type).trim();
       const fiberCount = getPositiveInteger(standardizedMeta.infrastructure?.core_count);
       if (!cableType) {
+        setFiberFieldErrors({ cableType: 'Vui lòng nhập loại cáp.' });
         alert('Vui lòng nhập loại cáp.');
         return;
       }
       if (!fiberCount) {
+        setFiberFieldErrors({ coreCount: 'Dung lượng cáp phải là số nguyên lớn hơn 0.' });
         alert('Dung lượng cáp phải là số nguyên lớn hơn 0.');
         return;
       }
+      setFiberFieldErrors({});
 
       const existingCable = getExistingFiberCable(state, feature.id);
       events.push({
@@ -1077,14 +1119,15 @@ export const PropertyPanel: React.FC = () => {
       <div className="p-4 overflow-y-auto flex-1 space-y-8 custom-scrollbar">
 
         {/* IDENTIFICATION */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
-            <Info className="w-3 h-3" /> Identification
+        <section className="space-y-4" role="group" aria-labelledby={`${uid}-identification`}>
+          <div id={`${uid}-identification`} className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
+            <Info className="w-3 h-3" aria-hidden="true" /> Identification
           </div>
           <div className="space-y-3">
             <div className="space-y-1">
-              <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Object Name</label>
+              <label htmlFor={`${uid}-object-name`} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Object Name</label>
               <input
+                id={`${uid}-object-name`}
                 className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary focus:border-cad-accent outline-none transition-all"
                 value={localName}
                 onChange={e => {
@@ -1099,8 +1142,9 @@ export const PropertyPanel: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{orderFieldLabel}</label>
+              <label htmlFor={`${uid}-order`} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{orderFieldLabel}</label>
               <input
+                id={`${uid}-order`}
                 className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary focus:border-cad-accent outline-none transition-all"
                 value={asStringValue(getMetaValue('display_order', orderFieldLabel))}
                 onChange={e => updateOrderMeta(e.target.value)}
@@ -1133,8 +1177,9 @@ export const PropertyPanel: React.FC = () => {
             )}
 
             <div className="space-y-1">
-              <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Description</label>
+              <label htmlFor={`${uid}-description`} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Description</label>
               <textarea
+                id={`${uid}-description`}
                 className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary focus:border-cad-accent outline-none transition-all resize-none"
                 rows={2}
                 value={asStringValue(getMetaValue('description', 'description'))}
@@ -1146,9 +1191,9 @@ export const PropertyPanel: React.FC = () => {
         </section>
 
         {templateFields.length > 0 && (
-          <section className="space-y-4">
-            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-accent uppercase">
-              <List className="w-3 h-3" /> Template Fields
+          <section className="space-y-4" role="group" aria-labelledby={`${uid}-template-fields`}>
+            <div id={`${uid}-template-fields`} className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-accent uppercase">
+              <List className="w-3 h-3" aria-hidden="true" /> Template Fields
             </div>
             <div className="bg-cad-bg p-3 rounded border border-cad-accent/10 space-y-3">
               {templateFields.map((field) => {
@@ -1157,7 +1202,7 @@ export const PropertyPanel: React.FC = () => {
                   return (
                     <label key={field.key} className="flex items-center justify-between rounded border border-cad-border bg-cad-bg px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-cad-text-muted">
                       <span className="flex items-center gap-1.5">
-                        <Edit3 className="w-3 h-3" /> {field.label}
+                        <Edit3 className="w-3 h-3" aria-hidden="true" /> {field.label}
                       </span>
                       <input
                         type="checkbox"
@@ -1172,8 +1217,9 @@ export const PropertyPanel: React.FC = () => {
                 if (field.type === 'select') {
                   return (
                     <div key={field.key} className="space-y-1">
-                      <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{field.label}</label>
+                      <label htmlFor={`${uid}-tpl-${field.key}`} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{field.label}</label>
                       <select
+                        id={`${uid}-tpl-${field.key}`}
                         className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all"
                         value={asStringValue(value)}
                         onChange={(e) => updateNestedMeta(field.key, e.target.value)}
@@ -1202,9 +1248,9 @@ export const PropertyPanel: React.FC = () => {
         )}
 
         {/* GEOMETRY & VN2000 */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
-            <Calculator className="w-3 h-3" /> Coordinates (VN-2000)
+        <section className="space-y-4" role="group" aria-labelledby={`${uid}-coordinates`}>
+          <div id={`${uid}-coordinates`} className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
+            <Calculator className="w-3 h-3" aria-hidden="true" /> Coordinates (VN-2000)
           </div>
           <div className="grid grid-cols-2 gap-2 bg-cad-bg p-3 rounded border border-cad-border">
             {(() => {
@@ -1224,7 +1270,7 @@ export const PropertyPanel: React.FC = () => {
                     <ReadOnlyField label="Lat" value={first[1]?.toFixed(6) || '0'} />
                     {vnx && vny ? (
                       <>
-                        <div className="col-span-2 h-[1px] bg-cad-border my-1"></div>
+                        <div className="col-span-2 h-[1px] bg-cad-border my-1" aria-hidden="true"></div>
                         <ReadOnlyField label="X (VN2000)" value={Number(vnx).toFixed(3)} />
                         <ReadOnlyField label="Y (VN2000)" value={Number(vny).toFixed(3)} />
                       </>
@@ -1238,15 +1284,16 @@ export const PropertyPanel: React.FC = () => {
         </section>
 
         {/* STYLING */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
-            <Palette className="w-3 h-3" /> Styling & Symbols
+        <section className="space-y-4" role="group" aria-labelledby={`${uid}-styling`}>
+          <div id={`${uid}-styling`} className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
+            <Palette className="w-3 h-3" aria-hidden="true" /> Styling & Symbols
           </div>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Color</label>
+                <label htmlFor={`${uid}-color`} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Color</label>
                 <input
+                  id={`${uid}-color`}
                   type="color"
                   className="w-full h-8 bg-transparent border-0 rounded cursor-pointer mt-1"
                   value={asStringValue(getMetaValue('color', 'color'), '#3b82f6')}
@@ -1254,8 +1301,9 @@ export const PropertyPanel: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{isPolyline ? 'Stroke' : 'Size'}</label>
+                <label htmlFor={`${uid}-size`} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{isPolyline ? 'Stroke' : 'Size'}</label>
                 <input
+                  id={`${uid}-size`}
                   type="number"
                   className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary mt-1 focus:border-cad-accent outline-none"
                   value={asNumberValue(getMetaValue('size', 'size'), isPolyline ? 4 : 32)}
@@ -1275,25 +1323,38 @@ export const PropertyPanel: React.FC = () => {
 
 
         {/* INFRASTRUCTURE SPECS */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-accent uppercase">
-            <Settings className="w-3 h-3" /> Infrastructure Details
+        <section className="space-y-4" role="group" aria-labelledby={`${uid}-infrastructure`}>
+          <div id={`${uid}-infrastructure`} className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-accent uppercase">
+            <Settings className="w-3 h-3" aria-hidden="true" /> Infrastructure Details
           </div>
           <div className="bg-cad-bg p-3 rounded border border-cad-accent/10 space-y-4">
             {isPolyline && (
               <>
                 <ReadOnlyField label="Loại hạ tầng" value="Cáp quang" />
                 <div className="grid grid-cols-2 gap-2">
-                  <DesignField label="Loại cáp" icon={<Radio className="w-3 h-3" />} value={getMetaValue('infrastructure.cable_type')} onChange={v => updateNestedMeta('infrastructure.cable_type', v)} />
-                  <DesignField label="Dung lượng cáp" icon={<Layers className="w-3 h-3" />} value={getMetaValue('infrastructure.core_count')} onChange={v => updateNestedMeta('infrastructure.core_count', asNumberValue(v))} />
+                  <DesignField
+                    label="Loại cáp"
+                    icon={<Radio className="w-3 h-3" aria-hidden="true" />}
+                    value={getMetaValue('infrastructure.cable_type')}
+                    onChange={getFieldHandler('infrastructure.cable_type')}
+                    errorMessage={fiberFieldErrors.cable_type}
+                  />
+                  <DesignField
+                    label="Dung lượng cáp"
+                    icon={<Layers className="w-3 h-3" aria-hidden="true" />}
+                    value={getMetaValue('infrastructure.core_count')}
+                    onChange={getFieldHandler('infrastructure.core_count', true)}
+                    errorMessage={fiberFieldErrors.core_count}
+                  />
                 </div>
               </>
             )}
             {!isPolyline && (
               <>
             <div className="space-y-1">
-              <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Type</label>
+              <label htmlFor={`${uid}-infra-type`} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Type</label>
               <select
+                id={`${uid}-infra-type`}
                 className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary outline-none active:border-cad-accent"
                 value={asStringValue(getMetaValue('infrastructure.type'), polyType)}
                 onChange={e => updateNestedMeta('infrastructure.type', e.target.value)}
@@ -1307,22 +1368,22 @@ export const PropertyPanel: React.FC = () => {
 
             {(getMetaValue('infrastructure.type') || polyType) === 'PowerLine' && (
               <div className="grid grid-cols-2 gap-2">
-                <DesignField label="Voltage" icon={<Zap className="w-3 h-3" />} value={getMetaValue('infrastructure.voltage')} onChange={v => updateNestedMeta('infrastructure.voltage', v)} />
-                <DesignField label="Owner" icon={<UserIcon className="w-3 h-3" />} value={getMetaValue('infrastructure.owner')} onChange={v => updateNestedMeta('infrastructure.owner', v)} />
+                <DesignField label="Voltage" icon={<Zap className="w-3 h-3" />} value={getMetaValue('infrastructure.voltage')} onChange={getFieldHandler('infrastructure.voltage')} />
+                <DesignField label="Owner" icon={<UserIcon className="w-3 h-3" />} value={getMetaValue('infrastructure.owner')} onChange={getFieldHandler('infrastructure.owner')} />
               </div>
             )}
 
             {(getMetaValue('infrastructure.type') || polyType) === 'SignalLine' && (
               <div className="grid grid-cols-2 gap-2">
-                <DesignField label="Cable" icon={<Radio className="w-3 h-3" />} value={getMetaValue('infrastructure.cable_type')} onChange={v => updateNestedMeta('infrastructure.cable_type', v)} />
-                <DesignField label="Cores" icon={<Layers className="w-3 h-3" />} value={getMetaValue('infrastructure.core_count')} onChange={v => updateNestedMeta('infrastructure.core_count', asNumberValue(v))} />
+                <DesignField label="Cable" icon={<Radio className="w-3 h-3" />} value={getMetaValue('infrastructure.cable_type')} onChange={getFieldHandler('infrastructure.cable_type')} />
+                <DesignField label="Cores" icon={<Layers className="w-3 h-3" />} value={getMetaValue('infrastructure.core_count')} onChange={getFieldHandler('infrastructure.core_count', true)} />
               </div>
             )}
 
             {(getMetaValue('infrastructure.type') || polyType) === 'TrenchLine' && (
               <div className="grid grid-cols-2 gap-2">
-                <DesignField label="Depth" icon={<Construction className="w-3 h-3" />} value={getMetaValue('infrastructure.depth')} onChange={v => updateNestedMeta('infrastructure.depth', asNumberValue(v))} />
-                <DesignField label="Surface" icon={<Grid3X3 className="w-3 h-3" />} value={getMetaValue('infrastructure.surface_type')} onChange={v => updateNestedMeta('infrastructure.surface_type', v)} />
+                <DesignField label="Depth" icon={<Construction className="w-3 h-3" />} value={getMetaValue('infrastructure.depth')} onChange={getFieldHandler('infrastructure.depth', true)} />
+                <DesignField label="Surface" icon={<Grid3X3 className="w-3 h-3" />} value={getMetaValue('infrastructure.surface_type')} onChange={getFieldHandler('infrastructure.surface_type')} />
               </div>
             )}
               </>
@@ -1332,9 +1393,9 @@ export const PropertyPanel: React.FC = () => {
 
         {/* AUTOMATED SEGMENTS */}
         {isPolyline && feature.properties?.segments && (
-          <section className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
-            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
-              <Sparkles className="w-3 h-3 text-cad-warn" /> Automated Segments
+          <section className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500" role="group" aria-labelledby={`${uid}-segments`}>
+            <div id={`${uid}-segments`} className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
+              <Sparkles className="w-3 h-3 text-cad-warn" aria-hidden="true" /> Automated Segments
             </div>
             <div className="space-y-1.5">
               {((feature.properties.segments ?? []) as SegmentItem[]).map((seg, idx) => (
@@ -1353,7 +1414,10 @@ export const PropertyPanel: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className={cn(
+                    {/* Surface-type swatch. Colours encode segment data (asphalt / stone /
+                        soil), not theme chrome, so they stay literal. The same information is
+                        already shown as text above, so the dot is decorative for a11y. */}
+                    <div aria-hidden="true" className={cn(
                       "w-2 h-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]",
                       seg.segment_type === 'AsphaltRoad' ? 'bg-zinc-600' :
                         seg.segment_type === 'StoneSidewalk' ? 'bg-stone-500' :
@@ -1368,19 +1432,20 @@ export const PropertyPanel: React.FC = () => {
         )}
 
         {/* DESIGN SPECS */}
-        <section className="space-y-4">
-          <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
-            <Settings className="w-3 h-3" /> Construction Info
+        <section className="space-y-4" role="group" aria-labelledby={`${uid}-construction`}>
+          <div id={`${uid}-construction`} className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
+            <Settings className="w-3 h-3" aria-hidden="true" /> Construction Info
           </div>
           <div className="space-y-3">
-            <DesignField label="Contractor" icon={<UserIcon className="w-3 h-3" />} value={getMetaValue('business.contractor', 'contractor')} onChange={v => updateNestedMeta('business.contractor', v)} />
-            <DesignField label="Phone" icon={<Phone className="w-3 h-3" />} value={getMetaValue('business.phoneNumber', 'phoneNumber')} onChange={v => updateNestedMeta('business.phoneNumber', v)} />
+            <DesignField label="Contractor" icon={<UserIcon className="w-3 h-3" />} value={getMetaValue('business.contractor', 'contractor')} onChange={getFieldHandler('business.contractor')} />
+            <DesignField label="Phone" icon={<Phone className="w-3 h-3" />} value={getMetaValue('business.phoneNumber', 'phoneNumber')} onChange={getFieldHandler('business.phoneNumber')} />
 
             <div className="space-y-1">
-              <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1 flex items-center gap-1.5">
-                <Briefcase className="w-3 h-3" /> Contract
+              <label htmlFor={`${uid}-contract`} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1 flex items-center gap-1.5">
+                <Briefcase className="w-3 h-3" aria-hidden="true" /> Contract
               </label>
               <select
+                id={`${uid}-contract`}
                 className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all"
                 value={asStringValue(getMetaValue('business.contract_id', 'contract_id'))}
                 onChange={e => updateNestedMeta('business.contract_id', e.target.value ? e.target.value : null)}
@@ -1396,9 +1461,9 @@ export const PropertyPanel: React.FC = () => {
 
         {/* CALCULATIONS */}
         {isPolyline && (
-          <section className="space-y-4">
-            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-warn uppercase">
-              <Sparkles className="w-3 h-3" /> Technical Stats
+          <section className="space-y-4" role="group" aria-labelledby={`${uid}-stats`}>
+            <div id={`${uid}-stats`} className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-warn uppercase">
+              <Sparkles className="w-3 h-3" aria-hidden="true" /> Technical Stats
             </div>
             <div className="bg-cad-warn/5 border border-cad-warn/10 rounded p-4 space-y-3">
               <div className="flex justify-between items-center text-[10px]">
@@ -1618,30 +1683,56 @@ export const PropertyPanel: React.FC = () => {
   );
 };
 
-const ReadOnlyField = ({ label, value }: { label: string, value: string }) => (
+// Read-only display pair. The caption is a <span>, not a <label>: there is no form
+// control to point at, and an orphan <label> is itself an a11y defect.
+const ReadOnlyField = React.memo<{ label: string; value: string }>(({ label, value }) => (
   <div className="space-y-1">
-    <label className="text-[8px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{label}</label>
+    <span className="block text-[8px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{label}</span>
     <div className="bg-cad-bg rounded px-2 py-1 text-[10px] font-mono text-cad-accent font-semibold border border-cad-border">
       {value}
     </div>
   </div>
-);
+));
 
-const DesignField = ({ label, icon, value, onChange }: { label: string, icon: React.ReactNode, value: unknown, onChange: (v: string) => void }) => {
+ReadOnlyField.displayName = 'ReadOnlyField';
+
+interface DesignFieldProps {
+  label: string;
+  icon: React.ReactNode;
+  value: unknown;
+  onChange: (v: string) => void;
+  /** Validation message; associated with the input via aria-describedby. */
+  errorMessage?: string;
+}
+
+const DesignField = React.memo<DesignFieldProps>(({ label, icon, value, onChange, errorMessage }) => {
   const inputId = React.useId();
+  const errorId = `${inputId}-error`;
 
   return (
     <div className="space-y-1">
       <label htmlFor={inputId} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1 flex items-center gap-1.5">
-        {icon} {label}
+        <span aria-hidden="true" className="inline-flex">{icon}</span> {label}
       </label>
       <input
         id={inputId}
-        className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary focus:border-cad-accent outline-none transition-all"
+        className={cn(
+          "w-full bg-cad-bg border rounded px-3 py-1.5 text-xs text-cad-text-primary outline-none transition-all",
+          errorMessage ? "border-cad-danger focus:border-cad-danger" : "border-cad-border focus:border-cad-accent"
+        )}
         value={asStringValue(value)}
         onChange={e => onChange(e.target.value)}
         placeholder={`Enter ${safeString(label).toLowerCase()}...`}
+        aria-invalid={errorMessage ? true : undefined}
+        aria-describedby={errorMessage ? errorId : undefined}
       />
+      {errorMessage ? (
+        <p id={errorId} role="alert" className="ml-1 text-[9px] font-bold text-cad-danger">
+          {errorMessage}
+        </p>
+      ) : null}
     </div>
   );
-};
+});
+
+DesignField.displayName = 'DesignField';

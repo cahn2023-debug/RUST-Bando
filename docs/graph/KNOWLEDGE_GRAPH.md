@@ -670,6 +670,8 @@ graph TD
     node_17_file("📄 src/modules/design/components/core/PropertyPanel.tsx")
     node_17_s0["📦 SegmentItem (interface)"]:::symbol
     node_17_file --- node_17_s0
+    node_17_s1["📦 DesignFieldProps (interface)"]:::symbol
+    node_17_file --- node_17_s1
   end
   class node_17_sub ts
   subgraph node_35_sub ["src/modules/design/components/core/PropertyPanel/PropertyFields.tsx"]
@@ -1065,10 +1067,16 @@ graph TD
   class node_91_sub ts
   subgraph node_109_sub ["src/modules/design/features/map/MapSettings/MapSettingsPanel.tsx"]
     node_109_file("📄 src/modules/design/features/map/MapSettings/MapSettingsPanel.tsx")
-    node_109_s0["📦 MapSettingsPanelProps (interface)"]:::symbol
+    node_109_s0["📦 MapFeatureFlags (interface)"]:::symbol
     node_109_file --- node_109_s0
-    node_109_s1["🔧 MapSettingsPanel (function)"]:::symbol
+    node_109_s1["📋 MapFeatureKey (type)"]:::symbol
     node_109_file --- node_109_s1
+    node_109_s2["📦 MapSettingsPanelProps (interface)"]:::symbol
+    node_109_file --- node_109_s2
+    node_109_s3["📋 Translate (type)"]:::symbol
+    node_109_file --- node_109_s3
+    node_109_s4["🔧 MapSettingsPanel (function)"]:::symbol
+    node_109_file --- node_109_s4
   end
   class node_109_sub ts
   node_72["📄 src/modules/design/features/map/MapSettingsPortal.tsx"]:::ts
@@ -1143,6 +1151,8 @@ graph TD
     node_146_file("📄 src/modules/design/features/map/Palette/FiberInspector.tsx")
     node_146_s0["📦 FiberInspectorProps (interface)"]:::symbol
     node_146_file --- node_146_s0
+    node_146_s1["📦 StrandRowProps (interface)"]:::symbol
+    node_146_file --- node_146_s1
   end
   class node_146_sub ts
   node_147["📄 src/modules/design/features/map/Palette/FiberSpliceDiagramModal.test.tsx"]:::ts

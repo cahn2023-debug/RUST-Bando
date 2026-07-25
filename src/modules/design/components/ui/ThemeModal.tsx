@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Settings2, X, Play } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getParsedMetadata, normalizeFeatureSymbolData } from '@TOOL/utils/featureUtils';
@@ -12,6 +12,26 @@ interface ThemeModalProps {
   targetFeatureIds?: string[];
 }
 
+/**
+ * Symbol palette offered to the user. These are data values written into feature
+ * metadata (`metadata.color`) and rendered on the map canvas, so they are NOT theme
+ * chrome and must stay literal hexes — see MASTER.md §2.
+ */
+const PRESET_COLORS = [
+  '#EF4444', // Red
+  '#3B82F6', // Blue
+  '#10B981', // Green
+  '#F59E0B', // Amber
+  '#8B5CF6', // Violet
+  '#EC4899', // Pink
+  '#6366F1', // Indigo
+  '#14B8A6', // Teal
+  '#F43F5E', // Rose
+  '#64748B', // Slate
+  '#000000', // Black
+  '#FFFFFF', // White
+] as const;
+
 export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: ThemeModalProps) {
   const state = useDesignSync(s => s.state);
   const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
@@ -22,6 +42,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
   const [size, setSize] = useState<number>(32);
   const [isApplying, setIsApplying] = useState(false);
   const loadedRef = useRef(false);
+  const cancelRef = useRef<HTMLButtonElement>(null);
   const hasExplicitTargets = !!targetFeatureIds?.length;
 
   const asString = (value: unknown) => (typeof value === 'string' ? value : '');
@@ -101,10 +122,28 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
     };
   }, [groupId, iconType, color, size, setGroupThemePreview]);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setGroupThemePreview(null, null); // Immediate clear
     onClose();
-  };
+  }, [setGroupThemePreview, onClose]);
+
+  // Initial focus lands on the non-destructive action (MASTER.md §7). Mount-only:
+  // re-running this would yank focus back to Cancel mid-interaction.
+  useEffect(() => {
+    cancelRef.current?.focus();
+  }, []);
+
+  // Escape closes the dialog.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        handleCancel();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [handleCancel]);
 
   const handleApply = async () => {
     if (!(await confirmUserAction('Xác nhận áp dụng biểu tượng và giao diện cho các đối tượng đã chọn?'))) return;
@@ -243,30 +282,20 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
     }
   };
 
-  const presetColors = [
-    '#EF4444', // Red
-    '#3B82F6', // Blue
-    '#10B981', // Green
-    '#F59E0B', // Emerald
-    '#8B5CF6', // Amber
-    '#EC4899', // Purple
-    '#6366F1', // Violet
-    '#14B8A6', // Teal
-    '#F43F5E', // Pink
-    '#64748B', // Slate
-    '#000000', // Black
-    '#FFFFFF', // White
-  ];
-
   return (
     <div className="fixed inset-0 z-cad-modal flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-cad-surface border border-cad-border rounded-lg shadow-2xl w-full max-w-sm overflow-hidden flex flex-col font-sans">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="group-theme-title"
+        className="bg-cad-surface border border-cad-border rounded-lg shadow-2xl w-full max-w-sm overflow-hidden flex flex-col font-sans"
+      >
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-cad-border bg-cad-elevated">
           <div className="flex items-center gap-2">
-            <Settings2 size={16} className="text-cad-accent" />
-            <h2 className="text-sm font-bold text-cad-text-primary uppercase tracking-wider">Group Theme</h2>
+            <Settings2 size={16} className="text-cad-accent" aria-hidden="true" />
+            <h2 id="group-theme-title" className="text-sm font-bold text-cad-text-primary uppercase tracking-wider">Group Theme</h2>
             <span className="text-[10px] text-cad-text-muted bg-cad-bg px-2 py-0.5 rounded-full">{groupName}</span>
           </div>
           <Button
@@ -282,12 +311,13 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
         <div className="p-4 space-y-5 text-sm text-cad-text-primary">
 
           <div className="space-y-2">
-            <label className="block text-[11px] uppercase tracking-wider font-semibold text-cad-text-muted">Biểu tượng (Icon)</label>
+            <label htmlFor="group-theme-icon" className="block text-[11px] uppercase tracking-wider font-semibold text-cad-text-muted">Biểu tượng (Icon)</label>
             <div className="relative">
               <select
+                id="group-theme-icon"
                 value={iconType}
                 onChange={e => setIconType(e.target.value)}
-                className="w-full bg-cad-bg border border-cad-border rounded p-2 pl-9 text-cad-text-primary outline-none focus:border-cad-accent appearance-none transition-colors"
+                className="w-full bg-cad-bg border border-cad-border rounded p-2 pl-9 text-cad-text-primary focus:border-cad-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cad-accent appearance-none transition-colors"
               >
                 <option value="default">(Giữ nguyên)</option>
                 <option value="cctv">Camera CCTV</option>
@@ -314,13 +344,16 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
           </div>
 
           <div className="space-y-3">
-            <label className="block text-[11px] uppercase tracking-wider font-semibold text-cad-text-muted">Màu sắc (Color)</label>
-            <div className="flex flex-wrap gap-2">
-              {presetColors.map(c => (
-                <div
+            <span className="block text-[11px] uppercase tracking-wider font-semibold text-cad-text-muted" id="group-theme-color-label">Màu sắc (Color)</span>
+            <div className="flex flex-wrap gap-2" role="group" aria-labelledby="group-theme-color-label">
+              {PRESET_COLORS.map(c => (
+                <button
                   key={c}
+                  type="button"
                   onClick={() => setColor(c)}
-                  className={`w-6 h-6 rounded-full cursor-pointer border-2 transition-all ${color === c ? 'border-cad-text-primary scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
+                  aria-label={`Chọn màu ${c}`}
+                  aria-pressed={color === c}
+                  className={`w-6 h-6 rounded-full cursor-pointer border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cad-accent focus-visible:ring-offset-2 focus-visible:ring-offset-cad-surface ${color === c ? 'border-cad-text-primary scale-110 shadow-lg' : 'border-transparent hover:scale-105'}`}
                   style={{ backgroundColor: c }}
                 />
               ))}
@@ -328,25 +361,28 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
             <div className="flex items-center gap-2 mt-2">
               <input
                 type="color"
+                aria-label="Màu tùy chỉnh"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0"
+                className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cad-accent"
               />
               <span className="font-mono text-xs text-cad-text-muted bg-cad-bg px-2 py-1 rounded">{color}</span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="block text-[11px] uppercase tracking-wider font-semibold text-cad-text-muted">Kích thước (Size)</label>
+            <label htmlFor="group-theme-size" className="block text-[11px] uppercase tracking-wider font-semibold text-cad-text-muted">Kích thước (Size)</label>
             <div className="flex items-center gap-3">
               <input
+                id="group-theme-size"
                 type="range"
                 min="1"
                 max="100"
                 step="1"
                 value={size}
                 onChange={e => setSize(parseInt(e.target.value))}
-                className="flex-1 accent-cad-accent"
+                aria-valuetext={`${size}px`}
+                className="flex-1 accent-cad-accent cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cad-accent"
               />
               <span className="font-mono text-xs bg-cad-bg px-3 py-1 rounded border border-cad-border">{size}px</span>
             </div>
@@ -360,6 +396,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
         {/* Footer */}
         <div className="p-4 border-t border-cad-border bg-cad-elevated flex justify-end gap-2">
           <Button
+            ref={cancelRef}
             variant="ghost"
             size="md"
             onClick={handleCancel}

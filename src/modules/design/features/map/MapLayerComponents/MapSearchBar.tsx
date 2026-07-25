@@ -1,7 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Search, X, Loader2, MapPin, Navigation } from 'lucide-react';
 import { useMapSearch, SearchResult } from '@IMPLEMENT/hooks/useMapSearch';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+
+const SEARCH_INPUT_ID = 'map-search-input';
+const SEARCH_RESULTS_ID = 'map-search-results';
+const LOCAL_GROUP_ID = 'map-search-group-local';
+const EXTERNAL_GROUP_ID = 'map-search-group-external';
 
 export const MapSearchBar: React.FC = () => {
     const { query, setQuery, results, loading } = useMapSearch();
@@ -12,7 +17,7 @@ export const MapSearchBar: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const handleSelect = (result: SearchResult) => {
+    const handleSelect = useCallback((result: SearchResult) => {
         if (result.type === 'local') {
             zoomTo(result.id, 'feature');
         } else {
@@ -26,7 +31,19 @@ export const MapSearchBar: React.FC = () => {
         }
         setIsOpen(false);
         setQuery('');
-    };
+    }, [setQuery, setSearchResultMarker, zoomTo]);
+
+    const handleQueryChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+        setQuery(event.target.value);
+        setIsOpen(true);
+    }, [setQuery]);
+
+    const handleFocus = useCallback(() => setIsOpen(true), []);
+
+    const handleClear = useCallback(() => {
+        setQuery('');
+        setIsOpen(false);
+    }, [setQuery]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -38,46 +55,57 @@ export const MapSearchBar: React.FC = () => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    if (isAnyDialogOpen) return null;
+    const localResults = useMemo(() => results.filter(r => r.type === 'local'), [results]);
+    const externalResults = useMemo(() => results.filter(r => r.type === 'external'), [results]);
 
-    const localResults = results.filter(r => r.type === 'local');
-    const externalResults = results.filter(r => r.type === 'external');
+    const isListOpen = isOpen && query.length >= 2 && (results.length > 0 || loading);
+
+    if (isAnyDialogOpen) return null;
 
     return (
         <div ref={containerRef} className="absolute top-4 left-4 z-cad-map-control w-80">
             <div className="relative flex items-center bg-cad-surface rounded-lg shadow-lg border border-cad-border overflow-hidden">
-                <div className="pl-3 py-2 text-cad-text-muted">
+                <div className="pl-3 py-2 text-cad-text-muted" aria-hidden="true">
                     <Search size={18} />
                 </div>
+                <label htmlFor={SEARCH_INPUT_ID} className="sr-only">
+                    Tìm kiếm trên bản đồ
+                </label>
                 <input
+                    id={SEARCH_INPUT_ID}
                     type="text"
+                    aria-controls={isListOpen ? SEARCH_RESULTS_ID : undefined}
+                    autoComplete="off"
                     className="w-full pl-2 pr-10 py-2.5 text-sm outline-none bg-transparent text-cad-text-primary"
                     placeholder="Tìm địa chỉ, camera, nút giao..."
                     value={query}
-                    onChange={(e) => {
-                        setQuery(e.target.value);
-                        setIsOpen(true);
-                    }}
-                    onFocus={() => setIsOpen(true)}
+                    onChange={handleQueryChange}
+                    onFocus={handleFocus}
                 />
                 <div className="absolute right-2 flex items-center gap-1">
-                    {loading && <Loader2 size={16} className="animate-spin text-cad-accent" />}
+                    {loading && <Loader2 size={16} aria-hidden="true" className="animate-spin text-cad-accent" />}
                     {query && (
                         <button
-                            onClick={() => {
-                                setQuery('');
-                                setIsOpen(false);
-                            }}
-                            className="p-1 hover:bg-cad-text-primary/10 rounded-full text-cad-text-muted"
+                            type="button"
+                            onClick={handleClear}
+                            aria-label="Xóa từ khóa tìm kiếm"
+                            className="p-1 hover:bg-cad-text-primary/10 rounded-full text-cad-text-muted cursor-pointer"
                         >
-                            <X size={16} />
+                            <X size={16} aria-hidden="true" />
                         </button>
                     )}
                 </div>
             </div>
 
-            {isOpen && query.length >= 2 && (results.length > 0 || loading) && (
-                <div className="mt-2 bg-cad-surface rounded-lg shadow-xl border border-cad-border overflow-hidden max-h-[400px] overflow-y-auto">
+            {isListOpen && (
+                <div
+                    id={SEARCH_RESULTS_ID}
+                    role="region"
+                    aria-label="Kết quả tìm kiếm"
+                    aria-live="polite"
+                    aria-busy={loading || undefined}
+                    className="mt-2 bg-cad-surface rounded-lg shadow-xl border border-cad-border overflow-hidden max-h-[400px] overflow-y-auto"
+                >
                     {loading && results.length === 0 ? (
                         <div className="px-4 py-8 text-center text-cad-text-muted text-sm">
                             <Loader2 size={24} className="animate-spin mx-auto mb-2 text-cad-accent" />
@@ -86,17 +114,21 @@ export const MapSearchBar: React.FC = () => {
                     ) : (
                         <>
                             {localResults.length > 0 && (
-                                <div className="py-1">
-                                    <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-cad-text-muted bg-cad-elevated">
+                                <div className="py-1" role="group" aria-labelledby={LOCAL_GROUP_ID}>
+                                    <div
+                                        id={LOCAL_GROUP_ID}
+                                        className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-cad-text-muted bg-cad-elevated"
+                                    >
                                         Kết quả bản đồ
                                     </div>
                                     {localResults.map(result => (
                                         <button
                                             key={result.id}
+                                            type="button"
                                             onClick={() => handleSelect(result)}
-                                            className="w-full flex items-center px-3 py-2 hover:bg-cad-text-primary/10 text-left transition-colors"
+                                            className="w-full flex items-center px-3 py-2 hover:bg-cad-text-primary/10 text-left transition-colors cursor-pointer"
                                         >
-                                            <div className="w-8 h-8 rounded bg-cad-accent/10 flex items-center justify-center text-cad-accent mr-3 flex-shrink-0">
+                                            <div className="w-8 h-8 rounded bg-cad-accent/10 flex items-center justify-center text-cad-accent mr-3 flex-shrink-0" aria-hidden="true">
                                                 <Navigation size={14} />
                                             </div>
                                             <div className="min-w-0">
@@ -113,17 +145,21 @@ export const MapSearchBar: React.FC = () => {
                             )}
 
                             {externalResults.length > 0 && (
-                                <div className="py-1 border-t border-cad-border">
-                                    <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-cad-text-muted bg-cad-elevated">
+                                <div className="py-1 border-t border-cad-border" role="group" aria-labelledby={EXTERNAL_GROUP_ID}>
+                                    <div
+                                        id={EXTERNAL_GROUP_ID}
+                                        className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-cad-text-muted bg-cad-elevated"
+                                    >
                                         Địa chỉ & Vị trí
                                     </div>
                                     {externalResults.map(result => (
                                         <button
                                             key={result.id}
+                                            type="button"
                                             onClick={() => handleSelect(result)}
-                                            className="w-full flex items-center px-3 py-2 hover:bg-cad-text-primary/10 text-left transition-colors"
+                                            className="w-full flex items-center px-3 py-2 hover:bg-cad-text-primary/10 text-left transition-colors cursor-pointer"
                                         >
-                                            <div className="w-8 h-8 rounded bg-cad-elevated flex items-center justify-center text-cad-text-muted mr-3 flex-shrink-0">
+                                            <div className="w-8 h-8 rounded bg-cad-elevated flex items-center justify-center text-cad-text-muted mr-3 flex-shrink-0" aria-hidden="true">
                                                 <MapPin size={14} />
                                             </div>
                                             <div className="min-w-0 flex-1">
