@@ -1643,24 +1643,19 @@ export const PropertyPanel: React.FC = () => {
       </div>
 
       {/* Footer Actions */}
-      <div className="p-3 border-t border-cad-border bg-cad-elevated">
+      <div className="p-2 border-t border-cad-border bg-cad-elevated">
         <Button
           onClick={handleSave}
           disabled={isSaving || (!isNameDirty && !isMetadataDirty)}
           variant="primary"
-          size="lg"
+          size="md"
+          icon={isSaving ? Loader2 : isSaved ? Zap : Save}
           className={cn(
-            "w-full h-auto py-2.5 rounded text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95",
-            isSaved && "bg-cad-active border-cad-active"
+            "w-full rounded text-[10px] font-black uppercase tracking-widest shadow-md active:scale-95",
+            isSaving && "[&_svg]:animate-spin",
+            isSaved && "bg-cad-active border-cad-active [&_svg]:animate-bounce"
           )}
         >
-          {isSaving ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : isSaved ? (
-            <Zap className="w-3.5 h-3.5 animate-bounce" />
-          ) : (
-            <Save className="w-3.5 h-3.5" />
-          )}
           {isSaving ? 'PERSISTING...' : isSaved ? 'SAVED SUCCESSFUL' : 'SAVE SPECS'}
         </Button>
       </div>
