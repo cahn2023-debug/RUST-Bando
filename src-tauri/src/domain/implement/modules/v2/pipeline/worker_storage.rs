@@ -511,6 +511,7 @@ impl StorageWorker {
         data_url: Option<String>,
         file_path: Option<String>,
     ) -> Result<Value, String> {
+        ensure_feature_exists(&self.db.conn, project_id, feature_id)?;
         let input = read_media_input(data_url, file_path)?;
         let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
         let asset = persist_media_asset(
@@ -1946,6 +1947,24 @@ fn decode_data_url(data_url: &str) -> Result<MediaInput, String> {
         .decode(encoded)
         .map_err(|e| format!("Invalid base64 media payload: {e}"))?;
     Ok(MediaInput { bytes, mime_type })
+}
+
+fn ensure_feature_exists(
+    conn: &Connection,
+    project_id: &str,
+    feature_id: &str,
+) -> Result<(), String> {
+    let exists: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM features WHERE project_id = ?1 AND id = ?2",
+            params![project_id, feature_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if exists == 0 {
+        return Err(format!("Feature not found for media import: {feature_id}"));
+    }
+    Ok(())
 }
 
 fn persist_media_asset(
@@ -3543,6 +3562,13 @@ fn merge_objects(base: &mut Value, patch: &Value) {
     }
 }
 
+fn coordinates_json_for_db(value: &Value) -> Option<String> {
+    match value {
+        Value::Array(_) | Value::Object(_) => Some(value.to_string()),
+        _ => None,
+    }
+}
+
 fn persist_event(tx: &Transaction<'_>, envelope: &EventEnvelope) -> Result<(), String> {
     let payload = serde_json::to_string(&envelope.event).map_err(|e| e.to_string())?;
     if payload.len() > MAX_EVENT_PAYLOAD_BYTES {
@@ -3853,7 +3879,7 @@ fn apply_event_to_read_models(
                     group_id.map(|v| v.to_string()),
                     name.to_string(),
                     geom_type.to_string(),
-                    geometry.to_string(),
+                    coordinates_json_for_db(geometry),
                     properties.to_string(),
                     metadata.to_string(),
                     bbox.as_ref().map(Value::to_string),
@@ -4859,7 +4885,7 @@ fn write_feature_snapshot(
             record.get("group_id").and_then(Value::as_str),
             name,
             geom_type,
-            record.get("coordinates").map(Value::to_string),
+            record.get("coordinates").and_then(coordinates_json_for_db),
             properties.to_string(),
             metadata.to_string(),
             record
@@ -5660,6 +5686,78 @@ mod tests {
             )
             .expect("feature count");
         assert_eq!(feature_count, 1);
+    }
+
+    #[test]
+    fn feature_created_with_null_geometry_persists_null_coordinates() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("null_geometry.pmp");
+        let mut db = PmpDatabase::open_or_create(db_path).expect("open db");
+        let project_id = Uuid::new_v4();
+        let layer_id = Uuid::new_v4();
+        let feature_id = Uuid::new_v4();
+
+        seed_basic_project(&db.conn, &project_id.to_string(), "Null Geometry");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name) VALUES (?1, ?2, ?3)",
+                params![layer_id.to_string(), project_id.to_string(), "Layer"],
+            )
+            .expect("seed layer");
+
+        let tx = db.conn.transaction().expect("tx");
+        let event = EventEnvelope::new(
+            project_id,
+            "feature",
+            feature_id,
+            AppEvent::FeatureCreated {
+                id: feature_id,
+                layer_id,
+                group_id: None,
+                task_id: None,
+                name: "No Geometry".to_string(),
+                geom_type: "Point".to_string(),
+                geometry: Value::Null,
+                properties: json!({}),
+                style_id: None,
+                is_visible: true,
+                note: None,
+                bbox: None,
+                metadata: json!({}),
+            },
+            "test",
+            None,
+        );
+
+        apply_event_to_read_models(&tx, &event).expect("apply feature event");
+        let coordinates: Option<String> = tx
+            .query_row(
+                "SELECT coordinates_json FROM features WHERE id = ?1",
+                params![feature_id.to_string()],
+                |row| row.get(0),
+            )
+            .expect("read coordinates");
+        assert_eq!(coordinates, None);
+    }
+
+    #[test]
+    fn import_media_asset_reports_missing_feature_before_link_insert() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("missing_media_feature.pmp");
+        let db = PmpDatabase::open_or_create(db_path).expect("open db");
+        seed_basic_project(&db.conn, "media-project", "Media Project");
+        let mut worker = make_worker(db);
+
+        let err = worker
+            .import_media_asset(
+                "media-project",
+                "missing-feature",
+                Some("data:image/png;base64,aGVsbG8=".to_string()),
+                None,
+            )
+            .expect_err("missing feature should fail");
+
+        assert!(err.contains("Feature not found for media import: missing-feature"));
     }
 
     #[test]
