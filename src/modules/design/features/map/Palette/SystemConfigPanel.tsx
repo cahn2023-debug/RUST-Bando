@@ -150,14 +150,14 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
   };
 
   return (
-    <div className="flex max-h-full w-[760px] flex-col overflow-hidden rounded-xl border border-white/10 bg-[#0b0f12] text-gray-200 shadow-2xl">
+    <div className="flex max-h-full w-[760px] flex-col overflow-hidden rounded-xl border border-cad-border bg-cad-surface text-cad-text-primary shadow-2xl">
       <div
         {...dragHandleProps}
-        className="flex items-center justify-between border-b border-white/10 bg-[#1a2126] px-3 py-2.5 drag-handle cursor-move"
+        className="flex items-center justify-between border-b border-cad-border bg-cad-elevated px-3 py-2.5 drag-handle cursor-move"
       >
         <div className="flex items-center gap-2">
           <Settings className="h-3.5 w-3.5 text-cad-accent" />
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-300">Cấu hình hệ thống</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-cad-text-primary">Cấu hình hệ thống</span>
           {(isDirty || isSaving || showSuccess) && (
             <div className={`h-1.5 w-1.5 rounded-full ${showSuccess ? 'bg-green-500' : 'bg-cad-accent'} animate-pulse`} />
           )}
@@ -165,14 +165,14 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
         <div className="flex items-center gap-1">
           <button
             onClick={onPin}
-            className={`rounded p-1 transition-all hover:bg-cad-accent hover:text-black ${isPinned ? 'text-cad-accent' : 'text-gray-500'}`}
+            className={`rounded p-1 transition-all hover:bg-cad-accent hover:text-black ${isPinned ? 'text-cad-accent' : 'text-cad-text-muted'}`}
             title={isPinned ? 'Auto-hide' : 'Pin'}
           >
             {isPinned ? <Pin size={12} /> : <PinOff size={12} />}
           </button>
           <button
             onClick={onClose}
-            className="rounded p-1 text-gray-500 transition-all hover:bg-red-500 hover:text-white"
+            className="rounded p-1 text-cad-text-muted transition-all hover:bg-red-500 hover:text-white"
           >
             <X size={12} />
           </button>
@@ -184,17 +184,17 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
           <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
             <Ruler className="h-3.5 w-3.5 text-blue-400" />
             <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Thông số mặc định dự án</span>
-            <div className="ml-2 h-px flex-1 bg-[#333]" />
+            <div className="ml-2 h-px flex-1 bg-cad-border" />
           </div>
 
-          <div className="grid gap-3 rounded-lg border border-[#222] bg-[#101419] p-3 md:grid-cols-2">
+          <div className="grid gap-3 rounded-lg border border-cad-border bg-cad-bg p-3 md:grid-cols-2">
             <label className="space-y-1">
               <span className="text-[9px] font-bold uppercase tracking-tight text-cad-text-secondary">Chiều cao lắp đặt mặc định (m)</span>
               <input
                 type="number"
                 value={localSettings.default_install_height}
                 onChange={(e) => setLocalSettings((prev) => ({ ...prev, default_install_height: Number(e.target.value) }))}
-                className="w-full rounded border border-[#333] bg-[#0a0a0a] px-3 py-2 text-xs text-white outline-none transition-colors focus:border-cad-accent"
+                className="w-full rounded border border-cad-border bg-cad-surface px-3 py-2 text-xs text-cad-text-primary outline-none transition-colors focus:border-cad-accent"
               />
             </label>
 
@@ -208,14 +208,14 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
           <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
             <Grid3X3 className="h-3.5 w-3.5 text-green-400" />
             <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Database mẫu theo đối tượng</span>
-            <div className="ml-2 h-px flex-1 bg-[#333]" />
+            <div className="ml-2 h-px flex-1 bg-cad-border" />
           </div>
 
           <div className="space-y-4">
             {TEMPLATE_TYPE_ORDER.map((typeId) => {
               const template = localSettings.object_data_templates.types[typeId];
               return (
-                <div key={typeId} className="rounded-lg border border-[#222] bg-[#101419] p-3">
+                <div key={typeId} className="rounded-lg border border-cad-border bg-cad-bg p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 text-cad-accent">
                       <Camera className="h-3.5 w-3.5" />
@@ -231,16 +231,16 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     {template.groups.map((group, groupIndex) => (
-                      <div key={group.id} className="flex items-center gap-2 rounded border border-[#2a2a2a] bg-[#0a0a0a] px-2 py-1">
+                      <div key={group.id} className="flex items-center gap-2 rounded border border-cad-border bg-cad-surface px-2 py-1">
                         <input
                           value={group.id}
                           onChange={(e) => updateGroup(typeId, groupIndex, 'id', e.target.value)}
-                          className="w-24 bg-transparent text-[10px] font-mono text-white outline-none"
+                          className="w-24 bg-transparent text-[10px] font-mono text-cad-text-primary outline-none"
                         />
                         <input
                           value={group.label}
                           onChange={(e) => updateGroup(typeId, groupIndex, 'label', e.target.value)}
-                          className="w-32 bg-transparent text-[10px] text-white outline-none"
+                          className="w-32 bg-transparent text-[10px] text-cad-text-primary outline-none"
                         />
                         <button onClick={() => removeGroup(typeId, group.id)} className="text-cad-text-muted hover:text-rose-400">
                           <Trash2 size={11} />
@@ -249,14 +249,14 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                     ))}
                     <button
                       onClick={() => addGroup(typeId)}
-                      className="flex items-center gap-1 rounded border border-dashed border-[#333] px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-cad-text-muted hover:border-cad-accent hover:text-cad-accent"
+                      className="flex items-center gap-1 rounded border border-dashed border-cad-border px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-cad-text-muted hover:border-cad-accent hover:text-cad-accent"
                     >
                       <Plus size={11} /> Add group
                     </button>
                   </div>
 
-                  <div className="mt-4 overflow-hidden rounded border border-[#222]">
-                    <div className="grid grid-cols-[1.2fr_1.2fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] gap-2 border-b border-[#222] bg-[#0a0a0a] px-2 py-2 text-[9px] font-black uppercase tracking-widest text-cad-text-muted">
+                  <div className="mt-4 overflow-hidden rounded border border-cad-border">
+                    <div className="grid grid-cols-[1.2fr_1.2fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] gap-2 border-b border-cad-border bg-cad-elevated px-2 py-2 text-[9px] font-black uppercase tracking-widest text-cad-text-muted">
                       <span>Label</span>
                       <span>Key</span>
                       <span>Type</span>
@@ -265,25 +265,25 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                       <span>Analysis</span>
                       <span />
                     </div>
-                    <div className="divide-y divide-[#222]">
+                    <div className="divide-y divide-cad-border">
                       {template.fields.map((field, fieldIndex) => (
                         <div key={`${field.key || fieldIndex}`} className="grid grid-cols-[1.2fr_1.2fr_0.8fr_0.8fr_0.8fr_0.8fr_auto] gap-2 px-2 py-2">
                           <input
                             value={field.label}
                             onChange={(e) => updateField(typeId, fieldIndex, { label: e.target.value })}
-                            className="rounded border border-[#2a2a2a] bg-[#0a0a0a] px-2 py-1 text-[10px] text-white outline-none"
+                            className="rounded border border-cad-border bg-cad-surface px-2 py-1 text-[10px] text-cad-text-primary outline-none"
                             placeholder="Label"
                           />
                           <input
                             value={field.key}
                             onChange={(e) => updateField(typeId, fieldIndex, { key: e.target.value })}
-                            className="rounded border border-[#2a2a2a] bg-[#0a0a0a] px-2 py-1 font-mono text-[10px] text-white outline-none"
+                            className="rounded border border-cad-border bg-cad-surface px-2 py-1 font-mono text-[10px] text-cad-text-primary outline-none"
                             placeholder="field_key"
                           />
                           <select
                             value={field.type}
                             onChange={(e) => updateField(typeId, fieldIndex, { type: e.target.value as ObjectDataTemplateField['type'] })}
-                            className="rounded border border-[#2a2a2a] bg-[#0a0a0a] px-2 py-1 text-[10px] text-white outline-none"
+                            className="rounded border border-cad-border bg-cad-surface px-2 py-1 text-[10px] text-cad-text-primary outline-none"
                           >
                             <option value="text">text</option>
                             <option value="number">number</option>
@@ -293,7 +293,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                           <select
                             value={field.groupId}
                             onChange={(e) => updateField(typeId, fieldIndex, { groupId: e.target.value })}
-                            className="rounded border border-[#2a2a2a] bg-[#0a0a0a] px-2 py-1 text-[10px] text-white outline-none"
+                            className="rounded border border-cad-border bg-cad-surface px-2 py-1 text-[10px] text-cad-text-primary outline-none"
                           >
                             {template.groups.map((group) => (
                               <option key={group.id} value={group.id}>{group.label}</option>
@@ -332,11 +332,11 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
           <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
             <Camera className="h-3.5 w-3.5 text-green-400" />
             <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Thông số mẫu camera</span>
-            <div className="ml-2 h-px flex-1 bg-[#333]" />
+            <div className="ml-2 h-px flex-1 bg-cad-border" />
           </div>
-          <div className="space-y-4 rounded-lg border border-[#222] bg-[#101419] p-3">
+          <div className="space-y-4 rounded-lg border border-cad-border bg-cad-bg p-3">
             {Object.entries(localSettings.camera_presets).map(([presetId, preset]) => (
-              <div key={presetId} className="space-y-2 border-b border-[#222] pb-4 last:border-0 last:pb-0">
+              <div key={presetId} className="space-y-2 border-b border-cad-border pb-4 last:border-0 last:pb-0">
                 <div className="flex items-center gap-2 text-cad-accent">
                   <Edit3 className="h-3 w-3" />
                   <span className="text-[9px] font-black uppercase tracking-widest">{CAMERA_TYPE_LABELS[presetId] || presetId}</span>
@@ -349,7 +349,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                       step="0.1"
                       value={preset.focal_length}
                       onChange={(e) => updateCameraPreset(presetId, 'focal_length', Number(e.target.value))}
-                      className="w-full rounded border border-[#333] bg-[#0a0a0a] px-3 py-2 text-xs text-white outline-none transition-colors focus:border-cad-accent"
+                      className="w-full rounded border border-cad-border bg-cad-surface px-3 py-2 text-xs text-cad-text-primary outline-none transition-colors focus:border-cad-accent"
                     />
                   </label>
                   <label className="space-y-1">
@@ -357,7 +357,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                     <input
                       value={preset.sensor_size}
                       onChange={(e) => updateCameraPreset(presetId, 'sensor_size', e.target.value)}
-                      className="w-full rounded border border-[#333] bg-[#0a0a0a] px-3 py-2 text-xs text-white outline-none transition-colors focus:border-cad-accent"
+                      className="w-full rounded border border-cad-border bg-cad-surface px-3 py-2 text-xs text-cad-text-primary outline-none transition-colors focus:border-cad-accent"
                     />
                   </label>
                   <label className="space-y-1">
@@ -366,7 +366,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                       type="number"
                       value={preset.resolution_x}
                       onChange={(e) => updateCameraPreset(presetId, 'resolution_x', Number(e.target.value))}
-                      className="w-full rounded border border-[#333] bg-[#0a0a0a] px-3 py-2 text-xs text-white outline-none transition-colors focus:border-cad-accent"
+                      className="w-full rounded border border-cad-border bg-cad-surface px-3 py-2 text-xs text-cad-text-primary outline-none transition-colors focus:border-cad-accent"
                     />
                   </label>
                   <label className="space-y-1">
@@ -375,7 +375,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                       type="number"
                       value={preset.resolution_y}
                       onChange={(e) => updateCameraPreset(presetId, 'resolution_y', Number(e.target.value))}
-                      className="w-full rounded border border-[#333] bg-[#0a0a0a] px-3 py-2 text-xs text-white outline-none transition-colors focus:border-cad-accent"
+                      className="w-full rounded border border-cad-border bg-cad-surface px-3 py-2 text-xs text-cad-text-primary outline-none transition-colors focus:border-cad-accent"
                     />
                   </label>
                 </div>
@@ -385,11 +385,11 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
         </section>
       </div>
 
-      <div className="flex gap-2 border-t border-[#333] p-3">
+      <div className="flex gap-2 border-t border-cad-border p-3">
         {onClose && (
           <button
             onClick={onClose}
-            className="flex-1 rounded border border-[#444] bg-transparent py-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 transition-all hover:border-gray-400 hover:text-white active:scale-95"
+            className="flex-1 rounded border border-cad-border bg-transparent py-2 text-[10px] font-bold uppercase tracking-widest text-cad-text-secondary transition-all hover:border-cad-accent hover:text-cad-text-primary active:scale-95"
           >
             Hủy
           </button>
@@ -401,7 +401,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
             ? 'bg-green-500 text-white'
             : isDirty
               ? 'bg-cad-accent text-black hover:bg-white'
-              : 'cursor-not-allowed bg-white/5 text-gray-500 opacity-50'
+              : 'cursor-not-allowed bg-cad-elevated text-cad-text-muted opacity-50'
             }`}
         >
           {showSuccess ? <><Check size={14} /> Đã lưu</> : isSaving ? <><div className="h-3 w-3 animate-spin rounded-full border-2 border-black/30 border-t-black" /> Đang lưu...</> : <><Save size={14} /> Lưu cấu hình</>}

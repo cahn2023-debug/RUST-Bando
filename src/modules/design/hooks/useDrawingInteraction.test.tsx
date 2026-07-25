@@ -4,10 +4,19 @@ import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { useDrawingInteraction } from './useDrawingInteraction';
 import { createFeatureEndpointRef } from '@DESIGN/features/map/network/NetworkEndpoint';
 
+const confirmationMocks = vi.hoisted(() => ({
+    confirmUserAction: vi.fn(),
+}));
+
 vi.mock('@tauri-apps/api/event', () => ({
     emit: vi.fn(),
     listen: vi.fn(),
 }));
+
+vi.mock('@TOOL/utils/userConfirmation', () => ({
+    confirmUserAction: confirmationMocks.confirmUserAction,
+}));
+
 
 const makeState = () => ({
     features: {
@@ -65,11 +74,13 @@ describe('useDrawingInteraction', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.spyOn(window, 'confirm').mockReturnValue(true);
+        confirmationMocks.confirmUserAction.mockResolvedValue(true);
         dispatchEvent = vi.fn().mockResolvedValue(undefined);
         queueEvent = vi.fn().mockResolvedValue(undefined);
         queueEvents = vi.fn().mockResolvedValue(undefined);
         useDesignSync.setState({
             state: makeState() as any,
+            projectId: 'project-1',
             drawingMode: 'none',
             selectedGroupId: 'group-1',
             activeParentFeatureId: null,
@@ -112,7 +123,7 @@ describe('useDrawingInteraction', () => {
     });
 
     it('does not create an object when the user cancels confirmation', async () => {
-        vi.mocked(window.confirm).mockReturnValue(false);
+        confirmationMocks.confirmUserAction.mockResolvedValueOnce(false);
         useDesignSync.setState({ drawingMode: 'point' });
         const { result } = renderHook(() => useDrawingInteraction());
 
@@ -285,7 +296,7 @@ describe('useDrawingInteraction', () => {
             result.current.finishDrawingSession();
         });
 
-        expect(queueEvent).toHaveBeenCalledTimes(1);
+        expect(queueEvents).toHaveBeenCalledTimes(1);
         expect(useDesignSync.getState().networkConnectionDraft).toBeNull();
         expect(useDesignSync.getState().drawingMode).toBe('none');
     });
@@ -306,9 +317,11 @@ describe('useDrawingInteraction', () => {
             await result.current.finalizePolyline();
         });
 
-        expect(queueEvent).toHaveBeenCalledTimes(1);
+        expect(queueEvents).toHaveBeenCalledTimes(1);
         expect(dispatchEvent).not.toHaveBeenCalled();
-        expect(queueEvent.mock.calls[0][0]).toMatchObject({
+        const events = queueEvents.mock.calls[0][0];
+        expect(events.map((event: { type: string }) => event.type)).toEqual(['FeatureCreated', 'FiberCableUpserted']);
+        expect(events[0]).toMatchObject({
             type: 'FeatureCreated',
             payload: {
                 layer_id: 'layer-1',
@@ -318,7 +331,7 @@ describe('useDrawingInteraction', () => {
                 coordinates: JSON.stringify([[20, 10], [21, 11]]),
             },
         });
-        expect(getMetadataFromCall(queueEvent)).toMatchObject({
+        expect(JSON.parse(events[0].payload.metadata)).toMatchObject({
             infrastructure: { type: 'SignalLine' },
             network: {
                 from_feature_id: 'cabinet-1',
@@ -332,6 +345,17 @@ describe('useDrawingInteraction', () => {
             snap_links: {
                 v0: 'cabinet-1',
                 v1: 'intersection-1',
+            },
+        });
+        expect(events[1]).toMatchObject({
+            type: 'FiberCableUpserted',
+            payload: {
+                project_id: 'project-1',
+                feature_id: events[0].payload.id,
+                cable_type: null,
+                fiber_count: null,
+                status: 'planned',
+                source: 'manual',
             },
         });
         expect(useDesignSync.getState().networkConnectionDraft).toBeNull();
@@ -374,7 +398,7 @@ describe('useDrawingInteraction', () => {
 
         expect(batchedQueueEvents).toHaveBeenCalledTimes(1);
         const events = batchedQueueEvents.mock.calls[0][0];
-        expect(events).toHaveLength(2);
+        expect(events).toHaveLength(3);
         expect(events[0]).toMatchObject({
             type: 'FeatureUpdated',
             payload: {
@@ -393,9 +417,7 @@ describe('useDrawingInteraction', () => {
     });
 
     it('creates a SignalLine when a point snaps to an existing SignalLine branch', async () => {
-        const queuedEventSingle = vi.fn().mockResolvedValue(undefined);
         useDesignSync.setState({
-            queueEvent: queuedEventSingle as any,
             dispatchEvents: vi.fn().mockResolvedValue(undefined) as any,
             state: {
                 ...makeState(),
@@ -427,8 +449,9 @@ describe('useDrawingInteraction', () => {
             await result.current.finalizePolyline();
         });
 
-        expect(queuedEventSingle).toHaveBeenCalledTimes(1);
-        const metadata = JSON.parse(queuedEventSingle.mock.calls[0][0].payload.metadata);
+        expect(queueEvents).toHaveBeenCalledTimes(1);
+        const branchEvents = queueEvents.mock.calls[0][0];
+        const metadata = JSON.parse(branchEvents[0].payload.metadata);
         expect(metadata.infrastructure).toMatchObject({ type: 'SignalLine' });
         expect(metadata.network).toMatchObject({
             from_feature_id: 'cabinet-1',
@@ -489,7 +512,7 @@ describe('useDrawingInteraction', () => {
         });
 
         const events = batchedQueueEvents.mock.calls[0][0];
-        expect(events).toHaveLength(2);
+        expect(events).toHaveLength(3);
         expect(JSON.parse(events[1].payload.metadata)).toMatchObject({
             network: {
                 from_feature_id: 'cabinet-1',
@@ -502,6 +525,14 @@ describe('useDrawingInteraction', () => {
                     member_ids: ['camera-1', 'missing-camera'],
                     coordinate: [21, 11],
                 },
+            },
+        });
+        expect(events[2]).toMatchObject({
+            type: 'FiberCableUpserted',
+            payload: {
+                project_id: 'project-1',
+                feature_id: events[1].payload.id,
+                status: 'planned',
             },
         });
     });

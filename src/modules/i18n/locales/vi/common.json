@@ -26,7 +26,8 @@
     "warning": "Cảnh báo",
     "info": "Thông tin",
     "success": "Thành công",
-    "help": "Trợ giúp"
+    "help": "Trợ giúp",
+    "select_view_or_tab": "Vui lòng chọn một góc nhìn hoặc thẻ làm việc"
   },
   "project": {
     "newProject": "Dự án mới",
@@ -62,7 +63,7 @@
     "draw": "Vẽ",
     "move": "Di chuyển",
     "delete": "Xóa",
-    "theme": "Theme",
+    "theme": "Chủ đề",
     "visibility": "Hiển thị",
     "search": "Tìm kiếm trên bản đồ",
     "coordinates": "Tọa độ",
@@ -90,13 +91,22 @@
     "visible": "Hiển thị",
     "hidden": "Ẩn"
   },
+  "contract": {
+    "analyzing": "ĐANG PHÂN TÍCH HỢP ĐỒNG...",
+    "list": "Danh sách hợp đồng",
+    "analysis": "Phân tích hợp đồng",
+    "summary": "Tổng quan hợp đồng",
+    "bom": "Bảng bóc tách khối lượng (BOM)",
+    "addContract": "Thêm hợp đồng mới"
+  },
   "settings": {
     "settings": "Cài đặt",
     "general": "Chung",
     "appearance": "Giao diện",
-    "theme": "Theme",
-    "light": "Sáng",
-    "dark": "Tối",
+    "theme": "Chủ đề",
+    "light": "Chế độ Sáng",
+    "dark": "Chế độ Tối",
+    "system": "Theo hệ thống",
     "language": "Ngôn ngữ",
     "vietnamese": "Tiếng Việt",
     "english": "Tiếng Anh",

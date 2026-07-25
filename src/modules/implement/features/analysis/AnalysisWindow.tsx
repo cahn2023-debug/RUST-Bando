@@ -1,10 +1,9 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BarChart3, Minus, Square, X } from 'lucide-react';
+import { Minus, Square, X } from 'lucide-react';
 import { AnalysisDialog } from '@IMPLEMENT/features/analysis/AnalysisDialog';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore';
 import { useAuthStore } from '@IMPLEMENT/stores/useAuthStore';
-import { cn } from '@TOOL/utils/cn';
 
 const AnalysisWindow: React.FC = () => {
     const { initialize, state, error: projectError } = useDesignSync();
@@ -164,43 +163,49 @@ const AnalysisWindow: React.FC = () => {
                     }
                 }}
                 onDoubleClick={() => import('@tauri-apps/api/webviewWindow').then((m) => m.getCurrentWebviewWindow().toggleMaximize())}
-                className="h-11 shrink-0 border-b border-cad-border bg-cad-elevated/95 backdrop-blur-md flex items-center justify-between pl-3 pr-0 select-none"
+                className="h-10 shrink-0 border-b border-[#1A1A1A] bg-[#2B2B2B] flex items-center justify-between pl-2 pr-0 select-none"
             >
-                <div data-tauri-drag-region className="flex items-center gap-3 min-w-0">
-                    <div data-tauri-drag-region className="w-7 h-7 rounded-md bg-cad-accent/10 text-cad-accent flex items-center justify-center">
-                        <BarChart3 data-tauri-drag-region className="w-4 h-4" />
+                <div data-tauri-drag-region className="flex items-center gap-2 min-w-0 pointer-events-none">
+                    <div className="w-7 h-7 flex items-center justify-center bg-[#A70000] rounded-sm ml-1">
+                        <span className="text-white font-black text-sm italic">P</span>
                     </div>
-                    <div data-tauri-drag-region className="min-w-0">
-                        <div data-tauri-drag-region className="text-[11px] font-black text-cad-text-primary uppercase tracking-wider truncate">
-                            Analysis
-                        </div>
-                        <div data-tauri-drag-region className="text-[9px] font-mono text-cad-text-muted uppercase tracking-widest truncate">
-                            Drag window here
-                        </div>
-                    </div>
+                    <span data-tauri-drag-region className="text-xs font-bold text-white tracking-wide truncate ml-1">
+                        Bảng phân tích dữ liệu - Analysis
+                    </span>
+                    {(state as any)?.project?.name && (
+                        <span data-tauri-drag-region className="text-xs text-cad-text-secondary truncate">
+                            - {String((state as any).project.name).toUpperCase()}
+                        </span>
+                    )}
                 </div>
 
-                <div className="flex items-center h-full">
+                <div className="flex items-center h-full pointer-events-auto">
                     <button
                         onClick={() => import('@tauri-apps/api/webviewWindow').then((m) => m.getCurrentWebviewWindow().minimize())}
-                        className="w-12 h-full flex items-center justify-center text-cad-text-secondary hover:bg-cad-surface transition-colors"
+                        className="w-11 h-full flex items-center justify-center text-white hover:bg-white/10 transition-colors"
                         aria-label="Minimize analysis window"
                     >
                         <Minus className="w-4 h-4" />
                     </button>
                     <button
                         onClick={() => import('@tauri-apps/api/webviewWindow').then((m) => m.getCurrentWebviewWindow().toggleMaximize())}
-                        className="w-12 h-full flex items-center justify-center text-cad-text-secondary hover:bg-cad-surface transition-colors"
+                        className="w-11 h-full flex items-center justify-center text-white hover:bg-white/10 transition-colors"
                         aria-label="Maximize analysis window"
                     >
-                        <Square className={cn('w-3.5 h-3.5', isMaximized && 'rotate-180')} />
+                        {isMaximized ? (
+                            <div className="relative w-3 h-3 border border-white top-[1px] left-[1px]">
+                                <div className="absolute -top-1 -right-1 w-3 h-3 border border-white bg-[#2B2B2B]" />
+                            </div>
+                        ) : (
+                            <Square className="w-3 h-3" />
+                        )}
                     </button>
                     <button
                         onClick={() => import('@tauri-apps/api/webviewWindow').then((m) => m.getCurrentWebviewWindow().close())}
-                        className="w-12 h-full flex items-center justify-center text-cad-text-secondary hover:bg-rose-500 hover:text-white transition-colors"
+                        className="w-11 h-full flex items-center justify-center text-white hover:bg-[#E81123] transition-colors"
                         aria-label="Close analysis window"
                     >
-                        <X className="w-4 h-4" />
+                        <X className="w-4.5 h-4.5" />
                     </button>
                 </div>
             </div>

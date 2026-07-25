@@ -43,6 +43,8 @@ interface BatchActionField {
     options?: string[]; // If select type
 }
 
+export type DataSourceStatus = 'unlinked' | 'synced' | 'modified' | 'error';
+
 interface AnalysisTableProps<TData> {
     data: TData[];
     columns: ColumnDef<TData>[];
@@ -56,6 +58,10 @@ interface AnalysisTableProps<TData> {
     onBatchUpdate?: (selectedIds: string[], field: string, value: string | number | boolean) => Promise<void>;
     onExport?: (table: Table<TData>) => Promise<void>;
     onImport?: () => Promise<void>;
+    onUpdateData?: () => Promise<void>;
+    isUpdatingData?: boolean;
+    dataSourceStatus?: DataSourceStatus;
+    onRelinkWorkbook?: () => Promise<void>;
     onAddColumn?: () => void;
     renderExtraActions?: () => React.ReactNode;
     initialPageSize?: number;
@@ -90,6 +96,10 @@ export function AnalysisTable<TData extends { id: string | number }>({
     onBatchUpdate,
     onExport,
     onImport,
+    onUpdateData,
+    isUpdatingData = false,
+    dataSourceStatus,
+    onRelinkWorkbook,
     onAddColumn,
     renderExtraActions,
     initialPageSize = 50,
@@ -390,7 +400,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
         activeElement.blur();
     }, [rowContextMenu]);
 
-    const openRowContextMenu = useCallback((event: MouseEvent<HTMLTableRowElement>, row: TData) => {
+    const openRowContextMenu = useCallback((event: MouseEvent<HTMLElement>, row: TData) => {
         if (!onGoToRowLocation) return;
 
         event.preventDefault();
@@ -455,6 +465,40 @@ export function AnalysisTable<TData extends { id: string | number }>({
                         </>
                     )}
 
+                    {dataSourceStatus && (
+                        <div className="flex items-center gap-2 ml-2">
+                            {dataSourceStatus === 'synced' && (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Đã đồng bộ
+                                </span>
+                            )}
+                            {dataSourceStatus === 'modified' && (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Có thay đổi
+                                </span>
+                            )}
+                            {dataSourceStatus === 'unlinked' && (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-500/10 border border-slate-500/30 text-slate-400">
+                                    Chưa liên kết Excel
+                                </span>
+                            )}
+                            {dataSourceStatus === 'error' && (
+                                <div className="flex items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rose-500/10 border border-rose-500/30 text-rose-400">
+                                        Lỗi / Mất file
+                                    </span>
+                                    {onRelinkWorkbook && (
+                                        <button
+                                            onClick={onRelinkWorkbook}
+                                            className="text-[10px] font-bold text-cad-accent underline hover:text-cad-accent/80 cursor-pointer"
+                                        >
+                                            Chọn lại workbook
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -624,40 +668,63 @@ export function AnalysisTable<TData extends { id: string | number }>({
                 >
                     <table className="text-left border-separate border-spacing-0 table-fixed" style={{ width: table.getTotalSize(), minWidth: '100%' }}>
                         <thead>
-                            {table.getHeaderGroups().map(headerGroup => (
+                            {table.getHeaderGroups().map((headerGroup, groupIndex) => (
                                 <tr key={headerGroup.id}>
-                                    {headerGroup.headers.map(header => (
-                                        <th
-                                            key={header.id}
-                                            colSpan={header.colSpan}
-                                            className="sticky top-0 z-30 bg-cad-elevated border-r border-b border-cad-border/70 px-3 py-2 text-[10px] font-black text-cad-text-muted uppercase tracking-widest relative group/h shadow-sm h-9"
-                                            style={{ width: header.getSize(), minWidth: header.getSize(), maxWidth: header.getSize() }}
-                                        >
-                                            <div
-                                                className={cn(
-                                                    "flex items-center gap-2 select-none",
-                                                    header.column.getCanSort() && "cursor-pointer hover:text-cad-accent"
-                                                )}
-                                                onClick={header.column.getToggleSortingHandler()}
-                                            >
-                                                {flexRender(header.column.columnDef.header, header.getContext())}
-                                                {{
-                                                    asc: <ArrowUp size={10} className="text-cad-accent" />,
-                                                    desc: <ArrowDown size={10} className="text-cad-accent" />,
-                                                }[header.column.getIsSorted() as string] ?? null}
-                                            </div>
+                                    {headerGroup.headers.map(header => {
+                                        // Calculate rowSpan for non-grouped column headers in multi-level headers
+                                        const isMultiLevel = table.getHeaderGroups().length > 1;
+                                        const isPlaceholder = header.isPlaceholder;
+                                        const isLeaf = !header.subHeaders || header.subHeaders.length === 0;
+                                        const rowSpan = (isMultiLevel && groupIndex === 0 && isLeaf && !isPlaceholder) ? table.getHeaderGroups().length : 1;
 
-                                            {/* Resize Handle */}
-                                            <div
-                                                onMouseDown={header.getResizeHandler()}
-                                                onTouchStart={header.getResizeHandler()}
-                                                className={cn(
-                                                    "absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-cad-accent/50 transition-colors",
-                                                    header.column.getIsResizing() ? "bg-cad-accent w-0.5" : "bg-transparent"
+                                        // Skip rendering leaf headers in row 2 if they were merged by rowSpan in row 1
+                                        if (isMultiLevel && groupIndex > 0 && isLeaf && header.column.depth === 0) {
+                                            return null;
+                                        }
+
+                                        const topStickyOffset = groupIndex * 36; // 36px height per header level
+
+                                        return (
+                                            <th
+                                                key={header.id}
+                                                colSpan={header.colSpan}
+                                                rowSpan={rowSpan}
+                                                className="sticky z-30 bg-cad-elevated border-r border-b border-cad-border/70 px-3 py-2 text-[11px] font-bold text-white uppercase tracking-wider relative group/h shadow-sm text-center align-middle"
+                                                style={{
+                                                    top: `${topStickyOffset}px`,
+                                                    width: header.getSize(),
+                                                    minWidth: header.getSize(),
+                                                    maxWidth: header.getSize()
+                                                }}
+                                            >
+                                                {!isPlaceholder && (
+                                                    <div
+                                                        className={cn(
+                                                            "flex items-center justify-center gap-2 select-none h-full w-full",
+                                                            header.column.getCanSort() && "cursor-pointer hover:text-cad-accent"
+                                                        )}
+                                                        onClick={header.column.getToggleSortingHandler()}
+                                                    >
+                                                        {flexRender(header.column.columnDef.header, header.getContext())}
+                                                        {{
+                                                            asc: <ArrowUp size={10} className="text-cad-accent shrink-0" />,
+                                                            desc: <ArrowDown size={10} className="text-cad-accent shrink-0" />,
+                                                        }[header.column.getIsSorted() as string] ?? null}
+                                                    </div>
                                                 )}
-                                            />
-                                        </th>
-                                    ))}
+
+                                                {/* Resize Handle */}
+                                                <div
+                                                    onMouseDown={header.getResizeHandler()}
+                                                    onTouchStart={header.getResizeHandler()}
+                                                    className={cn(
+                                                        "absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-cad-accent/50 transition-colors z-40",
+                                                        header.column.getIsResizing() ? "bg-cad-accent w-0.5" : "bg-transparent"
+                                                    )}
+                                                />
+                                            </th>
+                                        );
+                                    })}
                                 </tr>
                             ))}
                         </thead>
@@ -690,6 +757,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                                             onDoubleClick={() => {
                                                 beginEditCell({ rowIndex, columnId: cell.column.id });
                                             }}
+                                            onContextMenu={(event) => openRowContextMenu(event, row.original)}
                                             className={cn(
                                                 "h-9 px-3 py-1.5 text-xs text-cad-text-primary overflow-hidden whitespace-nowrap overflow-ellipsis border-r border-b border-cad-border/30 bg-cad-bg relative select-none",
                                                 isCellInRange(rowIndex, cell.column.id) && "bg-cad-accent/10",
@@ -789,7 +857,19 @@ export function AnalysisTable<TData extends { id: string | number }>({
                                 <FileDown size={14} className="text-cad-text-muted group-hover:text-cad-text-primary" /> Xuất Excel
                             </button>
                         )}
-                        {onImport && (
+                        {onUpdateData ? (
+                            <button
+                                onClick={onUpdateData}
+                                disabled={isUpdatingData || dataSourceStatus === 'unlinked'}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2 bg-cad-accent text-black hover:brightness-110 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer select-none shadow-md hover:shadow-[0_0_12px_rgba(16,185,129,0.3)] disabled:opacity-40 disabled:pointer-events-none",
+                                    isUpdatingData && "animate-pulse"
+                                )}
+                            >
+                                <RefreshCcw size={14} className={cn(isUpdatingData && "animate-spin")} />
+                                {isUpdatingData ? "Đang đồng bộ..." : "Update Data"}
+                            </button>
+                        ) : onImport && (
                             <button
                                 onClick={onImport}
                                 className="flex items-center gap-2 px-4 py-2 bg-cad-surface hover:bg-cad-elevated border border-cad-border hover:border-cad-border/80 text-cad-text-secondary hover:text-cad-text-primary rounded-lg text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer select-none"

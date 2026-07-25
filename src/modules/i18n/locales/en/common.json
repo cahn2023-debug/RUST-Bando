@@ -26,7 +26,8 @@
     "warning": "Warning",
     "info": "Info",
     "success": "Success",
-    "help": "Help"
+    "help": "Help",
+    "select_view_or_tab": "Select a view or tab to begin"
   },
   "project": {
     "newProject": "New Project",
@@ -90,13 +91,22 @@
     "visible": "Visible",
     "hidden": "Hidden"
   },
+  "contract": {
+    "analyzing": "ANALYZING CONTRACT...",
+    "list": "Contract List",
+    "analysis": "Contract Analysis",
+    "summary": "Contract Overview",
+    "bom": "Bill of Quantities (BOM)",
+    "addContract": "Add New Contract"
+  },
   "settings": {
     "settings": "Settings",
     "general": "General",
     "appearance": "Appearance",
     "theme": "Theme",
-    "light": "Light",
-    "dark": "Dark",
+    "light": "Light Mode",
+    "dark": "Dark Mode",
+    "system": "System Default",
     "language": "Language",
     "vietnamese": "Vietnamese",
     "english": "English",

@@ -574,11 +574,11 @@ export function DrawingExplorer() {
       {/* Context Menu Overlay */}
       {contextMenu && (
         <div 
-          className="fixed z-[9999] bg-[#1a1a1a] border border-white/10 rounded-md shadow-2xl py-1 min-w-[120px]"
+          className="fixed z-[9999] bg-cad-surface border border-cad-border rounded-md shadow-2xl py-1 min-w-[120px]"
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={() => setContextMenu(null)}
         >
-          <button className="w-full text-left px-3 py-1.5 text-[9px] hover:bg-white/5 transition-colors uppercase tracking-wider font-bold">Properties</button>
+          <button className="w-full text-left px-3 py-1.5 text-[9px] text-cad-text-primary hover:bg-cad-elevated transition-colors uppercase tracking-wider font-bold">Properties</button>
           <button 
             className="w-full text-left px-3 py-1.5 text-[9px] hover:bg-red-500/10 text-red-400 transition-colors uppercase tracking-wider font-bold" 
             onClick={() => setDeleteModal({ isOpen: true, type: contextMenu.type as any, id: contextMenu.id, name: contextMenu.data.name })}

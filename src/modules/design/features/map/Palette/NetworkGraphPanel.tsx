@@ -53,6 +53,7 @@ import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmatio
 import { NetworkNodeWidget } from './NetworkNodeWidget';
 import { cn } from '@TOOL/utils/cn';
 import { getPointCoordinates } from '@TOOL/utils/featureMapping';
+import { matchesSearchQuery } from '@TOOL/utils/vietnameseSearch';
 import { FiberInspector } from './FiberInspector';
 import { FiberSpliceDiagramModal } from './FiberSpliceDiagramModal';
 
@@ -753,8 +754,8 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                 representative.label,
                 representative.telemetryId || '',
                 ...displayNode.memberLabels,
-            ].join(' ').toLowerCase();
-            const matchesSearch = searchHaystack.includes(searchQuery.toLowerCase());
+            ].join(' ');
+            const matchesSearch = matchesSearchQuery(searchHaystack, searchQuery);
             const nodeState = evaluation.nodeStates[representative.id];
             const status = nodeState?.status || 'unknown';
             const matchesStatus = statusFilter === 'all' || status === statusFilter;

@@ -41,6 +41,7 @@ const getOneClickDefaults = (mode: OneClickDrawingMode) => {
 export function useDrawingInteraction() {
     const {
         state,
+        projectId,
         drawingMode,
         selectedGroupId,
         activeParentFeatureId,
@@ -128,6 +129,10 @@ export function useDrawingInteraction() {
             start_node_id: startSnapId,
             end_node_id: endSnapId,
             manual_override: true,
+            infrastructure: {
+                ...(metadata.infrastructure || {}),
+                type: 'SignalLine',
+            },
         };
 
         const snapLinks = buildSnapLinks(workingSnapIds);
@@ -144,10 +149,6 @@ export function useDrawingInteraction() {
             const toRepresentativeId = toEndpoint
                 ? getRepresentativeFeatureIdForEndpoint(toEndpoint, featuresById)
                 : null;
-            finalMetadata.infrastructure = {
-                ...(finalMetadata.infrastructure || {}),
-                type: 'SignalLine'
-            };
             finalMetadata.network = {
                 ...(finalMetadata.network || {}),
                 from_feature_id: fromEndpoint?.type === 'feature'
@@ -206,23 +207,31 @@ export function useDrawingInteraction() {
             })
         } as any);
 
+        events.push({
+            type: 'FiberCableUpserted',
+            payload: {
+                id,
+                project_id: String(projectId || ''),
+                feature_id: id,
+                cable_type: null,
+                fiber_count: null,
+                owner: null,
+                status: 'planned',
+                source: 'manual',
+            },
+        } as any);
+
         if (!(await confirmUserAction('Xác nhận thêm tuyến mới với các điểm và liên kết hiện tại?'))) return;
 
-        if (shouldCreateNetworkEdge) {
-            if (events.length > 1) {
-                await queueEvents(events);
-            } else {
-                await queueEvent(events[0]);
-            }
-        } else if (events.length > 1) {
-            await dispatchEvents(events);
+        if (events.length > 1) {
+            await queueEvents(events);
         } else {
-            await dispatchEvent(events[0]);
+            await queueEvent(events[0]);
         }
 
         setDrawingMode('none');
         clearNetworkConnectionDraft();
-    }, [currentDrawingPoints, selectedGroupId, state, activeParentFeatureId, currentDrawingSnapIds, dispatchEvent, dispatchEvents, queueEvent, queueEvents, setDrawingMode, networkConnectionDraft, clearNetworkConnectionDraft]);
+    }, [currentDrawingPoints, selectedGroupId, state, projectId, activeParentFeatureId, currentDrawingSnapIds, dispatchEvent, dispatchEvents, queueEvent, queueEvents, setDrawingMode, networkConnectionDraft, clearNetworkConnectionDraft]);
 
     const finishDrawingSession = useCallback(() => {
         if (drawingMode === 'polyline' && (networkConnectionDraft || currentDrawingPoints.length >= 2)) {

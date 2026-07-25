@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link2, Loader2, X } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import {
@@ -78,7 +78,7 @@ interface OdfPath {
 }
 
 const equipmentLabels: Record<EquipmentKind, string> = {
-  splice_enclosure: 'MÄƒng xÃ´ng',
+  splice_enclosure: 'Măng xông',
   odf: 'ODF',
 };
 
@@ -126,7 +126,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
     try {
       setLocalInventory(await getFiberInventory(projectId));
     } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : 'KhÃ´ng thá»ƒ táº£i dá»¯ liá»‡u fiber.');
+      setStatusMessage(error instanceof Error ? error.message : 'Không thể tải dữ liệu fiber.');
     }
   }, [projectId]);
 
@@ -172,12 +172,12 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         if (!cable) return;
 
         if (point.point_kind === 'cable_start') {
-          pushEndpoint({ id: `${cable.id}-end`, cableId: cable.id, cableName: `${getFeatureName(cable.feature_id)} (Äi)`, direction: 'end', fiberCount: cable.fiber_count || 0 });
+          pushEndpoint({ id: `${cable.id}-end`, cableId: cable.id, cableName: `${getFeatureName(cable.feature_id)} (Đi)`, direction: 'end', fiberCount: cable.fiber_count || 0 });
         } else if (point.point_kind === 'cable_end') {
-          pushEndpoint({ id: `${cable.id}-start`, cableId: cable.id, cableName: `${getFeatureName(cable.feature_id)} (Äáº¿n)`, direction: 'start', fiberCount: cable.fiber_count || 0 });
+          pushEndpoint({ id: `${cable.id}-start`, cableId: cable.id, cableName: `${getFeatureName(cable.feature_id)} (Đến)`, direction: 'start', fiberCount: cable.fiber_count || 0 });
         } else if (point.point_kind === 'splice_enclosure') {
-          pushEndpoint({ id: `${cable.id}-start`, cableId: cable.id, cableName: `${getFeatureName(cable.feature_id)} (Vá» trÆ°á»›c)`, direction: 'start', fiberCount: cable.fiber_count || 0 });
-          pushEndpoint({ id: `${cable.id}-end`, cableId: cable.id, cableName: `${getFeatureName(cable.feature_id)} (Vá» sau)`, direction: 'end', fiberCount: cable.fiber_count || 0 });
+          pushEndpoint({ id: `${cable.id}-start`, cableId: cable.id, cableName: `${getFeatureName(cable.feature_id)} (Về trước)`, direction: 'start', fiberCount: cable.fiber_count || 0 });
+          pushEndpoint({ id: `${cable.id}-end`, cableId: cable.id, cableName: `${getFeatureName(cable.feature_id)} (Về sau)`, direction: 'end', fiberCount: cable.fiber_count || 0 });
         }
       });
 
@@ -189,9 +189,9 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
       const cable = inventory?.cables.find(item => item.feature_id === edge.feature.id);
       if (cable) {
         if (edge.from === enclosureId) {
-          pushEndpoint({ id: `${cable.id}-end`, cableId: cable.id, cableName: `${getFeatureName(cable.feature_id)} (Äi)`, direction: 'end', fiberCount: cable.fiber_count || 0 });
+          pushEndpoint({ id: `${cable.id}-end`, cableId: cable.id, cableName: `${getFeatureName(cable.feature_id)} (Đi)`, direction: 'end', fiberCount: cable.fiber_count || 0 });
         } else {
-          pushEndpoint({ id: `${cable.id}-start`, cableId: cable.id, cableName: `${getFeatureName(cable.feature_id)} (Äáº¿n)`, direction: 'start', fiberCount: cable.fiber_count || 0 });
+          pushEndpoint({ id: `${cable.id}-start`, cableId: cable.id, cableName: `${getFeatureName(cable.feature_id)} (Đến)`, direction: 'start', fiberCount: cable.fiber_count || 0 });
         }
       }
     });
@@ -514,9 +514,8 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         throw new Error(res.error || 'Server rejected the transaction');
       }
       setStatusMessage(successMessage);
-      await refreshInventory();
-    } catch (error) {
-      setStatusMessage(error instanceof Error ? error.message : 'Thao tÃ¡c tháº¥t báº¡i.');
+          } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : 'Thao tác thất bại.');
     } finally {
       setSaving(false);
     }
@@ -525,7 +524,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
   const handleEquipmentKindChange = async (value: EquipmentKind) => {
     setEquipmentKind(value);
     if (!projectId) return;
-    await runWrite(`ÄÃ£ cáº­p nháº­t loáº¡i Ä‘iá»ƒm ná»‘i: ${equipmentLabels[value]}.`, () =>
+    await runWrite(`Đã cập nhật loại điểm nối: ${equipmentLabels[value]}.`, () =>
       upsertEquipment({
         id: currentEquipment?.id || enclosureId,
         projectId,
@@ -538,7 +537,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
 
   const handleEnsureOdfPorts = async () => {
     if (!projectId || odfPortCount < 1) return;
-    await runWrite(`ÄÃ£ cáº­p nháº­t ${odfPortCount} cá»•ng ODF.`, async () => {
+    await runWrite(`Đã cập nhật ${odfPortCount} cổng ODF.`, async () => {
       await upsertEquipment({
         id: currentEquipment?.id || enclosureId,
         projectId,
@@ -575,13 +574,13 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
   const handleConnectSelectedStrands = async (leftStrandId = selectedLeftStrandId, rightStrandId = selectedRightStrandId) => {
     if (!projectId || !leftEndpoint || !rightEndpoint || !leftStrandId || !rightStrandId) return;
     if (leftStrandId === rightStrandId && leftEndpoint.direction === rightEndpoint.direction) {
-      setStatusMessage('KhÃ´ng thá»ƒ ná»‘i má»™t core vá»›i chÃ­nh nÃ³ trÃªn cÃ¹ng má»™t hÆ°á»›ng.');
+      setStatusMessage('Không thể nối một core với chính nó trên cùng một hướng.');
       return;
     }
     if (occupiedStrands.has(`${leftStrandId}-${leftEndpoint.direction}`)) return;
     if (occupiedStrands.has(`${rightStrandId}-${rightEndpoint.direction}`)) return;
 
-    await runWrite('ÄÃ£ ná»‘i core quang.', () =>
+    await runWrite('Đã nối core quang.', () =>
       upsertFiberSplice(projectId, {
         id: crypto.randomUUID(),
         enclosureFeatureId: enclosureId,
@@ -628,11 +627,11 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
     }
     
     if (splicesToCreate.length === 0) {
-      setStatusMessage(`KhÃ´ng cÃ³ cáº·p trá»‘ng (Lá»—i: Thiáº¿u pháº£i=${noRightStrand}, TrÃ¹ng=${sameStrand}, Báº­n trÃ¡i=${leftOccupied}, Báº­n pháº£i=${rightOccupied})`);
+      setStatusMessage(`Không có cặp trống (Lỗi: Thiếu phải=${noRightStrand}, Trùng=${sameStrand}, Bận trái=${leftOccupied}, Bận phải=${rightOccupied})`);
       return;
     }
 
-    await runWrite(`Ná»‘i ${splicesToCreate.length} cáº·p. (Bá» qua: Thiáº¿u pháº£i=${noRightStrand}, TrÃ¹ng=${sameStrand}, Báº­n trÃ¡i=${leftOccupied}, Báº­n pháº£i=${rightOccupied})`, () =>
+    await runWrite(`Nối ${splicesToCreate.length} cặp. (Bỏ qua: Thiếu phải=${noRightStrand}, Trùng=${sameStrand}, Bận trái=${leftOccupied}, Bận phải=${rightOccupied})`, () =>
       upsertFiberSplices(projectId, splicesToCreate)
     );
     
@@ -644,12 +643,12 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
     const endpoint = side === 'left' ? leftEndpoint : rightEndpoint;
     if (!projectId || !endpoint || !strandId || !portId) return;
     if (portTerminationsByPort.has(portId)) {
-      setStatusMessage('Port ODF nÃ y Ä‘Ã£ cÃ³ core káº¿t ná»‘i.');
+      setStatusMessage('Port ODF này đã có core kết nối.');
       return;
     }
     const existingTermination = odfTerminationByStrandDirection.get(`${strandId}-${endpoint.direction}`);
 
-    await runWrite('ÄÃ£ Ä‘áº¥u core vÃ o cá»•ng ODF. 1 hÆ°á»›ng cÃ³ tÃ­n hiá»‡u.', async () => {
+    await runWrite('Đã đấu core vào cổng ODF. 1 hướng có tín hiệu.', async () => {
       if (existingTermination) {
         await deleteFiberPortTermination(projectId, existingTermination.id);
       }
@@ -676,11 +675,11 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
     const existingPatch = (portPatchesByPort.get(selectedPatchPortId) || [])
       .find(patch => patch.from_port_id === port.id || patch.to_port_id === port.id);
     if (existingPatch) {
-      setStatusMessage('Hai cá»•ng ODF nÃ y Ä‘Ã£ thÃ´ng tuyáº¿n.');
+      setStatusMessage('Hai cổng ODF này đã thông tuyến.');
       setSelectedPatchPortId(null);
       return;
     }
-    await runWrite('ÄÃ£ patch hai cá»•ng ODF. ThÃ´ng tuyáº¿n 2 phÃ­a khi cáº£ hai cá»•ng cÃ³ core.', () =>
+    await runWrite('Đã patch hai cổng ODF. Thông tuyến 2 phía khi cả hai cổng có core.', () =>
       upsertFiberPortPatch(projectId, {
         id: crypto.randomUUID(),
         fromPortId: selectedPatchPortId,
@@ -780,16 +779,16 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
 
   const handleRemoveSplice = async (spliceId: string) => {
     if (!projectId) return;
-    await runWrite('ÄÃ£ xÃ³a má»‘i ná»‘i.', () => deleteFiberSplice(projectId, spliceId));
+    await runWrite('Đã xóa mối nối.', () => deleteFiberSplice(projectId, spliceId));
   };
 
   const handleRemoveOdfPath = async (path: OdfPath) => {
     if (!projectId) return;
     if (path.kind === 'termination') {
-      await runWrite('ÄÃ£ xÃ³a káº¿t ná»‘i core vÃ o port ODF.', () => deleteFiberPortTermination(projectId, path.sourceId));
+      await runWrite('Đã xóa kết nối core vào port ODF.', () => deleteFiberPortTermination(projectId, path.sourceId));
       return;
     }
-    await runWrite('ÄÃ£ xÃ³a patch giá»¯a hai port ODF.', () => deleteFiberPortPatch(projectId, path.sourceId));
+    await runWrite('Đã xóa patch giữa hai port ODF.', () => deleteFiberPortPatch(projectId, path.sourceId));
   };
 
   const renderStrand = (strand: FiberStrand, side: 'left' | 'right') => {
@@ -870,8 +869,8 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
     const isSelected = selectedPatchPortId === port.id;
     const isDropReady = !!draggingOdfStrand && !termination;
     const statusLabel = termination
-      ? patches.length > 0 ? 'ThÃ´ng tuyáº¿n' : '1 hÆ°á»›ng'
-      : 'Trá»‘ng';
+      ? patches.length > 0 ? 'Thông tuyến' : '1 hướng'
+      : 'Trống';
 
     return (
       <button
@@ -887,7 +886,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
           isDropReady ? 'border-cyan-400/60 bg-cyan-500/10' : '',
           termination ? (patches.length > 0 ? 'text-emerald-200' : 'text-amber-200') : 'text-zinc-500',
         ].join(' ')}
-        title={`${port.port_label} Â· ${statusLabel}`}
+        title={`${port.port_label} · ${statusLabel}`}
       >
         <span>{port.port_label}</span>
       </button>
@@ -900,20 +899,20 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2">
           <div className="min-w-0">
             <h3 className="truncate text-[13px] font-semibold text-zinc-100">{getFeatureName(enclosureId)}</h3>
-            <div className="mt-0.5 text-[9px] text-zinc-500">SÆ¡ Ä‘á»“ ná»‘i core quang</div>
+            <div className="mt-0.5 text-[9px] text-zinc-500">Sơ đồ nối core quang</div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <label className="text-[9px] font-semibold text-zinc-500">Loáº¡i Ä‘iá»ƒm ná»‘i</label>
+            <label className="text-[9px] font-semibold text-zinc-500">Loại điểm nối</label>
             <select
               value={activeEquipmentKind}
               onChange={event => void handleEquipmentKindChange(event.target.value as EquipmentKind)}
               disabled={saving}
               className="rounded border border-white/10 bg-black/45 px-2 py-1 text-[10px] font-semibold text-zinc-100 outline-none focus:border-cyan-400/50"
             >
-              <option value="splice_enclosure">MÄƒng xÃ´ng</option>
+              <option value="splice_enclosure">Măng xông</option>
               <option value="odf">ODF</option>
             </select>
-            <button onClick={onClose} className="rounded p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white" title="ÄÃ³ng">
+            <button onClick={onClose} className="rounded p-1 text-zinc-400 transition hover:bg-white/10 hover:text-white" title="Đóng">
               <X size={16} />
             </button>
           </div>
@@ -928,7 +927,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
               setSelectedLeftStrandId(null);
             }}
           >
-            <option value="">Chá»n cÃ¡p IN</option>
+            <option value="">Chọn cáp IN</option>
             {connectedCableEndpoints.map((endpoint, index) => (
               <option key={`in-${endpoint.id}-${index}`} value={endpoint.id}>
                 IN: {endpoint.cableName} ({endpoint.fiberCount || '?'} FO)
@@ -944,7 +943,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
               setSelectedRightStrandId(null);
             }}
           >
-            <option value="">Chá»n cÃ¡p OUT</option>
+            <option value="">Chọn cáp OUT</option>
             {connectedCableEndpoints.map((endpoint, index) => (
               <option key={`out-${endpoint.id}-${index}`} value={endpoint.id} disabled={endpoint.id === leftEndpointId}>
                 OUT: {endpoint.cableName} ({endpoint.fiberCount || '?'} FO)
@@ -955,10 +954,10 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
 
         <div className="grid shrink-0 grid-cols-[1fr_1fr_auto_auto_auto] items-end gap-2 border-b border-white/5 px-3 py-2 text-[10px]">
           <div className="min-w-0 rounded border border-cyan-500/15 bg-cyan-500/5 px-2 py-1 text-cyan-100">
-            IN core: {selectedLeftStrand ? `#${selectedLeftStrand.strand_no}` : 'ChÆ°a chá»n'}
+            IN core: {selectedLeftStrand ? `#${selectedLeftStrand.strand_no}` : 'Chưa chọn'}
           </div>
           <div className="min-w-0 rounded border border-pink-500/15 bg-pink-500/5 px-2 py-1 text-pink-100">
-            OUT core: {selectedRightStrand ? `#${selectedRightStrand.strand_no}` : 'ChÆ°a chá»n'}
+            OUT core: {selectedRightStrand ? `#${selectedRightStrand.strand_no}` : 'Chưa chọn'}
           </div>
           <label className="flex items-center gap-1 text-zinc-400">
             Loss
@@ -978,27 +977,27 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
             className="inline-flex items-center gap-1 rounded border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 font-semibold text-cyan-100 hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-45"
           >
             <Link2 size={12} />
-            Ná»‘i core
+            Nối core
           </button>
           <button
             type="button"
             onClick={() => void handleConnectAllStrands()}
             disabled={saving || activeEquipmentKind === 'odf'}
             className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-45"
-            title="Ná»‘i tá»± Ä‘á»™ng cÃ¡c core cÃ³ cÃ¹ng sá»‘ thá»© tá»± giá»¯a 2 cÃ¡p"
+            title="Nối tự động các core có cùng số thứ tự giữa 2 cáp"
           >
             <Link2 size={12} />
-            Ná»‘i full
+            Nối full
           </button>
         </div>
 
         {activeEquipmentKind === 'odf' && (
           <div className="grid shrink-0 grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-white/5 px-3 py-2 text-[10px]">
             <div className="min-w-0 text-zinc-400">
-              ODF: kÃ©o core vÃ o port, sau Ä‘Ã³ chá»n 2 port Ä‘á»ƒ patch thÃ´ng tuyáº¿n.
+              ODF: kéo core vào port, sau đó chọn 2 port để patch thông tuyến.
             </div>
             <label className="flex items-center gap-1 text-zinc-400">
-              Sá»‘ cá»•ng quang
+              Số cổng quang
               <input
                 aria-label="Số cổng quang"
                 type="number"
@@ -1016,7 +1015,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
               disabled={saving || odfPortCount < 1}
               className="rounded border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-45"
             >
-              Cáº­p nháº­t port
+              Cập nhật port
             </button>
           </div>
         )}
@@ -1024,7 +1023,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         <div className="flex min-h-0 flex-1 p-3">
           {connectedCableEndpoints.length < 2 ? (
             <div className="flex flex-1 items-center justify-center rounded border border-white/5 bg-black/20 text-xs text-zinc-500">
-              Äiá»ƒm nÃ y chÆ°a cÃ³ Ä‘á»§ cÃ¡p Ä‘i qua Ä‘á»ƒ táº¡o splice IN/OUT.
+              Điểm này chưa có đủ cáp đi qua để tạo splice IN/OUT.
             </div>
           ) : (
             <div ref={diagramRef} className="relative flex min-h-0 flex-1 overflow-auto rounded border border-white/5 bg-black/20">
@@ -1104,7 +1103,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
                         <div className="mb-2 text-center text-[10px] font-bold uppercase text-emerald-300">ODF ports</div>
                     {odfPorts.length === 0 ? (
                       <div className="rounded border border-white/5 bg-black/25 p-2 text-center text-[10px] text-zinc-500">
-                        NhÃ¡ÂºÂ­p sÃ¡Â»â€˜ cÃ¡Â»â€¢ng vÃƒÂ  bÃ¡ÂºÂ¥m CÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t port.
+                        Nhập số cổng và bấm Cập nhật port.
                       </div>
                     ) : (
                         <div className="flex flex-wrap justify-center gap-2">{odfPorts.map(renderOdfPort)}</div>
@@ -1130,12 +1129,12 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t border-white/10 px-3 py-2 text-[11px] text-zinc-500">
           <div className="min-w-0 truncate">
-            {statusMessage || 'KÃ©o core bÃªn IN sang core bÃªn OUT Ä‘á»ƒ ná»‘i nhanh, hoáº·c chá»n hai core rá»“i báº¥m Ná»‘i core. Click Ä‘Æ°á»ng ná»‘i Ä‘á»ƒ xÃ³a.'}
+            {statusMessage || 'Kéo core bên IN sang core bên OUT để nối nhanh, hoặc chọn hai core rồi bấm Nối core. Click đường nối để xóa.'}
           </div>
           {saving && (
             <div className="flex shrink-0 items-center gap-2 text-cyan-300">
               <Loader2 size={13} className="animate-spin" />
-              Äang lÆ°u
+              Đang lưu
             </div>
           )}
         </div>

@@ -220,19 +220,13 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
 
       if (allEvents.length > 0) {
         console.log(`[Theme] Applying theme to group "${groupName}" with ${featureEvents.length} features`);
-        
-        // Close modal immediately for better UX
-        // Dispatch will continue in background
         onClose();
-        
-        // Dispatch in background without blocking UI
         dispatchEvents(allEvents)
           .then(() => {
             console.log('[Theme] Theme applied successfully');
           })
           .catch((error) => {
             console.error('[Theme] Failed to apply theme:', error);
-            // Show error toast instead of alert since modal is closed
             if (error.message?.includes('timed out')) {
               console.warn('[Theme] Operation timed out but may still be processing. Check the map to verify results.');
             }
@@ -265,18 +259,18 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#1A1A1A] border border-cad-border rounded-lg shadow-2xl w-full max-w-sm overflow-hidden flex flex-col font-sans">
+      <div className="bg-cad-surface border border-cad-border rounded-lg shadow-2xl w-full max-w-sm overflow-hidden flex flex-col font-sans">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-cad-border bg-[#222]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-cad-border bg-cad-elevated">
           <div className="flex items-center gap-2">
             <Settings2 size={16} className="text-cad-accent" />
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">Group Theme</h2>
-            <span className="text-[10px] text-cad-text-muted bg-black/30 px-2 py-0.5 rounded-full">{groupName}</span>
+            <h2 className="text-sm font-bold text-cad-text-primary uppercase tracking-wider">Group Theme</h2>
+            <span className="text-[10px] text-cad-text-muted bg-cad-bg px-2 py-0.5 rounded-full">{groupName}</span>
           </div>
           <button
             onClick={handleCancel}
-            className="text-cad-text-muted hover:text-white transition-colors"
+            className="text-cad-text-muted hover:text-cad-text-primary transition-colors"
           >
             <X size={16} />
           </button>
@@ -291,7 +285,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
               <select
                 value={iconType}
                 onChange={e => setIconType(e.target.value)}
-                className="w-full bg-[#2A2A2A] border border-cad-border rounded p-2 pl-9 text-white outline-none focus:border-cad-accent appearance-none transition-colors"
+                className="w-full bg-cad-bg border border-cad-border rounded p-2 pl-9 text-cad-text-primary outline-none focus:border-cad-accent appearance-none transition-colors"
               >
                 <option value="default">(Giữ nguyên)</option>
                 <option value="cctv">Camera CCTV</option>
@@ -336,7 +330,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
                 onChange={(e) => setColor(e.target.value)}
                 className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0"
               />
-              <span className="font-mono text-xs text-cad-text-muted bg-[#2A2A2A] px-2 py-1 rounded">{color}</span>
+              <span className="font-mono text-xs text-cad-text-muted bg-cad-bg px-2 py-1 rounded">{color}</span>
             </div>
           </div>
 
@@ -352,7 +346,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
                 onChange={e => setSize(parseInt(e.target.value))}
                 className="flex-1 accent-cad-accent"
               />
-              <span className="font-mono text-xs bg-[#2A2A2A] px-3 py-1 rounded border border-cad-border">{size}px</span>
+              <span className="font-mono text-xs bg-cad-bg px-3 py-1 rounded border border-cad-border">{size}px</span>
             </div>
             <p className="text-[10px] text-cad-text-muted italic opacity-70">
               * Kích thước 1-10px phù hợp cho độ dày đường Polyline/Line.
@@ -362,10 +356,10 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-cad-border bg-[#222] flex justify-end gap-2">
+        <div className="p-4 border-t border-cad-border bg-cad-elevated flex justify-end gap-2">
           <button
             onClick={handleCancel}
-            className="px-4 py-2 rounded text-xs font-semibold text-cad-text-secondary hover:text-white transition-colors"
+            className="px-4 py-2 rounded text-xs font-semibold text-cad-text-secondary hover:text-cad-text-primary transition-colors"
             disabled={isApplying}
           >
             Hủy

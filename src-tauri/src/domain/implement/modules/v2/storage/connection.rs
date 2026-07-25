@@ -1,10 +1,15 @@
+use crate::domain::implement::modules::v2::storage::audit::{audit_database, DatabaseAuditReport};
 use crate::domain::implement::modules::v2::storage::schema::{
-    apply_v2_schema, ensure_v8_compatibility, CURRENT_SCHEMA_LABEL, CURRENT_SCHEMA_VERSION,
+    apply_base_schema, apply_v9_schema, ensure_v8_compatibility, stamp_schema_version,
+    CURRENT_SCHEMA_VERSION,
 };
-use rusqlite::{backup::Backup, Connection, DatabaseName, OpenFlags};
+use rusqlite::{backup::Backup, Connection, DatabaseName, OpenFlags, TransactionBehavior};
 use serde_json::json;
-use std::path::PathBuf;
+use sha2::{Digest, Sha256};
+use std::path::{Path, PathBuf};
 use std::time::Duration;
+
+const PROJECT_FORMAT_VERSION: &str = "4.0.0";
 
 #[derive(Debug)]
 pub struct PmpDatabase {
@@ -19,7 +24,7 @@ impl PmpDatabase {
             std::fs::create_dir_all(parent).ok();
         }
 
-        let conn = Connection::open_with_flags(
+        let mut conn = Connection::open_with_flags(
             &pmp_path,
             OpenFlags::SQLITE_OPEN_READ_WRITE
                 | OpenFlags::SQLITE_OPEN_CREATE
@@ -30,6 +35,7 @@ impl PmpDatabase {
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.pragma_update(None, "cache_size", "-64000")?;
         conn.pragma_update(None, "busy_timeout", "5000")?;
+        conn.pragma_update(None, "foreign_keys", "ON")?;
 
         let version: i32 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;
         if version > CURRENT_SCHEMA_VERSION {
@@ -43,11 +49,42 @@ impl PmpDatabase {
         }
 
         if version < CURRENT_SCHEMA_VERSION {
-            apply_v2_schema(&conn)?;
-            migrate_foundational_v4_state(&conn)?;
-            migrate_sync_state(&conn)?;
+            if version >= 8 {
+                let report = audit_database(&conn)?;
+                reject_blocking_audit(&report, false)?;
+            }
+
+            if version > 0 {
+                conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
+                let (backup_path, backup_sha256) =
+                    create_pre_migration_backup(&conn, &pmp_path, version)?;
+                log::info!(
+                    "[Storage] Pre-v9 migration backup created: {} ({})",
+                    backup_path.display(),
+                    backup_sha256
+                );
+            }
+
+            let transaction = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+            if version < 8 {
+                apply_base_schema(&transaction)?;
+                migrate_foundational_v4_state(&transaction)?;
+                migrate_sync_state(&transaction)?;
+                let report = audit_database(&transaction)?;
+                reject_blocking_audit(&report, true)?;
+            } else {
+                ensure_v8_compatibility(&transaction)?;
+            }
+            apply_v9_schema(&transaction)?;
+            stamp_schema_version(&transaction)?;
+            let report = audit_database(&transaction)?;
+            reject_blocking_audit(&report, false)?;
+            transaction.commit()?;
+
+            if let Err(error) = conn.execute_batch("ANALYZE; PRAGMA optimize;") {
+                log::warn!("[Storage] Post-migration optimizer failed: {error}");
+            }
         }
-        ensure_v8_compatibility(&conn)?;
 
         Ok(Self {
             conn,
@@ -85,7 +122,7 @@ impl PmpDatabase {
             r#"
             DELETE FROM fts_files_content;
             INSERT INTO fts_files_content(file_id, content)
-            SELECT id, filename || ' ' || metadata_json FROM files;
+            SELECT id, COALESCE(filename, '') || ' ' || COALESCE(metadata_json, '') FROM files;
         "#,
         )?;
         Ok(())
@@ -94,6 +131,19 @@ impl PmpDatabase {
     pub fn verify_integrity(&self) -> Result<String, rusqlite::Error> {
         self.conn
             .query_row("PRAGMA integrity_check", [], |r| r.get(0))
+    }
+
+    pub fn audit_database(&self) -> Result<DatabaseAuditReport, rusqlite::Error> {
+        audit_database(&self.conn)
+    }
+
+    pub fn audit_path(path: &Path) -> Result<DatabaseAuditReport, rusqlite::Error> {
+        let conn = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        conn.pragma_update(None, "foreign_keys", "ON")?;
+        audit_database(&conn)
     }
 
     pub fn checkpoint_wal(&self) -> Result<(), rusqlite::Error> {
@@ -197,6 +247,76 @@ impl PmpDatabase {
     }
 }
 
+fn reject_blocking_audit(
+    report: &DatabaseAuditReport,
+    allow_version_mismatch: bool,
+) -> Result<(), rusqlite::Error> {
+    let blocking_issues: Vec<_> = report
+        .issues
+        .iter()
+        .filter(|issue| {
+            issue.severity
+                == crate::domain::implement::modules::v2::storage::audit::DatabaseAuditSeverity::Error
+                && !(allow_version_mismatch
+                    && matches!(
+                        issue.rule.as_str(),
+                        "schema_version_mismatch" | "configured_schema_version_mismatch"
+                    ))
+        })
+        .collect();
+    if report.integrity_check == "ok" && report.foreign_keys_enabled && blocking_issues.is_empty() {
+        return Ok(());
+    }
+
+    let payload = serde_json::to_string(report)
+        .unwrap_or_else(|error| format!("{{\"auditSerializationError\":\"{error}\"}}"));
+    Err(rusqlite::Error::SqliteFailure(
+        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CONSTRAINT),
+        Some(format!("Database migration blocked by audit: {payload}")),
+    ))
+}
+
+fn create_pre_migration_backup(
+    source: &Connection,
+    source_path: &Path,
+    source_version: i32,
+) -> Result<(PathBuf, String), rusqlite::Error> {
+    let timestamp = chrono::Utc::now().format("%Y%m%dT%H%M%S%3fZ");
+    let backup_path =
+        source_path.with_extension(format!("pre-v{source_version}-to-v9-{timestamp}.pmp"));
+    let mut destination = Connection::open_with_flags(
+        &backup_path,
+        OpenFlags::SQLITE_OPEN_READ_WRITE
+            | OpenFlags::SQLITE_OPEN_CREATE
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+    {
+        let backup = Backup::new_with_names(
+            source,
+            DatabaseName::Main,
+            &mut destination,
+            DatabaseName::Main,
+        )?;
+        backup.run_to_completion(64, Duration::from_millis(10), None)?;
+    }
+    let integrity: String =
+        destination.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
+    if integrity != "ok" {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CORRUPT),
+            Some(format!(
+                "Pre-migration backup failed integrity validation: {integrity}"
+            )),
+        ));
+    }
+    drop(destination);
+
+    let bytes = std::fs::read(&backup_path)
+        .map_err(|error| rusqlite::Error::ToSqlConversionFailure(Box::new(error)))?;
+    let sha256 = format!("{:x}", Sha256::digest(bytes));
+    Ok((backup_path, sha256))
+}
+
 fn migrate_foundational_v4_state(conn: &Connection) -> Result<(), rusqlite::Error> {
     let projects_info: Vec<String> = conn
         .prepare("PRAGMA table_info('projects')")?
@@ -253,15 +373,6 @@ fn migrate_foundational_v4_state(conn: &Connection) -> Result<(), rusqlite::Erro
     }
 
     conn.execute(
-        "INSERT OR REPLACE INTO schema_migrations(version, label) VALUES (?1, ?2)",
-        (CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_LABEL),
-    )?;
-    conn.execute(
-        "UPDATE sys_config SET value = ?1 WHERE key = 'schema_version'",
-        [CURRENT_SCHEMA_LABEL],
-    )?;
-    conn.pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)?;
-    conn.execute(
         "INSERT INTO project_snapshots(project_id, state_json, hydrated_at)
          SELECT id, metadata_json, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
          FROM projects
@@ -278,7 +389,7 @@ fn migrate_foundational_v4_state(conn: &Connection) -> Result<(), rusqlite::Erro
          )
          WHERE json_valid(metadata_json)
            AND json_type(metadata_json, '$.features') = 'object'",
-        [CURRENT_SCHEMA_LABEL],
+        [PROJECT_FORMAT_VERSION],
     )?;
 
     Ok(())
@@ -387,4 +498,154 @@ fn migrate_sync_state(conn: &Connection) -> Result<(), rusqlite::Error> {
     )?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::implement::modules::v2::storage::schema::apply_v2_schema;
+    use tempfile::tempdir;
+
+    fn mark_as_v8(conn: &Connection) {
+        conn.execute("DELETE FROM schema_migrations", [])
+            .expect("clear migrations");
+        conn.execute(
+            "INSERT INTO schema_migrations(version, label) VALUES(8, '8.0.0')",
+            [],
+        )
+        .expect("v8 migration");
+        conn.execute(
+            "UPDATE sys_config SET value='8.0.0' WHERE key='schema_version'",
+            [],
+        )
+        .expect("v8 config");
+        conn.pragma_update(None, "user_version", 8)
+            .expect("v8 pragma");
+    }
+
+    #[test]
+    fn fresh_database_uses_consistent_v9_version_sources() {
+        let directory = tempdir().expect("tempdir");
+        let path = directory.path().join("fresh.pmp");
+        let database = PmpDatabase::open_or_create(path).expect("fresh database");
+
+        let user_version: i32 = database
+            .conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .expect("user version");
+        let migration_version: i32 = database
+            .conn
+            .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
+                row.get(0)
+            })
+            .expect("migration version");
+        let configured_version: String = database
+            .conn
+            .query_row(
+                "SELECT value FROM sys_config WHERE key='schema_version'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("configured version");
+
+        assert_eq!(user_version, 9);
+        assert_eq!(migration_version, 9);
+        assert_eq!(configured_version, "9.0.0");
+
+        let audit = PmpDatabase::audit_path(&database.pmp_path).expect("read-only audit");
+        assert!(!audit.has_blocking_errors());
+    }
+
+    #[test]
+    fn clean_v8_database_is_backed_up_and_migrated() {
+        let directory = tempdir().expect("tempdir");
+        let path = directory.path().join("upgrade.pmp");
+        {
+            let conn = Connection::open(&path).expect("fixture database");
+            conn.pragma_update(None, "foreign_keys", "ON")
+                .expect("foreign keys");
+            apply_v2_schema(&conn).expect("fixture schema");
+            conn.execute_batch(
+                r#"
+                INSERT INTO projects(id, name, title) VALUES('p1', 'P1', 'P1');
+                INSERT INTO layers(id, project_id, name) VALUES('l1', 'p1', 'Layer');
+                INSERT INTO features(id, project_id, layer_id, name, geom_type)
+                VALUES('f1', 'p1', 'l1', 'Cable', 'LineString');
+                INSERT INTO fiber_cables(id, project_id, feature_id, fiber_count, source)
+                VALUES('c1', 'p1', 'f1', 12, 'legacy');
+                "#,
+            )
+            .expect("legacy cable without materialized strands");
+            mark_as_v8(&conn);
+        }
+
+        let database = PmpDatabase::open_or_create(path.clone()).expect("v9 migration");
+        let user_version: i32 = database
+            .conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .expect("user version");
+        assert_eq!(user_version, 9);
+
+        let backup_count = std::fs::read_dir(directory.path())
+            .expect("backup directory")
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().contains("pre-v8-to-v9"))
+            .count();
+        assert_eq!(backup_count, 1);
+    }
+
+    #[test]
+    fn invalid_v8_database_is_blocked_without_version_change() {
+        let directory = tempdir().expect("tempdir");
+        let path = directory.path().join("invalid.pmp");
+        {
+            let conn = Connection::open(&path).expect("fixture database");
+            conn.pragma_update(None, "foreign_keys", "ON")
+                .expect("foreign keys");
+            apply_v2_schema(&conn).expect("fixture schema");
+            conn.execute_batch(
+                r#"
+                INSERT INTO projects(id, name, title) VALUES('p1', 'P1', 'P1');
+                INSERT INTO projects(id, name, title) VALUES('p2', 'P2', 'P2');
+                INSERT INTO layers(id, project_id, name) VALUES('l1', 'p1', 'Layer');
+                DROP TRIGGER trg_features_project_insert;
+                PRAGMA foreign_keys=OFF;
+                INSERT INTO features(
+                    id, project_id, layer_id, name, geom_type, properties_json, metadata_json
+                ) VALUES('f1', 'p2', 'l1', 'Invalid', 'Point', '{}', '{}');
+                "#,
+            )
+            .expect("invalid fixture");
+            mark_as_v8(&conn);
+        }
+
+        let error = PmpDatabase::open_or_create(path.clone()).expect_err("migration blocked");
+        assert!(error.to_string().contains("migration blocked by audit"));
+
+        let conn = Connection::open(&path).expect("reopen original");
+        let user_version: i32 = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .expect("user version");
+        assert_eq!(user_version, 8);
+
+        let backup_count = std::fs::read_dir(directory.path())
+            .expect("directory")
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_name().to_string_lossy().contains("pre-v8-to-v9"))
+            .count();
+        assert_eq!(backup_count, 0);
+    }
+
+    #[test]
+    #[ignore = "set PMP_MIGRATION_REHEARSAL_PATH to a disposable database copy"]
+    fn external_database_migration_rehearsal() {
+        let path = std::env::var_os("PMP_MIGRATION_REHEARSAL_PATH")
+            .map(PathBuf::from)
+            .expect("PMP_MIGRATION_REHEARSAL_PATH");
+        let database = PmpDatabase::open_or_create(path).expect("external migration rehearsal");
+        let report = database.audit_database().expect("post-migration audit");
+
+        assert!(!report.has_blocking_errors(), "{report:#?}");
+        assert_eq!(report.user_version, CURRENT_SCHEMA_VERSION);
+    }
 }

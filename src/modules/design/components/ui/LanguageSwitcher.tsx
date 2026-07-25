@@ -1,9 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { changeLanguage, getCurrentLanguage } from '@/modules/i18n';
-import { Globe } from 'lucide-react';
 
 export const LanguageSwitcher = () => {
+  const { i18n } = useTranslation();
   const [currentLang, setCurrentLang] = useState<'vi' | 'en'>(getCurrentLanguage());
+
+  useEffect(() => {
+    setCurrentLang((i18n.language as 'vi' | 'en') || 'vi');
+  }, [i18n.language]);
 
   const toggleLanguage = async () => {
     const newLang = currentLang === 'vi' ? 'en' : 'vi';
@@ -14,12 +19,12 @@ export const LanguageSwitcher = () => {
   return (
     <button
       onClick={toggleLanguage}
-      className="flex items-center gap-1.5 px-2 py-1 text-xs text-cad-text-muted hover:text-cad-text-primary transition-colors rounded hover:bg-white/5"
+      className="flex items-center justify-center px-2 py-1 text-[11px] font-extrabold text-cad-text-secondary hover:text-cad-text-primary transition-all rounded hover:bg-white/10 cursor-pointer uppercase tracking-wider select-none min-w-[28px]"
       aria-label={currentLang === 'vi' ? 'Switch to English' : 'Chuyển sang tiếng Việt'}
       title={currentLang === 'vi' ? 'Switch to English' : 'Chuyển sang tiếng Việt'}
     >
-      <Globe size={14} aria-hidden="true" />
-      <span className="uppercase font-medium">{currentLang}</span>
+      <span>{currentLang}</span>
     </button>
   );
 };
+

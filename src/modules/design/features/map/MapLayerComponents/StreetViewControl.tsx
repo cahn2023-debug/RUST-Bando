@@ -8,8 +8,6 @@ import { X } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getEffectiveCameraSpecs, getParsedMetadata } from '@TOOL/utils/featureMetadata';
 import { calculateHFOV, mapRotationToHeading, SENSOR_SIZES } from '@TOOL/utils/cameraMath';
-import { checkStreetViewMetadata } from '@TOOL/utils/googleMapsLoader';
-import { getGoogleMapsApiKey } from '@TOOL/utils/googleMapsRuntime';
 import { getCleanName } from '@TOOL/utils/featureUtils';
 import { ImageEditorModal, type ImageEditorSaveResult } from '@DESIGN/components/ui/ImageEditorModal';
 import { importMediaAsset, type MediaFeaturePatch } from '@IMPLEMENT/services/mediaAssetService';
@@ -17,7 +15,7 @@ import { requestStorageHealthRefresh } from '@IMPLEMENT/services/projectStorageS
 import { buildFeaturePropertiesForPersistence, normalizeFeatureMetadataForPersistence } from '@TOOL/utils/featurePersistence';
 import type { FeatureMetadata, FeatureProperties } from '@CONTRACT/types';
 
-const STREET_VIEW_WINDOW_LABEL = 'street-view-window';
+const STREET_VIEW_WINDOW_LABEL = 'street-view';
 const DEFAULT_FOV = 90;
 const POSITION_EPSILON = 0.0000008;
 const HEADING_EPSILON = 0.5;
@@ -109,7 +107,7 @@ function formatCoords(location: [number, number] | null) {
 }
 
 function buildStreetViewUrl(lat: number, lng: number, heading: number, fov: number, panoId = '') {
-  const panoParam = panoId ? `&pano=${panoId}` : '';
+  const panoParam = panoId ? `&pano=${encodeURIComponent(panoId)}` : '';
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}${panoParam}&heading=${normalizeHeading(
     heading
   )}&pitch=0&fov=${clampFov(fov)}`;
@@ -813,10 +811,10 @@ export function StreetViewControl() {
           const rotationStr = (typeof rawRotation === 'string' || typeof rawRotation === 'number') ? String(rawRotation) : '0';
           const rotation = parseFloat(rotationStr);
           nextHeading = mapRotationToHeading(rotation);
-          
-          const rawPanoId = gis.pano_id ?? meta.pano_id ?? panoId;
-          panoId = (typeof rawPanoId === 'string' || typeof rawPanoId === 'number') ? String(rawPanoId) : '';
 
+          const rawPanoId = gis.pano_id ?? meta.pano_id;
+          panoId = (typeof rawPanoId === 'string' || typeof rawPanoId === 'number') ? String(rawPanoId) : '';
+          
           const specs = getEffectiveCameraSpecs(feature, state?.settings, meta);
           const sensor =
             SENSOR_SIZES[specs.sensorSize as keyof typeof SENSOR_SIZES] || SENSOR_SIZES['1/3"'];
@@ -824,20 +822,6 @@ export function StreetViewControl() {
           const rawHfov = specsMeta.hfov ?? meta.hfov ?? calculateHFOV(sensor.width, specs.focalLength);
           const hfovStr = (typeof rawHfov === 'string' || typeof rawHfov === 'number') ? String(rawHfov) : '90';
           nextFov = parseFloat(hfovStr);
-        }
-
-        const apiKey = getGoogleMapsApiKey().trim();
-        if (apiKey) {
-          const metadata = await checkStreetViewMetadata(lat, lng, apiKey);
-          if (metadata.ok) {
-            panoId = metadata.panoId || panoId;
-          } else {
-            console.warn(
-              `[StreetViewControl] Metadata unavailable (${metadata.status}), falling back to public URL.`
-            );
-          }
-        } else {
-          console.info('[StreetViewControl] Opening public Street View without metadata precheck.');
         }
 
         nextHeading = normalizeHeading(nextHeading);
@@ -895,10 +879,6 @@ export function StreetViewControl() {
           });
         }
 
-        if (!panoId) {
-          console.info('[StreetViewControl] Public Street View window opened without pano precheck.');
-        }
-
         return true;
       } catch (error) {
         console.error('[StreetViewControl] Failed to manage Street View window:', error);
@@ -907,7 +887,7 @@ export function StreetViewControl() {
         return false;
       }
     },
-    [injectCleanup, injectSurvivorSync, selectedFeatureId, showFeedback, state, syncPegmanState]
+    [injectCleanup, injectSurvivorSync, injectCropButton, selectedFeatureId, showFeedback, state, syncPegmanState]
   );
 
   useEffect(() => {

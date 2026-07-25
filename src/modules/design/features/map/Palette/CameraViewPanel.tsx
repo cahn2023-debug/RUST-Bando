@@ -177,17 +177,17 @@ export const CameraViewPanel: React.FC = () => {
     // Verification for multi-selection handled in main return block to avoid hook violations.
     if (!feature || !displayInfo) {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-cad-text-muted bg-[#1e1e1e] p-4 text-center border border-[#333] shadow-2xl font-mono">
-                <div className="flex items-center justify-between w-full absolute top-0 p-3 border-b border-[#333] bg-[#252525] drag-handle cursor-move rounded-t-xl" {...dragHandleProps}>
+            <div className="flex flex-col items-center justify-center h-full text-cad-text-muted bg-cad-surface p-4 text-center border border-cad-border shadow-2xl font-mono">
+                <div className="flex items-center justify-between w-full absolute top-0 p-3 border-b border-cad-border bg-cad-elevated drag-handle cursor-move rounded-t-xl" {...dragHandleProps}>
                     <div className="flex items-center gap-2">
-                        <Video className="w-3.5 h-3.5 text-[#444]" />
+                        <Video className="w-3.5 h-3.5 text-cad-text-muted" />
                         <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">Camera View</span>
                     </div>
-                    <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-[#333] hover:text-white transition-all rounded"><X size={12} /></button>
+                    <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-cad-elevated hover:text-cad-text-primary transition-all rounded"><X size={12} /></button>
                 </div>
-                <Video className="w-10 h-10 mb-4 text-[#444] animate-pulse" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted">Chưa chọn thiết bị</p>
-                <p className="text-[9px] mt-2 text-cad-text-muted max-w-[200px]">
+                <Video className="w-10 h-10 mb-4 text-cad-text-muted animate-pulse" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-primary">Chưa chọn thiết bị</p>
+                <p className="text-[9px] mt-2 text-cad-text-secondary max-w-[200px]">
                     Vui lòng chọn một camera để xem mô phỏng hình ảnh tại vị trí lắp đặt.
                 </p>
             </div>
@@ -198,10 +198,10 @@ export const CameraViewPanel: React.FC = () => {
 
     if (selectionSet.size > 1) {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-cad-text-muted bg-[#1e1e1e] p-4 text-center opacity-50 border border-[#333] shadow-2xl font-mono">
+            <div className="flex flex-col items-center justify-center h-full text-cad-text-muted bg-cad-surface p-4 text-center opacity-70 border border-cad-border shadow-2xl font-mono">
                 <Layers className="w-8 h-8 mb-4 text-cad-accent" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted">Multi-Selection</p>
-                <p className="text-[9px] mt-2 text-cad-text-muted">
+                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-primary">Multi-Selection</p>
+                <p className="text-[9px] mt-2 text-cad-text-secondary">
                     Simulation is disabled for multiple devices.
                 </p>
             </div>
@@ -220,13 +220,13 @@ export const CameraViewPanel: React.FC = () => {
 
     return (
         <div className={cn(
-            "flex flex-col h-full bg-[#1e1e1e] text-white font-mono select-none rounded-xl border border-[#333] shadow-2xl overflow-hidden",
+            "flex flex-col h-full bg-cad-surface text-cad-text-primary font-mono select-none rounded-xl border border-cad-border shadow-2xl overflow-hidden",
             !lowPowerMode && "backdrop-blur-md"
         )}>
             {/* Header */}
             <div
                 {...dragHandleProps}
-                className="flex items-center justify-between p-3 border-b border-[#333] bg-[#252525] drag-handle cursor-move sticky top-0"
+                className="flex items-center justify-between p-3 border-b border-cad-border bg-cad-elevated drag-handle cursor-move sticky top-0"
             >
                 <div className="flex items-center gap-2">
                     <Video className="w-3.5 h-3.5 text-cad-accent" />
@@ -274,14 +274,14 @@ export const CameraViewPanel: React.FC = () => {
                     </div>
 
                     {expandedSections.specs && (
-                        <div className="space-y-4 bg-[#111] p-3 rounded border border-[#333]">
+                        <div className="space-y-4 bg-cad-bg p-3 rounded border border-cad-border">
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Độ phân giải</label>
                                     <select
                                         value={resolutionX}
                                         onChange={(e) => updateNestedMeta('specs.resolution_x', parseInt(e.target.value))}
-                                        className="w-full bg-[#111] border border-[#333] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
+                                        className="w-full bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all"
                                     >
                                         <option value={1280}>HD (1.3MP)</option>
                                         <option value={1920}>Full HD (2MP)</option>
@@ -294,7 +294,7 @@ export const CameraViewPanel: React.FC = () => {
                                     <select
                                         value={sensorSize}
                                         onChange={(e) => updateNestedMeta('specs.sensor_size', e.target.value)}
-                                        className="w-full bg-[#111] border border-[#333] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
+                                        className="w-full bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all"
                                     >
                                         {Object.keys(SENSOR_SIZES).map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
@@ -308,7 +308,7 @@ export const CameraViewPanel: React.FC = () => {
                                         step="0.1"
                                         value={focalLength}
                                         onChange={(e) => updateNestedMeta('specs.focal_length', Number(e.target.value))}
-                                        className="w-full bg-[#111] border border-[#333] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
+                                        className="w-full bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all"
                                     />
                                 </div>
                                 <div className="space-y-1">
@@ -318,11 +318,11 @@ export const CameraViewPanel: React.FC = () => {
                                         step="0.5"
                                         value={installHeight}
                                         onChange={(e) => updateNestedMeta('specs.install_height', parseFloat(e.target.value))}
-                                        className="w-full bg-[#111] border border-[#333] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
+                                        className="w-full bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all"
                                     />
                                 </div>
                             </div>
-                            <div className="flex justify-between items-center py-2 px-1 border-t border-[#333] mt-2">
+                            <div className="flex justify-between items-center py-2 px-1 border-t border-cad-border mt-2">
                                 <span className="text-[9px] text-cad-text-muted uppercase font-bold tracking-tighter ml-1">Góc nhìn ngang (HFOV)</span>
                                 <span className="text-[10px] font-mono font-bold text-cad-accent mr-1">
                                     {hfov.toFixed(1)}°
@@ -337,13 +337,13 @@ export const CameraViewPanel: React.FC = () => {
                     <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-[#555] uppercase">
                         <MapIcon className="w-3 h-3 text-green-400" /> Mô phỏng Góc nhìn
                         <div className="flex-1" />
-                        <button onClick={() => toggleSection('simulation')} className="p-1 hover:bg-[#333] rounded text-cad-text-muted">
+                        <button onClick={() => toggleSection('simulation')} className="p-1 hover:bg-cad-elevated rounded text-cad-text-muted">
                             {expandedSections.simulation ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         </button>
                     </div>
 
                     {expandedSections.simulation && (
-                        <div className="bg-[#111] p-3 rounded border border-[#333]">
+                        <div className="bg-cad-bg p-3 rounded border border-cad-border">
                             <InteractiveStreetViewPreview
                                 lat={coords?.[1] ?? NaN}
                                 lng={coords?.[0] ?? NaN}
@@ -375,13 +375,13 @@ export const CameraViewPanel: React.FC = () => {
                     <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-[#555] uppercase">
                         <Activity className="w-3 h-3 text-purple-400" /> Chất lượng Nhận diện
                         <div className="flex-1" />
-                        <button onClick={() => toggleSection('recognition')} className="p-1 hover:bg-[#333] rounded text-cad-text-muted">
+                        <button onClick={() => toggleSection('recognition')} className="p-1 hover:bg-cad-elevated rounded text-cad-text-muted">
                             {expandedSections.recognition ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         </button>
                     </div>
 
                     {expandedSections.recognition && (
-                        <div className="space-y-6 bg-[#111] p-3 rounded border border-[#333]">
+                        <div className="space-y-6 bg-cad-bg p-3 rounded border border-cad-border">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Mục tiêu (m)</label>
@@ -390,13 +390,13 @@ export const CameraViewPanel: React.FC = () => {
                                         step="0.1"
                                         value={targetHeight}
                                         onChange={(e) => updateNestedMeta('specs.target_height', parseFloat(e.target.value))}
-                                        className="w-full bg-[#111] border border-[#333] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
+                                        className="w-full bg-cad-bg border border-cad-border rounded px-2 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all"
                                     />
                                 </div>
                                 <div className="space-y-1">
                                     <div className="flex justify-between items-center h-full pt-4">
                                         <span className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">PPM</span>
-                                        <span className="text-[12px] font-mono font-bold text-white mr-1">{Math.round(ppm)}</span>
+                                        <span className="text-[12px] font-mono font-bold text-cad-text-primary mr-1">{Math.round(ppm)}</span>
                                     </div>
                                 </div>
                             </div>

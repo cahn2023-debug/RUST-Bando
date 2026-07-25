@@ -3,6 +3,8 @@ import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
 import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
 import { safeInvoke as invoke, safeListen } from "@IMPLEMENT/lib/tauri";
 
+import { useThemeStore } from "@DESIGN/stores/themeStore";
+
 /**
  * Handles application-level side effects like window visibility,
  * event listeners for file associations, and system theme synchronization.
@@ -13,6 +15,11 @@ export function useAppBootstrap(handleOpenProject: (path: string) => Promise<boo
     const hasShownWindowRef = useRef(false);
     const handledPendingPathRef = useRef<string | null>(null);
     const lastOpenEventRef = useRef<{ path: string; ts: number } | null>(null);
+
+    // Initialize Theme Mode on app bootstrap
+    useEffect(() => {
+        useThemeStore.getState().initTheme();
+    }, []);
 
     // Handle Low Power Mode visual flag
     useEffect(() => {

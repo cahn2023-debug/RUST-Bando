@@ -39,7 +39,7 @@ export const ExplorerHeader = React.memo(({
 
             <button
                 onClick={disabled ? undefined : onCreateRegion}
-                className={`h-[22px] px-1.5 flex items-center justify-center bg-cad-bg border border-cad-border hover:border-cad-accent hover:text-cad-accent transition-all rounded-sm text-cad-text-muted ${disabled ? 'opacity-20 cursor-not-allowed' : ''}`}
+                className={`h-[22px] px-1.5 flex items-center justify-center bg-cad-bg border border-cad-border hover:border-cad-accent hover:text-cad-accent transition-all rounded-sm text-cad-text-primary ${disabled ? 'opacity-20 cursor-not-allowed' : ''}`}
                 title={disabled ? "Đang đồng bộ..." : "Thêm dự án mới (+)"}
                 disabled={disabled}
             >

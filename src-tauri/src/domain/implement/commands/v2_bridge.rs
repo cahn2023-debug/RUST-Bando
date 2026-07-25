@@ -98,24 +98,6 @@ async fn load_design_state_from_tables(
     state: &ActorState,
     project_id: &str,
 ) -> Result<Value, String> {
-    // Dọn dẹp: Xóa các feature "Tuyen Network Moi" không có tọa độ trên bản đồ
-    let cleanup_sql = "
-        DELETE FROM features 
-        WHERE project_id = ?1 
-        AND (name = 'Tuyen Network Moi' OR name LIKE 'Tuyen Network Moi%' OR name LIKE 'Tuyến Network Mới%')
-        AND (coordinates_json IS NULL OR coordinates_json = '' OR coordinates_json = '[]' OR coordinates_json = '{}')
-    ";
-    let (tx_clean, rx_clean) = tokio::sync::oneshot::channel();
-    let _ = state
-        .gateway_tx
-        .send(StorageCommand::Query {
-            sql: cleanup_sql.to_string(),
-            params: vec![project_id.to_string()],
-            reply: tx_clean,
-        })
-        .await;
-    let _ = rx_clean.await;
-
     let regions = exec_query(
         state,
         "SELECT id, parent_id, name, description FROM regions WHERE project_id = ?1 ORDER BY created_at, id",
@@ -1270,14 +1252,11 @@ pub fn get_webview_url(app: tauri::AppHandle, label: String) -> Result<String, S
 }
 
 #[tauri::command]
-pub async fn capture_webview_png(
-    app: tauri::AppHandle,
-    label: String,
-) -> Result<Value, String> {
+pub async fn capture_webview_png(app: tauri::AppHandle, label: String) -> Result<Value, String> {
     #[cfg(target_os = "windows")]
     {
-        use tauri::Manager;
         use std::sync::{Arc, Mutex};
+        use tauri::Manager;
         use tokio::sync::oneshot;
 
         let window = app
@@ -1443,5 +1422,35 @@ mod tests {
         let rows = json!([{ "metadata_json": "bad-shape" }]);
         let out = extract_project_metadata(&rows);
         assert_eq!(out, json!({}));
+    }
+
+    #[tokio::test]
+    async fn loading_design_state_never_issues_destructive_cleanup_queries() {
+        let (gateway_tx, mut gateway_rx) = tokio::sync::mpsc::channel(8);
+        let state = ActorState { gateway_tx };
+        let responder = tokio::spawn(async move {
+            let mut statements = Vec::new();
+            while statements.len() < 5 {
+                let command = gateway_rx.recv().await.expect("storage query");
+                match command {
+                    StorageCommand::Query { sql, reply, .. } => {
+                        statements.push(sql);
+                        reply.send(Ok(json!([]))).expect("query reply");
+                    }
+                    other => panic!("unexpected storage command: {other:?}"),
+                }
+            }
+            statements
+        });
+
+        let state_value = load_design_state_from_tables(&state, "project-1")
+            .await
+            .expect("load state");
+        let statements = responder.await.expect("query responder");
+
+        assert_eq!(state_value, empty_design_state());
+        assert!(statements
+            .iter()
+            .all(|sql| sql.trim_start().starts_with("SELECT")));
     }
 }

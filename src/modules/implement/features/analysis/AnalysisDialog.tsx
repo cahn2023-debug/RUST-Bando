@@ -3,18 +3,19 @@
  * Combines data grid, BOM summary, filtering, and technical specs
  */
 
-import { useCallback, useMemo, useState, type ChangeEvent } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Trash2, Eraser, Filter, Package, ListFilter } from 'lucide-react';
 import { type ColumnDef, type SortingFn } from '@tanstack/react-table';
 import { AnalysisTable } from '@DESIGN/components/ui/AnalysisTable';
 import { BOMSummaryPanel } from '@DESIGN/components/ui/BOMSummaryPanel';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
+import { AnalysisSyncPreviewModal } from '@IMPLEMENT/features/analysis/AnalysisSyncPreviewModal';
 import { useDesignSync, type DesignEventType } from '@IMPLEMENT/stores/useDesignSync';
 import { EditableCell, DropdownCell, GEOM_TYPES_OPTIONS } from '@IMPLEMENT/features/analysis/AnalysisCells';
+import type { WorkbookLink, SyncPreview, ConflictResolution, DataSourceStatus } from '@IMPLEMENT/services/analysisService';
+
 import {
   ANALYSIS_CORE_COLUMN_ORDER,
-  ANALYSIS_EXPORT_COLUMN_ORDER,
-  buildAnalysisExportRows,
   getAnalysisUserColumnKeys,
   getAnalysisSchemaColumnKeys,
   isAllowedAnalysisDynamicColumnKey,
@@ -312,16 +313,9 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
     return [...coreKeys, ...schemaKeys, ...dynamicKeys];
   }, [allData, schemaColumnKeys, userColumnKeys]);
 
-  const exportColumnKeys = useMemo(() => (
-    [
-      ...analysisColumnKeys,
-      ...ANALYSIS_EXPORT_COLUMN_ORDER.filter((key) => !analysisColumnKeys.includes(key)),
-    ].filter((key) => hasKeyInRows(data, key))
-  ), [analysisColumnKeys, data]);
 
-  const exportRows = useMemo(() => (
-    buildAnalysisExportRows(data, exportColumnKeys, toColumnLabel)
-  ), [data, exportColumnKeys]);
+
+
 
   const handleGoToFeatureLocation = useCallback((row: FlatFeature) => {
     const feature = state?.features[row.id];
@@ -501,37 +495,97 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
     ));
   }, [analysisColumnKeys, data, state]);
 
+  const [workbookLink, setWorkbookLink] = useState<WorkbookLink | null>(() => {
+    if (!projectId) return null;
+    const stored = localStorage.getItem(`workbook_link_${projectId}`);
+    return stored ? JSON.parse(stored) : null;
+  });
+
+  const [syncPreview, setSyncPreview] = useState<SyncPreview | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isUpdatingData, setIsUpdatingData] = useState(false);
+
+  const dataSourceStatus: DataSourceStatus = useMemo(() => {
+    if (!workbookLink) return 'unlinked';
+    return 'synced';
+  }, [workbookLink]);
+
   const handleExport = async () => {
     try {
+      if (!state) return;
       const { analysisService } = await import('@IMPLEMENT/services/analysisService');
-      await analysisService.exportToExcel(exportRows, projectId?.toString() || 'default');
+      const link = await analysisService.exportWorkbook(state, projectId?.toString() || 'default', workbookLink?.filePath);
+      if (link) {
+        setWorkbookLink(link);
+        if (projectId) {
+          localStorage.setItem(`workbook_link_${projectId}`, JSON.stringify(link));
+        }
+        alert('Xuất workbook Excel thành công!');
+      }
     } catch (error: any) {
       alert(`Export error: ${error.message}`);
     }
   };
 
-  const handleImport = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !state) return;
+  const handleUpdateData = async () => {
+    if (!state || !projectId) return;
 
     try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        multiple: false,
+        filters: [{ name: 'Excel Workbook', extensions: ['xlsx'] }],
+        defaultPath: workbookLink?.filePath,
+      });
+
+      if (!selected || Array.isArray(selected)) return;
+
+      setIsUpdatingData(true);
       const { analysisService } = await import('@IMPLEMENT/services/analysisService');
-      const events = await analysisService.importFromExcel(state);
-      if (events.length > 0) {
-        setDeleteModalConfig({
-          isOpen: true,
-          type: 'import',
-          id: JSON.stringify(events),
-          itemName: `${events.length} thay đổi`,
-          message: `Tìm thấy ${events.length} thay đổi. Bạn có muốn cập nhật?`,
-        });
-      } else {
-        alert('Không tìm thấy thay đổi.');
+      const preview = await analysisService.inspectWorkbookUpdate(state, selected, projectId.toString());
+
+      if (!preview.isValidWorkbook) {
+        alert(preview.errorMessage || 'Workbook không hợp lệ.');
+        setIsUpdatingData(false);
+        return;
       }
+
+      setSyncPreview(preview);
+      setIsPreviewOpen(true);
     } catch (error: any) {
-      alert(`Import error: ${error.message}`);
+      alert(`Lỗi khi đọc file đồng bộ Excel: ${error.message}`);
+    } finally {
+      setIsUpdatingData(false);
     }
   };
+
+  const handleApplySync = async (resolutions: ConflictResolution) => {
+    if (!state || !syncPreview) return;
+
+    try {
+      setIsUpdatingData(true);
+      const { analysisService } = await import('@IMPLEMENT/services/analysisService');
+      const events = analysisService.buildWorkbookEvents(syncPreview, resolutions);
+
+      if (events.length > 0) {
+        const { dispatchEvents } = useDesignSync.getState();
+        await dispatchEvents(events);
+      }
+
+      if (workbookLink?.filePath) {
+        await analysisService.refreshManagedSheets(state, workbookLink.filePath);
+      }
+
+      setIsPreviewOpen(false);
+      setSyncPreview(null);
+      alert('Cập nhật đồng bộ dữ liệu từ Excel thành công!');
+    } catch (error: any) {
+      alert(`Lỗi khi áp dụng đồng bộ: ${error.message}`);
+    } finally {
+      setIsUpdatingData(false);
+    }
+  };
+
 
   const columns = useMemo<ColumnDef<FlatFeature>[]>(() => {
     const coreColumns: ColumnDef<FlatFeature>[] = ANALYSIS_CORE_COLUMN_ORDER
@@ -571,31 +625,34 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
         } as ColumnDef<FlatFeature>];
       });
 
-    const extraColumns: ColumnDef<FlatFeature>[] = userColumnKeys.map((key) => ({
-      header: toColumnLabel(key),
-      accessorKey: key,
-      size: getColumnWidth(key),
-      sortingFn: hierarchySortingFn,
-      cell: (info) => {
-        const value = info.getValue();
-        if (!isAnalysisScalarValue(value)) {
-          return <span className="text-cad-text-muted">N/A</span>;
-        }
+    const extraColumns: ColumnDef<FlatFeature>[] = userColumnKeys
+      .filter((key) => !schemaColumnKeys.includes(key))
+      .map((key) => ({
+        header: toColumnLabel(key),
+        accessorKey: key,
+        size: getColumnWidth(key),
+        sortingFn: hierarchySortingFn,
+        cell: (info) => {
+          const value = info.getValue();
+          if (!isAnalysisScalarValue(value)) {
+            return <span className="text-cad-text-muted">N/A</span>;
+          }
 
-        if (ANALYSIS_NON_EDITABLE_FIELDS.has(key)) {
-          return <span>{String((buildDisplayValue(value) as any) ?? '')}</span>;
-        }
+          if (ANALYSIS_NON_EDITABLE_FIELDS.has(key)) {
+            return <span>{String((buildDisplayValue(value) as any) ?? '')}</span>;
+          }
 
-        return (
-          <EditableCell
-            value={buildDisplayValue(value)}
-            row={info.row}
-            column={info.column}
-            onUpdate={handleUpdate}
-          />
-        );
-      },
-    }));
+          return (
+            <EditableCell
+              value={buildDisplayValue(value)}
+              row={info.row}
+              column={info.column}
+              onUpdate={handleUpdate}
+            />
+          );
+        },
+      }));
+
 
     return [
       {
@@ -639,20 +696,21 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
         columns: coreColumns,
       },
       ...schemaColumns,
-      {
+      ...(extraColumns.length > 0 ? [{
         header: 'Custom',
         columns: extraColumns,
-      },
+      }] : []),
       {
         id: 'Action',
         size: 80,
-        header: 'XOA',
+        header: 'XÓA',
         cell: ({ row }) => (
           <button onClick={() => deleteFeature(row.original.id)} className="p-1 hover:text-rose-500 transition-colors">
             <Trash2 size={14} />
           </button>
         ),
       },
+
     ];
   }, [allData, deleteFeature, handleUpdate, projectSettings, userColumnKeys]);
 
@@ -780,14 +838,9 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
               onBatchUpdate={onBatchUpdate}
               onExport={handleExport}
               onAddColumn={handleAddColumn}
-              onImport={() => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = '.csv';
-                (input as any).onchange = handleImport;
-                input.click();
-                return Promise.resolve();
-              }}
+              onUpdateData={handleUpdateData}
+              isUpdatingData={isUpdatingData}
+              dataSourceStatus={dataSourceStatus}
               renderExtraActions={() => (
                 <button
                   onClick={() => deduplicate()}
@@ -802,6 +855,17 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
           )}
         </div>
       </div>
+
+      <AnalysisSyncPreviewModal
+        isOpen={isPreviewOpen}
+        preview={syncPreview}
+        onClose={() => {
+          setIsPreviewOpen(false);
+          setSyncPreview(null);
+        }}
+        onApply={handleApplySync}
+        isApplying={isUpdatingData}
+      />
 
       <DeleteConfirmationModal
         isOpen={deleteModalConfig.isOpen}
@@ -820,4 +884,5 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
     </>
   );
 };
+
 

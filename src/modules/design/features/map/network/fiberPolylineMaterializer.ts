@@ -196,7 +196,8 @@ const getFiberCount = (feature: FeatureState, existingCable?: FiberCable): numbe
 const getCableType = (feature: FeatureState, existingCable?: FiberCable): string | null => {
   if (existingCable?.cable_type) return existingCable.cable_type;
   const metadata = parseMetadata(feature.metadata);
-  return metadata.infrastructure?.cable_type || metadata.infrastructure?.type || feature.geom_type || null;
+  const cableType = metadata.infrastructure?.cable_type;
+  return typeof cableType === 'string' && cableType.trim() ? cableType.trim() : null;
 };
 
 const getCableStatus = (existingCable?: FiberCable): FiberCable['status'] => {

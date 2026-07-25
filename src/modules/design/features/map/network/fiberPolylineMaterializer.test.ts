@@ -111,4 +111,24 @@ describe('fiberPolylineMaterializer', () => {
     const pointsEvent = result.events.find(event => event.type === 'FiberCablePointsMaterialized');
     expect(pointsEvent).toBeUndefined();
   });
+
+  it('does not store SignalLine as the cable type when cable_type is absent', () => {
+    const result = buildFiberPolylineMaterializationEvents('project-1', {
+      'line-1': {
+        ...lineFeature('line-1', [[106.1, 10.1], [106.2, 10.2]]),
+        metadata: JSON.stringify({
+          infrastructure: {
+            type: 'SignalLine',
+            core_count: 24,
+          },
+        }),
+      },
+    });
+
+    const cableEvent = result.events.find(event => event.type === 'FiberCableUpserted');
+    expect(cableEvent?.type).toBe('FiberCableUpserted');
+    if (cableEvent?.type === 'FiberCableUpserted') {
+      expect(cableEvent.payload.cable_type).toBeNull();
+    }
+  });
 });

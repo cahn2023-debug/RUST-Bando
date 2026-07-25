@@ -89,7 +89,7 @@ export const ProjectMainView: React.FC<ProjectMainViewProps> = ({
             <div className="flex flex-col items-center gap-4">
               <div className="w-12 h-12 border-4 border-cad-accent border-t-transparent rounded-full animate-spin"></div>
               <p className="text-cad-accent font-black text-xs uppercase tracking-widest animate-pulse">
-                ĐANG PHÂN TÍCH HỢP ĐỒNG...
+                {t('contract.analyzing', 'ĐANG PHÂN TÍCH HỢP ĐỒNG...')}
               </p>
             </div>
           </div>

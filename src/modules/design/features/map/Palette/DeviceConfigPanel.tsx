@@ -169,17 +169,17 @@ export const DeviceConfigPanel: React.FC = () => {
 
     if (!feature || !displayInfo) {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-cad-text-muted bg-[#1e1e1e] p-4 text-center border border-[#333] shadow-2xl font-mono">
-                <div className="flex items-center justify-between w-full absolute top-0 p-3 border-b border-[#333] bg-[#252525] drag-handle cursor-move" {...dragHandleProps}>
+            <div className="flex flex-col items-center justify-center h-full text-cad-text-muted bg-cad-surface p-4 text-center border border-cad-border shadow-2xl font-mono">
+                <div className="flex items-center justify-between w-full absolute top-0 p-3 border-b border-cad-border bg-cad-elevated drag-handle cursor-move" {...dragHandleProps}>
                     <div className="flex items-center gap-2">
-                        <Settings className="w-3.5 h-3.5 text-[#444]" />
+                        <Settings className="w-3.5 h-3.5 text-cad-text-muted" />
                         <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">Device Configure</span>
                     </div>
-                    <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-[#333] hover:text-white transition-all rounded"><X size={12} /></button>
+                    <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-cad-elevated hover:text-cad-text-primary transition-all rounded"><X size={12} /></button>
                 </div>
-                <Compass className="w-10 h-10 mb-4 text-[#444] animate-pulse" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted">Chưa chọn thiết bị</p>
-                <p className="text-[9px] mt-2 text-cad-text-muted max-w-[200px]">
+                <Compass className="w-10 h-10 mb-4 text-cad-text-muted animate-pulse" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-primary">Chưa chọn thiết bị</p>
+                <p className="text-[9px] mt-2 text-cad-text-secondary max-w-[200px]">
                     Vui lòng chọn một thiết bị trên bản đồ hoặc trong cây thư mục để chỉnh sửa hướng và thông số GIS.
                 </p>
             </div>
@@ -187,10 +187,10 @@ export const DeviceConfigPanel: React.FC = () => {
     }
     if (selectionSet.size > 1) {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-cad-text-muted bg-[#1e1e1e] p-4 text-center opacity-50 border border-[#333] shadow-2xl font-mono">
+            <div className="flex flex-col items-center justify-center h-full text-cad-text-muted bg-cad-surface p-4 text-center opacity-70 border border-cad-border shadow-2xl font-mono">
                 <Layers className="w-8 h-8 mb-4 text-cad-accent" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted">Chọn nhiều đối tượng</p>
-                <p className="text-[9px] mt-2 text-cad-text-muted max-w-[200px]">
+                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-primary">Chọn nhiều đối tượng</p>
+                <p className="text-[9px] mt-2 text-cad-text-secondary max-w-[200px]">
                     Vui lòng chỉ chọn một thiết bị để thay đổi thông số cấu hình.
                 </p>
             </div>
@@ -198,11 +198,11 @@ export const DeviceConfigPanel: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col h-full bg-[#1e1e1e] text-white font-mono select-none rounded-xl border border-[#333] shadow-2xl overflow-hidden">
+        <div className="flex flex-col h-full bg-cad-surface text-cad-text-primary font-mono select-none rounded-xl border border-cad-border shadow-2xl overflow-hidden">
             {/* Header */}
             <div
                 {...dragHandleProps}
-                className="flex items-center justify-between p-3 border-b border-[#333] bg-[#252525] drag-handle cursor-move sticky top-0"
+                className="flex items-center justify-between p-3 border-b border-cad-border bg-cad-elevated drag-handle cursor-move sticky top-0"
             >
                 <div className="flex items-center gap-2">
                     <Settings className="w-3.5 h-3.5 text-blue-400" />
@@ -254,14 +254,14 @@ export const DeviceConfigPanel: React.FC = () => {
                     </div>
 
                     {expandedSections.gis && (
-                        <div className="space-y-4 bg-[#111] p-3 rounded border border-[#333]">
+                        <div className="space-y-4 bg-cad-bg p-3 rounded border border-cad-border">
                             {/* Layer Toggles */}
                             <div className="grid grid-cols-2 gap-2">
                                 <button
                                     onClick={() => updateNestedMeta('gis.show_fov', !showFov)}
                                     className={`flex items-center justify-center gap-1.5 py-1.5 rounded text-[9px] font-bold uppercase transition-all border ${showFov
                                         ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                                        : 'bg-[#252525] border-[#333] text-cad-text-muted hover:bg-[#333]'
+                                        : 'bg-cad-surface border-cad-border text-cad-text-secondary hover:bg-cad-elevated'
                                         }`}
                                 >
                                     {showFov ? <Eye size={12} /> : <EyeOff size={12} />}
@@ -271,7 +271,7 @@ export const DeviceConfigPanel: React.FC = () => {
                                     onClick={() => setShowDORILayers(!showDORILayers)}
                                     className={`flex items-center justify-center gap-1.5 py-1.5 rounded text-[9px] font-bold uppercase transition-all border ${showDORILayers
                                         ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
-                                        : 'bg-[#252525] border-[#333] text-cad-text-muted hover:bg-[#333]'
+                                        : 'bg-cad-surface border-cad-border text-cad-text-secondary hover:bg-cad-elevated'
                                         }`}
                                 >
                                     {showDORILayers ? <Eye size={12} /> : <EyeOff size={12} />}
@@ -290,11 +290,11 @@ export const DeviceConfigPanel: React.FC = () => {
                                             type="range" min="0" max="359" step="1"
                                             value={rotation}
                                             onChange={(e) => updateNestedMeta('gis.rotation', parseInt(e.target.value))}
-                                            className="flex-1 h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer accent-cad-orange my-auto"
+                                            className="flex-1 h-1.5 bg-cad-border rounded-lg appearance-none cursor-pointer accent-cad-orange my-auto"
                                         />
                                         <button
                                             onClick={handleAutoOrient}
-                                            className="p-1.5 bg-[#252525] border border-[#333] hover:bg-[#333] hover:border-cad-accent rounded text-cad-text-muted hover:text-white transition-all group"
+                                            className="p-1.5 bg-cad-surface border border-cad-border hover:bg-cad-elevated hover:border-cad-accent rounded text-cad-text-secondary hover:text-cad-text-primary transition-all group"
                                             title="Tự động hướng ra đường"
                                         >
                                             <Wand2 size={12} className="group-hover:text-blue-400" />
@@ -302,7 +302,7 @@ export const DeviceConfigPanel: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="space-y-2 pt-4 border-t border-[#333]/50">
+                                <div className="space-y-2 pt-4 border-t border-cad-border">
                                     <div className="flex justify-between items-center">
                                         <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Góc nhìn (FOV)</label>
                                         <span className="text-[10px] font-mono text-blue-400 font-bold mr-1">{getMetaValue('gis.fov_angle', 90)}°</span>
@@ -312,7 +312,7 @@ export const DeviceConfigPanel: React.FC = () => {
                                             type="range" min="10" max="180" step="1"
                                             value={getMetaValue('gis.fov_angle', 90)}
                                             onChange={(e) => updateNestedMeta('gis.fov_angle', parseInt(e.target.value))}
-                                            className="flex-1 h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer accent-blue-500 my-auto"
+                                            className="flex-1 h-1.5 bg-cad-border rounded-lg appearance-none cursor-pointer accent-blue-500 my-auto"
                                         />
                                     </div>
                                 </div>
@@ -327,7 +327,7 @@ export const DeviceConfigPanel: React.FC = () => {
                                             type="range" min="1" max="1000" step="1"
                                             value={getMetaValue('gis.fov_radius', 100)}
                                             onChange={(e) => updateNestedMeta('gis.fov_radius', parseInt(e.target.value))}
-                                            className="flex-1 h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer accent-purple-500 my-auto"
+                                            className="flex-1 h-1.5 bg-cad-border rounded-lg appearance-none cursor-pointer accent-purple-500 my-auto"
                                         />
                                     </div>
                                 </div>

@@ -45,7 +45,7 @@ export function EditableText({ value: initialValue, onSave, className, placehold
         onBlur={handleSave}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className={cn("bg-cad-primary border border-cad-accent outline-none text-white px-1 h-3.5 w-full text-[9px] font-mono", className)}
+        className={cn("bg-cad-bg border border-cad-accent outline-none text-cad-text-primary px-1 h-3.5 w-full text-[9px] font-mono", className)}
         onClick={e => e.stopPropagation()}
         onDoubleClick={e => e.stopPropagation()}
       />

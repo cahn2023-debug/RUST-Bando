@@ -11,7 +11,9 @@ import {
   HelpCircle,
   User as UserIcon,
   RefreshCw,
-  LogOut
+  LogOut,
+  Sun,
+  Moon
 } from "lucide-react";
 import { Project } from "@CONTRACT/types";
 import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
@@ -19,6 +21,7 @@ import { useClickOutside } from "@IMPLEMENT/hooks/useClickOutside";
 import { safeInvoke } from "@IMPLEMENT/lib/tauri";
 import { cn } from "@TOOL/utils/cn";
 import { moveFocus, announce } from "@TOOL/utils/accessibility";
+import { useThemeStore } from "@DESIGN/stores/themeStore";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export interface TitleBarProps {
@@ -32,6 +35,7 @@ export interface TitleBarProps {
 
 export function TitleBar({ project, titleOverride, showExtraControls = true, onSave, onForceSave, children }: TitleBarProps) {
   const { t } = useTranslation();
+  const { themeMode, resolvedTheme, setThemeMode, toggleTheme } = useThemeStore();
   const [appWindow, setAppWindow] = useState<{ minimize: () => void; toggleMaximize: () => void; close: () => void } | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
   const { user, logout } = useAuthStore();
@@ -180,7 +184,7 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
         {showExtraControls && (
           <>
             {/* AutoCAD Style Command Search */}
-            <div className="hidden lg:flex items-center bg-[#1A1A1A] h-7 px-3 rounded-md border border-white/5 mr-4 w-64 group focus-within:border-cad-accent/50 transition-all">
+            <div className="hidden lg:flex items-center bg-cad-surface h-7 px-3 rounded-md border border-cad-border mr-4 w-64 group focus-within:border-cad-accent/50 transition-all">
               <Search size={14} className="text-cad-text-muted mr-2 group-focus-within:text-cad-accent" aria-hidden="true" />
               <input
                 type="text"
@@ -196,7 +200,7 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
                 aria-label={t('settings.settings')}
                 aria-expanded={showUserMenu}
                 aria-haspopup="true"
-                className="flex items-center bg-[#1A1A1A] hover:bg-[#252525] h-7 px-2 rounded-sm border border-white/5 mr-1 group transition-colors"
+                className="flex items-center bg-cad-surface hover:bg-cad-elevated h-7 px-2 rounded-sm border border-cad-border mr-1 group transition-colors"
                 title={t('settings.settings')}
               >
                 <div className="w-5 h-5 rounded-full bg-cad-accent/20 flex items-center justify-center mr-2 border border-cad-accent/30 overflow-hidden">
@@ -222,6 +226,39 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
                     <p className="text-[8px] font-bold text-cad-accent uppercase mt-1">Role: {isAdmin ? 'System Admin' : 'Workspace User'}</p>
                   </div>
 
+                  <div className="px-4 py-2 border-b border-cad-border mb-1">
+                    <p className="text-[9px] font-black uppercase text-cad-text-muted tracking-widest mb-2">{t('settings.theme', 'Theme')}</p>
+                    <div className="grid grid-cols-3 gap-1">
+                      <button
+                        onClick={() => setThemeMode('dark')}
+                        className={cn(
+                          "flex items-center justify-center gap-1 py-1 px-1 rounded text-[10px] font-bold transition-all cursor-pointer",
+                          themeMode === 'dark' ? "bg-cad-accent text-black font-black" : "bg-cad-bg text-cad-text-secondary hover:text-white"
+                        )}
+                      >
+                        <Moon size={11} /> {t('settings.dark', 'Dark')}
+                      </button>
+                      <button
+                        onClick={() => setThemeMode('light')}
+                        className={cn(
+                          "flex items-center justify-center gap-1 py-1 px-1 rounded text-[10px] font-bold transition-all cursor-pointer",
+                          themeMode === 'light' ? "bg-cad-accent text-black font-black" : "bg-cad-bg text-cad-text-secondary hover:text-white"
+                        )}
+                      >
+                        <Sun size={11} /> {t('settings.light', 'Light')}
+                      </button>
+                      <button
+                        onClick={() => setThemeMode('system')}
+                        className={cn(
+                          "flex items-center justify-center gap-1 py-1 px-1 rounded text-[10px] font-bold transition-all cursor-pointer",
+                          themeMode === 'system' ? "bg-cad-accent text-black font-black" : "bg-cad-bg text-cad-text-secondary hover:text-white"
+                        )}
+                      >
+                        Auto
+                      </button>
+                    </div>
+                  </div>
+
                   <button
                     onClick={() => { logout(); setShowUserMenu(false); }}
                     aria-label={t('common.close')}
@@ -233,7 +270,28 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
                 </div>
               )}
 
+              {/* Divider & Language / Theme Switcher Cluster */}
+              <div className="h-4 w-[1px] bg-cad-border/60 mx-1" aria-hidden="true" />
+
               <LanguageSwitcher />
+
+              <button
+                onClick={toggleTheme}
+                className={cn(
+                  "flex items-center justify-center w-7 h-7 rounded-md border transition-all cursor-pointer shadow-[0_0_8px_rgba(16,185,129,0.25)]",
+                  resolvedTheme === 'dark'
+                    ? "border-emerald-500/90 bg-emerald-500/10 text-amber-400 hover:bg-emerald-500/20 hover:border-emerald-400"
+                    : "border-emerald-600/90 bg-emerald-600/10 text-indigo-600 hover:bg-emerald-600/20 hover:border-emerald-500"
+                )}
+                title={resolvedTheme === 'dark' ? t('settings.light', 'Switch to Light Mode') : t('settings.dark', 'Switch to Dark Mode')}
+                aria-label="Toggle Theme"
+              >
+                {resolvedTheme === 'dark' ? (
+                  <Sun size={15} className="text-amber-400 stroke-[2.2]" aria-hidden="true" />
+                ) : (
+                  <Moon size={15} className="text-indigo-400 stroke-[2.2]" aria-hidden="true" />
+                )}
+              </button>
 
               <button
                 className="p-2 hover:bg-white/10 text-cad-text-secondary"

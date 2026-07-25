@@ -1,7 +1,11 @@
-import { Save, RotateCcw, RotateCw, Search, Globe, Sun, User } from "lucide-react";
+import { Save, RotateCcw, RotateCw, Search, Sun, Moon, User } from "lucide-react";
 import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
+import { useThemeStore } from "@DESIGN/stores/themeStore";
+import { useTranslation } from "react-i18next";
+import { cn } from "@TOOL/utils/cn";
 import { StorageHealthIndicator } from "./StorageHealthIndicator";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 interface TopToolbarProps {
   onSave: () => void;
@@ -12,6 +16,8 @@ interface TopToolbarProps {
 export function TopToolbar({ onSave, onUndo, onRedo }: TopToolbarProps) {
   const { user } = useAuthStore();
   const syncStatus = useDesignSync((s) => s.syncStatus);
+  const { resolvedTheme, toggleTheme } = useThemeStore();
+  const { t } = useTranslation();
 
   return (
     <div className="cad-toolbar select-none">
@@ -49,20 +55,32 @@ export function TopToolbar({ onSave, onUndo, onRedo }: TopToolbarProps) {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-cad-text-muted" />
           <input
             type="text"
-            placeholder="Search projects or commands..."
+            placeholder={t('common.search', 'Search projects or commands...')}
             className="cad-search w-56 focus:w-72"
           />
         </div>
 
         <div className="mx-1 h-4 w-px bg-white/10" />
 
-        <div className="flex items-center gap-1">
-          <button className="cad-icon-button h-8 w-auto gap-1 px-2" title="Language">
-            <Globe size={14} />
-            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-cad-text-muted">EN</span>
-          </button>
-          <button className="cad-icon-button" title="Theme">
-            <Sun size={14} />
+        <div className="flex items-center gap-1.5">
+          <LanguageSwitcher />
+
+          <button
+            onClick={toggleTheme}
+            className={cn(
+              "flex items-center justify-center w-7 h-7 rounded-md border transition-all cursor-pointer shadow-[0_0_8px_rgba(16,185,129,0.25)]",
+              resolvedTheme === 'dark'
+                ? "border-emerald-500/90 bg-emerald-500/10 text-amber-400 hover:bg-emerald-500/20 hover:border-emerald-400"
+                : "border-emerald-600/90 bg-emerald-600/10 text-indigo-600 hover:bg-emerald-600/20 hover:border-emerald-500"
+            )}
+            title={resolvedTheme === 'dark' ? t('settings.light', 'Switch to Light Mode') : t('settings.dark', 'Switch to Dark Mode')}
+            aria-label="Toggle Theme"
+          >
+            {resolvedTheme === 'dark' ? (
+              <Sun size={15} className="text-amber-400 stroke-[2.2]" aria-hidden="true" />
+            ) : (
+              <Moon size={15} className="text-indigo-500 stroke-[2.2]" aria-hidden="true" />
+            )}
           </button>
         </div>
 

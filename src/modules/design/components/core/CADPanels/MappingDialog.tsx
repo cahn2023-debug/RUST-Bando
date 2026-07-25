@@ -48,22 +48,22 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-[#1A1A1A] border border-cad-border rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col font-sans">
+      <div className="bg-cad-surface border border-cad-border rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col font-sans">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-cad-border bg-[#222]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-cad-border bg-cad-elevated">
           <div className="flex items-center gap-3">
             <div className="bg-cad-accent/20 p-2 rounded-lg">
               <FileSpreadsheet size={18} className="text-cad-accent" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Mapping Dữ liệu Excel</h2>
+              <h2 className="text-sm font-bold text-cad-text-primary uppercase tracking-wider">Mapping Dữ liệu Excel</h2>
               <p className="text-[10px] text-cad-text-muted truncate max-w-[240px] mt-0.5">{filename}</p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="text-cad-text-muted hover:text-white transition-colors p-1 hover:bg-white/10 rounded-full"
+            className="text-cad-text-muted hover:text-cad-text-primary transition-colors p-1 hover:bg-cad-elevated rounded-full"
           >
             <X size={18} />
           </button>
@@ -73,7 +73,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
         <div className="p-6 space-y-6">
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex gap-3">
             <AlertCircle size={16} className="text-blue-400 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-blue-200 leading-relaxed">
+            <p className="text-[11px] text-blue-400 leading-relaxed">
               Vui lòng chọn các cột tương ứng từ file Excel của bạn. Các cột không được chọn sẽ tự động được đưa vào phần <b>Thông tin bổ sung</b> (Properties).
             </p>
           </div>
@@ -89,7 +89,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
                 <select 
                   value={mapping.name_column}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMapping(prev => ({ ...prev, name_column: e.target.value }))}
-                  className="w-full bg-[#2A2A2A] border border-cad-border rounded-lg p-2.5 text-xs text-white outline-none focus:border-cad-accent transition-all ring-cad-accent/20 focus:ring-4"
+                  className="w-full bg-cad-bg border border-cad-border rounded-lg p-2.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all ring-cad-accent/20 focus:ring-4"
                 >
                   <option value="">-- Chọn cột --</option>
                   {headers.map(h => <option key={h} value={h}>{h}</option>)}
@@ -105,7 +105,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
                 <select 
                   value={mapping.order_column || ""}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMapping(prev => ({ ...prev, order_column: e.target.value }))}
-                  className="w-full bg-[#2A2A2A] border border-cad-border rounded-lg p-2.5 text-xs text-white outline-none focus:border-cad-accent transition-all ring-cad-accent/20 focus:ring-4"
+                  className="w-full bg-cad-bg border border-cad-border rounded-lg p-2.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all ring-cad-accent/20 focus:ring-4"
                 >
                   <option value="">-- Không sử dụng --</option>
                   {headers.map(h => <option key={h} value={h}>{h}</option>)}
@@ -120,7 +120,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
                 <select 
                   value={mapping.lat_column}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMapping(prev => ({ ...prev, lat_column: e.target.value }))}
-                  className="w-full bg-[#2A2A2A] border border-cad-border rounded-lg p-2.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
+                  className="w-full bg-cad-bg border border-cad-border rounded-lg p-2.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all"
                 >
                   <option value="">-- Chọn cột --</option>
                   {headers.map(h => <option key={h} value={h}>{h}</option>)}
@@ -133,7 +133,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
                 <select 
                   value={mapping.lng_column}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMapping(prev => ({ ...prev, lng_column: e.target.value }))}
-                  className="w-full bg-[#2A2A2A] border border-cad-border rounded-lg p-2.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
+                  className="w-full bg-cad-bg border border-cad-border rounded-lg p-2.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all"
                 >
                   <option value="">-- Chọn cột --</option>
                   {headers.map(h => <option key={h} value={h}>{h}</option>)}
@@ -147,7 +147,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
               <select 
                 value={mapping.description_column}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMapping(prev => ({ ...prev, description_column: e.target.value }))}
-                className="w-full bg-[#2A2A2A] border border-cad-border rounded-lg p-2.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
+                className="w-full bg-cad-bg border border-cad-border rounded-lg p-2.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent transition-all"
               >
                 <option value="">-- Không sử dụng --</option>
                 {headers.map(h => <option key={h} value={h}>{h}</option>)}
@@ -157,7 +157,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-cad-border bg-[#222] flex justify-end gap-3">
+        <div className="p-5 border-t border-cad-border bg-cad-elevated flex justify-end gap-3">
           <button 
             onClick={onClose}
             className="px-5 py-2.5 rounded-lg text-xs font-bold text-cad-text-secondary hover:text-white hover:bg-white/5 transition-all"

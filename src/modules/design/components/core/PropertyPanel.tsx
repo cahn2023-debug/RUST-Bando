@@ -13,7 +13,7 @@ import { getFeatureDisplayInfo, safeString, getCleanName, isCameraIcon, getParse
 import { useCamera } from '@IMPLEMENT/hooks/useCamera';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
 import { cn } from '@TOOL/utils/cn';
-import type { FeatureMetadata, FeatureProperties, IconType } from '@CONTRACT/types';
+import type { DesignEventType, FeatureMetadata, FeatureProperties, FiberCable, IconType } from '@CONTRACT/types';
 import { useProjectData } from '@IMPLEMENT/hooks/useProjectData';
 import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
 import { deleteMediaAsset, importMediaAsset, resolveMediaAsset, replaceMediaAsset, type MediaFeaturePatch } from '@IMPLEMENT/services/mediaAssetService';
@@ -25,6 +25,7 @@ import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { buildFeaturePropertiesForPersistence, getTypeForIcon, normalizeFeatureMetadataForPersistence } from '@TOOL/utils/featurePersistence';
 import { getDeclaredOrderFieldKey, syncDisplayOrderAliases } from '@TOOL/utils/featureMapping';
 import { buildToggleOriginEvents } from '@DESIGN/features/map/network/networkTopology';
+import { buildFiberRouteDisplay } from '@DESIGN/features/map/network/fiberRouteDisplay';
 import { getTemplateFieldValue, getTemplateTypeIdForFeature, normalizeProjectSettings } from '@TOOL/utils/objectDataTemplates';
 import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 
@@ -116,13 +117,26 @@ const getObjectTypeFieldValue = (
   return rawType;
 };
 
-const getFeatureNameById = (
-  features: Record<string, { name?: unknown }> | undefined,
-  featureId: unknown
-): string => {
-  if (typeof featureId !== 'string' || !featureId) return '';
-  return safeString(features?.[featureId]?.name);
+const getExistingFiberCable = (state: unknown, featureId: string): FiberCable | undefined => {
+  const inventory = asRecord(state)?.inventory;
+  const cables = Array.isArray(asRecord(inventory)?.cables) ? asRecord(inventory)?.cables : [];
+  return (cables as FiberCable[]).find(cable => cable.feature_id === featureId);
 };
+
+const getPositiveInteger = (value: unknown): number | null => {
+  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+const normalizeFiberLineMetadata = (metadata: FeatureMetadata): FeatureMetadata => ({
+  ...metadata,
+  infrastructure: {
+    ...(metadata.infrastructure || {}),
+    type: 'SignalLine',
+    cable_type: asStringValue(metadata.infrastructure?.cable_type).trim(),
+    core_count: getPositiveInteger(metadata.infrastructure?.core_count) || undefined,
+  },
+});
 
 const readFileAsDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -200,6 +214,7 @@ export const PropertyPanel: React.FC = () => {
     dispatchEvent,
     dispatchEvents,
     queueEvent,
+    queueEvents,
     setDrawingMode,
     setSelectedGroup,
     setActiveParentFeature,
@@ -249,7 +264,11 @@ export const PropertyPanel: React.FC = () => {
   const isCameraFeature = !!displayInfo?.isCamera || isCameraIcon(asStringValue(localMeta.icon || localMeta.type));
   const templateTypeId = getTemplateTypeIdForFeature(feature, { isCamera: isCameraFeature, isIntersection: isIntersectionFeature });
   const templateType = templateTypeId ? projectSettings.object_data_templates.types[templateTypeId] : null;
-  const templateFields = templateType?.fields.filter((field) => field.showInPalette) || [];
+  const templateFields = (templateType?.fields || []).filter((field) => {
+    if (!field.showInPalette) return false;
+    if (!isPolyline) return true;
+    return !['cable_type', 'core_count', 'infrastructure.cable_type', 'infrastructure.core_count'].includes(field.key);
+  });
 
   let persistedMeta: FeatureMetadata = {};
   let persistedMetaJson = '{}';
@@ -767,19 +786,49 @@ export const PropertyPanel: React.FC = () => {
 
   const handleSave = async () => {
     if (!feature || (!isNameDirty && !isMetadataDirty)) return;
+    let standardizedMeta = preparePropertyMetadata(draftMeta, feature.properties as FeatureProperties);
+    const events: DesignEventType[] = [];
+
+    if (isPolyline) {
+      standardizedMeta = normalizeFiberLineMetadata(standardizedMeta);
+      const cableType = asStringValue(standardizedMeta.infrastructure?.cable_type).trim();
+      const fiberCount = getPositiveInteger(standardizedMeta.infrastructure?.core_count);
+      if (!cableType) {
+        alert('Vui lòng nhập loại cáp.');
+        return;
+      }
+      if (!fiberCount) {
+        alert('Dung lượng cáp phải là số nguyên lớn hơn 0.');
+        return;
+      }
+
+      const existingCable = getExistingFiberCable(state, feature.id);
+      events.push({
+        type: 'FiberCableUpserted',
+        payload: {
+          id: existingCable?.id || feature.id,
+          project_id: String(projectId || ''),
+          feature_id: feature.id,
+          cable_type: cableType,
+          fiber_count: fiberCount,
+          owner: existingCable?.owner ?? null,
+          status: existingCable?.status || 'planned',
+          source: existingCable?.source || 'manual',
+        },
+      });
+    }
     if (!(await confirmUserAction(`Xác nhận lưu thay đổi cho đối tượng "${draftName}"?`))) return;
     setIsSaving(true);
     setIsSaved(false);
 
     try {
-      const standardizedMeta = preparePropertyMetadata(draftMeta, feature.properties as FeatureProperties);
       const nextProperties = buildFeaturePropertiesForPersistence(
         feature.properties as FeatureProperties | undefined,
         standardizedMeta
       );
 
       // Save to database via event queue
-      await queueEvent({
+      events.unshift({
         type: 'FeatureUpdated',
         payload: {
           id: feature.id,
@@ -788,6 +837,11 @@ export const PropertyPanel: React.FC = () => {
           properties: nextProperties
         }
       });
+      if (events.length > 1) {
+        await queueEvents(events);
+      } else {
+        await queueEvent(events[0]);
+      }
       // CRITICAL: Force state update to trigger map re-render
       const currentState = useDesignSync.getState().state;
       if (currentState) {
@@ -849,32 +903,28 @@ export const PropertyPanel: React.FC = () => {
     setShowDeleteModal(false);
   };
 
-
-  // Removed the second `selectionSet` declaration as per instruction.
-  // The `selectionSet` is now declared at the top.
-
   if (selectionSet.size > 1) {
     return (
-      <aside className="w-full h-full bg-[#1e1e1e] border border-[#333] flex flex-col shadow-2xl text-cad-text-muted rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between w-full p-3 border-b border-[#333] bg-[#252525] drag-handle cursor-move" {...dragHandleProps}>
+      <aside className="w-full h-full bg-cad-surface border border-cad-border flex flex-col shadow-2xl text-cad-text-muted rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between w-full p-3 border-b border-cad-border bg-cad-elevated drag-handle cursor-move" {...dragHandleProps}>
             <div className="flex items-center gap-2">
-                <Settings className="w-3.5 h-3.5 text-[#444]" />
+                <Settings className="w-3.5 h-3.5 text-cad-text-muted" />
                 <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÔNG SỐ THIẾT KẾ</span>
             </div>
-            <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-[#333] hover:text-white transition-all rounded"><X size={12} /></button>
+            <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-cad-elevated hover:text-cad-text-primary transition-all rounded"><X size={12} /></button>
         </div>
-        <div className="p-4 overflow-y-auto flex-1 flex flex-col items-center justify-center text-center opacity-50">
-          <div className="w-16 h-16 bg-[#252525] rounded-full flex items-center justify-center mb-4 text-cad-accent">
+        <div className="p-4 overflow-y-auto flex-1 flex flex-col items-center justify-center text-center opacity-70">
+          <div className="w-16 h-16 bg-cad-elevated rounded-full flex items-center justify-center mb-4 text-cad-accent">
             <Layers className="w-8 h-8" />
           </div>
-          <p className="text-[10px] font-black uppercase tracking-widest">Multi-Selection Active</p>
-          <p className="text-[9px] mt-2 mb-4 max-w-[200px]">
+          <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-primary">Multi-Selection Active</p>
+          <p className="text-[9px] mt-2 mb-4 max-w-[200px] text-cad-text-secondary">
             Please use the <strong>Bulk Edit</strong> palette to modify multiple items.
           </p>
           <div className="flex gap-2">
             <button
               onClick={() => selectFeature(null)}
-              className="px-3 py-1 bg-cad-bg border border-cad-border text-[8px] font-bold uppercase rounded-sm hover:bg-cad-elevated"
+              className="px-3 py-1 bg-cad-bg border border-cad-border text-[8px] font-bold uppercase rounded-sm hover:bg-cad-elevated text-cad-text-primary"
             >
               Deselect All
             </button>
@@ -886,20 +936,20 @@ export const PropertyPanel: React.FC = () => {
 
   if (!feature) {
     return (
-      <aside className="w-full h-full bg-[#1e1e1e] border border-[#333] flex flex-col shadow-2xl text-cad-text-muted rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between w-full p-3 border-b border-[#333] bg-[#252525] drag-handle cursor-move" {...dragHandleProps}>
+      <aside className="w-full h-full bg-cad-surface border border-cad-border flex flex-col shadow-2xl text-cad-text-muted rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between w-full p-3 border-b border-cad-border bg-cad-elevated drag-handle cursor-move" {...dragHandleProps}>
             <div className="flex items-center gap-2">
-                <Settings className="w-3.5 h-3.5 text-[#444]" />
+                <Settings className="w-3.5 h-3.5 text-cad-text-muted" />
                 <span className="text-[10px] font-black tracking-widest uppercase text-cad-text-muted">THÔNG SỐ THIẾT KẾ</span>
             </div>
-            <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-[#333] hover:text-white transition-all rounded"><X size={12} /></button>
+            <button onClick={onClose} className="p-1 text-cad-text-muted hover:bg-cad-elevated hover:text-cad-text-primary transition-all rounded"><X size={12} /></button>
         </div>
-        <div className="p-4 overflow-y-auto flex-1 flex flex-col items-center justify-center text-center opacity-50">
-          <div className="w-16 h-16 bg-[#252525] rounded-full flex items-center justify-center mb-4">
-            <Settings className="w-8 h-8 text-[#444]" />
+        <div className="p-4 overflow-y-auto flex-1 flex flex-col items-center justify-center text-center opacity-70">
+          <div className="w-16 h-16 bg-cad-elevated rounded-full flex items-center justify-center mb-4">
+            <Settings className="w-8 h-8 text-cad-text-muted" />
           </div>
-          <p className="text-[10px] font-bold uppercase tracking-widest">No Selection</p>
-          <p className="text-[9px] mt-1">Select an entity to configure</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-cad-text-primary">No Selection</p>
+          <p className="text-[9px] mt-1 text-cad-text-secondary">Select an entity to configure</p>
         </div>
       </aside>
     );
@@ -907,23 +957,20 @@ export const PropertyPanel: React.FC = () => {
 
   const distance = isPolyline ? asNumberValue(getMetaValue('gis.lengthKm', 'lengthKm')) : 0;
   const linkBudget = isPolyline ? designLogic.calculateFiberLinkBudget(distance) : 0;
-
-  // Detect polyline type for specific metadata
-  const polyType = asStringValue(
-    getMetaValue('infrastructure.type'),
-    isPolyline ? 'SignalLine' : ''
-  );
+  const routeDisplay = feature && isPolyline
+    ? buildFiberRouteDisplay(feature, state?.features, localMeta)
+    : '';
+  const polyType = asStringValue(getMetaValue('infrastructure.type'), '');
 
   return (
     <aside
-      className="w-full h-full bg-[#1e1e1e] border border-[#333] flex flex-col shadow-2xl text-white font-mono rounded-xl overflow-hidden"
+      className="w-full h-full bg-cad-surface border border-cad-border flex flex-col shadow-2xl text-cad-text-primary font-mono rounded-xl overflow-hidden"
       onPaste={handleMediaPaste}
       onContextMenu={(e) => {
         e.preventDefault();
         selectFeature(null);
       }}
     >
-
       {/* Camera UI Overlay */}
       {isCameraOpen && (
         <div className="absolute inset-0 z-[100] bg-black flex flex-col">
@@ -950,7 +997,7 @@ export const PropertyPanel: React.FC = () => {
       {/* Header */}
       <div 
         {...dragHandleProps}
-        className="p-3 border-b border-[#333] flex justify-between items-center bg-[#252525] sticky top-0 backdrop-blur-md z-11 drag-handle cursor-move"
+        className="p-3 border-b border-cad-border flex justify-between items-center bg-cad-elevated sticky top-0 backdrop-blur-md z-11 drag-handle cursor-move"
       >
         <div className="flex items-center gap-2">
           {displayInfo?.icon ? (
@@ -1012,7 +1059,7 @@ export const PropertyPanel: React.FC = () => {
             <div className="space-y-1">
               <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Object Name</label>
               <input
-                className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:border-cad-accent outline-none transition-all"
+                className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary focus:border-cad-accent outline-none transition-all"
                 value={localName}
                 onChange={e => {
                   const nextName = e.target.value;
@@ -1028,7 +1075,7 @@ export const PropertyPanel: React.FC = () => {
             <div className="space-y-1">
               <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{orderFieldLabel}</label>
               <input
-                className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:border-cad-accent outline-none transition-all"
+                className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary focus:border-cad-accent outline-none transition-all"
                 value={asStringValue(getMetaValue('display_order', orderFieldLabel))}
                 onChange={e => updateOrderMeta(e.target.value)}
                 placeholder="Enter code..."
@@ -1062,7 +1109,7 @@ export const PropertyPanel: React.FC = () => {
             <div className="space-y-1">
               <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Description</label>
               <textarea
-                className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:border-cad-accent outline-none transition-all resize-none"
+                className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary focus:border-cad-accent outline-none transition-all resize-none"
                 rows={2}
                 value={asStringValue(getMetaValue('description', 'description'))}
                 onChange={e => updateNestedMeta('description', e.target.value)}
@@ -1207,6 +1254,17 @@ export const PropertyPanel: React.FC = () => {
             <Settings className="w-3 h-3" /> Infrastructure Details
           </div>
           <div className="bg-[#111] p-3 rounded border border-indigo-500/10 space-y-4">
+            {isPolyline && (
+              <>
+                <ReadOnlyField label="Loại hạ tầng" value="Cáp quang" />
+                <div className="grid grid-cols-2 gap-2">
+                  <DesignField label="Loại cáp" icon={<Radio className="w-3 h-3" />} value={getMetaValue('infrastructure.cable_type')} onChange={v => updateNestedMeta('infrastructure.cable_type', v)} />
+                  <DesignField label="Dung lượng cáp" icon={<Layers className="w-3 h-3" />} value={getMetaValue('infrastructure.core_count')} onChange={v => updateNestedMeta('infrastructure.core_count', asNumberValue(v))} />
+                </div>
+              </>
+            )}
+            {!isPolyline && (
+              <>
             <div className="space-y-1">
               <label className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Type</label>
               <select
@@ -1240,6 +1298,8 @@ export const PropertyPanel: React.FC = () => {
                 <DesignField label="Depth" icon={<Construction className="w-3 h-3" />} value={getMetaValue('infrastructure.depth')} onChange={v => updateNestedMeta('infrastructure.depth', asNumberValue(v))} />
                 <DesignField label="Surface" icon={<Grid3X3 className="w-3 h-3" />} value={getMetaValue('infrastructure.surface_type')} onChange={v => updateNestedMeta('infrastructure.surface_type', v)} />
               </div>
+            )}
+              </>
             )}
           </div>
         </section>
@@ -1411,14 +1471,7 @@ export const PropertyPanel: React.FC = () => {
               <Route className="w-3 h-3" /> Line Metadata
             </div>
             <div className="bg-[#111] p-3 rounded border border-emerald-500/10 space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <ReadOnlyField label="Start Object" value={getFeatureNameById(state?.features, getMetaValue('network.from_feature_id') || getMetaValue('start_node_id')) || 'Not linked'} />
-                <ReadOnlyField label="End Object" value={getFeatureNameById(state?.features, getMetaValue('network.to_feature_id') || getMetaValue('end_node_id')) || 'Not linked'} />
-                <DesignField label="Cable Type" icon={<Radio className="w-3 h-3" />} value={getMetaValue('infrastructure.cable_type')} onChange={v => updateNestedMeta('infrastructure.cable_type', v)} />
-                <DesignField label="Core Count" icon={<Layers className="w-3 h-3" />} value={getMetaValue('infrastructure.core_count')} onChange={v => updateNestedMeta('infrastructure.core_count', asNumberValue(v))} />
-                <DesignField label="Depth" icon={<Construction className="w-3 h-3" />} value={getMetaValue('infrastructure.depth')} onChange={v => updateNestedMeta('infrastructure.depth', asNumberValue(v))} />
-                <DesignField label="Surface" icon={<Grid3X3 className="w-3 h-3" />} value={getMetaValue('infrastructure.surface_type')} onChange={v => updateNestedMeta('infrastructure.surface_type', v)} />
-              </div>
+              <ReadOnlyField label="Đối tượng đi qua" value={routeDisplay || 'Chưa liên kết'} />
             </div>
           </section>
         )}
@@ -1456,6 +1509,7 @@ export const PropertyPanel: React.FC = () => {
             </div>
           ) : null}
 
+
           <div className="grid grid-cols-2 gap-2">
             {displayImageEntries.length > 0 ? (
               displayImageEntries.map(({ url, index }) => (
@@ -1492,7 +1546,7 @@ export const PropertyPanel: React.FC = () => {
       </div>
 
       {/* Footer Actions */}
-      <div className="p-3 border-t border-[#333] bg-[#222]">
+      <div className="p-3 border-t border-cad-border bg-cad-elevated">
         <button
           onClick={handleSave}
           disabled={isSaving || (!isNameDirty && !isMetadataDirty)}
@@ -1535,7 +1589,7 @@ export const PropertyPanel: React.FC = () => {
 const ReadOnlyField = ({ label, value }: { label: string, value: string }) => (
   <div className="space-y-1">
     <label className="text-[8px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{label}</label>
-    <div className="bg-[#0a0a0a] rounded px-2 py-1 text-[10px] font-mono text-cad-accent/70 border border-[#222]">
+    <div className="bg-cad-bg rounded px-2 py-1 text-[10px] font-mono text-cad-accent font-semibold border border-cad-border">
       {value}
     </div>
   </div>
@@ -1551,7 +1605,7 @@ const DesignField = ({ label, icon, value, onChange }: { label: string, icon: Re
       </label>
       <input
         id={inputId}
-        className="w-full bg-[#111] border border-[#333] rounded px-3 py-1.5 text-xs text-white focus:border-cad-accent outline-none transition-all"
+        className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary focus:border-cad-accent outline-none transition-all"
         value={asStringValue(value)}
         onChange={e => onChange(e.target.value)}
         placeholder={`Enter ${safeString(label).toLowerCase()}...`}
@@ -1559,4 +1613,3 @@ const DesignField = ({ label, icon, value, onChange }: { label: string, icon: Re
     </div>
   );
 };
-

@@ -9,12 +9,65 @@ vi.mock('@IMPLEMENT/lib/tauri', () => ({
   safeInvoke: vi.fn(),
 }));
 
-import { buildAnalysisImportEvents } from './analysisService';
+import { analysisService, buildAnalysisImportEvents, getExcelColumnName } from './analysisService';
 import type { MapState } from '@CONTRACT/types';
 
 describe('analysisService', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it('generates Excel column names correctly', () => {
+    expect(getExcelColumnName(1)).toBe('A');
+    expect(getExcelColumnName(2)).toBe('B');
+    expect(getExcelColumnName(26)).toBe('Z');
+    expect(getExcelColumnName(27)).toBe('AA');
+    expect(getExcelColumnName(28)).toBe('AB');
+  });
+
+  it('builds workbook events correctly from preview and resolutions', () => {
+    const preview = {
+      changes: [
+        {
+          id: 'feat1::name',
+          featureId: 'feat1',
+          changeType: 'EXCEL_ONLY' as const,
+          field: 'name',
+          excelValue: 'Tên mới từ Excel',
+          isConflict: false,
+        },
+        {
+          id: 'feat2::note',
+          featureId: 'feat2',
+          changeType: 'BOTH_CONFLICT' as const,
+          field: 'note',
+          designValue: 'Ghi chú DESIGN',
+          excelValue: 'Ghi chú Excel',
+          isConflict: true,
+        },
+      ],
+      newItems: [],
+      updatedItems: [],
+      ignoredItems: [],
+      errors: [],
+      conflicts: [],
+      isValidWorkbook: true,
+    };
+
+    const resolutions = {
+      'feat2::note': 'EXCEL' as const,
+    };
+
+    const events = analysisService.buildWorkbookEvents(preview, resolutions);
+    expect(events).toHaveLength(2);
+    expect(events[0]).toEqual({
+      type: 'FeatureUpdated',
+      payload: { id: 'feat1', name: 'Tên mới từ Excel' },
+    });
+    expect(events[1]).toEqual({
+      type: 'FeatureUpdated',
+      payload: { id: 'feat2', metadata: JSON.stringify({ note: 'Ghi chú Excel' }) },
+    });
   });
 
   it('creates features and restores parent intersection relationships from analysis export rows', () => {
@@ -97,3 +150,4 @@ describe('analysisService', () => {
     }
   });
 });
+

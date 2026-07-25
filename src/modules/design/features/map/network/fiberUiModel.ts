@@ -10,6 +10,7 @@ import type {
   FiberValidationDiagnostic,
 } from '@CONTRACT/types';
 import type { NetworkEdge } from './NetworkGraphService';
+import { matchesSearchQuery } from '@TOOL/utils/vietnameseSearch';
 
 export type FiberInspectorTab = 'inventory' | 'strands' | 'equipment' | 'circuits' | 'diagnostics';
 
@@ -167,17 +168,18 @@ export const filterFiberStrands = (
   status: FiberStrandStatus | 'all',
   query: string
 ): FiberStrand[] => {
-  const normalizedQuery = query.trim().toLowerCase();
+  const normalizedQuery = query.trim();
   return strands.filter(strand => {
     if (cableId && strand.cable_id !== cableId) return false;
     if (status !== 'all' && strand.status !== status) return false;
     if (!normalizedQuery) return true;
-    return [
+    const haystack = [
       strand.id,
       String(strand.strand_no),
       strand.color || '',
       fiberStrandStatusLabel[strand.status],
-    ].join(' ').toLowerCase().includes(normalizedQuery);
+    ].join(' ');
+    return matchesSearchQuery(haystack, normalizedQuery);
   });
 };
 

@@ -18,6 +18,19 @@ interface StreetViewJSProps {
 const normalizeHeading = (value: number) => ((value % 360) + 360) % 360;
 const zoomToFov = (zoom: number | undefined) => 180 / Math.pow(2, zoom || 1);
 const fovToZoom = (value: number) => Math.max(0, Math.log2(180 / Math.max(1, value)));
+const distanceMeters = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+  const earthRadiusMeters = 6371000;
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRadians(b.lat - a.lat);
+  const dLng = toRadians(b.lng - a.lng);
+  const lat1 = toRadians(a.lat);
+  const lat2 = toRadians(b.lat);
+  const haversine =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+
+  return 2 * earthRadiusMeters * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+};
 
 export const StreetViewJS: React.FC<StreetViewJSProps> = ({
   lat,
@@ -32,6 +45,13 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
   const panoramaRef = useRef<any>(null);
   const initialHeadingRef = useRef<number>(heading);
   const isExternalUpdate = useRef(false);
+  const positionUpdateIdRef = useRef(0);
+  const initializePanoramaRef = useRef<(
+    nextLat: number,
+    nextLng: number,
+    nextHeading: number,
+    nextFov: number
+  ) => Promise<void> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const trimmedApiKey = apiKey.trim();
@@ -124,7 +144,17 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
       return () => window.clearTimeout(errorTimer);
     }
 
-    const initPanorama = async () => {
+    const initPanorama = async (
+      nextLat: number,
+      nextLng: number,
+      nextHeading: number,
+      nextFov: number
+    ) => {
+      const initId = ++positionUpdateIdRef.current;
+      isExternalUpdate.current = true;
+      setLoading(true);
+      setError(null);
+
       try {
         const ok = initGoogleMaps(trimmedApiKey);
         if (!ok) {
@@ -135,10 +165,10 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
         await waitForGoogleMaps();
         if (disposed || !containerRef.current) return;
 
-        const nearest = await findNearestPano(lat, lng);
+        const nearest = await findNearestPano(nextLat, nextLng);
+        if (disposed || !containerRef.current || initId !== positionUpdateIdRef.current) return;
         if (!nearest) {
           setError('Không tìm thấy dữ liệu Street View tại vị trí này.');
-          setLoading(false);
           return;
         }
 
@@ -147,7 +177,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
 
         const panorama = new g.maps.StreetViewPanorama(containerRef.current, {
           position: nearest,
-          pov: { heading, pitch },
+          pov: { heading: normalizeHeading(nextHeading), pitch },
           zoom: 1,
           addressControl: false,
           linksControl: true,
@@ -158,7 +188,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
         });
 
         panoramaRef.current = panorama;
-        initialHeadingRef.current = normalizeHeading(heading);
+        initialHeadingRef.current = normalizeHeading(nextHeading);
 
         const updateBrowserUrl = (
           nextLat: number,
@@ -239,7 +269,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
 
         panorama.addListener('status_changed', () => {
           const status = panorama.getStatus();
-          if (status !== 'OK' && status !== 'INITIALIZING') {
+          if (status !== 'OK' && status !== 'INITIALIZING' && !isExternalUpdate.current) {
             setError('Street View data is not available for this precise location.');
             return;
           }
@@ -249,19 +279,24 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
           }
         });
 
-        panorama.setZoom(fovToZoom(fov));
+        panorama.setZoom(fovToZoom(nextFov));
       } catch (sdkError) {
         console.error('[StreetViewJS] Initialization error:', sdkError);
         setError('Failed to load Map system. Please check your internet connection and API configuration.');
       } finally {
-        setLoading(false);
+        if (initId === positionUpdateIdRef.current) {
+          isExternalUpdate.current = false;
+          setLoading(false);
+        }
       }
     };
 
-    void initPanorama();
+    initializePanoramaRef.current = initPanorama;
+    void initPanorama(lat, lng, heading, fov);
 
     return () => {
       disposed = true;
+      initializePanoramaRef.current = null;
       if (panoramaRef.current) {
         const gMaps = (window as any).google?.maps;
         if (gMaps) {
@@ -274,28 +309,47 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
   }, [trimmedApiKey]);
 
   useEffect(() => {
-    if (!panoramaRef.current || typeof google === 'undefined') return;
-
     const updatePosition = async () => {
+      const panorama = panoramaRef.current;
+      if (!panorama) {
+        await initializePanoramaRef.current?.(lat, lng, heading, fov);
+        return;
+      }
+
+      if (typeof google === 'undefined') return;
+
+      const updateId = ++positionUpdateIdRef.current;
       isExternalUpdate.current = true;
       try {
-        const currentPos = panoramaRef.current.getPosition();
-        if (currentPos) {
-          const dist = google.maps.geometry.spherical.computeDistanceBetween(
-            currentPos,
-            new google.maps.LatLng(lat, lng)
-          );
-          if (dist > 5) {
-            const nearest = await findNearestPano(lat, lng);
-            panoramaRef.current.setPosition(nearest || { lat, lng });
+        setError(null);
+
+        const currentPos = panorama.getPosition();
+        const shouldUpdatePosition = currentPos
+          ? distanceMeters({ lat: currentPos.lat(), lng: currentPos.lng() }, { lat, lng }) > 5
+          : true;
+
+        if (shouldUpdatePosition) {
+          setLoading(true);
+          const nearest = await findNearestPano(lat, lng);
+          if (updateId !== positionUpdateIdRef.current || panorama !== panoramaRef.current) return;
+          if (!nearest) {
+            setError('Không tìm thấy dữ liệu Street View tại vị trí này.');
+            return;
           }
+          panorama.setPosition(nearest);
         }
 
-        panoramaRef.current.setPov({ heading: normalizeHeading(heading), pitch: 0 });
-        panoramaRef.current.setZoom(fovToZoom(fov));
+        if (updateId !== positionUpdateIdRef.current || panorama !== panoramaRef.current) return;
+
+        initialHeadingRef.current = normalizeHeading(heading);
+        panorama.setPov({ heading: normalizeHeading(heading), pitch: 0 });
+        panorama.setZoom(fovToZoom(fov));
       } finally {
         window.setTimeout(() => {
-          isExternalUpdate.current = false;
+          if (updateId === positionUpdateIdRef.current) {
+            isExternalUpdate.current = false;
+            setLoading(false);
+          }
         }, 120);
       }
     };

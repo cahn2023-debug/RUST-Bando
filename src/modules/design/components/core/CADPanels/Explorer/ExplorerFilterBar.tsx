@@ -24,7 +24,7 @@ export const ExplorerFilterBar = React.memo(({
             <select
                 value={filterType || ""}
                 onChange={(e) => setFilterType(e.target.value || null)}
-                className="flex-1 bg-cad-surface border border-cad-border text-[8px] font-mono py-0.5 px-1 outline-none text-cad-text-muted focus:border-cad-accent rounded-sm"
+                className="flex-1 bg-cad-surface border border-cad-border text-[8px] font-mono py-0.5 px-1 outline-none text-cad-text-primary focus:border-cad-accent rounded-sm"
             >
                 <option value="">TẤT CẢ LOẠI</option>
                 <option value="INTERSECTION">NÚT GIAO</option>
@@ -40,8 +40,8 @@ export const ExplorerFilterBar = React.memo(({
                 <button
                     onClick={() => setSortField(sortField === 'name' ? 'stt' : 'name')}
                     className={cn(
-                        "p-1 border border-cad-border rounded-sm transition-all flex items-center gap-1 text-[8px] font-mono h-6",
-                        sortField === 'stt' ? "bg-cad-accent text-black border-cad-accent" : "hover:border-cad-accent text-cad-text-muted"
+                        "p-1 border border-cad-border rounded-sm transition-all flex items-center gap-1 text-[8px] font-mono h-6 bg-cad-surface",
+                        sortField === 'stt' ? "bg-cad-accent text-black border-cad-accent font-bold" : "hover:border-cad-accent text-cad-text-primary"
                     )}
                     title="Sắp xếp theo Tên/STT"
                 >
@@ -52,8 +52,8 @@ export const ExplorerFilterBar = React.memo(({
                 <button
                     onClick={() => setReverseOrder(!reverseOrder)}
                     className={cn(
-                        "p-1 border border-cad-border rounded-sm transition-all flex items-center gap-1 text-[8px] font-mono h-6",
-                        reverseOrder ? "bg-cad-accent text-black border-cad-accent" : "hover:border-cad-accent text-cad-text-muted"
+                        "p-1 border border-cad-border rounded-sm transition-all flex items-center gap-1 text-[8px] font-mono h-6 bg-cad-surface",
+                        reverseOrder ? "bg-cad-accent text-black border-cad-accent font-bold" : "hover:border-cad-accent text-cad-text-primary"
                     )}
                     title="Đảo ngược thứ tự"
                 >

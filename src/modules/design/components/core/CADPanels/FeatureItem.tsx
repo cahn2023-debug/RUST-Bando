@@ -129,7 +129,7 @@ export const FeatureItem = React.memo(({
                   <span
                     className={cn(
                       "flex h-3.5 min-w-[12px] shrink-0 items-center justify-center rounded px-0.5 text-[8px] font-bold transition-all",
-                      selected ? "bg-cad-accent text-black" : "bg-white/5 text-white/40 group-hover/feat:text-white/60"
+                      selected ? "bg-cad-accent text-black" : "bg-cad-elevated text-cad-text-secondary"
                     )}
                   >
                     {typeof index === "number" ? index + 1 : index}
@@ -144,7 +144,7 @@ export const FeatureItem = React.memo(({
               <span
                 className={cn(
                   "flex items-center gap-1 truncate transition-colors",
-                  selected ? "font-bold text-cad-active" : "text-white/70 group-hover/feat:text-white/90"
+                  selected ? "font-bold text-cad-active" : "text-cad-text-primary group-hover/feat:text-cad-accent"
                 )}
               >
                 <span className="text-[9px]">{getCleanName(feature, String(index))}</span>

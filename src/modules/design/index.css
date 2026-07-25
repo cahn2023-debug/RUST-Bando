@@ -1,18 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  /* Deep Dark Theme Tokens */
-  --color-cad-header: #101217;
-  --color-cad-bg: #0F1115;
-  --color-cad-surface: #171B21;
-  --color-cad-elevated: #20252D;
-  --color-cad-border: #2B313B;
-  --color-cad-accent: #10B981;
-  --color-cad-active: #34D399;
-  --color-cad-warn: #F59E0B;
-  --color-cad-text-primary: #E5E7EB;
-  --color-cad-text-secondary: #9CA3AF;
-  --color-cad-text-muted: #4B5563;
+  /* Dynamic Theme Variable Mapping */
+  --color-cad-header: var(--cad-header);
+  --color-cad-bg: var(--cad-bg);
+  --color-cad-surface: var(--cad-surface);
+  --color-cad-elevated: var(--cad-elevated);
+  --color-cad-border: var(--cad-border);
+  --color-cad-accent: var(--cad-accent);
+  --color-cad-active: var(--cad-active);
+  --color-cad-warn: var(--cad-warn);
+  --color-cad-text-primary: var(--cad-text-primary);
+  --color-cad-text-secondary: var(--cad-text-secondary);
+  --color-cad-text-muted: var(--cad-text-muted);
 
   --font-sans: "Inter", "Segoe UI", Roboto, sans-serif;
   --font-display: "Inter", "Segoe UI", Roboto, sans-serif;
@@ -40,7 +40,6 @@
 
     to {
       transform: translateY(0);
-      opacity: 1;
     }
   }
 
@@ -60,6 +59,38 @@
       opacity: 0.6;
     }
   }
+}
+
+/* Root Theme Token Definitions */
+:root,
+[data-theme="dark"] {
+  --cad-header: #101217;
+  --cad-bg: #0F1115;
+  --cad-surface: #171B21;
+  --cad-elevated: #20252D;
+  --cad-border: #2B313B;
+  --cad-accent: #10B981;
+  --cad-active: #34D399;
+  --cad-warn: #F59E0B;
+  --cad-text-primary: #E5E7EB;
+  --cad-text-secondary: #9CA3AF;
+  --cad-text-muted: #4B5563;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --cad-header: #F1F5F9;
+  --cad-bg: #F8FAFC;
+  --cad-surface: #FFFFFF;
+  --cad-elevated: #F1F5F9;
+  --cad-border: #CBD5E1;
+  --cad-accent: #059669;
+  --cad-active: #10B981;
+  --cad-warn: #D97706;
+  --cad-text-primary: #0F172A;
+  --cad-text-secondary: #334155;
+  --cad-text-muted: #64748B;
+  color-scheme: light;
 }
 
 /* Base resets & typography */

@@ -55,6 +55,11 @@ export interface FeatureMetadata {
   size?: number;
   label?: string;
   display_order?: string;
+  stt?: string;
+  STT?: string;
+  start_node_id?: string;
+  end_node_id?: string;
+  snap_links?: Record<string, string>;
   media?: {
     imageUrl?: string;
     imageUrls?: string[];

@@ -97,8 +97,8 @@ export const TreeItem = React.memo(({
 
           <div className="flex-1 flex items-center gap-1.5 min-w-0" style={{ paddingLeft: level * 14 }}>
             <span className={cn(
-              "text-white text-[8px] transition-transform w-3 font-bold shrink-0 text-center -ml-0.5",
-              expanded ? "rotate-0 opacity-40" : "-rotate-90 opacity-20"
+              "text-cad-text-secondary text-[8px] transition-transform w-3 font-bold shrink-0 text-center -ml-0.5",
+              expanded ? "rotate-0 opacity-80" : "-rotate-90 opacity-50"
             )}>
               {(children || hasChildren) ? '▼' : ''}
             </span>
@@ -110,7 +110,7 @@ export const TreeItem = React.memo(({
                 checked={checked}
                 onChange={() => { }}
                 onClick={(e) => { e.stopPropagation(); onToggleCheck(); }}
-                className="rounded-sm border-white/20 bg-black/40 text-emerald-500 focus:ring-emerald-500 cursor-pointer shrink-0 w-3 h-3"
+                className="rounded-sm border-cad-border bg-cad-bg text-cad-accent focus:ring-cad-accent cursor-pointer shrink-0 w-3 h-3"
               />
             )}
 
@@ -123,17 +123,17 @@ export const TreeItem = React.memo(({
                 onSave={onRename}
                 className={cn(
                   "truncate tracking-tight transition-colors",
-                  level === 0 ? "text-[10px] uppercase font-bold text-emerald-500/90" :
-                    level === 1 ? "text-[9.5px] uppercase font-bold text-white/80 group-hover:text-white" :
-                      "text-[9px] font-medium text-white/60 group-hover:text-white/90"
+                  level === 0 ? "text-[10px] uppercase font-bold text-cad-accent" :
+                    level === 1 ? "text-[9.5px] uppercase font-bold text-cad-text-primary" :
+                      "text-[9px] font-medium text-cad-text-secondary"
                 )}
               />
             ) : (
               <span className={cn(
                 "truncate tracking-tight transition-colors select-none",
-                level === 0 ? "text-[10px] uppercase font-bold text-emerald-500/90" :
-                  level === 1 ? "text-[9.5px] uppercase font-bold text-white/80 group-hover:text-white" :
-                    "text-[9px] font-medium text-white/60 group-hover:text-white/90"
+                level === 0 ? "text-[10px] uppercase font-bold text-cad-accent" :
+                  level === 1 ? "text-[9.5px] uppercase font-bold text-cad-text-primary" :
+                    "text-[9px] font-medium text-cad-text-secondary"
               )}>
                 {name}
               </span>

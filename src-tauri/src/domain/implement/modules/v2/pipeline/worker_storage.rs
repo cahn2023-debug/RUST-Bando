@@ -5076,6 +5076,12 @@ mod tests {
         let layer_id = Uuid::new_v4();
         let project_id = &project_uuid.to_string();
         seed_basic_project(&db.conn, project_id, "Test Project");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name) VALUES (?1, ?2, 'Fiber Layer')",
+                params![layer_id.to_string(), project_id],
+            )
+            .unwrap();
 
         let tx = db.conn.transaction().unwrap();
 

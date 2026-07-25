@@ -4,7 +4,9 @@ import { PropertyPanel } from './PropertyPanel';
 
 const mocks = vi.hoisted(() => ({
   queueEvent: vi.fn(),
+  queueEvents: vi.fn(),
   dispatchEvent: vi.fn(),
+  dispatchEvents: vi.fn(),
   selectFeature: vi.fn(),
   setDrawingMode: vi.fn(),
   setSelectedGroup: vi.fn(),
@@ -59,7 +61,9 @@ const mockUseDesignSync = vi.hoisted(() => {
     selectedFeatureId: selectedFeature.id,
     selectFeature: mocks.selectFeature,
     dispatchEvent: mocks.dispatchEvent,
+    dispatchEvents: mocks.dispatchEvents,
     queueEvent: mocks.queueEvent,
+    queueEvents: mocks.queueEvents,
     setDrawingMode: mocks.setDrawingMode,
     setSelectedGroup: mocks.setSelectedGroup,
     setActiveParentFeature: mocks.setActiveParentFeature,
@@ -399,7 +403,9 @@ describe('PropertyPanel clipboard images', () => {
       selectedFeatureId: selectedFeature.id,
       selectFeature: mocks.selectFeature,
       dispatchEvent: mocks.dispatchEvent,
+      dispatchEvents: mocks.dispatchEvents,
       queueEvent: mocks.queueEvent,
+      queueEvents: mocks.queueEvents,
       setDrawingMode: mocks.setDrawingMode,
       setSelectedGroup: mocks.setSelectedGroup,
       setActiveParentFeature: mocks.setActiveParentFeature,
@@ -485,7 +491,9 @@ describe('PropertyPanel clipboard images', () => {
       selectedFeatureId: selectedFeature.id,
       selectFeature: mocks.selectFeature,
       dispatchEvent: mocks.dispatchEvent,
+      dispatchEvents: mocks.dispatchEvents,
       queueEvent: mocks.queueEvent,
+      queueEvents: mocks.queueEvents,
       setDrawingMode: mocks.setDrawingMode,
       setSelectedGroup: mocks.setSelectedGroup,
       setActiveParentFeature: mocks.setActiveParentFeature,
@@ -537,7 +545,9 @@ describe('PropertyPanel clipboard images', () => {
       selectedFeatureId: selectedFeature.id,
       selectFeature: mocks.selectFeature,
       dispatchEvent: mocks.dispatchEvent,
+      dispatchEvents: mocks.dispatchEvents,
       queueEvent: mocks.queueEvent,
+      queueEvents: mocks.queueEvents,
       setDrawingMode: mocks.setDrawingMode,
       setSelectedGroup: mocks.setSelectedGroup,
       setActiveParentFeature: mocks.setActiveParentFeature,
@@ -586,7 +596,9 @@ describe('PropertyPanel clipboard images', () => {
       selectedFeatureId: selectedFeature.id,
       selectFeature: mocks.selectFeature,
       dispatchEvent: mocks.dispatchEvent,
+      dispatchEvents: mocks.dispatchEvents,
       queueEvent: mocks.queueEvent,
+      queueEvents: mocks.queueEvents,
       setDrawingMode: mocks.setDrawingMode,
       setSelectedGroup: mocks.setSelectedGroup,
       setActiveParentFeature: mocks.setActiveParentFeature,
@@ -660,7 +672,9 @@ describe('PropertyPanel clipboard images', () => {
       selectedFeatureId: selectedFeature.id,
       selectFeature: mocks.selectFeature,
       dispatchEvent: mocks.dispatchEvent,
+      dispatchEvents: mocks.dispatchEvents,
       queueEvent: mocks.queueEvent,
+      queueEvents: mocks.queueEvents,
       setDrawingMode: mocks.setDrawingMode,
       setSelectedGroup: mocks.setSelectedGroup,
       setActiveParentFeature: mocks.setActiveParentFeature,
@@ -727,7 +741,9 @@ describe('PropertyPanel clipboard images', () => {
       selectedFeatureId: selectedFeature.id,
       selectFeature: mocks.selectFeature,
       dispatchEvent: mocks.dispatchEvent,
+      dispatchEvents: mocks.dispatchEvents,
       queueEvent: mocks.queueEvent,
+      queueEvents: mocks.queueEvents,
       setDrawingMode: mocks.setDrawingMode,
       setSelectedGroup: mocks.setSelectedGroup,
       setActiveParentFeature: mocks.setActiveParentFeature,
@@ -868,7 +884,7 @@ describe('PropertyPanel clipboard images', () => {
     selectedFeature.metadata = originalMetadata;
   });
 
-  it('renders SignalLine endpoint names without exposing endpoint UUID metadata', async () => {
+  it('renders fiber line route names without exposing endpoint UUID metadata', async () => {
     const originalFeature = { ...selectedFeature };
     Object.assign(selectedFeature, {
       geom_type: 'LineString',
@@ -887,7 +903,7 @@ describe('PropertyPanel clipboard images', () => {
         },
         start_node_id: 'node-start',
         end_node_id: 'node-end',
-        snap_links: { v0: 'node-start', v1: 'node-end' },
+        snap_links: { v0: 'node-start', v1: 'node-mid', v2: 'node-end' },
       }),
     });
     const stateWithLine = {
@@ -902,6 +918,16 @@ describe('PropertyPanel clipboard images', () => {
           group_id: 'group-1',
           layer_id: 'layer-1',
           coordinates: [106.1, 10.2],
+          metadata: JSON.stringify({ display_order: '01' }),
+          properties: {},
+        },
+        'node-mid': {
+          id: 'node-mid',
+          name: 'Position Mid',
+          geom_type: 'Point',
+          group_id: 'group-1',
+          layer_id: 'layer-1',
+          coordinates: [106.15, 10.25],
           metadata: '{}',
           properties: {},
         },
@@ -913,7 +939,7 @@ describe('PropertyPanel clipboard images', () => {
           layer_id: 'layer-1',
           coordinates: [106.2, 10.3],
           metadata: '{}',
-          properties: {},
+          properties: { stt: '03' },
         },
       },
     };
@@ -922,7 +948,9 @@ describe('PropertyPanel clipboard images', () => {
       selectedFeatureId: selectedFeature.id,
       selectFeature: mocks.selectFeature,
       dispatchEvent: mocks.dispatchEvent,
+      dispatchEvents: mocks.dispatchEvents,
       queueEvent: mocks.queueEvent,
+      queueEvents: mocks.queueEvents,
       setDrawingMode: mocks.setDrawingMode,
       setSelectedGroup: mocks.setSelectedGroup,
       setActiveParentFeature: mocks.setActiveParentFeature,
@@ -937,14 +965,120 @@ describe('PropertyPanel clipboard images', () => {
     render(<PropertyPanel />);
 
     await screen.findByText('Line Metadata');
-    expect(screen.getByText('Intersection Start')).toBeInTheDocument();
-    expect(screen.getByText('Camera End')).toBeInTheDocument();
-    expect(screen.getByLabelText('Cable Type')).toHaveValue('FO-24');
-    expect(screen.getByLabelText('Core Count')).toHaveValue('24');
+    expect(screen.getByText('01.Intersection Start - Position Mid - 03.Camera End')).toBeInTheDocument();
+    expect(screen.getByText('Cáp quang')).toBeInTheDocument();
+    expect(screen.getByLabelText('Loại cáp')).toHaveValue('FO-24');
+    expect(screen.getByLabelText('Dung lượng cáp')).toHaveValue('24');
+    expect(screen.queryByText(/Power Line/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Trench/i)).not.toBeInTheDocument();
     expect(screen.queryByText('node-start')).not.toBeInTheDocument();
     expect(screen.queryByText('node-end')).not.toBeInTheDocument();
     expect(screen.queryByText(/snap links/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/direction mode/i)).not.toBeInTheDocument();
+
+    Object.assign(selectedFeature, originalFeature);
+  });
+
+  it('saves fiber line metadata and existing fiber cable in the same batch', async () => {
+    const originalFeature = { ...selectedFeature };
+    Object.assign(selectedFeature, {
+      geom_type: 'LineString',
+      name: 'Signal Line A',
+      coordinates: [[106.1, 10.2], [106.2, 10.3]],
+      metadata: JSON.stringify({
+        infrastructure: {
+          type: 'PowerLine',
+          cable_type: 'FO-24',
+          core_count: 24,
+        },
+        start_node_id: 'node-start',
+        end_node_id: 'node-end',
+      }),
+    });
+    const stateWithCable = {
+      ...designState,
+      features: {
+        ...designState.features,
+        [selectedFeature.id]: selectedFeature,
+        'node-start': {
+          id: 'node-start',
+          name: 'Start',
+          geom_type: 'Point',
+          group_id: 'group-1',
+          layer_id: 'layer-1',
+          coordinates: [106.1, 10.2],
+          metadata: '{}',
+          properties: {},
+        },
+        'node-end': {
+          id: 'node-end',
+          name: 'End',
+          geom_type: 'Point',
+          group_id: 'group-1',
+          layer_id: 'layer-1',
+          coordinates: [106.2, 10.3],
+          metadata: '{}',
+          properties: {},
+        },
+      },
+      inventory: {
+        cables: [{
+          id: 'existing-cable-1',
+          project_id: 'project-1',
+          feature_id: selectedFeature.id,
+          cable_type: 'FO-24',
+          fiber_count: 24,
+          owner: 'owner-1',
+          status: 'active',
+          source: 'legacy',
+          created_at: '',
+          updated_at: '',
+        }],
+      },
+    };
+    mockUseDesignSync.mockReturnValue({
+      state: stateWithCable,
+      selectedFeatureId: selectedFeature.id,
+      selectFeature: mocks.selectFeature,
+      dispatchEvent: mocks.dispatchEvent,
+      dispatchEvents: mocks.dispatchEvents,
+      queueEvent: mocks.queueEvent,
+      queueEvents: mocks.queueEvents,
+      setDrawingMode: mocks.setDrawingMode,
+      setSelectedGroup: mocks.setSelectedGroup,
+      setActiveParentFeature: mocks.setActiveParentFeature,
+      setPreview: mocks.setPreview,
+      previewMetadata: null,
+      editingFeatureId: null,
+      setEditingFeatureId: mocks.setEditingFeatureId,
+      projectId: 'project-1',
+      selectionSet: new Set<string>(),
+    });
+
+    render(<PropertyPanel />);
+    const cableTypeInput = await screen.findByLabelText('Loại cáp');
+    fireEvent.change(cableTypeInput, { target: { value: 'FO-48' } });
+    fireEvent.click(screen.getByRole('button', { name: /save specs/i }));
+
+    await waitFor(() => expect(mocks.queueEvents).toHaveBeenCalledTimes(1));
+    const events = mocks.queueEvents.mock.calls[0][0];
+    expect(events.map((event: { type: string }) => event.type)).toEqual(['FeatureUpdated', 'FiberCableUpserted']);
+    const savedMetadata = JSON.parse(events[0].payload.metadata);
+    expect(savedMetadata.infrastructure).toMatchObject({
+      type: 'SignalLine',
+      cable_type: 'FO-48',
+      core_count: 24,
+    });
+    expect(events[1].payload).toMatchObject({
+      id: 'existing-cable-1',
+      project_id: 'project-1',
+      feature_id: selectedFeature.id,
+      cable_type: 'FO-48',
+      fiber_count: 24,
+      owner: 'owner-1',
+      status: 'active',
+      source: 'legacy',
+    });
 
     Object.assign(selectedFeature, originalFeature);
   });
