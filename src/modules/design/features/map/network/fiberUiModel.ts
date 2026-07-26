@@ -75,6 +75,18 @@ const getMetadataObject = (metadata: FeatureState['metadata'] | undefined): Reco
   return metadata as Record<string, any>;
 };
 
+const getStringValue = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim() ? value.trim() : null;
+
+const getNumberValue = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
 export const getFeatureLabel = (
   featuresById: Record<string, FeatureState> | undefined,
   featureId: string | null | undefined
@@ -149,12 +161,15 @@ export const buildLegacyFiberCableCandidates = (
         ? metadata.infrastructure as Record<string, any>
         : {};
 
+      const cableType = getStringValue(infrastructure.cable_type) ?? getStringValue(metadata.cable_type);
+      const fiberCount = getNumberValue(infrastructure.core_count) ?? getNumberValue(metadata.core_count);
+
       return {
         id: edge.id,
         feature_id: edge.feature?.id || edge.id,
         label: getFeatureLabel(featuresById, edge.feature?.id || edge.id),
-        cable_type: infrastructure.cable_type || infrastructure.type || null,
-        fiber_count: typeof infrastructure.core_count === 'number' ? infrastructure.core_count : null,
+        cable_type: cableType,
+        fiber_count: fiberCount,
         source_type: edge.sourceType,
         from: edge.from,
         to: edge.to,

@@ -9,6 +9,9 @@ describe('metadataNormalization', () => {
       expect(result.size).toBe(30);
       expect(result.weight).toBe(30);
       expect(result.stroke).toBe(30);
+      expect(result.gis?.size).toBe(30);
+      expect(result.gis?.weight).toBe(30);
+      expect(result.gis?.stroke).toBe(30);
     });
 
     it('should handle weight and sync it to size and stroke', () => {
@@ -49,6 +52,29 @@ describe('metadataNormalization', () => {
       expect(result.size).toBe(40);
       expect(result.weight).toBe(40);
       expect(result.stroke).toBe(40);
+      expect(result.gis?.size).toBe(40);
+      expect(result.gis?.weight).toBe(40);
+      expect(result.gis?.stroke).toBe(40);
+    });
+
+    it('should mirror legacy line color into gis color', () => {
+      const metadata = { color: '#ff0000', size: 8 };
+      const result = normalizeMetadataObject(metadata);
+      expect(result.color).toBe('#ff0000');
+      expect(result.gis?.color).toBe('#ff0000');
+      expect(result.gis?.size).toBe(8);
+    });
+
+    it('should preserve structured fiber metadata groups', () => {
+      const metadata = {
+        infrastructure: { type: 'SignalLine', cable_type: 'ADSS-24F', core_count: 24 },
+        network: { from_feature_id: 'a', to_feature_id: 'z', direction_mode: 'auto' },
+        fiber: { role: 'cable' },
+      };
+      const result = normalizeMetadataObject(metadata);
+      expect(result.infrastructure).toEqual(metadata.infrastructure);
+      expect(result.network).toEqual(metadata.network);
+      expect(result.fiber).toEqual(metadata.fiber);
     });
 
     it('should preserve unknown fields', () => {

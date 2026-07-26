@@ -24,7 +24,7 @@ export const FiberCircuitPanel: React.FC<FiberCircuitPanelProps> = ({
   if (circuits.length === 0) {
     return (
       <div className="rounded-lg border border-cad-border bg-cad-surface p-3 text-[10.5px] text-cad-text-muted">
-        Chưa có tuyến A–Z. Tạo tuyến mới bằng form bên trên.
+        Chưa có tuyến A-Z. Tạo tuyến mới bằng form bên trên.
       </div>
     );
   }
@@ -56,7 +56,7 @@ export const FiberCircuitPanel: React.FC<FiberCircuitPanelProps> = ({
                 size="sm"
                 onClick={() => onTraceCircuit?.(circuit.id)}
               >
-                Trace A–Z
+                Trace A-Z
               </Button>
             </div>
             <div className="mt-2 grid grid-cols-2 gap-1 text-[9px] text-cad-text-muted">

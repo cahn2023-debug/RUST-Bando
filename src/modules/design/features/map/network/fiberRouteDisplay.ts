@@ -31,11 +31,11 @@ const formatRouteFeature = (feature: FeatureState): string => {
 
 const getFallbackEndpointIds = (metadata: FeatureMetadata): string[] => {
   const network = metadata.network || {};
+  const fromId = network.from_feature_id || network.from_endpoint?.id || metadata.start_node_id;
+  const toId = network.to_feature_id || network.to_endpoint?.id || metadata.end_node_id;
   return [
-    network.from_feature_id,
-    metadata.start_node_id,
-    network.to_feature_id,
-    metadata.end_node_id,
+    fromId,
+    toId,
   ].filter((id): id is string => typeof id === 'string' && id.length > 0);
 };
 

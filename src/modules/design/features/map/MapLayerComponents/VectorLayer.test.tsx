@@ -145,4 +145,71 @@ describe('VectorLayer', () => {
 
         expect(polylineProps).toHaveLength(2);
     });
+
+    it('renders line style from structured gis metadata', () => {
+        render(
+            <VectorLayer
+                features={[{
+                    id: 'line-1',
+                    layer_id: 'layer-1',
+                    group_id: 'group-1',
+                    name: 'Line 1',
+                    geom_type: 'LineString',
+                    coordinates: [[106, 10], [106.001, 10.001]],
+                    metadata: JSON.stringify({
+                        color: '#111111',
+                        size: 2,
+                        gis: {
+                            color: '#0088ff',
+                            weight: 9,
+                            dashArray: '4 2',
+                            opacity: 0.5,
+                        },
+                    }),
+                    properties: {},
+                }]}
+                allFeatures={{}}
+                parentChildMap={new Map()}
+                feature_groups={{ 'group-1': { id: 'group-1', type: 'LINE', name: 'Lines' } }}
+                selectedFeatureId={null}
+                previewMetadata={null}
+                zoomTo={vi.fn()}
+            />
+        );
+
+        expect(polylineProps[1].pathOptions).toEqual(expect.objectContaining({
+            color: '#0088ff',
+            weight: 9,
+            dashArray: '4 2',
+            opacity: 0.5,
+        }));
+    });
+
+    it('falls back to legacy line style metadata', () => {
+        render(
+            <VectorLayer
+                features={[{
+                    id: 'line-1',
+                    layer_id: 'layer-1',
+                    group_id: 'group-1',
+                    name: 'Line 1',
+                    geom_type: 'LineString',
+                    coordinates: [[106, 10], [106.001, 10.001]],
+                    metadata: JSON.stringify({ color: '#EF4444', weight: 7 }),
+                    properties: {},
+                }]}
+                allFeatures={{}}
+                parentChildMap={new Map()}
+                feature_groups={{ 'group-1': { id: 'group-1', type: 'LINE', name: 'Lines' } }}
+                selectedFeatureId={null}
+                previewMetadata={null}
+                zoomTo={vi.fn()}
+            />
+        );
+
+        expect(polylineProps[1].pathOptions).toEqual(expect.objectContaining({
+            color: '#EF4444',
+            weight: 7,
+        }));
+    });
 });

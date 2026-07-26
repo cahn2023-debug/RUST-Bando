@@ -129,15 +129,49 @@ const getPositiveInteger = (value: unknown): number | null => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 };
 
-const normalizeFiberLineMetadata = (metadata: FeatureMetadata): FeatureMetadata => ({
-  ...metadata,
-  infrastructure: {
-    ...(metadata.infrastructure || {}),
-    type: 'SignalLine',
-    cable_type: asStringValue(metadata.infrastructure?.cable_type).trim(),
-    core_count: getPositiveInteger(metadata.infrastructure?.core_count) || undefined,
-  },
-});
+const getFiniteNumber = (value: unknown): number | undefined => {
+  if (value === undefined || value === null || value === '') return undefined;
+  const parsed = typeof value === 'number' ? value : Number(asStringValue(value));
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const normalizeFiberLineMetadata = (metadata: FeatureMetadata): FeatureMetadata => {
+  const gis = metadata.gis || {};
+  const width = getFiniteNumber(gis.weight ?? gis.size ?? gis.stroke ?? metadata.weight ?? metadata.size ?? metadata.stroke) ?? 6;
+  const lineType = asStringValue(metadata.infrastructure?.type).trim() || 'SignalLine';
+  const color = asStringValue(gis.color || metadata.color, '#0088ff');
+
+  return {
+    ...metadata,
+    color,
+    size: width,
+    weight: width,
+    stroke: width,
+    gis: {
+      ...gis,
+      color,
+      size: width,
+      weight: width,
+      stroke: width,
+      dashArray: asStringValue(gis.dashArray || (metadata as Record<string, unknown>).dashArray).trim() || undefined,
+      opacity: getFiniteNumber(gis.opacity ?? (metadata as Record<string, unknown>).opacity),
+    },
+    infrastructure: {
+      ...(metadata.infrastructure || {}),
+      type: lineType,
+      cable_type: asStringValue(metadata.infrastructure?.cable_type).trim(),
+      core_count: getPositiveInteger(metadata.infrastructure?.core_count) || undefined,
+    },
+    network: {
+      ...(metadata.network || {}),
+      direction_mode: metadata.network?.direction_mode || 'auto',
+    },
+    fiber: {
+      ...(metadata.fiber || {}),
+      role: 'cable',
+    },
+  };
+};
 
 const readFileAsDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -831,34 +865,37 @@ export const PropertyPanel: React.FC = () => {
 
     if (isPolyline) {
       standardizedMeta = normalizeFiberLineMetadata(standardizedMeta);
+      const lineType = asStringValue(standardizedMeta.infrastructure?.type, 'SignalLine');
       const cableType = asStringValue(standardizedMeta.infrastructure?.cable_type).trim();
       const fiberCount = getPositiveInteger(standardizedMeta.infrastructure?.core_count);
-      if (!cableType) {
+      if (lineType === 'SignalLine' && !cableType) {
         setFiberFieldErrors({ cableType: 'Vui lòng nhập loại cáp.' });
         alert('Vui lòng nhập loại cáp.');
         return;
       }
-      if (!fiberCount) {
+      if (lineType === 'SignalLine' && !fiberCount) {
         setFiberFieldErrors({ coreCount: 'Dung lượng cáp phải là số nguyên lớn hơn 0.' });
         alert('Dung lượng cáp phải là số nguyên lớn hơn 0.');
         return;
       }
       setFiberFieldErrors({});
 
-      const existingCable = getExistingFiberCable(state, feature.id);
-      events.push({
-        type: 'FiberCableUpserted',
-        payload: {
-          id: existingCable?.id || feature.id,
-          project_id: String(projectId || ''),
-          feature_id: feature.id,
-          cable_type: cableType,
-          fiber_count: fiberCount,
-          owner: existingCable?.owner ?? null,
-          status: existingCable?.status || 'planned',
-          source: existingCable?.source || 'manual',
-        },
-      });
+      if (lineType === 'SignalLine') {
+        const existingCable = getExistingFiberCable(state, feature.id);
+        events.push({
+          type: 'FiberCableUpserted',
+          payload: {
+            id: existingCable?.id || feature.id,
+            project_id: String(projectId || ''),
+            feature_id: feature.id,
+            cable_type: cableType,
+            fiber_count: fiberCount,
+            owner: asStringValue(standardizedMeta.infrastructure?.owner).trim() || existingCable?.owner || null,
+            status: (standardizedMeta.infrastructure?.status as FiberCable['status']) || existingCable?.status || 'planned',
+            source: existingCable?.source || 'manual',
+          },
+        });
+      }
     }
     if (!(await confirmUserAction(`Xác nhận lưu thay đổi cho đối tượng "${draftName}"?`))) return;
     setIsSaving(true);
@@ -1296,8 +1333,8 @@ export const PropertyPanel: React.FC = () => {
                   id={`${uid}-color`}
                   type="color"
                   className="w-full h-8 bg-transparent border-0 rounded cursor-pointer mt-1"
-                  value={asStringValue(getMetaValue('color', 'color'), '#3b82f6')}
-                  onChange={e => updateNestedMeta('color', e.target.value)}
+                  value={asStringValue(getMetaValue('gis.color', 'color'), '#3b82f6')}
+                  onChange={e => updateNestedMeta('gis.color', e.target.value)}
                 />
               </div>
               <div>
@@ -1306,8 +1343,8 @@ export const PropertyPanel: React.FC = () => {
                   id={`${uid}-size`}
                   type="number"
                   className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary mt-1 focus:border-cad-accent outline-none"
-                  value={asNumberValue(getMetaValue('size', 'size'), isPolyline ? 4 : 32)}
-                  onChange={e => updateNestedMeta('size', Number(e.target.value))}
+                  value={asNumberValue(getMetaValue(isPolyline ? 'gis.size' : 'size', 'size'), isPolyline ? 4 : 32)}
+                  onChange={e => updateNestedMeta(isPolyline ? 'gis.size' : 'size', Number(e.target.value))}
                 />
               </div>
             </div>
@@ -1330,7 +1367,19 @@ export const PropertyPanel: React.FC = () => {
           <div className="bg-cad-bg p-3 rounded border border-cad-accent/10 space-y-4">
             {isPolyline && (
               <>
-                <ReadOnlyField label="Loại hạ tầng" value="Cáp quang" />
+                <div className="space-y-1">
+                  <label htmlFor={`${uid}-line-infra-type`} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Loại tuyến</label>
+                  <select
+                    id={`${uid}-line-infra-type`}
+                    className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary outline-none active:border-cad-accent"
+                    value={asStringValue(getMetaValue('infrastructure.type'), 'SignalLine')}
+                    onChange={e => updateNestedMeta('infrastructure.type', e.target.value)}
+                  >
+                    <option value="SignalLine">Signal / Fiber (Thông tin)</option>
+                    <option value="PowerLine">Power Line (Lưới điện)</option>
+                    <option value="TrenchLine">Trench / Pipe (Mương cáp)</option>
+                  </select>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <DesignField
                     label="Loại cáp"
@@ -1345,6 +1394,18 @@ export const PropertyPanel: React.FC = () => {
                     value={getMetaValue('infrastructure.core_count')}
                     onChange={getFieldHandler('infrastructure.core_count', true)}
                     errorMessage={fiberFieldErrors.coreCount}
+                  />
+                  <DesignField
+                    label="Chủ sở hữu"
+                    icon={<UserIcon className="w-3 h-3" aria-hidden="true" />}
+                    value={getMetaValue('infrastructure.owner')}
+                    onChange={getFieldHandler('infrastructure.owner')}
+                  />
+                  <DesignField
+                    label="Trạng thái"
+                    icon={<Circle className="w-3 h-3" aria-hidden="true" />}
+                    value={getMetaValue('infrastructure.status')}
+                    onChange={getFieldHandler('infrastructure.status')}
                   />
                 </div>
               </>
@@ -1563,6 +1624,17 @@ export const PropertyPanel: React.FC = () => {
             </div>
             <div className="bg-cad-bg p-3 rounded border border-cad-accent/10 space-y-3">
               <ReadOnlyField label="Đối tượng đi qua" value={routeDisplay || 'Chưa liên kết'} />
+              <div className="grid grid-cols-2 gap-2">
+                <ReadOnlyField label="Endpoint A" value={asStringValue(getMetaValue('network.from_feature_id')) || asStringValue((getMetaValue('network.from_endpoint') as { id?: string } | undefined)?.id) || 'Chưa liên kết'} />
+                <ReadOnlyField label="Endpoint Z" value={asStringValue(getMetaValue('network.to_feature_id')) || asStringValue((getMetaValue('network.to_endpoint') as { id?: string } | undefined)?.id) || 'Chưa liên kết'} />
+                <ReadOnlyField label="Fiber role" value={asStringValue(getMetaValue('fiber.role'), 'cable')} />
+                <ReadOnlyField label="Direction" value={asStringValue(getMetaValue('network.direction_mode'), 'auto')} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <DesignField label="Stroke" icon={<Route className="w-3 h-3" />} value={getMetaValue('gis.weight', 'weight')} onChange={getFieldHandler('gis.weight', true)} />
+                <DesignField label="Dash" icon={<Pencil className="w-3 h-3" />} value={getMetaValue('gis.dashArray', 'dashArray')} onChange={getFieldHandler('gis.dashArray')} />
+                <DesignField label="Opacity" icon={<Circle className="w-3 h-3" />} value={getMetaValue('gis.opacity', 'opacity')} onChange={getFieldHandler('gis.opacity', true)} />
+              </div>
             </div>
           </section>
         )}

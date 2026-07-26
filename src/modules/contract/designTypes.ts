@@ -53,6 +53,10 @@ export interface FeatureMetadata {
   icon?: IconType;
   color?: string;
   size?: number;
+  weight?: number;
+  stroke?: number;
+  dashArray?: string;
+  opacity?: number;
   label?: string;
   display_order?: string;
   stt?: string;
@@ -68,6 +72,12 @@ export interface FeatureMetadata {
     externalUrls?: string[];
   };
   gis?: {
+    color?: string;
+    size?: number;
+    weight?: number;
+    stroke?: number;
+    dashArray?: string;
+    opacity?: number;
     vn2000_x?: number;
     vn2000_y?: number;
     lengthKm?: number;
@@ -91,7 +101,7 @@ export interface FeatureMetadata {
     updated_at?: string;
   };
   infrastructure?: {
-    type?: string;
+    type?: 'SignalLine' | 'PowerLine' | 'TrenchLine' | string;
     // PowerLine
     voltage?: string;
     capacity?: string;
@@ -115,6 +125,15 @@ export interface FeatureMetadata {
     to_endpoint?: NetworkEndpointMetadata;
     is_origin?: boolean;
     direction_mode?: 'auto' | 'manual';
+  };
+  fiber?: {
+    role?: 'cable' | string;
+    kind?: string;
+    point_kind?: FiberCablePointKind;
+    cable_id?: string;
+    sequence_no?: number;
+    coordinate_key?: string;
+    [key: string]: unknown;
   };
   specs?: {
     install_height?: number;

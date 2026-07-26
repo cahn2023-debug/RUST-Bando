@@ -136,8 +136,13 @@ export const VectorLayer = React.memo(({
                         return null;
                     }
 
-                    const baseWeight = Number(metadata.weight || metadata.size || metadata.stroke || 0);
-                    const lineColor = safeString(metadata.color) || '#10b981';
+                    const gis = metadata.gis && typeof metadata.gis === 'object'
+                        ? metadata.gis as Record<string, unknown>
+                        : {};
+                    const baseWeight = Number(gis.weight || gis.size || gis.stroke || metadata.weight || metadata.size || metadata.stroke || 0);
+                    const lineColor = safeString(gis.color || metadata.color) || '#10b981';
+                    const lineOpacity = Number(gis.opacity ?? metadata.opacity ?? 0.72);
+                    const dashArray = safeString(gis.dashArray || metadata.dashArray) || undefined;
                     const weight = isSelected
                         ? (baseWeight ? baseWeight + 4 : 8)
                         : (baseWeight ? baseWeight : 5); // Increased default from 2 to 5
@@ -197,12 +202,12 @@ export const VectorLayer = React.memo(({
                             <Polyline
                                 positions={latLngs}
                                 pathOptions={{
-                                    color: isSelected ? '#22d3ee' : (displayInfo.color || '#EF4444'),
+                                    color: isSelected ? '#22d3ee' : (lineColor || displayInfo.color || '#EF4444'),
                                     weight: weight,
-                                    opacity: isSelected ? 0.82 : 0.72,
+                                    opacity: isSelected ? 0.82 : lineOpacity,
                                     lineCap: 'round',
                                     lineJoin: 'round',
-                                    dashArray: isSelected ? '10, 10' : undefined,
+                                    dashArray: isSelected ? '10, 10' : dashArray,
                                     className: `${isClickThrough ? 'pointer-events-none' : 'cursor-pointer'} ${isSelected ? 'polyline-selected' : ''}`
                                 }}
                                 interactive={drawingMode === 'none' || drawingMode === 'move'}

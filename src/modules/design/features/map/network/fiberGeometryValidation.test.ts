@@ -54,4 +54,31 @@ describe('fiberGeometryValidation', () => {
       }),
     ]);
   });
+
+  it('treats structured fiber cable role as a fiber line', () => {
+    const diagnostics = validateFiberGeometry('project-1', emptyInventory, {
+      'line-1': lineFeature('line-1', { fiber: { role: 'cable' } }),
+    });
+
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        type: 'missing-polyline-endpoint',
+        feature_id: 'line-1',
+      }),
+    ]);
+  });
+
+  it('accepts structured endpoint metadata on fiber lines', () => {
+    const diagnostics = validateFiberGeometry('project-1', emptyInventory, {
+      'line-1': lineFeature('line-1', {
+        infrastructure: { type: 'SignalLine' },
+        network: {
+          from_endpoint: { type: 'feature', id: 'start' },
+          to_endpoint: { type: 'feature', id: 'end' },
+        },
+      }),
+    });
+
+    expect(diagnostics.some(item => item.type === 'missing-polyline-endpoint')).toBe(false);
+  });
 });

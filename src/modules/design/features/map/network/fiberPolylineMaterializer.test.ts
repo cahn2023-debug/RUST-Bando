@@ -37,6 +37,19 @@ describe('fiberPolylineMaterializer', () => {
     expect(updateEvent?.type).toBe('FeatureUpdated');
     if (updateEvent?.type === 'FeatureUpdated') {
       const metadata = JSON.parse(updateEvent.payload.metadata as string);
+      expect(metadata.gis).toEqual(expect.objectContaining({
+        color: '#0088ff',
+        size: 6,
+        weight: 6,
+        stroke: 6,
+      }));
+      expect(metadata.infrastructure).toEqual(expect.objectContaining({
+        type: 'SignalLine',
+        cable_type: '24F',
+        core_count: 24,
+      }));
+      expect(metadata.network?.direction_mode).toBe('auto');
+      expect(metadata.fiber?.role).toBe('cable');
       expect(metadata.network?.from_endpoint).toBeUndefined();
       expect(metadata.network?.to_endpoint).toBeUndefined();
     }
@@ -129,6 +142,33 @@ describe('fiberPolylineMaterializer', () => {
     expect(cableEvent?.type).toBe('FiberCableUpserted');
     if (cableEvent?.type === 'FiberCableUpserted') {
       expect(cableEvent.payload.cable_type).toBeNull();
+    }
+  });
+
+  it('materializes legacy style fields into structured gis metadata', () => {
+    const result = buildFiberPolylineMaterializationEvents('project-1', {
+      'line-1': {
+        ...lineFeature('line-1', [[106.1, 10.1], [106.2, 10.2]]),
+        metadata: JSON.stringify({
+          color: '#123456',
+          size: 10,
+          infrastructure: { type: 'SignalLine', core_count: 12, cable_type: 'ADSS-12F' },
+        }),
+      },
+    });
+
+    const updateEvent = result.events.find(event => event.type === 'FeatureUpdated');
+    expect(updateEvent?.type).toBe('FeatureUpdated');
+    if (updateEvent?.type === 'FeatureUpdated') {
+      const metadata = JSON.parse(updateEvent.payload.metadata as string);
+      expect(metadata.gis).toEqual(expect.objectContaining({
+        color: '#123456',
+        size: 10,
+        weight: 10,
+        stroke: 10,
+      }));
+      expect(metadata.color).toBe('#123456');
+      expect(metadata.weight).toBe(10);
     }
   });
 });

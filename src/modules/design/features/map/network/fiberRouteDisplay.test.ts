@@ -65,4 +65,22 @@ describe('fiberRouteDisplay', () => {
 
     expect(buildFiberRouteDisplay(line, features)).toBe('Node A - 03.Node C');
   });
+
+  it('uses structured endpoint metadata before legacy endpoint aliases', () => {
+    const features = {
+      start: pointFeature('start', 'Node A'),
+      end: pointFeature('end', 'Node Z'),
+      legacy: pointFeature('legacy', 'Legacy Node'),
+    };
+    const line = lineFeature({
+      network: {
+        from_endpoint: { type: 'feature', id: 'start' },
+        to_endpoint: { type: 'feature', id: 'end' },
+      },
+      start_node_id: 'legacy',
+      end_node_id: 'legacy',
+    });
+
+    expect(buildFiberRouteDisplay(line, features)).toBe('Node A - Node Z');
+  });
 });

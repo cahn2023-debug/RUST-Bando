@@ -17,6 +17,7 @@ interface FiberPointMetadata {
 }
 
 interface ParsedMetadata {
+  gis?: Record<string, any>;
   infrastructure?: Record<string, any>;
   network?: Record<string, any>;
   fiber?: FiberPointMetadata & Record<string, any>;
@@ -81,6 +82,24 @@ const isPolylineFeature = (feature: FeatureState): boolean => {
 
 const coordinateKey = (point: PointCoordinates): string => `${point[0].toFixed(7)},${point[1].toFixed(7)}`;
 
+const toFiniteNumber = (value: unknown): number | undefined => {
+  if (value === undefined || value === null || value === '') return undefined;
+  const numeric = typeof value === 'string' ? Number(value.trim()) : Number(value);
+  return Number.isFinite(numeric) ? numeric : undefined;
+};
+
+const getLineStyleMetadata = (metadata: ParsedMetadata): Record<string, any> => {
+  const gis = metadata.gis && typeof metadata.gis === 'object' ? { ...metadata.gis } : {};
+  const width = toFiniteNumber(gis.weight ?? gis.size ?? gis.stroke ?? metadata.weight ?? metadata.size ?? metadata.stroke) ?? 6;
+  return {
+    ...gis,
+    color: gis.color || metadata.color || '#0088ff',
+    size: width,
+    weight: width,
+    stroke: width,
+  };
+};
+
 const isReusableFiberPoint = (
   feature: FeatureState,
   reusableFeatureIds: Set<string>,
@@ -104,7 +123,8 @@ const isReusableFiberPoint = (
 const cloneMetadataWithFiberCable = (
   feature: FeatureState,
   startFeatureId: string | null,
-  endFeatureId: string | null
+  endFeatureId: string | null,
+  existingCable?: FiberCable
 ): ParsedMetadata => {
   const metadata = parseMetadata(feature.metadata);
   const infrastructure = metadata.infrastructure && typeof metadata.infrastructure === 'object'
@@ -116,12 +136,26 @@ const cloneMetadataWithFiberCable = (
   const fiber = metadata.fiber && typeof metadata.fiber === 'object'
     ? { ...metadata.fiber }
     : {};
+  const cableType = existingCable?.cable_type ?? infrastructure.cable_type;
+  const fiberCount = existingCable?.fiber_count ?? infrastructure.core_count;
+  const owner = existingCable?.owner ?? infrastructure.owner;
+  const status = existingCable?.status ?? infrastructure.status;
+  const gis = getLineStyleMetadata(metadata);
 
   return {
     ...metadata,
+    color: gis.color,
+    size: gis.size,
+    weight: gis.weight,
+    stroke: gis.stroke,
+    gis,
     infrastructure: {
       ...infrastructure,
       type: 'SignalLine',
+      ...(cableType ? { cable_type: cableType } : {}),
+      ...(typeof fiberCount === 'number' ? { core_count: fiberCount } : {}),
+      ...(owner ? { owner } : {}),
+      ...(status ? { status } : {}),
     },
     network: {
       ...network,
@@ -200,8 +234,18 @@ const getCableType = (feature: FeatureState, existingCable?: FiberCable): string
   return typeof cableType === 'string' && cableType.trim() ? cableType.trim() : null;
 };
 
-const getCableStatus = (existingCable?: FiberCable): FiberCable['status'] => {
+const getCableOwner = (feature: FeatureState, existingCable?: FiberCable): string | null => {
+  if (existingCable?.owner) return existingCable.owner;
+  const metadata = parseMetadata(feature.metadata);
+  const owner = metadata.infrastructure?.owner;
+  return typeof owner === 'string' && owner.trim() ? owner.trim() : null;
+};
+
+const getCableStatus = (feature: FeatureState, existingCable?: FiberCable): FiberCable['status'] => {
   if (existingCable?.status) return existingCable.status;
+  const metadata = parseMetadata(feature.metadata);
+  const status = metadata.infrastructure?.status;
+  if (status === 'planned' || status === 'active' || status === 'retired' || status === 'damaged') return status;
   return 'planned';
 };
 
@@ -331,7 +375,7 @@ export const buildFiberPolylineMaterializationEvents = (
       type: 'FeatureUpdated',
       payload: {
         id: feature.id,
-        metadata: JSON.stringify(cloneMetadataWithFiberCable(feature, startFeatureId, endFeatureId)),
+        metadata: JSON.stringify(cloneMetadataWithFiberCable(feature, startFeatureId, endFeatureId, existingCable)),
       },
     });
 
@@ -343,8 +387,8 @@ export const buildFiberPolylineMaterializationEvents = (
         feature_id: feature.id,
         cable_type: getCableType(feature, existingCable),
         fiber_count: getFiberCount(feature, existingCable),
-        owner: null,
-        status: getCableStatus(existingCable),
+        owner: getCableOwner(feature, existingCable),
+        status: getCableStatus(feature, existingCable),
         source: existingCable?.source || 'legacy',
       },
     });

@@ -61,7 +61,7 @@ export const FiberCapacityPanel: React.FC<FiberCapacityPanelProps> = ({
         const damaged = capacity?.damaged_count || 0;
         const defaultFiberCount = cable.fiber_count || row.strandCount || 12;
         const pointSummary = row.points.length > 0
-          ? `Đầu ${row.startPoint ? '✓' : '—'} · Cuối ${row.endPoint ? '✓' : '—'} · Măng xông ${row.enclosureCount}`
+          ? `Đầu ${row.startPoint ? '✓' : '-'} · Cuối ${row.endPoint ? '✓' : '-'} · Măng xông ${row.enclosureCount}`
           : 'Chưa materialize điểm tuyến';
 
         return (

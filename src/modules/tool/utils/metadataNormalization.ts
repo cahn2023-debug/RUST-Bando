@@ -17,6 +17,7 @@ const NUMBER_KEYS = new Set([
   'size',
   'weight',
   'stroke',
+  'opacity',
   'rotation',
   'fov_angle',
   'fov_radius',
@@ -39,6 +40,7 @@ const STRING_KEYS = new Set([
   'phoneNumber',
   'display_order',
   'stt',
+  'dashArray',
 ]);
 
 const TEXT_FIELDS = [
@@ -122,6 +124,14 @@ const normalizeValue = (key: string, value: any): any => {
   return value;
 };
 
+const firstDefined = (...values: any[]) => values.find(value => value !== undefined && value !== null && value !== '');
+
+const toFiniteNumber = (value: any): number | undefined => {
+  if (value === undefined || value === null || value === '') return undefined;
+  const numeric = typeof value === 'string' ? Number(value.trim()) : Number(value);
+  return Number.isFinite(numeric) ? numeric : undefined;
+};
+
 /**
  * Standardizes metadata into the unified FeatureMetadata structure.
  */
@@ -150,13 +160,25 @@ export const normalizeMetadataObject = (metadata: any): FeatureMetadata => {
         ? raw.primaryImageAssetId
         : undefined;
 
+  const baseSize = toFiniteNumber(firstDefined(
+    raw.gis?.weight,
+    raw.gis?.size,
+    raw.gis?.stroke,
+    raw.size,
+    raw.weight,
+    raw.stroke
+  ));
+  const lineColor = firstDefined(raw.gis?.color, raw.color);
+  const dashArray = firstDefined(raw.gis?.dashArray, raw.dashArray);
+  const opacity = toFiniteNumber(firstDefined(raw.gis?.opacity, raw.opacity));
+
   const result: FeatureMetadata = {
     // Top-level properties
     description: raw.description || raw.note || raw.notes || raw.ghi_chu || raw.gis?.description,
     type: raw.type || raw.gis?.type,
     icon: (raw.icon as IconType) || (raw.gis?.icon as IconType) || undefined,
-    color: raw.color || raw.gis?.color,
-    size: raw.size || raw.gis?.size,
+    color: lineColor,
+    size: baseSize ?? raw.size ?? raw.gis?.size,
     label: raw.label || raw.gis?.label,
     display_order: raw.display_order || raw.stt || raw.STT || raw.order || raw.gis?.display_order,
 
@@ -171,6 +193,13 @@ export const normalizeMetadataObject = (metadata: any): FeatureMetadata => {
 
     // GIS grouping
     gis: {
+      ...(isPlainObject(raw.gis) ? raw.gis : {}),
+      color: lineColor,
+      size: baseSize,
+      weight: baseSize,
+      stroke: baseSize,
+      dashArray,
+      opacity,
       vn2000_x: raw.vn2000_x || raw.gis?.vn2000_x,
       vn2000_y: raw.vn2000_y || raw.gis?.vn2000_y,
       lengthKm: raw.lengthKm || raw.length_km || raw.gis?.lengthKm || raw.gis?.length_km,
@@ -201,17 +230,16 @@ export const normalizeMetadataObject = (metadata: any): FeatureMetadata => {
     // Complex fields
     vertexMetadata: raw.vertexMetadata || raw.gis?.vertexMetadata,
     ai: raw.ai || raw.gis?.ai,
+    infrastructure: isPlainObject(raw.infrastructure) ? raw.infrastructure : undefined,
+    network: isPlainObject(raw.network) ? raw.network : undefined,
+    fiber: isPlainObject(raw.fiber) ? raw.fiber : undefined,
   };
 
   // Sync size, weight, and stroke for backward compatibility
-  const baseSize = result.size || raw.weight || raw.stroke || raw.gis?.size || raw.gis?.weight || raw.gis?.stroke;
   if (baseSize !== undefined) {
-    const numSize = typeof baseSize === 'string' ? Number(baseSize) : baseSize;
-    if (Number.isFinite(numSize)) {
-      result.size = numSize;
-      result.weight = numSize;
-      result.stroke = numSize;
-    }
+    result.size = baseSize;
+    result.weight = baseSize;
+    result.stroke = baseSize;
   }
 
   // Additional standardization/cleanup logic
@@ -247,7 +275,8 @@ export const normalizeMetadataObject = (metadata: any): FeatureMetadata => {
       'vn2000_x', 'vn2000_y', 'lengthKm', 'length_km',
       'rotation', 'fov_angle', 'fov_radius', 'fov_visible',
       'contractor', 'phoneNumber', 'vertexMetadata', 'ai',
-      'gis', 'media', 'business', 'specs', 'weight', 'stroke'
+      'gis', 'media', 'business', 'specs', 'infrastructure', 'network', 'fiber',
+      'weight', 'stroke', 'dashArray', 'opacity'
     ];
     if (!knownKeys.includes(k)) {
       if (result[k] === undefined) result[k] = v;
