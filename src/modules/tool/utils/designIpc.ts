@@ -325,6 +325,69 @@ export const loadDesignState = async (projectId: string): Promise<any | null> =>
   }
 };
 
+export interface VisibleFeatureBounds {
+  s: number;
+  n: number;
+  w: number;
+  e: number;
+}
+
+export interface VisibleFeaturesResponse {
+  features: MapState['features'][string][];
+  total: number;
+  returned: number;
+  truncated: boolean;
+  limit: number;
+}
+
+export const queryVisibleFeaturesV2 = async (
+  projectId: string,
+  bounds: VisibleFeatureBounds,
+  zoom: number,
+  hiddenIds: string[] = [],
+  limit = 10000
+): Promise<VisibleFeaturesResponse> => {
+  const result = await invoke<VisibleFeaturesResponse>(
+    'query_visible_features_v2',
+    withCompatArgs(
+      {
+        project_id: projectId,
+        bounds,
+        zoom,
+        hidden_ids: hiddenIds,
+        limit,
+      },
+      {
+        projectId,
+        bounds,
+        zoom,
+        hiddenIds,
+        limit,
+      }
+    )
+  );
+  return result ?? { features: [], total: 0, returned: 0, truncated: false, limit };
+};
+
+export const getFeatureDetailV2 = async (
+  projectId: string,
+  featureId: string
+): Promise<MapState['features'][string]> => {
+  return await invoke<MapState['features'][string]>(
+    'get_feature_detail_v2',
+    withCompatArgs(
+      {
+        project_id: projectId,
+        feature_id: featureId,
+      },
+      {
+        projectId,
+        featureId,
+      }
+    )
+  );
+};
+
 export const updateProjectStateV2 = async (
   projectId: string | number,
   state: any

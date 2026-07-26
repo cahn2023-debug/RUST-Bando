@@ -19,6 +19,7 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 const MAX_EVENT_PAYLOAD_BYTES: usize = 256 * 1024;
+const HISTORY_RETENTION_DAYS: i64 = 7;
 
 #[derive(Debug)]
 pub struct StorageWorker {
@@ -887,6 +888,8 @@ impl StorageWorker {
         let repaired_links =
             repair_media_links(&tx, &self.db.base_dir, &self.db.pmp_path, project_id)?;
         let compacted_events = compact_large_events(&tx, project_id)?;
+        let compacted_history = compact_old_event_payloads(&tx, project_id)?;
+        let deleted_outbox = delete_old_acked_outbox(&tx, project_id)?;
         rebuild_project_snapshot(&tx, project_id)?;
         tx.execute(
             "UPDATE projects
@@ -906,6 +909,8 @@ impl StorageWorker {
                     "migratedMediaRefs": migrated,
                     "repairedMediaLinks": repaired_links,
                     "compactedEvents": compacted_events,
+                    "compactedHistoryEvents": compacted_history,
+                    "deletedAckedOutbox": deleted_outbox,
                     "before": before,
                 })
                 .to_string()
@@ -934,6 +939,8 @@ impl StorageWorker {
             "migratedMediaRefs": migrated,
             "repairedMediaLinks": repaired_links,
             "compactedEvents": compacted_events,
+            "compactedHistoryEvents": compacted_history,
+            "deletedAckedOutbox": deleted_outbox,
             "integrityBefore": integrity_before,
             "integrityAfter": integrity_after,
             "before": before,
@@ -3611,6 +3618,42 @@ fn compact_large_events(tx: &Transaction<'_>, project_id: &str) -> Result<usize,
     Ok(records.len())
 }
 
+fn compact_old_event_payloads(tx: &Transaction<'_>, project_id: &str) -> Result<usize, String> {
+    let compacted = json!({
+        "type": "CompactedHistoryEvent",
+        "reason": "event is older than local retention window",
+        "retentionDays": HISTORY_RETENTION_DAYS,
+        "compactedAt": chrono::Local::now().to_rfc3339(),
+    });
+    tx.execute(
+        "UPDATE events
+         SET payload_json = ?1,
+             metadata_json = json_patch(metadata_json, json(?2))
+         WHERE project_id = ?3
+           AND sync_status IN ('acked', 'local')
+           AND COALESCE(json_extract(metadata_json, '$.compacted'), 0) = 0
+           AND julianday('now') - julianday(created_at) > ?4",
+        params![
+            compacted.to_string(),
+            json!({"compacted": true, "compactionKind": "retention"}).to_string(),
+            project_id,
+            HISTORY_RETENTION_DAYS,
+        ],
+    )
+    .map_err(|e| e.to_string())
+}
+
+fn delete_old_acked_outbox(tx: &Transaction<'_>, project_id: &str) -> Result<usize, String> {
+    tx.execute(
+        "DELETE FROM sync_outbox
+         WHERE project_id = ?1
+           AND status = 'acked'
+           AND julianday('now') - julianday(COALESCE(acked_at, updated_at, created_at)) > ?2",
+        params![project_id, HISTORY_RETENTION_DAYS],
+    )
+    .map_err(|e| e.to_string())
+}
+
 fn empty_design_state() -> Value {
     json!({
         "regions": {},
@@ -3657,6 +3700,49 @@ fn coordinates_json_for_db(value: &Value) -> Option<String> {
         }
         _ => None,
     }
+}
+
+fn bbox_tuple_from_json(value: &Value) -> Option<(f64, f64, f64, f64)> {
+    let mut bbox: Option<(f64, f64, f64, f64)> = None;
+    collect_bbox_points(value, &mut bbox);
+    bbox
+}
+
+fn collect_bbox_points(value: &Value, bbox: &mut Option<(f64, f64, f64, f64)>) {
+    let Some(arr) = value.as_array() else {
+        return;
+    };
+    if arr.len() >= 2 && arr[0].is_number() && arr[1].is_number() {
+        if let (Some(x), Some(y)) = (arr[0].as_f64(), arr[1].as_f64()) {
+            *bbox = Some(match *bbox {
+                Some((min_x, min_y, max_x, max_y)) => {
+                    (min_x.min(x), min_y.min(y), max_x.max(x), max_y.max(y))
+                }
+                None => (x, y, x, y),
+            });
+        }
+        return;
+    }
+    for child in arr {
+        collect_bbox_points(child, bbox);
+    }
+}
+
+fn bbox_tuple_for_db(
+    coordinates: Option<&Value>,
+    bbox: Option<&Value>,
+) -> Option<(f64, f64, f64, f64)> {
+    bbox.and_then(bbox_tuple_from_json)
+        .or_else(|| coordinates.and_then(bbox_tuple_from_json))
+}
+
+fn bbox_json_for_db(coordinates: Option<&Value>, bbox: Option<&Value>) -> Option<String> {
+    bbox.filter(|value| !value.is_null())
+        .map(Value::to_string)
+        .or_else(|| {
+            bbox_tuple_for_db(coordinates, None)
+                .map(|(min_x, min_y, max_x, max_y)| json!([min_x, min_y, max_x, max_y]).to_string())
+        })
 }
 
 fn recover_feature_created_coordinates(
@@ -3914,8 +4000,56 @@ fn apply_event_to_read_models(
             write_region_snapshot(tx, &project_id, &current)?;
         }
         AppEvent::RegionDeleted { id } => {
-            tx.execute("DELETE FROM regions WHERE id = ?1", params![id.to_string()])
-                .map_err(|e| e.to_string())?;
+            delete_features_for_region_tree(tx, &project_id, &id.to_string())?;
+            cleanup_feature_rtree_orphans(tx)?;
+            tx.execute(
+                "DELETE FROM feature_groups
+                 WHERE project_id = ?1
+                   AND layer_id IN (
+                    WITH RECURSIVE region_tree(id) AS (
+                        SELECT id FROM regions WHERE id = ?2 AND project_id = ?1
+                        UNION ALL
+                        SELECT r.id FROM regions r
+                        INNER JOIN region_tree rt ON r.parent_id = rt.id
+                        WHERE r.project_id = ?1
+                    )
+                    SELECT id FROM layers WHERE project_id = ?1 AND region_id IN (SELECT id FROM region_tree)
+                   )",
+                params![project_id, id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
+            tx.execute(
+                "DELETE FROM layers
+                 WHERE project_id = ?1
+                   AND region_id IN (
+                    WITH RECURSIVE region_tree(id) AS (
+                        SELECT id FROM regions WHERE id = ?2 AND project_id = ?1
+                        UNION ALL
+                        SELECT r.id FROM regions r
+                        INNER JOIN region_tree rt ON r.parent_id = rt.id
+                        WHERE r.project_id = ?1
+                    )
+                    SELECT id FROM region_tree
+                   )",
+                params![project_id, id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
+            tx.execute(
+                "DELETE FROM regions
+                 WHERE project_id = ?1
+                   AND id IN (
+                    WITH RECURSIVE region_tree(id) AS (
+                        SELECT id FROM regions WHERE id = ?2 AND project_id = ?1
+                        UNION ALL
+                        SELECT r.id FROM regions r
+                        INNER JOIN region_tree rt ON r.parent_id = rt.id
+                        WHERE r.project_id = ?1
+                    )
+                    SELECT id FROM region_tree
+                   )",
+                params![project_id, id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
         }
         AppEvent::LayerCreated {
             id,
@@ -3937,6 +4071,13 @@ fn apply_event_to_read_models(
             write_layer_snapshot(tx, &project_id, &current)?;
         }
         AppEvent::LayerDeleted { id } => {
+            delete_features_for_layer(tx, &project_id, &id.to_string())?;
+            cleanup_feature_rtree_orphans(tx)?;
+            tx.execute(
+                "DELETE FROM feature_groups WHERE project_id = ?1 AND layer_id = ?2",
+                params![project_id, id.to_string()],
+            )
+            .map_err(|e| e.to_string())?;
             tx.execute("DELETE FROM layers WHERE id = ?1", params![id.to_string()])
                 .map_err(|e| e.to_string())?;
         }
@@ -3970,9 +4111,22 @@ fn apply_event_to_read_models(
             write_feature_group_snapshot(tx, &project_id, &current)?;
         }
         AppEvent::FeatureGroupDeleted { id } => {
+            delete_features_for_group_tree(tx, &project_id, &id.to_string())?;
+            cleanup_feature_rtree_orphans(tx)?;
             tx.execute(
-                "DELETE FROM feature_groups WHERE id = ?1",
-                params![id.to_string()],
+                "DELETE FROM feature_groups
+                 WHERE project_id = ?1
+                   AND id IN (
+                    WITH RECURSIVE group_tree(id) AS (
+                        SELECT id FROM feature_groups WHERE id = ?2 AND project_id = ?1
+                        UNION ALL
+                        SELECT g.id FROM feature_groups g
+                        INNER JOIN group_tree gt ON g.parent_id = gt.id
+                        WHERE g.project_id = ?1
+                    )
+                    SELECT id FROM group_tree
+                   )",
+                params![project_id, id.to_string()],
             )
             .map_err(|e| e.to_string())?;
         }
@@ -3990,8 +4144,10 @@ fn apply_event_to_read_models(
             metadata,
             ..
         } => {
+            let bbox_tuple = bbox_tuple_for_db(Some(geometry), bbox.as_ref());
+            let bbox_json = bbox_json_for_db(Some(geometry), bbox.as_ref());
             tx.execute(
-                "INSERT OR REPLACE INTO features (id, project_id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json, is_visible, note, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, CURRENT_TIMESTAMP)",
+                "INSERT OR REPLACE INTO features (id, project_id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json, bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y, is_visible, note, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, CURRENT_TIMESTAMP)",
                 params![
                     id.to_string(),
                     project_id,
@@ -4002,7 +4158,11 @@ fn apply_event_to_read_models(
                     coordinates_json_for_db(geometry),
                     properties.to_string(),
                     metadata.to_string(),
-                    bbox.as_ref().map(Value::to_string),
+                    bbox_json,
+                    bbox_tuple.map(|tuple| tuple.0),
+                    bbox_tuple.map(|tuple| tuple.1),
+                    bbox_tuple.map(|tuple| tuple.2),
+                    bbox_tuple.map(|tuple| tuple.3),
                     if *is_visible { 1 } else { 0 },
                     note.clone()
                 ],
@@ -4107,6 +4267,7 @@ fn apply_event_to_read_models(
                 params![id.to_string()],
             )
             .map_err(|e| e.to_string())?;
+            cleanup_feature_rtree_orphans(tx)?;
         }
         AppEvent::EquipmentUpserted {
             id,
@@ -5013,10 +5174,14 @@ fn write_feature_snapshot(
         .unwrap_or("Point");
     let metadata = parse_json_field(record.get("metadata").unwrap_or(&Value::Null), json!({}));
     let properties = parse_json_field(record.get("properties").unwrap_or(&Value::Null), json!({}));
+    let coordinates = record.get("coordinates");
+    let bbox_value = record.get("bbox");
+    let bbox_tuple = bbox_tuple_for_db(coordinates, bbox_value);
+    let bbox_json = bbox_json_for_db(coordinates, bbox_value);
     tx.execute(
-        "INSERT INTO features (id, project_id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json, is_visible, note, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, CURRENT_TIMESTAMP)
-         ON CONFLICT(id) DO UPDATE SET layer_id = excluded.layer_id, group_id = excluded.group_id, name = excluded.name, geom_type = excluded.geom_type, coordinates_json = excluded.coordinates_json, properties_json = excluded.properties_json, metadata_json = excluded.metadata_json, bbox_json = excluded.bbox_json, is_visible = excluded.is_visible, note = excluded.note, updated_at = CURRENT_TIMESTAMP",
+        "INSERT INTO features (id, project_id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json, bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y, is_visible, note, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, CURRENT_TIMESTAMP)
+         ON CONFLICT(id) DO UPDATE SET layer_id = excluded.layer_id, group_id = excluded.group_id, name = excluded.name, geom_type = excluded.geom_type, coordinates_json = excluded.coordinates_json, properties_json = excluded.properties_json, metadata_json = excluded.metadata_json, bbox_json = excluded.bbox_json, bbox_min_x = excluded.bbox_min_x, bbox_min_y = excluded.bbox_min_y, bbox_max_x = excluded.bbox_max_x, bbox_max_y = excluded.bbox_max_y, is_visible = excluded.is_visible, note = excluded.note, updated_at = CURRENT_TIMESTAMP",
         params![
             id,
             project_id,
@@ -5024,16 +5189,87 @@ fn write_feature_snapshot(
             record.get("group_id").and_then(Value::as_str),
             name,
             geom_type,
-            record.get("coordinates").and_then(coordinates_json_for_db),
+            coordinates.and_then(coordinates_json_for_db),
             properties.to_string(),
             metadata.to_string(),
-            record
-                .get("bbox")
-                .filter(|value| !value.is_null())
-                .map(Value::to_string),
+            bbox_json,
+            bbox_tuple.map(|tuple| tuple.0),
+            bbox_tuple.map(|tuple| tuple.1),
+            bbox_tuple.map(|tuple| tuple.2),
+            bbox_tuple.map(|tuple| tuple.3),
             if bool_from_value(record.get("is_visible"), true) { 1 } else { 0 },
             record.get("note").and_then(Value::as_str),
         ],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn cleanup_feature_rtree_orphans(tx: &Transaction<'_>) -> Result<(), String> {
+    tx.execute(
+        "DELETE FROM feature_rtree WHERE rowid NOT IN (SELECT rowid FROM features)",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn delete_features_for_group_tree(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    group_id: &str,
+) -> Result<(), String> {
+    tx.execute(
+        "DELETE FROM features
+         WHERE project_id = ?1
+           AND group_id IN (
+            WITH RECURSIVE group_tree(id) AS (
+                SELECT id FROM feature_groups WHERE id = ?2 AND project_id = ?1
+                UNION ALL
+                SELECT g.id FROM feature_groups g
+                INNER JOIN group_tree gt ON g.parent_id = gt.id
+                WHERE g.project_id = ?1
+            )
+            SELECT id FROM group_tree
+           )",
+        params![project_id, group_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn delete_features_for_layer(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    layer_id: &str,
+) -> Result<(), String> {
+    tx.execute(
+        "DELETE FROM features WHERE project_id = ?1 AND layer_id = ?2",
+        params![project_id, layer_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn delete_features_for_region_tree(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    region_id: &str,
+) -> Result<(), String> {
+    tx.execute(
+        "DELETE FROM features
+         WHERE project_id = ?1
+           AND layer_id IN (
+            WITH RECURSIVE region_tree(id) AS (
+                SELECT id FROM regions WHERE id = ?2 AND project_id = ?1
+                UNION ALL
+                SELECT r.id FROM regions r
+                INNER JOIN region_tree rt ON r.parent_id = rt.id
+                WHERE r.project_id = ?1
+            )
+            SELECT id FROM layers WHERE project_id = ?1 AND region_id IN (SELECT id FROM region_tree)
+           )",
+        params![project_id, region_id],
     )
     .map_err(|e| e.to_string())?;
     Ok(())

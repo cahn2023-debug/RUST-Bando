@@ -1,4 +1,5 @@
-use rusqlite::{Connection, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension};
+use serde_json::Value;
 
 pub const CURRENT_SCHEMA_VERSION: i32 = 9;
 pub const CURRENT_SCHEMA_LABEL: &str = "9.0.0";
@@ -111,6 +112,10 @@ pub const BASE_SCHEMA_SQL: &str = r#"
             bbox_json IS NULL
             OR (json_valid(bbox_json) AND json_type(bbox_json) = 'array')
         ),
+        bbox_min_x REAL,
+        bbox_min_y REAL,
+        bbox_max_x REAL,
+        bbox_max_y REAL,
         is_visible INTEGER NOT NULL DEFAULT 1 CHECK (is_visible IN (0, 1)),
         note TEXT,
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -884,10 +889,175 @@ pub fn apply_v9_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
     normalize_legacy_v9_data(conn)?;
     conn.execute_batch(V9_MIGRATION_SQL)?;
     normalize_timestamps(conn)?;
+    ensure_feature_spatial_columns(conn)?;
     create_updated_at_triggers(conn)?;
     create_json_validation_triggers(conn)?;
     create_numeric_validation_triggers(conn)?;
-    create_timestamp_validation_triggers(conn)
+    create_timestamp_validation_triggers(conn)?;
+    ensure_feature_spatial_index(conn)
+}
+
+fn ensure_feature_spatial_columns(conn: &Connection) -> Result<(), rusqlite::Error> {
+    if !table_exists(conn, "features")? {
+        return Ok(());
+    }
+    for (column, ty) in [
+        ("bbox_min_x", "REAL"),
+        ("bbox_min_y", "REAL"),
+        ("bbox_max_x", "REAL"),
+        ("bbox_max_y", "REAL"),
+    ] {
+        if !column_exists(conn, "features", column)? {
+            conn.execute(
+                &format!("ALTER TABLE features ADD COLUMN {column} {ty}"),
+                [],
+            )?;
+        }
+    }
+    backfill_feature_bbox_columns(conn)
+}
+
+fn ensure_feature_spatial_index(conn: &Connection) -> Result<(), rusqlite::Error> {
+    if !table_exists(conn, "features")? {
+        return Ok(());
+    }
+    conn.execute_batch(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_features_project_bbox
+            ON features(project_id, bbox_min_x, bbox_max_x, bbox_min_y, bbox_max_y);
+
+        CREATE VIRTUAL TABLE IF NOT EXISTS feature_rtree
+            USING rtree(rowid, min_x, max_x, min_y, max_y);
+
+        INSERT OR REPLACE INTO feature_rtree(rowid, min_x, max_x, min_y, max_y)
+        SELECT rowid, bbox_min_x, bbox_max_x, bbox_min_y, bbox_max_y
+        FROM features
+        WHERE bbox_min_x IS NOT NULL
+          AND bbox_min_y IS NOT NULL
+          AND bbox_max_x IS NOT NULL
+          AND bbox_max_y IS NOT NULL;
+
+        DELETE FROM feature_rtree
+        WHERE rowid NOT IN (
+            SELECT rowid FROM features
+            WHERE bbox_min_x IS NOT NULL
+              AND bbox_min_y IS NOT NULL
+              AND bbox_max_x IS NOT NULL
+              AND bbox_max_y IS NOT NULL
+        );
+
+        CREATE TRIGGER IF NOT EXISTS trg_feature_rtree_insert
+        AFTER INSERT ON features
+        WHEN NEW.bbox_min_x IS NOT NULL AND NEW.bbox_min_y IS NOT NULL
+         AND NEW.bbox_max_x IS NOT NULL AND NEW.bbox_max_y IS NOT NULL
+        BEGIN
+            INSERT OR REPLACE INTO feature_rtree(rowid, min_x, max_x, min_y, max_y)
+            VALUES (NEW.rowid, NEW.bbox_min_x, NEW.bbox_max_x, NEW.bbox_min_y, NEW.bbox_max_y);
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS trg_feature_rtree_update
+        AFTER UPDATE OF bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y ON features
+        BEGIN
+            DELETE FROM feature_rtree WHERE rowid = NEW.rowid;
+            INSERT OR REPLACE INTO feature_rtree(rowid, min_x, max_x, min_y, max_y)
+            SELECT NEW.rowid, NEW.bbox_min_x, NEW.bbox_max_x, NEW.bbox_min_y, NEW.bbox_max_y
+            WHERE NEW.bbox_min_x IS NOT NULL AND NEW.bbox_min_y IS NOT NULL
+              AND NEW.bbox_max_x IS NOT NULL AND NEW.bbox_max_y IS NOT NULL;
+        END;
+
+        CREATE TRIGGER IF NOT EXISTS trg_feature_rtree_delete
+        AFTER DELETE ON features
+        BEGIN
+            DELETE FROM feature_rtree WHERE rowid = OLD.rowid;
+        END;
+        "#,
+    )
+}
+
+fn backfill_feature_bbox_columns(conn: &Connection) -> Result<(), rusqlite::Error> {
+    let mut stmt = conn.prepare(
+        "SELECT id, coordinates_json, bbox_json
+         FROM features
+         WHERE bbox_min_x IS NULL
+            OR bbox_min_y IS NULL
+            OR bbox_max_x IS NULL
+            OR bbox_max_y IS NULL",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, Option<String>>(1)?,
+            row.get::<_, Option<String>>(2)?,
+        ))
+    })?;
+    let mut updates = Vec::new();
+    for row in rows {
+        let (id, coordinates_json, bbox_json) = row?;
+        let bbox = bbox_json
+            .as_deref()
+            .and_then(parse_bbox_array)
+            .or_else(|| coordinates_json.as_deref().and_then(parse_coordinate_bbox));
+        if let Some((min_x, min_y, max_x, max_y)) = bbox {
+            updates.push((id, min_x, min_y, max_x, max_y));
+        }
+    }
+    drop(stmt);
+
+    for (id, min_x, min_y, max_x, max_y) in updates {
+        conn.execute(
+            "UPDATE features
+             SET bbox_min_x = ?2, bbox_min_y = ?3, bbox_max_x = ?4, bbox_max_y = ?5,
+                 bbox_json = COALESCE(bbox_json, json_array(?2, ?3, ?4, ?5))
+             WHERE id = ?1",
+            params![id, min_x, min_y, max_x, max_y],
+        )?;
+    }
+    Ok(())
+}
+
+fn parse_bbox_array(text: &str) -> Option<(f64, f64, f64, f64)> {
+    let value: Value = serde_json::from_str(text).ok()?;
+    let arr = value.as_array()?;
+    if arr.len() != 4 {
+        return None;
+    }
+    let min_x = arr[0].as_f64()?;
+    let min_y = arr[1].as_f64()?;
+    let max_x = arr[2].as_f64()?;
+    let max_y = arr[3].as_f64()?;
+    Some((
+        min_x.min(max_x),
+        min_y.min(max_y),
+        min_x.max(max_x),
+        min_y.max(max_y),
+    ))
+}
+
+fn parse_coordinate_bbox(text: &str) -> Option<(f64, f64, f64, f64)> {
+    let value: Value = serde_json::from_str(text).ok()?;
+    let mut bbox: Option<(f64, f64, f64, f64)> = None;
+    collect_coordinate_bbox(&value, &mut bbox);
+    bbox
+}
+
+fn collect_coordinate_bbox(value: &Value, bbox: &mut Option<(f64, f64, f64, f64)>) {
+    let Some(arr) = value.as_array() else {
+        return;
+    };
+    if arr.len() >= 2 && arr[0].is_number() && arr[1].is_number() {
+        if let (Some(x), Some(y)) = (arr[0].as_f64(), arr[1].as_f64()) {
+            *bbox = Some(match *bbox {
+                Some((min_x, min_y, max_x, max_y)) => {
+                    (min_x.min(x), min_y.min(y), max_x.max(x), max_y.max(y))
+                }
+                None => (x, y, x, y),
+            });
+        }
+        return;
+    }
+    for child in arr {
+        collect_coordinate_bbox(child, bbox);
+    }
 }
 
 fn ensure_legacy_composite_parent_keys(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -1183,6 +1353,16 @@ fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, r
     .map(|value| value.is_some())
 }
 
+fn table_exists(conn: &Connection, table: &str) -> Result<bool, rusqlite::Error> {
+    conn.query_row(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1 LIMIT 1",
+        [table],
+        |_| Ok(()),
+    )
+    .optional()
+    .map(|value| value.is_some())
+}
+
 fn fiber_splices_has_legacy_self_check(conn: &Connection) -> Result<bool, rusqlite::Error> {
     conn.query_row(
         "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'fiber_splices'",
@@ -1461,6 +1641,53 @@ mod tests {
         assert_eq!(coordinates, "[105.78,21.04]");
         assert_eq!(null_coordinates, None);
         assert_eq!(region_id.as_deref(), Some("missing-region"));
+    }
+
+    #[test]
+    fn backfills_feature_bbox_columns_and_rtree_from_coordinates() {
+        let conn = Connection::open_in_memory().expect("database");
+        apply_v2_schema(&conn).expect("schema applied");
+        conn.execute(
+            "INSERT INTO projects(id, name, title) VALUES('p1', 'Project', 'Project')",
+            [],
+        )
+        .expect("project");
+        conn.execute(
+            "INSERT INTO layers(id, project_id, name) VALUES('l1', 'p1', 'Layer')",
+            [],
+        )
+        .expect("layer");
+        conn.execute(
+            "INSERT INTO features(id, project_id, layer_id, name, geom_type, coordinates_json)
+             VALUES('f1', 'p1', 'l1', 'Line', 'LineString', '[[105.0,21.0],[106.0,22.0]]')",
+            [],
+        )
+        .expect("feature");
+
+        apply_v2_schema(&conn).expect("schema reapplied");
+
+        let bbox: (f64, f64, f64, f64) = conn
+            .query_row(
+                "SELECT bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y FROM features WHERE id='f1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .expect("bbox");
+        let spatial_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM feature_rtree r
+                 INNER JOIN features f ON f.rowid = r.rowid
+                 WHERE f.id = 'f1'
+                   AND r.max_x >= 105.5 AND r.min_x <= 105.5
+                   AND r.max_y >= 21.5 AND r.min_y <= 21.5",
+                [],
+                |row| row.get(0),
+            )
+            .expect("rtree");
+
+        assert_eq!(bbox, (105.0, 21.0, 106.0, 22.0));
+        assert_eq!(spatial_count, 1);
     }
 
     #[test]

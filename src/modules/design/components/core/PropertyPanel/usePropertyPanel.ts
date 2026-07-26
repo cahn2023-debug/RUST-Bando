@@ -18,10 +18,17 @@ export function usePropertyPanel() {
     queueEvent,
     setPreview,
     setActiveParentFeature,
-    selectionSet
+    selectionSet,
+    featureDetailsCache,
+    visibleFeatures
   } = useDesignSync();
 
-  const feature = selectedFeatureId && state?.features ? state.features[selectedFeatureId] : null;
+  const feature = selectedFeatureId
+    ? state?.features?.[selectedFeatureId] ||
+      featureDetailsCache[selectedFeatureId] ||
+      visibleFeatures[selectedFeatureId] ||
+      null
+    : null;
   const group = feature?.group_id ? state?.feature_groups?.[feature.group_id] : null;
 
   const [localName, setLocalName] = useState('');

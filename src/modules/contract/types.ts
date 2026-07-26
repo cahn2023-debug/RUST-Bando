@@ -262,6 +262,9 @@ export interface MapState {
   features: Record<string, FeatureState>;
   settings: Record<string, unknown>;
   lastEventId?: string | null;
+  featureCount?: number;
+  isLargeProject?: boolean;
+  viewportFeatureLimit?: number;
 }
 
 export interface GeoPoint {

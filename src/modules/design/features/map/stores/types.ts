@@ -31,6 +31,13 @@ export type MapStateSlice = {
     isSaving: boolean;
     lastDispatchTime: Record<string, number>;
     syncStatus: number;
+    visibleFeatures: Record<string, MapState['features'][string]>;
+    visibleFeatureIds: string[];
+    featureDetailsCache: Record<string, MapState['features'][string]>;
+    viewportRevision: number;
+    isViewportLoading: boolean;
+    viewportFeatureTotal: number;
+    isViewportTruncated: boolean;
 
     applyPatchToState: (response: DesignActionResponse | DesignBulkActionResponse) => void;
     applyQueuedAckToState: (response: DesignActionResponse | DesignBulkActionResponse) => void;
@@ -38,6 +45,9 @@ export type MapStateSlice = {
     throttledSetState: (newState: MapState) => void;
     updateSettings: (settings: any) => Promise<void>;
     setIsSaving: (isSaving: boolean) => void;
+    setViewportFeatures: (features: MapState['features'][string][], total: number, truncated: boolean) => void;
+    setViewportLoading: (isLoading: boolean) => void;
+    cacheFeatureDetail: (feature: MapState['features'][string]) => void;
     
     // Giai đoạn 5: Optimistic UI
     pendingSyncEvents: Array<{ id: string, payload: any }>;

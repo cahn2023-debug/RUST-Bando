@@ -28,12 +28,15 @@ const toSpecValue = (value: unknown): string | number | undefined => {
 };
 
 export const TechnicalSpecsPanel: React.FC<TechnicalSpecsPanelProps> = ({ className }) => {
-  const { state, selectedFeatureId } = useDesignSync();
+  const { state, selectedFeatureId, featureDetailsCache, visibleFeatures } = useDesignSync();
 
   const selectedFeature = useMemo(() => {
     if (!selectedFeatureId || !state) return null;
-    return state.features[selectedFeatureId] || null;
-  }, [selectedFeatureId, state]);
+    return state.features[selectedFeatureId] ||
+      featureDetailsCache[selectedFeatureId] ||
+      visibleFeatures[selectedFeatureId] ||
+      null;
+  }, [selectedFeatureId, state, featureDetailsCache, visibleFeatures]);
 
   const selectedGroup = useMemo(() => {
     if (!selectedFeature?.group_id || !state) return null;

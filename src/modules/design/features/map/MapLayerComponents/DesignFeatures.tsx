@@ -7,6 +7,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useDesignSync, EMPTY_OBJ } from '@IMPLEMENT/stores/useDesignSync';
 import { FeatureState } from '@CONTRACT/types';
 import { useFeatureHierarchy, useFeatureNumbering, useVisibleFeatures } from '@IMPLEMENT/hooks/useDesignFeatures';
+import { queryVisibleFeaturesV2 } from '@TOOL/utils/designIpc';
 
 
 // Layer Components
@@ -44,6 +45,16 @@ const canReadMapBounds = (map: L.Map) => {
 export const DesignFeatures = () => {
     // 1. Data Subscriptions (Individual selectors for stability and performance)
     const rawFeatures = useDesignSync(state => state.state?.features || (EMPTY_OBJ as Record<string, FeatureState>));
+    const isLargeProject = useDesignSync(state => Boolean(state.state?.isLargeProject));
+    const projectId = useDesignSync(state => state.projectId);
+    const visibleFeatureRecord = useDesignSync(state => state.visibleFeatures);
+    const setViewportFeatures = useDesignSync(state => state.setViewportFeatures);
+    const setViewportLoading = useDesignSync(state => state.setViewportLoading);
+    const isViewportLoading = useDesignSync(state => state.isViewportLoading);
+    const isViewportTruncated = useDesignSync(state => state.isViewportTruncated);
+    const viewportFeatureTotal = useDesignSync(state => state.viewportFeatureTotal);
+    const viewportFeatureLimit = useDesignSync(state => state.state?.viewportFeatureLimit || 10000);
+    const viewportRevision = useDesignSync(state => state.viewportRevision);
     const feature_groups = useDesignSync(state => state.state?.feature_groups || (EMPTY_OBJ as Record<string, any>));
     const selectedFeatureId = useDesignSync(state => state.selectedFeatureId);
     const mapHiddenIds = useDesignSync(state => state.mapHiddenIds);
@@ -64,13 +75,14 @@ export const DesignFeatures = () => {
     // We keep 'features' as a Record for hooks that need ID-based lookup,
     // but ensured it's actually an Object if it was somehow an Array.
     const features = React.useMemo(() => {
-        if (Array.isArray(rawFeatures)) {
+        const sourceFeatures = isLargeProject ? visibleFeatureRecord : rawFeatures;
+        if (Array.isArray(sourceFeatures)) {
             const record: Record<string, FeatureState> = {};
-            rawFeatures.forEach(f => { if (f?.id) record[f.id] = f; });
+            sourceFeatures.forEach(f => { if (f?.id) record[f.id] = f; });
             return record;
         }
-        return rawFeatures;
-    }, [rawFeatures]);
+        return sourceFeatures;
+    }, [isLargeProject, rawFeatures, visibleFeatureRecord]);
 
     const map = useMap();
     const clusterGroupRef = React.useRef<any>(null);
@@ -143,6 +155,43 @@ export const DesignFeatures = () => {
         move: throttledMove
     });
 
+    const viewportRequestRef = useRef(0);
+    useEffect(() => {
+        if (!isLargeProject || !projectId || !bounds) return;
+        const requestId = ++viewportRequestRef.current;
+        const boundsPayload = {
+            s: bounds.getSouth(),
+            n: bounds.getNorth(),
+            w: bounds.getWest(),
+            e: bounds.getEast()
+        };
+        setViewportLoading(true);
+        const timer = window.setTimeout(() => {
+            queryVisibleFeaturesV2(
+                projectId,
+                boundsPayload,
+                currentZoom,
+                Array.from(mapHiddenIds),
+                viewportFeatureLimit
+            )
+                .then((response) => {
+                    if (requestId !== viewportRequestRef.current) return;
+                    setViewportFeatures(response.features || [], response.total || 0, Boolean(response.truncated));
+                })
+                .catch((error) => {
+                    if (requestId !== viewportRequestRef.current) return;
+                    console.warn('[DesignFeatures] Failed to query viewport features:', error);
+                    setViewportFeatures([], 0, false);
+                })
+                .finally(() => {
+                    if (requestId === viewportRequestRef.current) setViewportLoading(false);
+                });
+        }, 200);
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [isLargeProject, projectId, bounds, currentZoom, mapHiddenIds, viewportFeatureLimit, viewportRevision, setViewportFeatures, setViewportLoading]);
+
     // 3. Business Logic Hooks
     const featureHierarchy = useFeatureHierarchy(features);
     const featureNumberMap = useFeatureNumbering(features);
@@ -164,7 +213,8 @@ export const DesignFeatures = () => {
         return map;
     }, [features, previewMetadata]);
 
-    const geoVisibleFeatures = useVisibleFeatures(features, bounds, selectedFeatureId, featureHierarchy.hasVirtualChildren);
+    const clientVisibleFeatures = useVisibleFeatures(features, bounds, selectedFeatureId, featureHierarchy.hasVirtualChildren);
+    const geoVisibleFeatures = isLargeProject ? Object.values(features) : clientVisibleFeatures;
 
     const visibleFeatures = React.useMemo(() => {
         // V2 Fix: ONLY hide features that user explicitly clicked the eye icon
@@ -244,6 +294,14 @@ export const DesignFeatures = () => {
 
     return (
         <>
+            {isLargeProject && (isViewportLoading || isViewportTruncated) && (
+                <div className="pointer-events-none absolute right-3 top-3 z-[1000] rounded bg-white/95 px-3 py-2 text-[11px] font-medium text-slate-700 shadow">
+                    {isViewportLoading
+                        ? 'Đang tải dữ liệu trong vùng nhìn...'
+                        : `Đang hiển thị ${viewportFeatureLimit.toLocaleString()} / ${viewportFeatureTotal.toLocaleString()} đối tượng. Hãy zoom gần hơn.`}
+                </div>
+            )}
+
             {/* Search Result Layer */}
             {searchResultMarker && searchMarkerPosition && searchResultIcon && (
                 <Marker

@@ -25,8 +25,14 @@ export const createSelectionSlice: StateCreator<DesignSyncStore, [], [], Selecti
             return;
         }
 
-        if (id && currentState.state?.features?.[id]) {
-            const feature = currentState.state.features[id];
+        const feature =
+            id
+                ? currentState.state?.features?.[id] ||
+                    currentState.featureDetailsCache[id] ||
+                    currentState.visibleFeatures[id]
+                : null;
+
+        if (id && feature) {
             const groupId = feature.group_id;
             const geomType = (feature.geom_type || '').toUpperCase();
             const isVector = geomType === 'LINESTRING' || geomType === 'POLYLINE' || geomType === 'POLYGON';

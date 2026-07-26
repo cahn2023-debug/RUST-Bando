@@ -156,7 +156,13 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             selectionSet: new Set(),
             mapHiddenIds: new Set(),
             searchResultMarker: null,
-            zoomToTrigger: null
+            zoomToTrigger: null,
+            visibleFeatures: {},
+            visibleFeatureIds: [],
+            featureDetailsCache: {},
+            isViewportLoading: false,
+            viewportFeatureTotal: 0,
+            isViewportTruncated: false
         });
 
         try {
@@ -291,7 +297,13 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
         currentDrawingPoints: [],
         currentDrawingSnapIds: [],
         snappedPoint: null,
-        hoverId: null
+        hoverId: null,
+        visibleFeatures: {},
+        visibleFeatureIds: [],
+        featureDetailsCache: {},
+        isViewportLoading: false,
+        viewportFeatureTotal: 0,
+        isViewportTruncated: false
     }),
 
     setMockState: (state, projectId, projectKey) => set({

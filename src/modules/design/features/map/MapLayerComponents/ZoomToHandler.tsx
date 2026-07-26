@@ -8,6 +8,8 @@ import { getLineCoordinates, getPointCoordinates, getPolygonCoordinates } from '
 export function ZoomToHandler() {
     const map = useMap();
     const state = useDesignSync(s => s.state);
+    const featureDetailsCache = useDesignSync(s => s.featureDetailsCache);
+    const visibleFeatures = useDesignSync(s => s.visibleFeatures);
     const zoomToTrigger = useDesignSync(s => s.zoomToTrigger);
     const lastTrigger = useRef(0);
 
@@ -18,7 +20,7 @@ export function ZoomToHandler() {
         const { id, type } = zoomToTrigger;
 
         if (type === 'feature') {
-            const f = state.features[id];
+            const f = state.features[id] || featureDetailsCache[id] || visibleFeatures[id];
             if (f) {
                 try {
                     const point = getPointCoordinates(f);
@@ -122,7 +124,7 @@ export function ZoomToHandler() {
                 map.setView([lat, lng], 18);
             }
         }
-    }, [zoomToTrigger, state, map]);
+    }, [zoomToTrigger, state, map, featureDetailsCache, visibleFeatures]);
 
     return null;
 }

@@ -38,7 +38,17 @@ describe('useDesignSync Store', () => {
             projectKey: null,
             state: null,
             pendingSync: false,
+            visibleFeatures: {},
+            visibleFeatureIds: [],
+            featureDetailsCache: {},
+            viewportRevision: 0,
             drawingMode: 'none',
+            editingFeatureId: null,
+            selectedFeatureId: null,
+            hoverId: null,
+            previewMetadata: null,
+            selectionSet: new Set(),
+            boxSelection: null,
             currentDrawingPoints: [],
             snappedPoint: null,
         });
@@ -326,5 +336,162 @@ describe('useDesignSync Store', () => {
         const feature = useDesignSync.getState().state!.features['camera-1'];
         expect(feature.coordinates).toEqual([105.7, 21.1]);
         expect(feature.properties).toEqual({ icon: 'camera-new', iconKey: 'camera-new', type: 'camera' });
+    });
+
+    it('should remove deleted features from viewport caches and selection state', () => {
+        const feature: any = {
+            id: 'feature-1',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Camera 1',
+            geom_type: 'POINT',
+            coordinates: [105.7, 21.1],
+            properties: {},
+            metadata: '{}',
+        };
+
+        useDesignSync.setState({
+            state: {
+                regions: {},
+                layers: { 'layer-1': { id: 'layer-1', region_id: 'region-1', name: 'Layer', is_visible: true } },
+                feature_groups: { 'group-1': { id: 'group-1', layer_id: 'layer-1', name: 'Group' } },
+                settings: {},
+                features: { 'feature-1': feature },
+            },
+            visibleFeatures: { 'feature-1': feature },
+            visibleFeatureIds: ['feature-1'],
+            featureDetailsCache: { 'feature-1': feature },
+            viewportRevision: 0,
+            selectedFeatureId: 'feature-1',
+            selectedPopupLocation: [21.1, 105.7],
+            editingFeatureId: 'feature-1',
+            hoverId: 'feature-1',
+            previewMetadata: { id: 'feature-1', metadata: { description: 'draft' } },
+            selectionSet: new Set(['feature-1', 'feature-2']),
+            boxSelection: {
+                count: 1,
+                byType: { POINT: 1 },
+                items: [{
+                    id: 'feature-1',
+                    name: 'Camera 1',
+                    geomType: 'POINT',
+                    displayType: 'Camera',
+                    lng: 105.7,
+                    lat: 21.1,
+                    note: '',
+                    groupId: 'group-1',
+                }],
+                bounds: [21.1, 105.7, 21.1, 105.7],
+            },
+        });
+
+        useDesignSync.getState().applyEventsOptimistically([{
+            type: 'FeatureDeleted',
+            payload: { id: 'feature-1' },
+        }]);
+
+        const store = useDesignSync.getState();
+        expect(store.state!.features['feature-1']).toBeUndefined();
+        expect(store.visibleFeatures['feature-1']).toBeUndefined();
+        expect(store.visibleFeatureIds).toEqual([]);
+        expect(store.featureDetailsCache['feature-1']).toBeUndefined();
+        expect(store.viewportRevision).toBe(1);
+        expect(store.selectedFeatureId).toBeNull();
+        expect(store.selectedPopupLocation).toBeNull();
+        expect(store.editingFeatureId).toBeNull();
+        expect(store.hoverId).toBeNull();
+        expect(store.previewMetadata).toBeNull();
+        expect(Array.from(store.selectionSet)).toEqual(['feature-2']);
+        expect(store.boxSelection).toBeNull();
+    });
+
+    it('should cascade feature group deletes through known child features and groups', () => {
+        useDesignSync.setState({
+            state: {
+                regions: {},
+                layers: { 'layer-1': { id: 'layer-1', region_id: 'region-1', name: 'Layer' } },
+                feature_groups: {
+                    'group-parent': { id: 'group-parent', layer_id: 'layer-1', parent_id: null, name: 'Parent' },
+                    'group-child': { id: 'group-child', layer_id: 'layer-1', parent_id: 'group-parent', name: 'Child' },
+                },
+                settings: {},
+                features: {
+                    'feature-parent': { id: 'feature-parent', layer_id: 'layer-1', group_id: 'group-parent', name: 'Parent item', geom_type: 'POINT' },
+                    'feature-child': { id: 'feature-child', layer_id: 'layer-1', group_id: 'group-child', name: 'Child item', geom_type: 'POINT' },
+                    'feature-other': { id: 'feature-other', layer_id: 'layer-1', group_id: null, name: 'Other item', geom_type: 'POINT' },
+                },
+            } as any,
+            visibleFeatures: {
+                'feature-parent': {} as any,
+                'feature-child': {} as any,
+                'feature-other': {} as any,
+            },
+            visibleFeatureIds: ['feature-parent', 'feature-child', 'feature-other'],
+            featureDetailsCache: {
+                'feature-parent': {} as any,
+                'feature-child': {} as any,
+                'feature-other': {} as any,
+            },
+            viewportRevision: 0,
+        });
+
+        useDesignSync.getState().applyEventsOptimistically([{
+            type: 'FeatureGroupDeleted',
+            payload: { id: 'group-parent' },
+        }]);
+
+        const store = useDesignSync.getState();
+        expect(store.state!.feature_groups['group-parent']).toBeUndefined();
+        expect(store.state!.feature_groups['group-child']).toBeUndefined();
+        expect(store.state!.features['feature-parent']).toBeUndefined();
+        expect(store.state!.features['feature-child']).toBeUndefined();
+        expect(store.state!.features['feature-other']).toBeDefined();
+        expect(store.visibleFeatureIds).toEqual(['feature-other']);
+        expect(store.viewportRevision).toBe(1);
+    });
+
+    it('should cascade layer deletes through known child features and groups', () => {
+        useDesignSync.setState({
+            state: {
+                regions: {},
+                layers: {
+                    'layer-delete': { id: 'layer-delete', region_id: 'region-1', name: 'Delete' },
+                    'layer-keep': { id: 'layer-keep', region_id: 'region-1', name: 'Keep' },
+                },
+                feature_groups: {
+                    'group-delete': { id: 'group-delete', layer_id: 'layer-delete', parent_id: null, name: 'Delete group' },
+                    'group-keep': { id: 'group-keep', layer_id: 'layer-keep', parent_id: null, name: 'Keep group' },
+                },
+                settings: {},
+                features: {
+                    'feature-delete': { id: 'feature-delete', layer_id: 'layer-delete', group_id: 'group-delete', name: 'Delete item', geom_type: 'POINT' },
+                    'feature-keep': { id: 'feature-keep', layer_id: 'layer-keep', group_id: 'group-keep', name: 'Keep item', geom_type: 'POINT' },
+                },
+            } as any,
+            visibleFeatures: {
+                'feature-delete': {} as any,
+                'feature-keep': {} as any,
+            },
+            visibleFeatureIds: ['feature-delete', 'feature-keep'],
+            featureDetailsCache: {
+                'feature-delete': {} as any,
+                'feature-keep': {} as any,
+            },
+            viewportRevision: 0,
+        });
+
+        useDesignSync.getState().applyEventsOptimistically([{
+            type: 'LayerDeleted',
+            payload: { id: 'layer-delete' },
+        }]);
+
+        const store = useDesignSync.getState();
+        expect(store.state!.layers['layer-delete']).toBeUndefined();
+        expect(store.state!.layers['layer-keep']).toBeDefined();
+        expect(store.state!.feature_groups['group-delete']).toBeUndefined();
+        expect(store.state!.features['feature-delete']).toBeUndefined();
+        expect(store.state!.features['feature-keep']).toBeDefined();
+        expect(store.visibleFeatureIds).toEqual(['feature-keep']);
+        expect(store.viewportRevision).toBe(1);
     });
 });

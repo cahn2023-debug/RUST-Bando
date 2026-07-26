@@ -1,8 +1,12 @@
 use crate::domain::implement::commands::v2::ActorState;
 use crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand;
+use serde::Deserialize;
 use serde_json::{json, Value};
 use tauri::State;
 use url::Url;
+
+const FULL_FEATURE_HYDRATION_LIMIT: i64 = 50_000;
+const VIEWPORT_FEATURE_LIMIT: i64 = 10_000;
 
 fn extract_project_metadata(rows: &Value) -> Value {
     let metadata = rows
@@ -70,6 +74,11 @@ fn ensure_design_shape(state: Value) -> Value {
                     dst.insert(key.to_string(), value.clone());
                 }
             }
+            for key in ["featureCount", "isLargeProject", "viewportFeatureLimit"] {
+                if let Some(value) = src.get(key) {
+                    dst.insert(key.to_string(), value.clone());
+                }
+            }
         }
     }
     shaped
@@ -97,6 +106,8 @@ fn normalize_metadata_to_string(v: &Value) -> String {
 async fn load_design_state_from_tables(
     state: &ActorState,
     project_id: &str,
+    include_features: bool,
+    feature_count: i64,
 ) -> Result<Value, String> {
     let regions = exec_query(
         state,
@@ -111,11 +122,6 @@ async fn load_design_state_from_tables(
     let feature_groups = exec_query(
         state,
         "SELECT id, layer_id, parent_id, name, group_type, is_visible, metadata_json FROM feature_groups WHERE project_id = ?1 ORDER BY created_at, id",
-        vec![project_id.to_string()],
-    ).await?;
-    let features = exec_query(
-        state,
-        "SELECT id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json FROM features WHERE project_id = ?1 ORDER BY created_at, id",
         vec![project_id.to_string()],
     ).await?;
     let settings = exec_query(
@@ -168,26 +174,17 @@ async fn load_design_state_from_tables(
     result_obj.insert("feature_groups".to_string(), Value::Object(groups_obj));
 
     let mut features_obj = serde_json::Map::new();
-    for row in row_array(features) {
-        if let Some(id) = row.get("id").and_then(Value::as_str) {
-            let metadata = row
-                .get("metadata_json")
-                .map(normalize_metadata_to_string)
-                .unwrap_or_else(|| "{}".to_string());
-            features_obj.insert(
-                id.to_string(),
-                json!({
-                    "id": id,
-                    "layer_id": row.get("layer_id").cloned().unwrap_or(Value::Null),
-                    "group_id": row.get("group_id").cloned().unwrap_or(Value::Null),
-                    "name": row.get("name").cloned().unwrap_or_else(|| json!("Untitled Feature")),
-                    "geom_type": row.get("geom_type").cloned().unwrap_or_else(|| json!("Point")),
-                    "coordinates": row.get("coordinates_json").cloned().unwrap_or(Value::Null),
-                    "properties": row.get("properties_json").cloned().unwrap_or_else(|| json!({})),
-                    "metadata": metadata,
-                    "bbox": row.get("bbox_json").cloned().unwrap_or(Value::Null),
-                }),
-            );
+    if include_features {
+        let features = exec_query(
+            state,
+            "SELECT id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json FROM features WHERE project_id = ?1 ORDER BY created_at, id",
+            vec![project_id.to_string()],
+        )
+        .await?;
+        for row in row_array(features) {
+            if let Some(id) = row.get("id").and_then(Value::as_str) {
+                features_obj.insert(id.to_string(), feature_row_to_state(&row));
+            }
         }
     }
     result_obj.insert("features".to_string(), Value::Object(features_obj));
@@ -198,8 +195,97 @@ async fn load_design_state_from_tables(
         .and_then(|row| row.get("settings_json").cloned())
         .unwrap_or_else(|| json!({}));
     result_obj.insert("settings".to_string(), settings_value);
+    result_obj.insert("featureCount".to_string(), json!(feature_count));
+    result_obj.insert(
+        "isLargeProject".to_string(),
+        json!(!include_features && feature_count > 0),
+    );
+    result_obj.insert(
+        "viewportFeatureLimit".to_string(),
+        json!(VIEWPORT_FEATURE_LIMIT),
+    );
 
     Ok(result)
+}
+
+fn parse_json_value(value: Option<&Value>, default: Value) -> Value {
+    match value {
+        Some(Value::String(text)) => serde_json::from_str(text).unwrap_or(default),
+        Some(Value::Null) | None => default,
+        Some(other) => other.clone(),
+    }
+}
+
+fn bbox_value_to_state(value: Option<&Value>) -> Value {
+    let parsed = parse_json_value(value, Value::Null);
+    if let Some(arr) = parsed.as_array() {
+        if arr.len() == 4 {
+            return json!({
+                "min_x": arr[0].clone(),
+                "min_y": arr[1].clone(),
+                "max_x": arr[2].clone(),
+                "max_y": arr[3].clone(),
+            });
+        }
+    }
+    parsed
+}
+
+fn feature_row_to_state(row: &Value) -> Value {
+    let metadata = row
+        .get("metadata_json")
+        .map(normalize_metadata_to_string)
+        .unwrap_or_else(|| "{}".to_string());
+    json!({
+        "id": row.get("id").cloned().unwrap_or(Value::Null),
+        "layer_id": row.get("layer_id").cloned().unwrap_or(Value::Null),
+        "group_id": row.get("group_id").cloned().unwrap_or(Value::Null),
+        "name": row.get("name").cloned().unwrap_or_else(|| json!("Untitled Feature")),
+        "geom_type": row.get("geom_type").cloned().unwrap_or_else(|| json!("Point")),
+        "coordinates": parse_json_value(row.get("coordinates_json"), Value::Null),
+        "properties": parse_json_value(row.get("properties_json"), json!({})),
+        "metadata": metadata,
+        "bbox": bbox_value_to_state(row.get("bbox_json")),
+    })
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ViewportBounds {
+    s: Option<f64>,
+    n: Option<f64>,
+    w: Option<f64>,
+    e: Option<f64>,
+    south: Option<f64>,
+    north: Option<f64>,
+    west: Option<f64>,
+    east: Option<f64>,
+}
+
+impl ViewportBounds {
+    fn normalized(&self) -> Result<(f64, f64, f64, f64), String> {
+        let south = self
+            .s
+            .or(self.south)
+            .ok_or_else(|| "Missing south bound".to_string())?;
+        let north = self
+            .n
+            .or(self.north)
+            .ok_or_else(|| "Missing north bound".to_string())?;
+        let west = self
+            .w
+            .or(self.west)
+            .ok_or_else(|| "Missing west bound".to_string())?;
+        let east = self
+            .e
+            .or(self.east)
+            .ok_or_else(|| "Missing east bound".to_string())?;
+        Ok((
+            south.min(north),
+            south.max(north),
+            west.min(east),
+            west.max(east),
+        ))
+    }
 }
 
 // ============================================================================
@@ -1009,8 +1095,21 @@ pub async fn load_design_state_v2(
     let project_id = project_id
         .or(projectId)
         .ok_or_else(|| "Missing project_id".to_string())?;
-    let read_model_state =
-        ensure_design_shape(load_design_state_from_tables(&state, &project_id).await?);
+    let feature_count_rows = exec_query(
+        &state,
+        "SELECT COUNT(*) AS feature_count FROM features WHERE project_id = ?1",
+        vec![project_id.clone()],
+    )
+    .await?;
+    let feature_count = row_array(feature_count_rows)
+        .first()
+        .and_then(|row| row.get("feature_count"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let include_features = feature_count <= FULL_FEATURE_HYDRATION_LIMIT;
+    let read_model_state = ensure_design_shape(
+        load_design_state_from_tables(&state, &project_id, include_features, feature_count).await?,
+    );
     if has_design_data(&read_model_state) {
         return Ok(read_model_state);
     }
@@ -1069,6 +1168,133 @@ pub async fn load_design_state_v2(
     }
 
     Ok(metadata_state)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn query_visible_features_v2(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    bounds: ViewportBounds,
+    zoom: Option<f64>,
+    hidden_ids: Option<Vec<String>>,
+    hiddenIds: Option<Vec<String>>,
+    limit: Option<i64>,
+) -> Result<Value, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let (south, north, west, east) = bounds.normalized()?;
+    let effective_limit = limit
+        .unwrap_or(VIEWPORT_FEATURE_LIMIT)
+        .clamp(1, VIEWPORT_FEATURE_LIMIT);
+    let hidden: std::collections::BTreeSet<String> = hidden_ids
+        .or(hiddenIds)
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
+
+    let total_rows = exec_query(
+        &state,
+        "SELECT COUNT(*) AS total
+         FROM feature_rtree r
+         INNER JOIN features f ON f.rowid = r.rowid
+         WHERE f.project_id = ?1
+           AND r.max_x >= ?2 AND r.min_x <= ?3
+           AND r.max_y >= ?4 AND r.min_y <= ?5",
+        vec![
+            project_id.clone(),
+            west.to_string(),
+            east.to_string(),
+            south.to_string(),
+            north.to_string(),
+        ],
+    )
+    .await?;
+    let total = row_array(total_rows)
+        .first()
+        .and_then(|row| row.get("total"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+
+    let rows = exec_query(
+        &state,
+        "SELECT f.id, f.layer_id, f.group_id, f.name, f.geom_type, f.coordinates_json,
+                f.properties_json, f.metadata_json, f.bbox_json
+         FROM feature_rtree r
+         INNER JOIN features f ON f.rowid = r.rowid
+         WHERE f.project_id = ?1
+           AND r.max_x >= ?2 AND r.min_x <= ?3
+           AND r.max_y >= ?4 AND r.min_y <= ?5
+         ORDER BY f.created_at, f.id
+         LIMIT ?6",
+        vec![
+            project_id.clone(),
+            west.to_string(),
+            east.to_string(),
+            south.to_string(),
+            north.to_string(),
+            effective_limit.to_string(),
+        ],
+    )
+    .await?;
+
+    let mut features = Vec::new();
+    for row in row_array(rows) {
+        let id = row.get("id").and_then(Value::as_str).unwrap_or_default();
+        let group_id = row
+            .get("group_id")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let layer_id = row
+            .get("layer_id")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        if hidden.contains(id) || hidden.contains(group_id) || hidden.contains(layer_id) {
+            continue;
+        }
+        features.push(feature_row_to_state(&row));
+    }
+
+    Ok(json!({
+        "features": features,
+        "total": total,
+        "returned": features.len(),
+        "truncated": total > effective_limit,
+        "limit": effective_limit,
+        "zoom": zoom,
+    }))
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn get_feature_detail_v2(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    feature_id: Option<String>,
+    featureId: Option<String>,
+) -> Result<Value, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let feature_id = feature_id
+        .or(featureId)
+        .ok_or_else(|| "Missing feature_id".to_string())?;
+    let rows = exec_query(
+        &state,
+        "SELECT id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json
+         FROM features
+         WHERE project_id = ?1 AND id = ?2
+         LIMIT 1",
+        vec![project_id, feature_id],
+    )
+    .await?;
+    row_array(rows)
+        .first()
+        .map(feature_row_to_state)
+        .ok_or_else(|| "Feature not found".to_string())
 }
 
 #[tauri::command]
@@ -1443,12 +1669,17 @@ mod tests {
             statements
         });
 
-        let state_value = load_design_state_from_tables(&state, "project-1")
+        let state_value = load_design_state_from_tables(&state, "project-1", true, 0)
             .await
             .expect("load state");
         let statements = responder.await.expect("query responder");
 
-        assert_eq!(state_value, empty_design_state());
+        assert_eq!(state_value.get("features"), Some(&json!({})));
+        assert_eq!(state_value.get("featureCount").and_then(Value::as_i64), Some(0));
+        assert_eq!(
+            state_value.get("isLargeProject").and_then(Value::as_bool),
+            Some(false)
+        );
         assert!(statements
             .iter()
             .all(|sql| sql.trim_start().starts_with("SELECT")));

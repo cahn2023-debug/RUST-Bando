@@ -102,6 +102,8 @@ pub fn run() {
             crate::domain::implement::commands::v2_bridge::trace_fiber_circuit,
             crate::domain::implement::commands::v2_bridge::validate_fiber_network,
             crate::domain::implement::commands::v2_bridge::load_design_state_v2,
+            crate::domain::implement::commands::v2_bridge::query_visible_features_v2,
+            crate::domain::implement::commands::v2_bridge::get_feature_detail_v2,
             crate::domain::implement::commands::v2_bridge::get_task_dependencies_v2,
             crate::domain::implement::commands::v2_bridge::get_content_types_v2,
             crate::domain::implement::commands::v2_bridge::get_project_bom_table_v2,
