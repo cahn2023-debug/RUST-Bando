@@ -12,6 +12,9 @@ interface BoxSummaryProps {
   inline?: boolean;
 }
 
+const MAX_VISIBLE_ROWS = 500;
+const EXPORT_HEADERS = ['STT', 'Nội dung', 'Loại', 'Kinh độ', 'Vĩ độ', 'Ghi chú'];
+
 export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
   const {
     boxSelection, setBoxSelection, selectFeature, selectedFeatureId,
@@ -245,7 +248,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
             </button>
           )}
           <button
-            onClick={() => { setBoxSelection(null); clearSelection(); }}
+            onClick={handleClearSelection}
             className="text-[9px] font-bold text-cad-text-secondary hover:text-cad-accent transition-colors uppercase tracking-widest px-2"
           >
             CLEAR
@@ -267,7 +270,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
             Breakdown by type
           </div>
           <div className="space-y-2">
-            {Object.entries(typeCounts).map(([type, count]) => (
+            {typeBreakdown.map(([type, count]) => (
               <div key={type} className="flex items-center justify-between text-[10px] group px-1">
                 <span className="text-cad-text-secondary uppercase font-medium">{type}</span>
                 <div className="flex items-center gap-3">
@@ -299,7 +302,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
         {/* Detailed Grid */}
         <div className="flex-1 overflow-y-auto overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse table-fixed">
-            <thead className="sticky top-0 z-10 bg-cad-surface shadow-sm text-white">
+            <thead className="sticky top-0 z-10 bg-cad-surface shadow-sm text-cad-text-primary">
               <tr>
                 <th className="px-1 py-2.5 text-[9px] font-black tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50 text-center w-[30px]">
                   <input
@@ -356,7 +359,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
               </tr>
             </thead>
             <tbody>
-              {items.slice(0, 500).map((item, idx) => {
+              {visibleItems.map((item, idx) => {
                 const isSelected = item.id === selectedFeatureId;
                 const isExpanded = expandedItems.has(item.id);
                 return (
@@ -455,7 +458,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
                                     <div className="w-1 h-3 bg-cad-accent rounded-full"></div>
                                     Tọa độ chi tiết (WGS84)
                                   </label>
-                                  <div className="bg-black/40 p-3 rounded-lg border border-cad-border/20 shadow-inner space-y-2">
+                                  <div className="bg-cad-bg/70 p-3 rounded-lg border border-cad-border/20 shadow-inner space-y-2">
                                     <div className="flex justify-between items-center text-[10px] font-mono">
                                       <span className="text-cad-text-muted">Kinh độ (Longitude):</span>
                                       <span className="text-emerald-400 font-bold tracking-wider">{item.lng.toFixed(8)}°</span>
@@ -468,7 +471,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
                                 </div>
                                 <div className="space-y-3">
                                   <label className="text-[9px] font-black text-cad-text-muted uppercase tracking-[0.2em]">Thông tin khảo sát</label>
-                                  <div className="bg-black/20 p-3 rounded-lg border border-cad-border/10 min-h-[50px] flex items-center">
+                                  <div className="bg-cad-surface/70 p-3 rounded-lg border border-cad-border/10 min-h-[50px] flex items-center">
                                     <p className="text-[10px] text-cad-text-secondary leading-relaxed italic">
                                       {safeString(item.note) || "Không có dữ liệu khảo sát bổ sung cho đối tượng này."}
                                     </p>
@@ -490,7 +493,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
         <div className="p-4 bg-cad-surface border-t border-cad-border">
           <button
             onClick={handleExport}
-            className="w-full py-3 bg-cad-accent hover:bg-emerald-500 text-[#0f172a] rounded-sm text-[10px] font-black uppercase tracking-[0.2em] shadow-lg transition-all flex items-center justify-center gap-2 group"
+            className="w-full py-3 bg-cad-accent hover:bg-cad-active text-black rounded-sm text-[10px] font-black uppercase tracking-[0.2em] shadow-lg transition-all flex items-center justify-center gap-2 group"
           >
             <ImageIcon className="w-4 h-4 group-hover:scale-110 transition-transform" /> COPY TO EXCEL (TSV)
           </button>
@@ -499,7 +502,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
 
       <DeleteConfirmationModal
         isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
+        onClose={handleCloseDeleteModal}
         onConfirm={confirmDelete}
         itemName={itemToDelete?.name}
       />

@@ -111,7 +111,7 @@ describe('useDrawingInteraction', () => {
                 group_id: 'group-1',
                 name: 'Điểm Khảo Sát Mới',
                 geom_type: 'Point',
-                coordinates: JSON.stringify([20, 10]),
+                coordinates: [20, 10],
             },
         });
         expect(getMetadataFromCall(dispatchEvent, 0)).toMatchObject({
@@ -328,7 +328,7 @@ describe('useDrawingInteraction', () => {
                 group_id: 'group-1',
                 name: 'Tuyến SignalLine Mới',
                 geom_type: 'LineString',
-                coordinates: JSON.stringify([[20, 10], [21, 11]]),
+                coordinates: [[20, 10], [21, 11]],
             },
         });
         expect(JSON.parse(events[0].payload.metadata)).toMatchObject({

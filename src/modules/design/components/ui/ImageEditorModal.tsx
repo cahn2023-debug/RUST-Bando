@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Pencil, Crop, RotateCw, Circle, Square, Type as TypeIcon, Minus, MoveUpRight,
-  Undo2, Radio, Eraser, X, Check
+  Undo2, Radio, Eraser, X, Check, RotateCcw
 } from 'lucide-react';
 import { cn } from '@TOOL/utils/cn';
 import { Button } from '@DESIGN/components/ui/Button';
@@ -42,6 +42,11 @@ interface ImageEditSnapshot {
   textAnnotations: string[];
   canvasWidth: number;
   canvasHeight: number;
+}
+
+interface RotationPreviewSource {
+  bgCanvas: HTMLCanvasElement;
+  annotationCanvas: HTMLCanvasElement;
 }
 
 /**
@@ -197,12 +202,14 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 }) => {
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
+  const cropOverlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const snapshotRef = useRef<ImageData | null>(null);
   const dragStartRef = useRef<DragPoint | null>(null);
   const lastPencilPointRef = useRef<DragPoint | null>(null);
   const cropRectRef = useRef<CropRect | null>(null);
+  const rotationPreviewSourceRef = useRef<RotationPreviewSource | null>(null);
   /** Initial focus target: the crop tool, a safe non-destructive control. */
   const initialFocusRef = useRef<HTMLButtonElement>(null);
 
@@ -215,6 +222,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   const [pendingTextPoint, setPendingTextPoint] = useState<DragPoint | null>(null);
   const [assetStamp, setAssetStamp] = useState<AssetStamp>('pole-4m');
   const [cropRect, setCropRect] = useState<CropRect | null>(null);
+  const [cropRotation, setCropRotation] = useState(0);
   const [cropPreviewUrl, setCropPreviewUrl] = useState('');
   const [undoStack, setUndoStack] = useState<ImageEditSnapshot[]>([]);
   const [textAnnotations, setTextAnnotations] = useState<string[]>([]);
@@ -239,6 +247,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   const setBitmapSize = (width: number, height: number) => {
     const bgCanvas = bgCanvasRef.current;
     const annCanvas = annotationCanvasRef.current;
+    const cropOverlayCanvas = cropOverlayCanvasRef.current;
     if (bgCanvas) {
       bgCanvas.width = width;
       bgCanvas.height = height;
@@ -247,9 +256,130 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       annCanvas.width = width;
       annCanvas.height = height;
     }
+    if (cropOverlayCanvas) {
+      cropOverlayCanvas.width = width;
+      cropOverlayCanvas.height = height;
+    }
     const nextSize = { width, height };
     setCanvasSize(nextSize);
     requestAnimationFrame(() => updateCanvasDisplaySize(nextSize));
+  };
+
+  const clearCropGuide = () => {
+    const cropOverlayCanvas = cropOverlayCanvasRef.current;
+    const ctx = cropOverlayCanvas?.getContext('2d');
+    if (!cropOverlayCanvas || !ctx) return;
+    ctx.clearRect(0, 0, cropOverlayCanvas.width, cropOverlayCanvas.height);
+  };
+
+  const resetCropSelection = () => {
+    setCropRect(null);
+    cropRectRef.current = null;
+    setCropPreviewUrl('');
+    clearCropGuide();
+  };
+
+  const copyCanvas = (source: HTMLCanvasElement) => {
+    const copy = document.createElement('canvas');
+    copy.width = source.width;
+    copy.height = source.height;
+    copy.getContext('2d')?.drawImage(source, 0, 0);
+    return copy;
+  };
+
+  const drawRotatedSources = (
+    bgSource: HTMLCanvasElement,
+    annSource: HTMLCanvasElement,
+    angleDegrees: number
+  ) => {
+    const bgCanvas = bgCanvasRef.current;
+    const annCanvas = annotationCanvasRef.current;
+    const bgCtx = bgCanvas?.getContext('2d');
+    const annCtx = annCanvas?.getContext('2d');
+    if (!bgCanvas || !bgCtx || !annCanvas || !annCtx) return;
+
+    const angleRadians = (angleDegrees * Math.PI) / 180;
+    const absCos = Math.abs(Math.cos(angleRadians));
+    const absSin = Math.abs(Math.sin(angleRadians));
+    const newW = Math.max(1, Math.ceil(bgSource.width * absCos + bgSource.height * absSin));
+    const newH = Math.max(1, Math.ceil(bgSource.width * absSin + bgSource.height * absCos));
+    setBitmapSize(newW, newH);
+
+    bgCtx.clearRect(0, 0, newW, newH);
+    bgCtx.save();
+    bgCtx.translate(newW / 2, newH / 2);
+    bgCtx.rotate(angleRadians);
+    bgCtx.drawImage(bgSource, -bgSource.width / 2, -bgSource.height / 2);
+    bgCtx.restore();
+
+    annCtx.clearRect(0, 0, newW, newH);
+    annCtx.save();
+    annCtx.translate(newW / 2, newH / 2);
+    annCtx.rotate(angleRadians);
+    annCtx.drawImage(annSource, -annSource.width / 2, -annSource.height / 2);
+    annCtx.restore();
+  };
+
+  const restoreRotationPreviewSource = () => {
+    const source = rotationPreviewSourceRef.current;
+    const bgCanvas = bgCanvasRef.current;
+    const annCanvas = annotationCanvasRef.current;
+    const bgCtx = bgCanvas?.getContext('2d');
+    const annCtx = annCanvas?.getContext('2d');
+    if (!source || !bgCanvas || !bgCtx || !annCanvas || !annCtx) return;
+
+    setBitmapSize(source.bgCanvas.width, source.bgCanvas.height);
+    bgCtx.clearRect(0, 0, source.bgCanvas.width, source.bgCanvas.height);
+    bgCtx.drawImage(source.bgCanvas, 0, 0);
+    annCtx.clearRect(0, 0, source.annotationCanvas.width, source.annotationCanvas.height);
+    annCtx.drawImage(source.annotationCanvas, 0, 0);
+  };
+
+  const clearRotationPreviewSource = () => {
+    rotationPreviewSourceRef.current = null;
+  };
+
+  const commitRotationPreviewSourceToUndo = () => {
+    const source = rotationPreviewSourceRef.current;
+    if (!source) return false;
+
+    const snapshot: ImageEditSnapshot = {
+      bgDataUrl: source.bgCanvas.toDataURL('image/png'),
+      annotationDataUrl: source.annotationCanvas.toDataURL('image/png'),
+      textAnnotations: [...textAnnotations],
+      canvasWidth: source.bgCanvas.width,
+      canvasHeight: source.bgCanvas.height
+    };
+    setUndoStack(prev => [...prev, snapshot].slice(-20));
+    clearRotationPreviewSource();
+    return true;
+  };
+
+  const updateCropRotation = (nextRotation: number) => {
+    const bgCanvas = bgCanvasRef.current;
+    const annCanvas = annotationCanvasRef.current;
+    if (!bgCanvas || !annCanvas) return;
+
+    const clampedRotation = Math.max(-45, Math.min(45, nextRotation));
+    resetCropSelection();
+
+    if (clampedRotation === 0) {
+      restoreRotationPreviewSource();
+      clearRotationPreviewSource();
+      setCropRotation(0);
+      return;
+    }
+
+    if (!rotationPreviewSourceRef.current) {
+      rotationPreviewSourceRef.current = {
+        bgCanvas: copyCanvas(bgCanvas),
+        annotationCanvas: copyCanvas(annCanvas),
+      };
+    }
+
+    const source = rotationPreviewSourceRef.current;
+    drawRotatedSources(source.bgCanvas, source.annotationCanvas, clampedRotation);
+    setCropRotation(clampedRotation);
   };
 
   const pushUndoSnapshot = () => {
@@ -298,9 +428,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       }
 
       setTextAnnotations(snapshot.textAnnotations);
-      setCropRect(null);
-      cropRectRef.current = null;
-      setCropPreviewUrl('');
+      resetCropSelection();
+      clearRotationPreviewSource();
+      setCropRotation(0);
       return prev.slice(0, -1);
     });
   };
@@ -331,9 +461,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       bgCtx.drawImage(img, 0, 0, w, h);
 
       annCtx.clearRect(0, 0, w, h);
-      setCropRect(null);
-      cropRectRef.current = null;
-      setCropPreviewUrl('');
+      resetCropSelection();
+      clearRotationPreviewSource();
+      setCropRotation(0);
       setUndoStack([]);
       setTextAnnotations([]);
     };
@@ -380,8 +510,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         const nextTool = toolMap[event.key.toLowerCase()];
         if (nextTool) {
           event.preventDefault();
-          setTool(nextTool);
-          setPendingTextPoint(null);
+          selectTool(nextTool);
           return;
         }
       }
@@ -390,9 +519,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         event.preventDefault();
         event.stopPropagation();
         if (cropRect) {
-          setCropRect(null);
-          cropRectRef.current = null;
-          setCropPreviewUrl('');
+          resetCropSelection();
           return;
         }
         if (tool !== 'crop') {
@@ -408,6 +535,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cropRect, tool, onCancel]);
 
+  useEffect(() => {
+    if (tool !== 'crop') resetCropSelection();
+  }, [tool]);
+
   const getCanvasPoint = (event: React.PointerEvent<HTMLCanvasElement>, canvas: HTMLCanvasElement): DragPoint => {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -419,9 +550,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   };
 
   const drawCropGuide = (rect: CropRect) => {
-    const annCanvas = annotationCanvasRef.current;
-    const ctx = annCanvas?.getContext('2d');
-    if (!annCanvas || !ctx) return;
+    const cropOverlayCanvas = cropOverlayCanvasRef.current;
+    const ctx = cropOverlayCanvas?.getContext('2d');
+    if (!cropOverlayCanvas || !ctx) return;
+    ctx.clearRect(0, 0, cropOverlayCanvas.width, cropOverlayCanvas.height);
     ctx.save();
     ctx.strokeStyle = '#facc15';
     ctx.lineWidth = Math.max(2, strokeWidth);
@@ -572,44 +704,68 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     snapshotRef.current = null;
   };
 
-  const rotateCanvas = () => {
+  const rotateCanvasByAngle = (angleDegrees: number) => {
     const bgCanvas = bgCanvasRef.current;
     const annCanvas = annotationCanvasRef.current;
     const bgCtx = bgCanvas?.getContext('2d');
     const annCtx = annCanvas?.getContext('2d');
     if (!bgCanvas || !bgCtx || !annCanvas || !annCtx) return;
 
+    const angleRadians = (angleDegrees * Math.PI) / 180;
+    if (Math.abs(angleRadians) < 0.0001) return;
+
     pushUndoSnapshot();
 
-    // Rotate Base Canvas
     const bgSource = document.createElement('canvas');
     bgSource.width = bgCanvas.width;
     bgSource.height = bgCanvas.height;
     bgSource.getContext('2d')?.drawImage(bgCanvas, 0, 0);
 
-    // Rotate Annotation Canvas
     const annSource = document.createElement('canvas');
     annSource.width = annCanvas.width;
     annSource.height = annCanvas.height;
     annSource.getContext('2d')?.drawImage(annCanvas, 0, 0);
 
-    const newW = bgCanvas.height;
-    const newH = bgCanvas.width;
+    const absCos = Math.abs(Math.cos(angleRadians));
+    const absSin = Math.abs(Math.sin(angleRadians));
+    const newW = Math.max(1, Math.ceil(bgCanvas.width * absCos + bgCanvas.height * absSin));
+    const newH = Math.max(1, Math.ceil(bgCanvas.width * absSin + bgCanvas.height * absCos));
     setBitmapSize(newW, newH);
 
+    bgCtx.clearRect(0, 0, newW, newH);
     bgCtx.save();
     bgCtx.translate(newW / 2, newH / 2);
-    bgCtx.rotate(Math.PI / 2);
+    bgCtx.rotate(angleRadians);
     bgCtx.drawImage(bgSource, -bgSource.width / 2, -bgSource.height / 2);
     bgCtx.restore();
 
+    annCtx.clearRect(0, 0, newW, newH);
     annCtx.save();
     annCtx.translate(newW / 2, newH / 2);
-    annCtx.rotate(Math.PI / 2);
+    annCtx.rotate(angleRadians);
     annCtx.drawImage(annSource, -annSource.width / 2, -annSource.height / 2);
     annCtx.restore();
 
-    setCropRect(null);
+    resetCropSelection();
+    setCropRotation(0);
+  };
+
+  const applyCropRotation = () => {
+    if (cropRotation === 0) return;
+    if (commitRotationPreviewSourceToUndo()) {
+      resetCropSelection();
+      setCropRotation(0);
+      return;
+    }
+    rotateCanvasByAngle(cropRotation);
+  };
+
+  const rotateCanvas = () => {
+    if (rotationPreviewSourceRef.current) {
+      commitRotationPreviewSourceToUndo();
+      setCropRotation(0);
+    }
+    rotateCanvasByAngle(90);
   };
 
   const applyCrop = () => {
@@ -643,9 +799,9 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     annCtx.clearRect(0, 0, w, h);
     annCtx.drawImage(annSource, 0, 0);
 
-    setCropRect(null);
-    cropRectRef.current = null;
-    setCropPreviewUrl('');
+    resetCropSelection();
+    clearRotationPreviewSource();
+    setCropRotation(0);
   };
 
   const applyPendingText = () => {
@@ -673,6 +829,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
     setIsSaving(true);
     try {
+      clearCropGuide();
       const composite = document.createElement('canvas');
       composite.width = bgCanvas.width;
       composite.height = bgCanvas.height;
@@ -700,6 +857,18 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       tool === candidate ? "bg-cad-accent border-cad-accent text-black" : "bg-cad-bg border-cad-border text-cad-text-secondary hover:text-cad-text-primary"
     );
 
+  const selectTool = (nextTool: ImageEditTool) => {
+    if (nextTool !== 'crop') {
+      if (rotationPreviewSourceRef.current) {
+        commitRotationPreviewSourceToUndo();
+        setCropRotation(0);
+      }
+      resetCropSelection();
+    }
+    setTool(nextTool);
+    setPendingTextPoint(null);
+  };
+
   return createPortal(
     <div className="fixed inset-0 z-cad-modal bg-black/90 backdrop-blur-sm flex flex-col">
       <div
@@ -721,31 +890,31 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
         {/* Toolbar */}
         <div className="p-4 border-b border-cad-border flex flex-wrap items-center gap-3 shrink-0 bg-cad-surface">
-          <button ref={initialFocusRef} type="button" aria-label="Công cụ cắt ảnh" aria-pressed={tool === 'crop'} title="Crop tool (Select region)" onClick={() => setTool('crop')} className={toolButtonClass('crop')}>
+          <button ref={initialFocusRef} type="button" aria-label="Công cụ cắt ảnh" aria-pressed={tool === 'crop'} title="Crop tool (Select region)" onClick={() => selectTool('crop')} className={toolButtonClass('crop')}>
             <Crop className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Bút vẽ tự do (B)" aria-pressed={tool === 'pencil'} title="Pencil tool - Bút vẽ tự do (B)" onClick={() => setTool('pencil')} className={toolButtonClass('pencil')}>
+          <button type="button" aria-label="Bút vẽ tự do (B)" aria-pressed={tool === 'pencil'} title="Pencil tool - Bút vẽ tự do (B)" onClick={() => selectTool('pencil')} className={toolButtonClass('pencil')}>
             <Pencil className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Tẩy xóa (E)" aria-pressed={tool === 'eraser'} title="Eraser tool - Tẩy xóa (E)" onClick={() => setTool('eraser')} className={toolButtonClass('eraser')}>
+          <button type="button" aria-label="Tẩy xóa (E)" aria-pressed={tool === 'eraser'} title="Eraser tool - Tẩy xóa (E)" onClick={() => selectTool('eraser')} className={toolButtonClass('eraser')}>
             <Eraser className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Đường thẳng (L)" aria-pressed={tool === 'line'} title="Line tool - Đường thẳng (L)" onClick={() => setTool('line')} className={toolButtonClass('line')}>
+          <button type="button" aria-label="Đường thẳng (L)" aria-pressed={tool === 'line'} title="Line tool - Đường thẳng (L)" onClick={() => selectTool('line')} className={toolButtonClass('line')}>
             <Minus className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Mũi tên" aria-pressed={tool === 'arrow'} title="Arrow tool - Mũi tên" onClick={() => setTool('arrow')} className={toolButtonClass('arrow')}>
+          <button type="button" aria-label="Mũi tên" aria-pressed={tool === 'arrow'} title="Arrow tool - Mũi tên" onClick={() => selectTool('arrow')} className={toolButtonClass('arrow')}>
             <MoveUpRight className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Hình tròn (C)" aria-pressed={tool === 'circle'} title="Circle tool - Hình tròn (C)" onClick={() => setTool('circle')} className={toolButtonClass('circle')}>
+          <button type="button" aria-label="Hình tròn (C)" aria-pressed={tool === 'circle'} title="Circle tool - Hình tròn (C)" onClick={() => selectTool('circle')} className={toolButtonClass('circle')}>
             <Circle className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Hình vuông/chữ nhật (R)" aria-pressed={tool === 'square'} title="Square tool - Hình vuông/chữ nhật (R)" onClick={() => setTool('square')} className={toolButtonClass('square')}>
+          <button type="button" aria-label="Hình vuông/chữ nhật (R)" aria-pressed={tool === 'square'} title="Square tool - Hình vuông/chữ nhật (R)" onClick={() => selectTool('square')} className={toolButtonClass('square')}>
             <Square className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Chữ ghi chú (T)" aria-pressed={tool === 'text'} title="Text tool - Chữ ghi chú (T)" onClick={() => setTool('text')} className={toolButtonClass('text')}>
+          <button type="button" aria-label="Chữ ghi chú (T)" aria-pressed={tool === 'text'} title="Text tool - Chữ ghi chú (T)" onClick={() => selectTool('text')} className={toolButtonClass('text')}>
             <TypeIcon className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Dán tem CAD" aria-pressed={tool === 'stamp'} title="Stamp tool - Dán tem CAD" onClick={() => setTool('stamp')} className={toolButtonClass('stamp')}>
+          <button type="button" aria-label="Dán tem CAD" aria-pressed={tool === 'stamp'} title="Stamp tool - Dán tem CAD" onClick={() => selectTool('stamp')} className={toolButtonClass('stamp')}>
             <Radio className="w-4 h-4" aria-hidden="true" />
           </button>
 
@@ -769,6 +938,50 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           >
             Apply crop
           </Button>
+
+          {tool === 'crop' && (
+            <div className="flex items-center gap-2 rounded border border-cad-border bg-cad-bg px-2 py-1">
+              <span className="text-[9px] font-mono text-cad-text-secondary">ROT</span>
+              <input
+                aria-label="Crop rotation angle"
+                type="range"
+                min={-45}
+                max={45}
+                step={0.1}
+                value={cropRotation}
+                onChange={e => updateCropRotation(Number(e.target.value))}
+                className="w-28 accent-cad-accent cursor-pointer"
+              />
+              <input
+                aria-label="Crop rotation degrees"
+                type="number"
+                min={-45}
+                max={45}
+                step={0.1}
+                value={cropRotation}
+                onChange={e => updateCropRotation(Number(e.target.value) || 0)}
+                className="w-16 bg-cad-surface border border-cad-border rounded px-2 py-1 text-xs text-cad-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cad-accent"
+              />
+              <Button
+                variant="secondary"
+                size="md"
+                icon={RotateCcw}
+                ariaLabel="Reset crop rotation"
+                title="Reset crop rotation"
+                onClick={() => updateCropRotation(0)}
+                disabled={cropRotation === 0}
+              />
+              <Button
+                variant="secondary"
+                size="md"
+                icon={RotateCw}
+                ariaLabel="Apply crop rotation"
+                title="Apply crop rotation"
+                onClick={applyCropRotation}
+                disabled={cropRotation === 0}
+              />
+            </div>
+          )}
 
           <div className="h-6 w-px bg-cad-border mx-1" />
 
@@ -884,6 +1097,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
         {/* Canvas Display Viewport */}
         <div ref={containerRef} className="relative flex-1 min-h-0 bg-cad-bg p-4 overflow-hidden flex items-center justify-center">
           <div
+            data-testid="image-editor-canvas-frame"
             className="relative border border-cad-border rounded bg-black overflow-hidden"
             style={{
               width: canvasDisplaySize ? `${canvasDisplaySize.width}px` : 'auto',
@@ -907,6 +1121,12 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
               onPointerUp={handlePointerUp}
               onPointerLeave={handlePointerUp}
               className="absolute inset-0 w-full h-full touch-none cursor-crosshair"
+            />
+            {/* Crop guide overlay: visual only, never exported. */}
+            <canvas
+              ref={cropOverlayCanvasRef}
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full pointer-events-none"
             />
           </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Database, FolderPlus, Trash2, FileUp, Palette } from "lucide-react";
+import { Database, FolderPlus, Trash2, FileUp, Palette, MapPin } from "lucide-react";
 import { Virtuoso, type ListRange, type VirtuosoHandle } from "react-virtuoso";
 import { open } from "@tauri-apps/plugin-dialog";
 
@@ -7,6 +7,7 @@ import { cn } from "@TOOL/utils/cn";
 import { TreeItem } from "@DESIGN/components/core/CADPanels/TreeItem";
 import { FeatureItem } from "@DESIGN/components/core/CADPanels/FeatureItem";
 import { useDesignSync, EMPTY_OBJ } from "@IMPLEMENT/stores/useDesignSync";
+import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
 import { importFromExcel, importFromKML, getExcelHeaders, applyImportedRecords, type ImportMapping } from "@IMPLEMENT/services/importService";
 import { ImportReviewDialog } from "@IMPLEMENT/components/import/ImportReviewDialog";
 import {
@@ -17,8 +18,8 @@ import {
   useVirtualDrag
 } from "./Explorer";
 import { GroupIcon } from "@DESIGN/components/core/CADPanels/GroupIcon";
-import { getFeatureDisplayInfo } from "@TOOL/utils/featureUtils";
-import type { RegionState, LayerState, FeatureGroupState, FeatureState } from "@CONTRACT/types";
+import { getFeatureDisplayInfo, getParsedMetadata } from "@TOOL/utils/featureUtils";
+import type { RegionState, LayerState, FeatureGroupState, FeatureState, FeatureCoordinates } from "@CONTRACT/types";
 import type { FlatTreeItem } from "@DESIGN/components/core/CADPanels/Explorer/useFlattenedTree";
 
 interface MappingData {
@@ -48,6 +49,14 @@ interface ContextMenuState {
   type: string;
   id: string;
   data: FlatTreeItem['data'];
+}
+
+interface CoordinateEditorState {
+  featureId: string;
+  name: string;
+  geomType: string;
+  value: string;
+  error: string | null;
 }
 
 type SortField = 'name' | 'stt';
@@ -115,6 +124,106 @@ const readExplorerViewState = (projectId: string | null | undefined): ExplorerVi
   }
 };
 
+const hasStringId = (value: unknown): value is string =>
+  typeof value === 'string' && value.length > 0;
+
+const formatCoordinateValue = (coordinates: FeatureCoordinates | string | null | undefined): string => {
+  if (coordinates == null) return "";
+  if (typeof coordinates === "string") return coordinates;
+  return JSON.stringify(coordinates);
+};
+
+const isNumberPair = (value: unknown): value is [number, number] =>
+  Array.isArray(value)
+  && value.length === 2
+  && typeof value[0] === "number"
+  && typeof value[1] === "number"
+  && Number.isFinite(value[0])
+  && Number.isFinite(value[1]);
+
+export const parseCoordinateInput = (input: string, geomType: string): FeatureCoordinates => {
+  const trimmed = input.trim();
+  if (!trimmed) throw new Error("Vui lòng nhập tọa độ.");
+
+  const normalizedGeomType = geomType.toLowerCase();
+  const isPoint = normalizedGeomType === "point";
+
+  if (isPoint && !trimmed.startsWith("[") && !trimmed.startsWith("{")) {
+    const parts = trimmed.split(/[,\s]+/).filter(Boolean).map(part => Number(part));
+    if (parts.length === 2 && Number.isFinite(parts[0]) && Number.isFinite(parts[1])) {
+      return [parts[0], parts[1]];
+    }
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    throw new Error(isPoint ? "Tọa độ point cần dạng lng, lat hoặc [lng, lat]." : "Tọa độ cần là JSON array hợp lệ.");
+  }
+
+  if (isPoint) {
+    if (isNumberPair(parsed)) return parsed;
+    throw new Error("Tọa độ point cần đúng dạng [lng, lat].");
+  }
+
+  if (Array.isArray(parsed)) return parsed as FeatureCoordinates;
+  throw new Error("Tọa độ line/polygon cần là JSON array.");
+};
+
+export const buildExpandedPathForFeature = (
+  featureId: string,
+  featuresMap: Record<string, FeatureState>,
+  layersMap: Record<string, LayerState>,
+  groupsMap: Record<string, FeatureGroupState>
+): Record<string, boolean> => {
+  const feature = featuresMap[featureId];
+  if (!feature) return {};
+
+  const nextExpanded: Record<string, boolean> = {};
+  const visitedGroups = new Set<string>();
+  const visitedFeatures = new Set<string>();
+
+  const expandRegionForLayer = (layerId?: string | null) => {
+    if (!layerId) return;
+    const regionId = layersMap[layerId]?.region_id;
+    if (regionId) nextExpanded[regionId] = true;
+  };
+
+  const expandGroupChain = (groupId?: string | null) => {
+    let currentGroupId = groupId;
+    while (currentGroupId && !visitedGroups.has(currentGroupId)) {
+      visitedGroups.add(currentGroupId);
+      const group = groupsMap[currentGroupId];
+      if (!group) break;
+
+      nextExpanded[group.id] = true;
+
+      if (group.parent_id) {
+        currentGroupId = group.parent_id;
+      } else {
+        expandRegionForLayer(group.layer_id);
+        break;
+      }
+    }
+  };
+
+  let currentFeature: FeatureState | undefined = feature;
+  while (currentFeature && !visitedFeatures.has(currentFeature.id)) {
+    visitedFeatures.add(currentFeature.id);
+    expandGroupChain(currentFeature.group_id);
+    expandRegionForLayer(currentFeature.layer_id);
+
+    const parentFeatureId: unknown = getParsedMetadata(currentFeature).parent_feature_id;
+    if (!hasStringId(parentFeatureId)) break;
+
+    nextExpanded[`feature-${parentFeatureId}`] = true;
+    currentFeature = featuresMap[parentFeatureId];
+  }
+
+  return nextExpanded;
+};
+
 export function DrawingExplorer() {
   const regionsMap = useDesignSync(st => st.state?.regions) || (EMPTY_OBJ as Record<string, RegionState>);
   const layersMap = useDesignSync(st => st.state?.layers) || (EMPTY_OBJ as Record<string, LayerState>);
@@ -138,7 +247,11 @@ export function DrawingExplorer() {
   const mapHiddenIds = useDesignSync(st => st.mapHiddenIds);
   const toggleMapHidden = useDesignSync(st => st.toggleMapHidden);
   const clearSelection = useDesignSync(st => st.clearSelection);
+  const setPreview = useDesignSync(st => st.setPreview);
   const isReady = useDesignSync(st => !!st.state);
+  const specPanelVisible = useLayoutStore(st => st.paletteConfigs['spec-panel']?.isVisible ?? false);
+  const togglePalette = useLayoutStore(st => st.togglePalette);
+  const expandPalette = useLayoutStore(st => st.expandPalette);
 
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   
@@ -217,6 +330,27 @@ export function DrawingExplorer() {
   const [mappingData, setMappingData] = useState<MappingData | null>(null);
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
   const [deleteModal, setDeleteModal] = useState<DeleteModalState>({ isOpen: false, type: null, id: '', name: '' });
+  const [coordinateEditor, setCoordinateEditor] = useState<CoordinateEditorState | null>(null);
+
+  useEffect(() => {
+    if (!selectedFeatureId) return;
+
+    const expandedPath = buildExpandedPathForFeature(selectedFeatureId, featuresMap, layersMap, groupsMap);
+    const keysToOpen = Object.keys(expandedPath);
+    if (keysToOpen.length === 0) return;
+
+    setExpanded(prev => {
+      let changed = false;
+      const next = { ...prev };
+      keysToOpen.forEach(key => {
+        if (!next[key]) {
+          next[key] = true;
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [selectedFeatureId, featuresMap, layersMap, groupsMap]);
 
   useEffect(() => {
     if (!hasAutoExpanded.current && filteredRegions.length > 0 && !isLoading && !error) {
@@ -401,6 +535,49 @@ export function DrawingExplorer() {
     setDeleteModal({ isOpen: false, type: null, id: '', name: '' });
   };
 
+  const openCoordinateEditor = (feature: FeatureState) => {
+    setCoordinateEditor({
+      featureId: feature.id,
+      name: feature.name,
+      geomType: feature.geom_type || feature.geometry_type || 'Point',
+      value: formatCoordinateValue(feature.coordinates),
+      error: null,
+    });
+  };
+
+  const handleProperties = (feature: FeatureState) => {
+    selectFeature(feature.id);
+    if (feature.group_id) setSelectedGroup(feature.group_id);
+    zoomTo(feature.id, 'feature');
+    setPreview(feature.id, getParsedMetadata(feature), feature.name);
+    if (!specPanelVisible) togglePalette('spec-panel');
+    expandPalette('spec-panel');
+  };
+
+  const handleCoordinateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!coordinateEditor) return;
+
+    try {
+      const coordinates = parseCoordinateInput(coordinateEditor.value, coordinateEditor.geomType);
+      await dispatchEvent({
+        type: 'FeatureUpdated',
+        payload: {
+          id: coordinateEditor.featureId,
+          coordinates,
+        },
+      });
+      selectFeature(coordinateEditor.featureId);
+      zoomTo(coordinateEditor.featureId, 'feature');
+      setCoordinateEditor(null);
+    } catch (error) {
+      setCoordinateEditor(prev => prev ? {
+        ...prev,
+        error: error instanceof Error ? error.message : 'Tọa độ không hợp lệ.',
+      } : prev);
+    }
+  };
+
   if (error) return <div className="p-6 text-center text-cad-danger">{error}</div>;
   if (isLoading) return <div className="p-6 text-center text-cad-accent animate-pulse">Syncing...</div>;
   if (!isReady) return <div className="p-6 text-center text-cad-text-muted">No design state loaded</div>;
@@ -570,6 +747,60 @@ export function DrawingExplorer() {
           onConfirm={handleReviewConfirm}
         />
       )}
+
+      {coordinateEditor && (
+        <div className="fixed inset-0 z-cad-modal flex items-center justify-center bg-black/60 p-4">
+          <form
+            onSubmit={handleCoordinateSubmit}
+            className="w-full max-w-sm rounded-md border border-cad-border bg-cad-surface shadow-2xl"
+          >
+            <div className="border-b border-cad-border px-4 py-3">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-cad-text-primary">
+                <MapPin size={14} className="text-cad-accent" />
+                Chỉnh sửa tọa độ
+              </div>
+              <div className="mt-1 truncate text-[9px] text-cad-text-muted">{coordinateEditor.name}</div>
+            </div>
+
+            <div className="space-y-2 px-4 py-3">
+              <label className="block text-[9px] font-bold uppercase tracking-wider text-cad-text-secondary">
+                Tọa độ
+              </label>
+              <textarea
+                value={coordinateEditor.value}
+                onChange={(e) => setCoordinateEditor(prev => prev ? { ...prev, value: e.target.value, error: null } : prev)}
+                className="h-24 w-full resize-none rounded border border-cad-border bg-cad-bg px-2 py-1.5 font-mono text-[10px] text-cad-text-primary outline-none focus:border-cad-accent"
+                placeholder={coordinateEditor.geomType.toLowerCase() === 'point' ? "105.871928, 21.046998" : "[[105.871928,21.046998],[105.872,21.047]]"}
+                autoFocus
+              />
+              <div className="text-[8px] text-cad-text-muted">
+                Point: lng, lat hoặc [lng, lat]. Line/Polygon: JSON array.
+              </div>
+              {coordinateEditor.error && (
+                <div className="rounded border border-cad-danger/40 bg-cad-danger/10 px-2 py-1 text-[9px] text-cad-danger">
+                  {coordinateEditor.error}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 border-t border-cad-border px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setCoordinateEditor(null)}
+                className="rounded border border-cad-border px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider text-cad-text-secondary hover:bg-cad-elevated"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="rounded bg-cad-accent px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-black hover:bg-cad-active"
+              >
+                Save
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       
       {/* Context Menu Overlay */}
       {contextMenu && (
@@ -578,7 +809,22 @@ export function DrawingExplorer() {
           style={{ top: contextMenu.y, left: contextMenu.x }}
           onClick={() => setContextMenu(null)}
         >
-          <button className="w-full text-left px-3 py-1.5 text-[9px] text-cad-text-primary hover:bg-cad-elevated transition-colors uppercase tracking-wider font-bold">Properties</button>
+          {contextMenu.type === 'feature' && (
+            <>
+              <button
+                className="w-full text-left px-3 py-1.5 text-[9px] text-cad-text-primary hover:bg-cad-elevated transition-colors uppercase tracking-wider font-bold"
+                onClick={() => openCoordinateEditor(contextMenu.data as FeatureState)}
+              >
+                Chỉnh sửa tọa độ
+              </button>
+              <button
+                className="w-full text-left px-3 py-1.5 text-[9px] text-cad-text-primary hover:bg-cad-elevated transition-colors uppercase tracking-wider font-bold"
+                onClick={() => handleProperties(contextMenu.data as FeatureState)}
+              >
+                Properties
+              </button>
+            </>
+          )}
           <button 
             className="w-full text-left px-3 py-1.5 text-[9px] hover:bg-cad-danger/10 text-cad-danger transition-colors uppercase tracking-wider font-bold"
             onClick={() => setDeleteModal({ isOpen: true, type: contextMenu.type as any, id: contextMenu.id, name: contextMenu.data.name })}

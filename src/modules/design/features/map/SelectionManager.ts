@@ -39,7 +39,7 @@ export function handleFeatureSelection(
     console.log(`[Selection] Selecting feature: ${featureId}, group: ${groupId}`);
 
     // Detect shift key for multi-select
-    const keepSelection = !!originalEvent?.shiftKey;
+    const keepSelection = !!(originalEvent?.shiftKey || originalEvent?.originalEvent?.shiftKey);
 
     // Capture click location for popups (especially for Lines/Polygons)
     let clickLocation: [number, number] | undefined = undefined;

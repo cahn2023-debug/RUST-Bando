@@ -954,10 +954,12 @@ impl StorageWorker {
             let needs_legacy_migration =
                 project_needs_legacy_media_migration(&self.db.conn, &project_id)?;
             let needs_link_repair = project_needs_media_link_repair(&self.db.conn, &project_id)?;
-            if !needs_legacy_migration && !needs_link_repair {
+            let needs_coordinate_repair =
+                project_needs_coordinate_repair(&self.db.conn, &project_id)?;
+            if !needs_legacy_migration && !needs_link_repair && !needs_coordinate_repair {
                 continue;
             }
-            if needs_legacy_migration && !backup_created {
+            if (needs_legacy_migration || needs_coordinate_repair) && !backup_created {
                 self.db
                     .conn
                     .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
@@ -974,11 +976,13 @@ impl StorageWorker {
                 migrate_feature_media(&tx, &self.db.base_dir, &self.db.pmp_path, &project_id)?;
             let repaired_links =
                 repair_media_links(&tx, &self.db.base_dir, &self.db.pmp_path, &project_id)?;
+            let repaired_coordinates = repair_missing_feature_coordinates(&tx, &project_id)?;
             let compacted_events = compact_large_events(&tx, &project_id)?;
             if hydrated_from_snapshot
                 || migrated_refs > 0
                 || compacted_events > 0
                 || repaired_links > 0
+                || repaired_coordinates > 0
             {
                 rebuild_project_snapshot(&tx, &project_id)?;
                 tx.execute(
@@ -997,6 +1001,7 @@ impl StorageWorker {
                             "migratedAt": chrono::Local::now().to_rfc3339(),
                             "migratedMediaRefs": migrated_refs,
                             "repairedMediaLinks": repaired_links,
+                            "repairedCoordinates": repaired_coordinates,
                             "compactedEvents": compacted_events,
                             "hydratedFromSnapshot": hydrated_from_snapshot,
                             "before": before,
@@ -3002,6 +3007,32 @@ fn project_needs_media_link_repair(
     Ok(asset_count > 0 || feature_link_count > 0)
 }
 
+fn project_needs_coordinate_repair(
+    conn: &rusqlite::Connection,
+    project_id: &str,
+) -> Result<bool, String> {
+    let hits: i64 = conn
+        .query_row(
+            "SELECT COUNT(*)
+             FROM features f
+             WHERE f.project_id = ?1
+               AND f.coordinates_json IS NULL
+               AND EXISTS (
+                 SELECT 1
+                 FROM events e
+                 WHERE e.project_id = f.project_id
+                   AND e.entity_id = f.id
+                   AND e.event_type = 'FeatureCreated'
+                   AND (e.payload_json LIKE '%\"geometry\"%' OR e.payload_json LIKE '%\"coordinates\"%')
+                 LIMIT 1
+               )",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(hits > 0)
+}
+
 fn repair_media_links(
     tx: &Transaction<'_>,
     base_dir: &Path,
@@ -3010,6 +3041,54 @@ fn repair_media_links(
 ) -> Result<usize, String> {
     let mut repaired = normalize_media_asset_paths(tx, base_dir, pmp_path, project_id)?;
     repaired += sync_feature_media_metadata(tx, project_id)?;
+    Ok(repaired)
+}
+
+fn repair_missing_feature_coordinates(
+    tx: &Transaction<'_>,
+    project_id: &str,
+) -> Result<usize, String> {
+    let feature_ids: Vec<String> = {
+        let mut stmt = tx
+            .prepare(
+                "SELECT id
+                 FROM features
+                 WHERE project_id = ?1
+                   AND coordinates_json IS NULL
+                 ORDER BY created_at, id",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![project_id], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
+        let mut ids = Vec::new();
+        for row in rows {
+            ids.push(row.map_err(|e| e.to_string())?);
+        }
+        ids
+    };
+
+    let mut repaired = 0usize;
+    for feature_id in feature_ids {
+        let Some(coordinates) = recover_feature_created_coordinates(tx, &feature_id)? else {
+            continue;
+        };
+        let Some(coordinates_json) = coordinates_json_for_db(&coordinates) else {
+            continue;
+        };
+        repaired += tx
+            .execute(
+                "UPDATE features
+                 SET coordinates_json = ?1,
+                     updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+                 WHERE id = ?2
+                   AND project_id = ?3
+                   AND coordinates_json IS NULL",
+                params![coordinates_json, feature_id, project_id],
+            )
+            .map_err(|e| e.to_string())?;
+    }
+
     Ok(repaired)
 }
 
@@ -3565,8 +3644,49 @@ fn merge_objects(base: &mut Value, patch: &Value) {
 fn coordinates_json_for_db(value: &Value) -> Option<String> {
     match value {
         Value::Array(_) | Value::Object(_) => Some(value.to_string()),
+        Value::String(text) => {
+            let trimmed = text.trim();
+            if trimmed.is_empty() {
+                return None;
+            }
+            let parsed: Value = serde_json::from_str(trimmed).ok()?;
+            match parsed {
+                Value::Array(_) | Value::Object(_) => Some(parsed.to_string()),
+                _ => None,
+            }
+        }
         _ => None,
     }
+}
+
+fn recover_feature_created_coordinates(
+    tx: &Transaction<'_>,
+    feature_id: &str,
+) -> Result<Option<Value>, String> {
+    let payload: Option<String> = tx
+        .query_row(
+            "SELECT payload_json
+             FROM events
+             WHERE entity_id = ?1
+               AND event_type = 'FeatureCreated'
+             ORDER BY global_seq
+             LIMIT 1",
+            params![feature_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let Some(payload) = payload else {
+        return Ok(None);
+    };
+    let payload_value: Value = serde_json::from_str(&payload).map_err(|e| e.to_string())?;
+    let coordinates = payload_value
+        .get("geometry")
+        .or_else(|| payload_value.get("coordinates"))
+        .filter(|value| coordinates_json_for_db(value).is_some())
+        .cloned();
+    Ok(coordinates)
 }
 
 fn persist_event(tx: &Transaction<'_>, envelope: &EventEnvelope) -> Result<(), String> {
@@ -3906,6 +4026,25 @@ fn apply_event_to_read_models(
             });
             let mut safe_changes = changes.clone();
             if let Some(changes_obj) = safe_changes.as_object_mut() {
+                if let Some(geometry) = changes_obj.remove("geometry") {
+                    changes_obj
+                        .entry("coordinates".to_string())
+                        .or_insert(geometry);
+                }
+                if !changes_obj.contains_key("coordinates")
+                    && current
+                        .get("coordinates")
+                        .map(|value| value.is_null())
+                        .unwrap_or(true)
+                {
+                    if let Some(recovered_coordinates) =
+                        recover_feature_created_coordinates(tx, &id.to_string())?
+                    {
+                        if let Some(current_obj) = current.as_object_mut() {
+                            current_obj.insert("coordinates".to_string(), recovered_coordinates);
+                        }
+                    }
+                }
                 changes_obj.remove("geom_type");
                 if changes_obj.contains_key("metadata")
                     && !changes_obj.contains_key("group_id")
@@ -5738,6 +5877,175 @@ mod tests {
             )
             .expect("read coordinates");
         assert_eq!(coordinates, None);
+    }
+
+    #[test]
+    fn coordinates_json_for_db_accepts_json_encoded_coordinate_strings() {
+        assert_eq!(
+            coordinates_json_for_db(&Value::String("[105.1,21.2]".to_string())),
+            Some("[105.1,21.2]".to_string())
+        );
+        assert_eq!(
+            coordinates_json_for_db(&Value::String("[[105.1,21.2],[105.2,21.3]]".to_string())),
+            Some("[[105.1,21.2],[105.2,21.3]]".to_string())
+        );
+        assert_eq!(
+            coordinates_json_for_db(&Value::String("not-json".to_string())),
+            None
+        );
+        assert_eq!(
+            coordinates_json_for_db(&Value::String("\"text\"".to_string())),
+            None
+        );
+    }
+
+    #[test]
+    fn feature_update_recovers_coordinates_when_projection_was_null() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("recover_coordinates_update.pmp");
+        let mut db = PmpDatabase::open_or_create(db_path).expect("open db");
+        let project_id = Uuid::new_v4();
+        let layer_id = Uuid::new_v4();
+        let feature_id = Uuid::new_v4();
+
+        seed_basic_project(&db.conn, &project_id.to_string(), "Recover Coordinates");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name) VALUES (?1, ?2, ?3)",
+                params![layer_id.to_string(), project_id.to_string(), "Layer"],
+            )
+            .expect("seed layer");
+
+        let tx = db.conn.transaction().expect("tx");
+        let created = EventEnvelope::new(
+            project_id,
+            "feature",
+            feature_id,
+            AppEvent::FeatureCreated {
+                id: feature_id,
+                layer_id,
+                group_id: None,
+                task_id: None,
+                name: "Camera".to_string(),
+                geom_type: "Point".to_string(),
+                geometry: Value::String("[105.87192850478196,21.046997765887628]".to_string()),
+                properties: json!({"icon": "default"}),
+                style_id: None,
+                is_visible: true,
+                note: None,
+                bbox: None,
+                metadata: json!({"display_order": "82_1"}),
+            },
+            "test",
+            None,
+        );
+        persist_event(&tx, &created).expect("persist created event");
+        apply_event_to_read_models(&tx, &created).expect("apply created event");
+        tx.execute(
+            "UPDATE features SET coordinates_json = NULL WHERE id = ?1",
+            params![feature_id.to_string()],
+        )
+        .expect("simulate lost coordinates");
+
+        let updated = EventEnvelope::new(
+            project_id,
+            "feature",
+            feature_id,
+            AppEvent::FeatureUpdated {
+                id: feature_id,
+                changes: json!({
+                    "metadata": json!({
+                        "display_order": "82_1",
+                        "icon": "cctv",
+                        "type": "cctv"
+                    }).to_string(),
+                    "properties": {"icon": "cctv", "iconKey": "cctv", "type": "cctv"}
+                }),
+            },
+            "test",
+            None,
+        );
+        apply_event_to_read_models(&tx, &updated).expect("apply metadata update");
+
+        let coordinates: String = tx
+            .query_row(
+                "SELECT coordinates_json FROM features WHERE id = ?1",
+                params![feature_id.to_string()],
+                |row| row.get(0),
+            )
+            .expect("read recovered coordinates");
+        assert_eq!(coordinates, "[105.87192850478196,21.046997765887628]");
+    }
+
+    #[test]
+    fn repair_missing_feature_coordinates_rebuilds_snapshot_from_created_events() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("repair_coordinates_snapshot.pmp");
+        let mut db = PmpDatabase::open_or_create(db_path).expect("open db");
+        let project_id = Uuid::new_v4();
+        let layer_id = Uuid::new_v4();
+        let feature_id = Uuid::new_v4();
+
+        seed_basic_project(&db.conn, &project_id.to_string(), "Repair Coordinates");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name) VALUES (?1, ?2, ?3)",
+                params![layer_id.to_string(), project_id.to_string(), "Layer"],
+            )
+            .expect("seed layer");
+
+        let tx = db.conn.transaction().expect("tx");
+        let created = EventEnvelope::new(
+            project_id,
+            "feature",
+            feature_id,
+            AppEvent::FeatureCreated {
+                id: feature_id,
+                layer_id,
+                group_id: None,
+                task_id: None,
+                name: "Intersection".to_string(),
+                geom_type: "Point".to_string(),
+                geometry: Value::String("[105.87142982894315,21.046664685927688]".to_string()),
+                properties: json!({"icon": "intersection"}),
+                style_id: None,
+                is_visible: true,
+                note: None,
+                bbox: None,
+                metadata: json!({"display_order": "82", "type": "intersection"}),
+            },
+            "test",
+            None,
+        );
+        persist_event(&tx, &created).expect("persist created event");
+        apply_event_to_read_models(&tx, &created).expect("apply created event");
+        tx.execute(
+            "UPDATE features SET coordinates_json = NULL WHERE id = ?1",
+            params![feature_id.to_string()],
+        )
+        .expect("simulate lost coordinates");
+
+        let repaired = repair_missing_feature_coordinates(&tx, &project_id.to_string())
+            .expect("repair coordinates");
+        assert_eq!(repaired, 1);
+        rebuild_project_snapshot(&tx, &project_id.to_string()).expect("rebuild snapshot");
+
+        let snapshot_text: String = tx
+            .query_row(
+                "SELECT state_json FROM project_snapshots WHERE project_id = ?1",
+                params![project_id.to_string()],
+                |row| row.get(0),
+            )
+            .expect("snapshot");
+        let snapshot: Value = serde_json::from_str(&snapshot_text).expect("snapshot json");
+        let coordinates = snapshot
+            .get("features")
+            .and_then(|features| features.get(feature_id.to_string()))
+            .and_then(|feature| feature.get("coordinates"))
+            .and_then(Value::as_array)
+            .expect("snapshot coordinates");
+        assert!((coordinates[0].as_f64().unwrap() - 105.87142982894315).abs() < 0.000000000001);
+        assert!((coordinates[1].as_f64().unwrap() - 21.046664685927688).abs() < 0.000000000001);
     }
 
     #[test]

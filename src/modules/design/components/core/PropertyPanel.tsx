@@ -1032,20 +1032,20 @@ export const PropertyPanel: React.FC = () => {
     >
       {/* Camera UI Overlay */}
       {isCameraOpen && (
-        <div className="absolute inset-0 z-10 bg-black flex flex-col">
+        <div className="absolute inset-0 z-10 bg-cad-bg flex flex-col">
           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
           <canvas ref={canvasRef} className="hidden" />
-          <div className="absolute top-4 left-4 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-lg text-[10px] text-white flex items-center gap-2 border border-white/10">
+          <div className="absolute top-4 left-4 px-3 py-1.5 bg-cad-bg/80 backdrop-blur-md rounded-lg text-[10px] text-cad-text-primary flex items-center gap-2 border border-cad-border">
             <Clock className="w-3 h-3 text-cad-accent" /> {new Date().toLocaleTimeString()}
           </div>
           <div className="absolute bottom-10 left-0 right-0 flex justify-center items-center gap-8 px-4">
-            <button onClick={stopCamera} className="w-12 h-12 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center backdrop-blur-md border border-white/10">
+            <button onClick={stopCamera} className="w-12 h-12 bg-cad-elevated/80 hover:bg-cad-text-primary/10 text-cad-text-primary rounded-full flex items-center justify-center backdrop-blur-md border border-cad-border">
               <X className="w-5 h-5" />
             </button>
             <button
               onClick={capture}
               disabled={isCapturing}
-              className="w-16 h-16 bg-white text-cad-accent rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform"
+              className="w-16 h-16 bg-cad-surface text-cad-accent rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform border border-cad-border"
             >
               {isCapturing ? <Loader2 className="w-8 h-8 animate-spin" /> : <Camera className="w-8 h-8" />}
             </button>
@@ -1337,14 +1337,14 @@ export const PropertyPanel: React.FC = () => {
                     icon={<Radio className="w-3 h-3" aria-hidden="true" />}
                     value={getMetaValue('infrastructure.cable_type')}
                     onChange={getFieldHandler('infrastructure.cable_type')}
-                    errorMessage={fiberFieldErrors.cable_type}
+                    errorMessage={fiberFieldErrors.cableType}
                   />
                   <DesignField
                     label="Dung lượng cáp"
                     icon={<Layers className="w-3 h-3" aria-hidden="true" />}
                     value={getMetaValue('infrastructure.core_count')}
                     onChange={getFieldHandler('infrastructure.core_count', true)}
-                    errorMessage={fiberFieldErrors.core_count}
+                    errorMessage={fiberFieldErrors.coreCount}
                   />
                 </div>
               </>
@@ -1608,7 +1608,7 @@ export const PropertyPanel: React.FC = () => {
               displayImageEntries.map(({ url, index }) => (
                 <div key={`${index}:${url}`} className="aspect-video rounded overflow-hidden border border-cad-border relative group">
                   <img src={url} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
+                  <div className="absolute inset-0 bg-cad-bg/70 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
                     <Button
                       onClick={() => setEditingImage({ index, url })}
                       variant="secondary"

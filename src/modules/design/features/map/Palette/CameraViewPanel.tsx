@@ -78,6 +78,7 @@ export const CameraViewPanel: React.FC = () => {
 
     useEffect(() => {
         if (!feature) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLocalMeta({});
             return;
         }
@@ -86,8 +87,10 @@ export const CameraViewPanel: React.FC = () => {
             const parsed = typeof feature.metadata === 'string'
                 ? JSON.parse(feature.metadata || '{}')
                 : (feature.metadata || {});
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLocalMeta(parsed);
         } catch {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLocalMeta({});
         }
     }, [feature?.id, feature?.metadata]);
@@ -95,6 +98,7 @@ export const CameraViewPanel: React.FC = () => {
     // Update localMeta when previewMetadata changes (sync from other palettes)
     useEffect(() => {
         if (previewMetadata?.id === selectedFeatureId && previewMetadata.metadata) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLocalMeta((prev: any) => {
                 if (JSON.stringify(prev) !== JSON.stringify(previewMetadata.metadata)) {
                     return previewMetadata.metadata;
@@ -449,7 +453,7 @@ export const CameraViewPanel: React.FC = () => {
                                         DORI Map
                                     </button>
                                 </div>
-                                <div className="h-32 bg-[#161616] rounded-lg border border-cad-border overflow-hidden relative flex items-center justify-center p-1">
+                                <div className="h-32 bg-cad-bg rounded-lg border border-cad-border overflow-hidden relative flex items-center justify-center p-1">
                                     <svg viewBox="0 0 300 125" className="w-full h-full overflow-visible">
                                         <defs>
                                             <linearGradient id="groundGrad" x1="0" y1="0" x2="0" y2="1">

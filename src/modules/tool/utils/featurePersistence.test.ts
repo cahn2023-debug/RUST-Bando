@@ -162,7 +162,7 @@ describe('featurePersistence', () => {
       group_id: 'group-1',
       name: 'Camera A',
       geom_type: 'Point',
-      coordinates: JSON.stringify([106.1, 10.2]),
+      coordinates: [106.1, 10.2],
       properties: {
         icon: 'cctv',
         iconKey: 'cctv',

@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TỔNG HỢP CHI TIẾT TÍNH NĂNG LINE/POLYLINE, FIBER VÀ TUYẾN CÁP QUANG</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #0078d4;
+            --bg-color: #f4f6f8;
+            --box-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #e1e4e8;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: var(--box-bg);
+            padding: 50px 60px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+        }
+        h1, h2, h3, h4 {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        h1 {
+            font-size: 2.2em;
+            text-align: center;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        h2 {
+            font-size: 1.5em;
+            border-left: 4px solid var(--accent-color);
+            padding-left: 12px;
+            margin-top: 40px;
+            margin-bottom: 20px;
+        }
+        h3 {
+            font-size: 1.2em;
+            margin-top: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            font-size: 0.95em;
+        }
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 12px 15px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        tr:nth-child(even) {
+            background-color: #fcfcfc;
+        }
+        pre {
+            background-color: #282c34;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        code {
+            font-family: 'Consolas', 'Courier New', monospace;
+            background-color: #f1f3f5;
+            color: #e83e8c;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        pre code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+        }
+        blockquote {
+            border-left: 4px solid #adb5bd;
+            margin: 0;
+            padding: 15px 20px;
+            color: #6c757d;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            font-style: italic;
+        }
+        .mermaid {
+            text-align: center;
+            margin: 40px 0;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: var(--border-color);
+            margin: 40px 0;
+        }
+        ul, ol {
+            padding-left: 25px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+    </style>
+    <!-- Include Mermaid.js -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: 'neutral',
+                fontFamily: 'inherit'
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>TỔNG HỢP CHI TIẾT TÍNH NĂNG LINE/POLYLINE, FIBER VÀ TUYẾN CÁP QUANG</h1>
+<blockquote>
+<p><strong>Dự án</strong>: RUST (Bando Graph Viewer / Network Management)<br />
+<strong>Ngày tổng hợp</strong>: 26/07/2026<br />
+<strong>Thư mục lưu trữ</strong>: <code>docs/FIBER_POLYLINE_CABLE_FEATURE_DOC.md</code></p>
+</blockquote>
+<hr />
+<h2>1. TỔNG QUAN HỆ THỐNG (SYSTEM OVERVIEW)</h2>
+<p>Hệ thống quản lý đối tượng <strong>Line/Polyline</strong> và <strong>Tuyến Cáp Quang (Fiber Cable Network)</strong> trong ứng dụng là một module lõi kết hợp giữa <strong>GIS (Geographic Information System)</strong> và <strong>FTTH/Telecom Network Inventory Management</strong>.</p>
+<p>Module này cho phép:
+1. Vẽ, chỉnh sửa và chuẩn hóa các đường đứt đoạn, đường đôi, Polyline GIS trên bản đồ.
+2. Tự động chuyển đổi (<strong>Materialize</strong>) các đối tượng hình học Polyline thành dữ liệu <strong>Tuyến cáp quang</strong> chuẩn hạ tầng mạng viễn thông.
+3. Quản lý chi tiết tới cấp độ <strong>Sợi cáp quang (Fiber Strand)</strong>, <strong>Điểm cáp (Cable Start / Cable End / Splice Enclosure)</strong>, <strong>Mối hàn (Splice)</strong>, <strong>Cổng đấu nối ODF (Port Termination/Patching)</strong> và <strong>Mạch/Kênh truyền quang (Fiber Circuit)</strong>.
+4. Truy vết đường truyền cáp quang (<strong>Optical Circuit Tracing</strong>) từ điểm A đến điểm Z.
+5. Kiểm tra chẩn đoán hình học Polyline, tự động phát hiện và vá lỗi gãy Polyline, lặp đỉnh (duplicate vertices), trùng tọa độ.</p>
+<hr />
+<h2>2. CÁC TÍNH NĂNG CHÍNH &amp; MỐI QUAN HỆ GIỮA CÁC TÍNH NĂNG</h2>
+<h3>2.1. Quản lý Hình Học Line / Polyline GIS</h3>
+<ul>
+<li><strong>Vẽ và Chỉnh sửa Polyline</strong>: Người dùng vẽ các đường Polyline đại diện cho tuyến cáp quang, tuyến đường ống cáp, đường điện áp trên bản đồ GIS.</li>
+<li><strong>Phân loại Polyline</strong>: Phân loại theo <code>PolylineType</code> (<code>PowerLine</code>, <code>SignalLine</code>, <code>TrenchLine</code>). Tuyến cáp quang thuộc nhóm <code>SignalLine</code>.</li>
+<li><strong>Gắn thông số hiển thị</strong>: Cấu hình màu sắc (<code>color</code>), độ rộng đường nét (<code>size</code> / <code>weight</code> / <code>stroke</code>), kiểu nét đứt (<code>dashArray</code>), độ trong suốt.</li>
+</ul>
+<h3>2.2. Vật Thể Hóa Polyline Thành Tuyến Cáp Quang (Polyline Materialization)</h3>
+<ul>
+<li><strong>Tự động quét tọa độ &amp; giao điểm</strong>: Module <code>fiberPolylineMaterializer.ts</code> phân tích các đối tượng <code>PolylineFeature</code> / <code>LineString</code>.</li>
+<li><strong>Tạo Điểm Cáp (Cable Points)</strong>: Tự động xác định điểm đầu (<code>cable_start</code>), điểm cuối (<code>cable_end</code>) và các măng xông/hộp nối (<code>splice_enclosure</code>) tại các đỉnh (vertex) hoặc giao điểm giữa các tuyến cáp.</li>
+<li><strong>Tự động gắn Metadata</strong>: Cập nhật thuộc tính <code>metadata.infrastructure.type = 'SignalLine'</code>, <code>metadata.fiber.role = 'cable'</code>, liên kết <code>from_feature_id</code> và <code>to_feature_id</code>.</li>
+<li><strong>Khởi tạo Bản ghi Tuyến Cáp</strong>: Tự động phát ra sự kiện CQRS <code>FiberCableUpserted</code> và <code>FiberCablePointsMaterialized</code> để lưu thông tin cáp vào bảng SQLite <code>fiber_cables</code>.</li>
+</ul>
+<h3>2.3. Quản Lý Kho Cáp Quang &amp; Sợi Quang (Fiber Inventory &amp; Strand Management)</h3>
+<ul>
+<li><strong>Cấu hình Dung lượng Cáp</strong>: Khởi tạo số dung lượng sợi cáp quang (Core count: 4, 8, 12, 24, 48, 96, 144, 288 sợi...) và loại cáp (<code>cable_type</code>: ADSS, GYFTY, FIG8, SingleMode, MultiMode...).</li>
+<li><strong>Định danh &amp; Mã màu Sợi (Color Coding)</strong>: Mỗi sợi quang được gán mã số (<code>strand_no</code>) và màu tiêu chuẩn viễn thông (Dương, Cam, Lục, Nâu, Xám, Trắng, Đỏ, Đen, Vàng, Tím, Hồng, Xanh Phấn...).</li>
+<li><strong>Quản lý Trạng thái Sợi</strong>:</li>
+<li><code>available</code>: Khả dụng / Trống.</li>
+<li><code>reserved</code>: Đã giữ chỗ / Dự phòng.</li>
+<li><code>active</code>: Đang hoạt động / Có tín hiệu.</li>
+<li><code>damaged</code>: Lỗi / Suy hao nặng / Đứt sợi.</li>
+</ul>
+<h3>2.4. Hàn Nối Sợi Cáp Quang &amp; Măng Xông (Splice Enclosure &amp; Splicing Diagram)</h3>
+<ul>
+<li><strong>Quản lý Măng Xông Hàn (Splice Enclosure / Closure)</strong>: Các thiết bị nằm tại điểm nối hoặc ngã 3/ngã 4 các tuyến cáp.</li>
+<li><strong>Sơ đồ Hàn Nối Chi Tiết (Fiber Splice Diagram)</strong>: Giao diện Modal trực quan hiển thị mối hàn giữa Sợi A (hướng <code>start</code> hoặc <code>end</code>) của Cáp 1 với Sợi B (hướng <code>start</code> hoặc <code>end</code>) của Cáp 2.</li>
+<li><strong>Đo lường Suy hao Mối Hàn</strong>: Ghi nhận suy hao dB (<code>loss_db</code>) tại từng mối hàn (ví dụ: 0.02 dB, 0.05 dB).</li>
+</ul>
+<h3>2.5. Đấu Nối Cổng ODF &amp; Đầu Cuối (Port Termination &amp; Patching)</h3>
+<ul>
+<li><strong>Quản lý Cổng ODF / Cổng Thiết Bị (<code>fiber_ports</code>)</strong>: Mỗi thiết bị/tủ ODF có danh sách cổng (<code>port_label</code>, <code>port_kind</code>, <code>direction</code>: <code>input</code>, <code>output</code>, <code>bidirectional</code>).</li>
+<li><strong>Hàn/Bấm Đầu Cáp vào Cổng (<code>fiber_port_terminations</code>)</strong>: Đấu nối sợi cáp quang vào cổng ODF tương ứng.</li>
+<li><strong>Nhảy Cáp Quang (<code>fiber_port_patches</code>)</strong>: Đấu nối dây nhảy (patch cord) giữa 2 cổng ODF khác nhau hoặc giữa ODF và thiết bị chuyển mạch/SW/Converter, hỗ trợ theo dõi suy hao nhảy cáp (<code>loss_db</code>).</li>
+</ul>
+<h3>2.6. Quản Lý &amp; Dò Vết Kênh Truyền Quang (Fiber Circuit &amp; Optical Tracing)</h3>
+<ul>
+<li><strong>Tạo Mạch Quang (Fiber Circuit)</strong>: Định nghĩa kênh truyền quang giữa Điểm A (<code>a_feature_id</code>) và Điểm Z (<code>z_feature_id</code>).</li>
+<li><strong>Dò Vết Kênh Truyền (<code>traceFiberCircuit</code>)</strong>: Thuật toán quét topology duyệt qua chuỗi các Hops (<code>fiber_circuit_hops</code>): đi qua các Sợi quang (<code>strand_id</code>), các Cổng ODF (<code>port_id</code>), các Mối hàn (<code>fiber_splices</code>) và Dây nhảy (<code>fiber_port_patches</code>).</li>
+<li><strong>Tính toán Tổng Suy Hao &amp; Trạng Thái</strong>: Trả về đường đi chi tiết trên bản đồ, tổng suy hao toàn tuyến và trạng thái liên tục của kênh truyền.</li>
+</ul>
+<h3>2.7. Kiểm Tra Topo &amp; Thống Kê Dung Lượng</h3>
+<ul>
+<li><strong>Thống kê Dung lượng (<code>FiberCapacitySummary</code>)</strong>: Thống kê tổng số sợi, số sợi đang dùng, số sợi khả dụng, số sợi lỗi của từng tuyến cáp.</li>
+<li><strong>Chẩn đoán Mạng (<code>FiberValidationDiagnostic</code>)</strong>: Phát hiện các sự cố hạ tầng: cáp mồ côi (chưa nối điểm đầu/cuối), măng xông rỗng, sợi đứt không có kết nối, hoặc mạch bị hẫng.</li>
+</ul>
+<h3>2.8. Chẩn Đoán &amp; Tự Động Sửa Lỗi Polyline Geometry</h3>
+<ul>
+<li><strong>Phát hiện lỗi Polyline</strong>: Module <code>polylineFix.ts</code>, <code>polylineDiagnostic.ts</code>, <code>polylineCompleteFix.ts</code>.</li>
+<li><strong>Các lỗi tự xử lý</strong>:</li>
+<li>Polyline bị mất độ rộng nét (<code>size</code> / <code>weight</code> / <code>stroke</code> bị mặc định về 2px thay vì 30px do chuẩn hóa metadata).</li>
+<li>Polyline bị gãy, có các điểm trùng nhau liên tiếp (duplicate coordinates).</li>
+<li>Tự động cưỡng chế re-render VectorLayer và đồng bộ trạng thái state khi thay đổi thuộc tính tuyến cáp.</li>
+</ul>
+<hr />
+<h3>SƠ ĐỒ MỐI QUAN HỆ GIỮA CÁC TÍNH NĂNG (FEATURE ARCHITECTURE &amp; DATA FLOW)</h3>
+<div class="mermaid">graph TD
+    SubGraphLine[Polyline / LineString GIS Feature] --&gt;|Materialize| SubGraphCable[Fiber Cable Tuyến Cáp Quang]
+
+    SubGraphCable --&gt;|Bao gồm 1..N| SubGraphStrand[Fiber Strands Sợi Quang]
+    SubGraphCable --&gt;|Chứa các| SubGraphPoint[Cable Points Start/End/Enclosure]
+
+    SubGraphPoint --&gt;|Định vị tại| SubGraphEq[Equipment / Splice Enclosure Măng xông]
+
+    SubGraphStrand --&gt;|Hàn nối tại Enclosure| SubGraphSplice[Fiber Splice Mối Hàn]
+    SubGraphStrand --&gt;|Hàn vào| SubGraphPort[Fiber Port Cổng ODF]
+
+    SubGraphPort --&gt;|Đấu dây nhảy Patch Cord| SubGraphPatch[Port Patch]
+
+    SubGraphStrand &amp; SubGraphPort &amp; SubGraphSplice &amp; SubGraphPatch --&gt;|Duyệt theo Hops| SubGraphCircuit[Fiber Circuit / Trace Optical Path]
+
+    SubGraphCable --&gt;|Thống kê| SubGraphCapacity[Fiber Capacity Summary]
+    SubGraphCable &amp; SubGraphPoint --&gt;|Kiểm tra| SubGraphValidation[Network Validation &amp; Diagnostics]
+</div>
+<hr />
+<h2>3. TRẢI NGHIỆM GIAO DIỆN NGUỜI DÙNG (UI/UX DESIGN &amp; WORKFLOWS)</h2>
+<h3>3.1. Các Bảng Điều Khiển Chính (UI Panels &amp; Modals)</h3>
+<ol>
+<li><strong><code>FiberInspector.tsx</code> (Bảng điều khiển chi tiết tuyến cáp)</strong>:</li>
+<li>Nằm ở Sidebar phải (Right Palette Panel).</li>
+<li>
+<p>Có 5 Tab điều hướng:</p>
+<ul>
+<li><strong>Inventory</strong>: Xem danh sách tuyến cáp, tạo cáp mới, vật thể hóa từ Polyline legacy.</li>
+<li><strong>Strands</strong>: Danh sách sợi cáp quang, bộ lọc theo màu/trạng thái/từ khóa, đổi trạng thái sợi (Available / Reserved / Active / Damaged).</li>
+<li><strong>Equipment</strong>: Danh sách măng xông, tủ ODF, thiết bị mạng liên kết với tuyến cáp.</li>
+<li><strong>Circuits</strong>: Danh sách mạch quang chạy qua tuyến cáp, nút bấm kích hoạt Dò vết (Trace).</li>
+<li><strong>Diagnostics</strong>: Xem danh sách các cảnh báo lỗi hạ tầng mạng liên quan tới cáp.</li>
+</ul>
+</li>
+<li>
+<p><strong><code>FiberSpliceDiagramModal.tsx</code> (Modal Sơ Đồ Hàn Nối Quang)</strong>:</p>
+</li>
+<li>Giao diện đồ họa Canvas / SVG tương tác cao.</li>
+<li>Hiển thị trực quan măng xông hàn nối, cáp vào (Cable In) bên trái, cáp ra (Cable Out) bên phải.</li>
+<li>Cho phép Kéo - Thả (Drag &amp; Drop) hoặc Click nối sợi quang A vào sợi quang B.</li>
+<li>
+<p>Hiển thị màu chuẩn sợi quang, trạng thái mối hàn, nhập chỉ số suy hao dB.</p>
+</li>
+<li>
+<p><strong><code>FiberCapacityPanel.tsx</code> (Bảng Thống Kê Dung Lượng)</strong>:</p>
+</li>
+<li>Hiển thị tiến trình dạng Thanh Progress Bar tỷ lệ phần trăm sử dụng cáp (đã dùng / còn trống / bị hỏng).</li>
+<li>
+<p>Danh sách các tuyến cáp phân theo từng loại cáp (ADSS 24F, SingleMode 48F...).</p>
+</li>
+<li>
+<p><strong><code>FiberCircuitPanel.tsx</code> (Bảng Quản Lý &amp; Truy Vết Kênh Truyền)</strong>:</p>
+</li>
+<li>Danh sách các kênh quang (Mạch A-Z).</li>
+<li>Nút <strong>"Trace Circuit"</strong>: Kích hoạt highlighting tuyến đường quang trên bản đồ GIS, tô sáng các đoạn cáp và điểm nhảy cáp mà mạch đó đi qua.</li>
+</ol>
+<h3>3.2. Mã Màu &amp; Trạng Thái Thị Giác (Color Badges)</h3>
+<ul>
+<li><strong>Available (Khả dụng)</strong>: Khung viền xanh lá nhạt (<code>border-emerald-500/25 bg-emerald-500/10 text-emerald-300</code>).</li>
+<li><strong>Reserved (Giữ chỗ)</strong>: Khung viền vàng nhạt (<code>border-amber-500/25 bg-amber-500/10 text-amber-300</code>).</li>
+<li><strong>Active (Đang chạy)</strong>: Khung viền xanh lam nhạt (<code>border-cyan-500/25 bg-cyan-500/10 text-cyan-300</code>).</li>
+<li><strong>Damaged (Hỏng/Lỗi)</strong>: Khung viền đỏ nhạt (<code>border-red-500/25 bg-red-500/10 text-red-300</code>).</li>
+</ul>
+<hr />
+<h2>4. DANH SÁCH FILE CODE LIÊN QUAN (CODEBASE REFERENCES)</h2>
+<h3>4.1. Frontend TypeScript Modules</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Đường dẫn File</th>
+<th style="text-align: left;">Chức năng chính</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>src/modules/contract/types.ts</code></td>
+<td style="text-align: left;">Định nghĩa tất cả TypeScript Interface/Enum cho Polyline (<code>PolylineType</code>, <code>PolylineFeature</code>, <code>Segment</code>), Fiber (<code>FiberCable</code>, <code>FiberStrand</code>, <code>FiberCablePoint</code>, <code>FiberPort</code>, <code>FiberSplice</code>, <code>FiberCircuit</code>, <code>FiberCapacitySummary</code>).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/design/features/map/network/fiberPolylineMaterializer.ts</code></td>
+<td style="text-align: left;">Logic core vật thể hóa Polyline thành Fiber Cable: Quét tọa độ, sinh event <code>FiberCableUpserted</code>, <code>FiberCablePointsMaterialized</code>, gán <code>start_point</code>, <code>end_point</code>, <code>splice_enclosure</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/design/features/map/network/fiberService.ts</code></td>
+<td style="text-align: left;">Bridge giao tiếp IPC Tauri &amp; Event Queue: <code>upsertFiberCable</code>, <code>materializeFiberFromPolylines</code>, <code>getFiberInventory</code>, <code>getFiberCablePoints</code>, <code>traceFiberCircuit</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/design/features/map/network/fiberUiModel.ts</code></td>
+<td style="text-align: left;">Map dữ liệu backend thành UI Model: <code>buildCableRows</code>, <code>buildLegacyFiberCableCandidates</code>, <code>filterFiberStrands</code>, <code>getSpliceChainForStrand</code>, <code>groupFiberDiagnostics</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/design/features/map/network/fiberValidation.ts</code></td>
+<td style="text-align: left;">Validation mạng cáp quang, phát hiện nút rỗng, sợi không kết nối.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/design/features/map/network/fiberGeometryValidation.ts</code></td>
+<td style="text-align: left;">Validation tọa độ hình học Polyline, kiểm tra giao điểm, độ dài tối thiểu.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/design/features/map/network/fiberGraphService.ts</code></td>
+<td style="text-align: left;">Xây dựng đồ thị mạng cáp quang (Network Topology Graph), tìm đường đi ngắn nhất giữa các măng xông.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/design/features/map/network/fiberRouteDisplay.ts</code></td>
+<td style="text-align: left;">Định dạng và style tuyến cáp quang khi render lên Map OpenLayers/Leaflet/Mapbox.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/design/features/map/Palette/FiberInspector.tsx</code></td>
+<td style="text-align: left;">Bảng Inspector quản lý toàn bộ kho cáp, danh sách sợi, thiết bị và chẩn đoán.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/design/features/map/Palette/FiberSpliceDiagramModal.tsx</code></td>
+<td style="text-align: left;">Modal sơ đồ hàn nối cáp quang trực quan.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/design/features/map/Palette/FiberCapacityPanel.tsx</code></td>
+<td style="text-align: left;">Panel thống kê dung lượng cáp.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/design/features/map/Palette/FiberCircuitPanel.tsx</code></td>
+<td style="text-align: left;">Panel quản lý và trace mạch quang A-Z.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/tool/utils/polylineFix.ts</code></td>
+<td style="text-align: left;">Sửa lỗi độ rộng đường nét Polyline (Stroke/Size Fix), cưỡng chế re-render Vector Layer.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/tool/utils/polylineDiagnostic.ts</code></td>
+<td style="text-align: left;">Chẩn đoán lỗi hình học Polyline.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src/modules/tool/utils/polylineCompleteFix.ts</code></td>
+<td style="text-align: left;">Bộ công cụ tự động vá tất cả lỗi Polyline.</td>
+</tr>
+</tbody>
+</table>
+<h3>4.2. Backend Rust / Tauri Modules</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Đường dẫn File</th>
+<th style="text-align: left;">Chức năng chính</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>src-tauri/src/domain/implement/modules/v2/storage/schema.rs</code></td>
+<td style="text-align: left;">Định nghĩa DDL SQLite cho 10+ bảng dữ liệu Fiber, Triggers kiểm tra tính toàn vẹn dữ liệu dự án.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src-tauri/src/domain/implement/commands/v2_bridge.rs</code></td>
+<td style="text-align: left;">Xử lý các Tauri Command IPC cho Fiber: <code>get_fiber_inventory</code>, <code>get_fiber_cable_points</code>, <code>trace_fiber_circuit</code>, v.v.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>src-tauri/src/lib.rs</code></td>
+<td style="text-align: left;">Đăng ký các Tauri command handler trong ứng dụng desktop.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>5. LƯU TRỮ DỮ LIỆU, METADATA &amp; SCHEMA</h2>
+<h3>5.1. SQLite Database Schema (Cấu Trúc Cơ Sở Dữ Liệu Lõi)</h3>
+<p>Dữ liệu mạng cáp quang được lưu trữ trực tiếp trong file SQLite của dự án (<code>default_project.pmp</code> / <code>sqlite.db</code>), thông qua phiên bản Schema V9 (<code>CURRENT_SCHEMA_VERSION = 9</code>).</p>
+<h4>1. Bảng <code>features</code> (Đối tượng hình học GIS)</h4>
+<p>Mỗi Polyline hoặc Điểm cáp gốc là một bản ghi trong bảng <code>features</code>:</p>
+<pre><code class="language-sql">CREATE TABLE IF NOT EXISTS features (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    layer_id TEXT NOT NULL,
+    group_id TEXT,
+    name TEXT NOT NULL,
+    geom_type TEXT NOT NULL, -- 'LineString', 'Polyline', 'NetworkLink', 'Point'
+    coordinates_json TEXT,  -- JSON mảng các tọa độ [[lon, lat], [lon, lat], ...]
+    properties_json TEXT NOT NULL DEFAULT '{}',
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    bbox_json TEXT,
+    is_visible INTEGER NOT NULL DEFAULT 1,
+    note TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+</code></pre>
+<h4>2. Bảng <code>fiber_cables</code> (Tuyến Cáp Quang)</h4>
+<p>Liên kết 1-1 với <code>features</code> thông qua <code>feature_id</code>:</p>
+<pre><code class="language-sql">CREATE TABLE IF NOT EXISTS fiber_cables (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    feature_id TEXT NOT NULL UNIQUE,
+    cable_type TEXT,                -- ví dụ: 'ADSS-24F', 'SingleMode'
+    fiber_count INTEGER CHECK (fiber_count IS NULL OR fiber_count &gt;= 0),
+    owner TEXT,                     -- Đơn vị sở hữu (VTN, Viettel, FPT...)
+    status TEXT NOT NULL DEFAULT 'planned', -- 'planned', 'active', 'retired', 'damaged'
+    source TEXT NOT NULL DEFAULT 'manual',  -- 'manual', 'legacy', 'imported'
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY(feature_id, project_id) REFERENCES features(id, project_id) ON DELETE CASCADE,
+    UNIQUE(id, project_id)
+);
+</code></pre>
+<h4>3. Bảng <code>fiber_strands</code> (Sợi Cáp Quang)</h4>
+<p>Lưu chi tiết từng sợi quang thuộc tuyến cáp:</p>
+<pre><code class="language-sql">CREATE TABLE IF NOT EXISTS fiber_strands (
+    id TEXT PRIMARY KEY,
+    cable_id TEXT NOT NULL,
+    strand_no INTEGER NOT NULL CHECK (strand_no &gt; 0), -- Số thứ tự sợi (1..N)
+    color TEXT,                                       -- Mã màu sợi quang
+    status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'reserved', 'active', 'damaged')),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    FOREIGN KEY(cable_id) REFERENCES fiber_cables(id) ON DELETE CASCADE,
+    UNIQUE(cable_id, strand_no)
+);
+</code></pre>
+<h4>4. Bảng <code>fiber_cable_points</code> (Điểm Đầu/Cuối &amp; Măng Xông Cáp)</h4>
+<p>Đánh dấu các vị trí đỉnh/nút trên đường cáp:</p>
+<pre><code class="language-sql">CREATE TABLE IF NOT EXISTS fiber_cable_points (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    cable_id TEXT NOT NULL,
+    feature_id TEXT NOT NULL, -- Point Feature gốc trên bản đồ
+    point_kind TEXT NOT NULL CHECK (point_kind IN ('cable_start', 'cable_end', 'splice_enclosure')),
+    sequence_no INTEGER NOT NULL DEFAULT 0 CHECK (sequence_no &gt;= 0),
+    vertex_index INTEGER,    -- Chỉ số đỉnh trên Polyline
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY(cable_id, project_id) REFERENCES fiber_cables(id, project_id) ON DELETE CASCADE,
+    FOREIGN KEY(feature_id, project_id) REFERENCES features(id, project_id) ON DELETE CASCADE,
+    UNIQUE(cable_id, point_kind, sequence_no)
+);
+</code></pre>
+<h4>5. Bảng <code>fiber_splices</code> (Mối Hàn Sợi Quang)</h4>
+<pre><code class="language-sql">CREATE TABLE IF NOT EXISTS fiber_splices (
+    id TEXT PRIMARY KEY,
+    enclosure_feature_id TEXT NOT NULL,
+    from_strand_id TEXT NOT NULL,
+    to_strand_id TEXT NOT NULL,
+    from_direction TEXT NOT NULL DEFAULT 'start' CHECK (from_direction IN ('start', 'end')),
+    to_direction TEXT NOT NULL DEFAULT 'start' CHECK (to_direction IN ('start', 'end')),
+    loss_db REAL CHECK (loss_db IS NULL OR loss_db &gt;= 0),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    FOREIGN KEY(enclosure_feature_id) REFERENCES features(id) ON DELETE CASCADE,
+    FOREIGN KEY(from_strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE,
+    FOREIGN KEY(to_strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE
+);
+</code></pre>
+<h4>6. Bảng <code>fiber_ports</code>, <code>fiber_port_terminations</code>, <code>fiber_port_patches</code> (Cổng ODF, Hàn Cổng, Dây Nhảy)</h4>
+<pre><code class="language-sql">CREATE TABLE IF NOT EXISTS fiber_ports (
+    id TEXT PRIMARY KEY,
+    feature_id TEXT NOT NULL,
+    port_label TEXT NOT NULL,
+    port_kind TEXT NOT NULL,
+    direction TEXT NOT NULL DEFAULT 'bidirectional' CHECK (direction IN ('input', 'output', 'bidirectional')),
+    status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'reserved', 'active', 'damaged')),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    FOREIGN KEY(feature_id) REFERENCES features(id) ON DELETE CASCADE,
+    UNIQUE(feature_id, port_label)
+);
+
+CREATE TABLE IF NOT EXISTS fiber_port_terminations (
+    id TEXT PRIMARY KEY,
+    port_id TEXT NOT NULL,
+    strand_id TEXT NOT NULL,
+    strand_direction TEXT NOT NULL DEFAULT 'start' CHECK (strand_direction IN ('start', 'end')),
+    side TEXT NOT NULL DEFAULT 'left' CHECK (side IN ('left', 'right')),
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    FOREIGN KEY(port_id) REFERENCES fiber_ports(id) ON DELETE CASCADE,
+    FOREIGN KEY(strand_id) REFERENCES fiber_strands(id) ON DELETE CASCADE,
+    UNIQUE(port_id),
+    UNIQUE(strand_id, strand_direction)
+);
+
+CREATE TABLE IF NOT EXISTS fiber_port_patches (
+    id TEXT PRIMARY KEY,
+    from_port_id TEXT NOT NULL,
+    to_port_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    loss_db REAL CHECK (loss_db IS NULL OR loss_db &gt;= 0),
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    FOREIGN KEY(from_port_id) REFERENCES fiber_ports(id) ON DELETE CASCADE,
+    FOREIGN KEY(to_port_id) REFERENCES fiber_ports(id) ON DELETE CASCADE,
+    CHECK(from_port_id &lt;&gt; to_port_id)
+);
+</code></pre>
+<h4>7. Bảng <code>fiber_circuits</code> &amp; <code>fiber_circuit_hops</code> (Mạch/Kênh Truyền Quang)</h4>
+<pre><code class="language-sql">CREATE TABLE IF NOT EXISTS fiber_circuits (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    service_type TEXT NOT NULL DEFAULT 'data',
+    status TEXT NOT NULL DEFAULT 'planned' CHECK (status IN ('planned', 'active', 'suspended', 'down', 'retired')),
+    a_feature_id TEXT NOT NULL,
+    z_feature_id TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY(a_feature_id, project_id) REFERENCES features(id, project_id) ON DELETE CASCADE,
+    FOREIGN KEY(z_feature_id, project_id) REFERENCES features(id, project_id) ON DELETE CASCADE,
+    UNIQUE(project_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS fiber_circuit_hops (
+    circuit_id TEXT NOT NULL,
+    sequence_no INTEGER NOT NULL CHECK (sequence_no &gt;= 0),
+    strand_id TEXT,
+    port_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    PRIMARY KEY (circuit_id, sequence_no),
+    FOREIGN KEY(circuit_id) REFERENCES fiber_circuits(id) ON DELETE CASCADE,
+    FOREIGN KEY(strand_id) REFERENCES fiber_strands(id) ON DELETE SET NULL,
+    FOREIGN KEY(port_id) REFERENCES fiber_ports(id) ON DELETE SET NULL,
+    CHECK ((strand_id IS NOT NULL AND port_id IS NULL) OR (strand_id IS NULL AND port_id IS NOT NULL))
+);
+</code></pre>
+<hr />
+<h3>5.2. SQLite Triggers (Ràng Buộc &amp; Toàn Vẹn Dữ Liệu)</h3>
+<p>Hệ thống sử dụng các SQLite Trigger để đảm bảo dữ liệu của <code>fiber_cables</code>, <code>fiber_cable_points</code>, <code>fiber_circuits</code> thuộc đúng <code>project_id</code> với các đối tượng <code>features</code> liên kết:</p>
+<ul>
+<li><code>trg_fiber_cables_project_insert</code> / <code>update</code>: Kiểm tra <code>feature_id</code> truyền vào phải tồn tại trong cùng <code>project_id</code>.</li>
+<li><code>trg_fiber_cable_points_project_insert</code> / <code>update</code>: Kiểm tra <code>cable_id</code> và <code>feature_id</code> phải khớp cùng <code>project_id</code>.</li>
+<li><code>trg_fiber_circuits_project_insert</code> / <code>update</code>: Kiểm tra điểm A (<code>a_feature_id</code>) và điểm Z (<code>z_feature_id</code>) thuộc cùng <code>project_id</code>.</li>
+</ul>
+<hr />
+<h3>5.3. Cấu Trúc Metadata JSON trong <code>features.metadata</code></h3>
+<p>Các đối tượng Polyline/Feature được làm giàu dữ liệu thông qua cấu trúc JSON lồng nhau trong <code>metadata_json</code>:</p>
+<pre><code class="language-json">{
+  &quot;gis&quot;: {
+    &quot;color&quot;: &quot;#0088ff&quot;,
+    &quot;size&quot;: 6,
+    &quot;weight&quot;: 6,
+    &quot;stroke&quot;: 6
+  },
+  &quot;infrastructure&quot;: {
+    &quot;type&quot;: &quot;SignalLine&quot;,
+    &quot;cable_type&quot;: &quot;ADSS-24F&quot;,
+    &quot;core_count&quot;: 24,
+    &quot;owner&quot;: &quot;Viettel&quot;,
+    &quot;status&quot;: &quot;active&quot;
+  },
+  &quot;network&quot;: {
+    &quot;from_feature_id&quot;: &quot;feat-start-001&quot;,
+    &quot;to_feature_id&quot;: &quot;feat-end-002&quot;,
+    &quot;from_endpoint&quot;: {
+      &quot;type&quot;: &quot;feature&quot;,
+      &quot;id&quot;: &quot;feat-start-001&quot;
+    },
+    &quot;to_endpoint&quot;: {
+      &quot;type&quot;: &quot;feature&quot;,
+      &quot;id&quot;: &quot;feat-end-002&quot;
+    },
+    &quot;direction_mode&quot;: &quot;auto&quot;
+  },
+  &quot;fiber&quot;: {
+    &quot;role&quot;: &quot;cable&quot;,
+    &quot;kind&quot;: &quot;cable_endpoint&quot;,
+    &quot;point_kind&quot;: &quot;cable_start&quot;,
+    &quot;cable_id&quot;: &quot;cable-uuid-1234&quot;,
+    &quot;sequence_no&quot;: 0
+  }
+}
+</code></pre>
+<hr />
+<h3>5.4. Kiến Trúc CQRS Event Sourcing (CQRS Event Payloads)</h3>
+<p>Mọi thay đổi dữ liệu mạng cáp quang được truyền tải và đồng bộ thông qua Event Log (Bảng <code>events</code>). Một số Event payload quan trọng:</p>
+<ol>
+<li>
+<p><strong><code>FiberCableUpserted</code></strong>:
+   <code>json
+   {
+     "type": "FiberCableUpserted",
+     "payload": {
+       "id": "cable-uuid-1234",
+       "project_id": "proj-001",
+       "feature_id": "feat-polyline-001",
+       "cable_type": "ADSS-24F",
+       "fiber_count": 24,
+       "owner": "VNPT",
+       "status": "planned",
+       "source": "manual"
+     }
+   }</code></p>
+</li>
+<li>
+<p><strong><code>FiberCablePointsMaterialized</code></strong>:
+   <code>json
+   {
+     "type": "FiberCablePointsMaterialized",
+     "payload": {
+       "id": "event-point-materialize-01",
+       "project_id": "proj-001",
+       "cable_id": "cable-uuid-1234",
+       "points": [
+         {
+           "id": "pt-01",
+           "feature_id": "feat-node-start",
+           "point_kind": "cable_start",
+           "sequence_no": 0,
+           "vertex_index": 0
+         },
+         {
+           "id": "pt-02",
+           "feature_id": "feat-node-end",
+           "point_kind": "cable_end",
+           "sequence_no": 1,
+           "vertex_index": 5
+         }
+       ]
+     }
+   }</code></p>
+</li>
+<li>
+<p><strong><code>FeatureUpdated</code></strong>:
+   Cập nhật lại tên và <code>metadata_json</code> cho Polyline sau khi đã gắn thông tin Fiber Cable.</p>
+</li>
+</ol>
+<hr />
+<h2>6. KẾT LUẬN &amp; ĐÁNH GIÁ KIẾN TRÚC</h2>
+<p>Module <strong>Line/Polyline - Fiber Network</strong> được thiết kế bài bản theo mô hình <strong>Domain-Driven Design (DDD)</strong> và <strong>Event-Sourcing CQRS</strong>:
+- <strong>Tách biệt rõ ràng</strong>: Hình học GIS (<code>features</code>) được phân tách sạch sẽ khỏi Logic mạng viễn thông (<code>fiber_cables</code>, <code>fiber_strands</code>, <code>fiber_splices</code>).
+- <strong>Độ tin cậy dữ liệu</strong>: Đảm bảo toàn vẹn bằng Triggers SQLite ở tầng SQLite và Event Batch Handler ở tầng Rust.
+- <strong>Tối ưu hóa UI/UX</strong>: Tích hợp các bảng điều khiển chuyên dụng cho kỹ sư viễn thông (Sơ đồ mối hàn SVG, Truy vết đường truyền A-Z, Thống kê dung lượng sợi).</p>
+    </div>
+</body>
+</html>

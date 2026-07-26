@@ -114,7 +114,7 @@ export const buildFeatureCreatedPayload = ({
     group_id,
     name,
     geom_type,
-    coordinates: JSON.stringify(coordinates),
+    coordinates,
     metadata: JSON.stringify(normalizedMetadata),
     properties: nextProperties,
   };
