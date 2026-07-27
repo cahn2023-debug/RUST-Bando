@@ -219,11 +219,17 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
 
           // IMPORTANT: Only merge theme-related fields into metadata
           // Do NOT overwrite the entire metadata string
+          const activeColor = color || metadata.gis?.color || metadata.color;
           const draftMetadata = {
             ...metadata,
             icon: targetIcon,
-            color: color || metadata.color,
-            size: size || metadata.size || 32
+            color: activeColor,
+            size: size || metadata.size || 32,
+            gis: {
+              ...(metadata.gis || {}),
+              color: activeColor,
+              size: size || metadata.gis?.size || metadata.size || 32,
+            }
           };
           const symbol = normalizeFeatureSymbolData(
             { ...f, metadata: draftMetadata },
@@ -254,6 +260,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
                 icon: symbol.iconKey,
                 iconKey: symbol.iconKey,
                 type: symbol.objectType,
+                color: activeColor,
               },
             }
           };

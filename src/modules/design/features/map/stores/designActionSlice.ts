@@ -49,7 +49,7 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
         if (!projectId || !state || isHydrating) return;
         const event = enrichEventBeforeDispatch(incomingEvent);
 
-        if (event.type === 'FeatureUpdated') {
+        if (event.eventType === 'FeatureUpdated') {
             const payload = event.payload as any;
             if (payload.id && payload.coordinates) {
                 const now = Date.now();
@@ -74,7 +74,7 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
                     if (response) {
                         get().applyPatchToState(response);
                     }
-                    if (event.type === 'FeatureCreated' || (event.type === 'FeatureUpdated' && (event.payload as any).metadata)) {
+                    if (event.eventType === 'FeatureCreated' || (event.eventType === 'FeatureUpdated' && (event.payload as any).metadata)) {
                         get().syncDisplayOrderWithSTT();
                     }
                 })

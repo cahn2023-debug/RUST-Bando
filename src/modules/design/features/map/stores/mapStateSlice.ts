@@ -232,6 +232,41 @@ const cleanupDeletedFeatures = (
     };
 };
 
+const syncUpdatedFeatureCaches = (
+    state: DesignSyncStore,
+    updatedIds: Set<string>,
+    nextState: MapState
+): Partial<DesignSyncStore> => {
+    if (updatedIds.size === 0) return {};
+
+    let visibleFeatures = state.visibleFeatures;
+    let featureDetailsCache = state.featureDetailsCache;
+    let visibleChanged = false;
+    let cacheChanged = false;
+
+    updatedIds.forEach(id => {
+        const feature = nextState.features?.[id];
+        if (!feature) return;
+
+        if (visibleFeatures[id]) {
+            if (!visibleChanged) visibleFeatures = { ...visibleFeatures };
+            visibleFeatures[id] = feature;
+            visibleChanged = true;
+        }
+
+        if (featureDetailsCache[id]) {
+            if (!cacheChanged) featureDetailsCache = { ...featureDetailsCache };
+            featureDetailsCache[id] = feature;
+            cacheChanged = true;
+        }
+    });
+
+    return {
+        ...(visibleChanged ? { visibleFeatures } : {}),
+        ...(cacheChanged ? { featureDetailsCache } : {}),
+    };
+};
+
 const hasRenderableCoordinates = (payload: any) => {
     const coordinates = payload?.coordinates ?? payload?.geometry;
     return Array.isArray(coordinates) && coordinates.length > 0;
@@ -329,6 +364,8 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
     isViewportLoading: false,
     viewportFeatureTotal: 0,
     isViewportTruncated: false,
+    mapRenderEngine: 'leaflet',
+    renderMetrics: null,
 
     // Giai đoạn 5: Optimistic UI state
     pendingSyncEvents: [],
@@ -348,6 +385,10 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
     },
 
     setViewportLoading: (isViewportLoading) => set({ isViewportLoading }),
+
+    setMapRenderEngine: (mapRenderEngine) => set({ mapRenderEngine }),
+
+    setRenderMetrics: (renderMetrics) => set({ renderMetrics }),
 
     cacheFeatureDetail: (feature) => set((s) => ({
         featureDetailsCache: {
@@ -450,6 +491,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         const newState = { ...currentState };
         const deletedFeatureIds = new Set<string>();
+        const updatedFeatureIds = new Set<string>();
         let shouldRefreshViewport = false;
 
         const applySingle = (event: DesignEventType) => {
@@ -476,6 +518,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                             ...safePatch
                         } : { ...safePatch }
                     };
+                    updatedFeatureIds.add(payload.id);
                     break;
                 }
                 case 'FeatureDeleted': {
@@ -573,6 +616,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         set((s) => ({
             state: normalizedState,
             ...(shouldRefreshViewport ? { viewportRevision: s.viewportRevision + 1 } : {}),
+            ...syncUpdatedFeatureCaches(s, updatedFeatureIds, normalizedState),
             ...cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState)
         }));
         if (IS_DEV) {
@@ -586,6 +630,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         const newState = { ...currentState };
         const deletedFeatureIds = new Set<string>();
+        const updatedFeatureIds = new Set<string>();
         let shouldRefreshViewport = false;
 
         const applySingle = (event: DesignEventType) => {
@@ -612,6 +657,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                             ...safePatch
                         } : { ...safePatch }
                     };
+                    updatedFeatureIds.add(payload.id);
                     break;
                 }
                 case 'FeatureDeleted': {
@@ -697,6 +743,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         set((s) => ({
             state: normalizedState,
             ...(shouldRefreshViewport ? { viewportRevision: s.viewportRevision + 1 } : {}),
+            ...syncUpdatedFeatureCaches(s, updatedFeatureIds, normalizedState),
             ...cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState)
         }));
         if (IS_DEV) {
@@ -710,6 +757,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         const newState = { ...currentState };
         const deletedFeatureIds = new Set<string>();
+        const updatedFeatureIds = new Set<string>();
         let shouldRefreshViewport = false;
 
         const apply = (ev: DesignEventType) => {
@@ -739,6 +787,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                             ...fPayload
                         } : { ...fPayload }
                     };
+                    updatedFeatureIds.add(payload.id);
                     break;
                 }
                 case 'FeatureDeleted': {
@@ -827,6 +876,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         set((s) => ({
             state: normalizedState,
             ...(shouldRefreshViewport ? { viewportRevision: s.viewportRevision + 1 } : {}),
+            ...syncUpdatedFeatureCaches(s, updatedFeatureIds, normalizedState),
             ...cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState)
         }));
         if (IS_DEV) {

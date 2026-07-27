@@ -1,14 +1,15 @@
-import { lazy } from 'react';
+import type { ComponentType } from 'react';
+import { lazyWithRetry } from '@TOOL/utils/lazyWithRetry';
 
 export interface PaletteDefinition {
     id: string;
-    component: React.ComponentType<any>;
+    component: ComponentType<any>;
 }
 
 const registry: Record<string, PaletteDefinition> = {};
 
 export const PaletteRegistry = {
-    register: (id: string, component: React.ComponentType<any>) => {
+    register: (id: string, component: ComponentType<any>) => {
         registry[id] = { id, component };
     },
     getComponent: (id: string) => {
@@ -21,11 +22,11 @@ import { PropertyPanel } from "@DESIGN/components/core/PropertyPanel";
 PaletteRegistry.register('spec-panel', PropertyPanel);
 
 // Lazy registrations
-const DeviceConfigPanel = lazy(() => import('@DESIGN/features/map/Palette/DeviceConfigPanel').then(m => ({ default: m.DeviceConfigPanel })));
-const CameraViewPanel = lazy(() => import('@DESIGN/features/map/Palette/CameraViewPanel').then(m => ({ default: m.CameraViewPanel })));
-const SystemConfigPanel = lazy(() => import('@DESIGN/features/map/Palette/SystemConfigPanel').then(m => ({ default: m.SystemConfigPanel })));
-const BoxSummary = lazy(() => import('@DESIGN/features/map/MapLayerComponents/BoxSummary').then(m => ({ default: m.BoxSummary })));
-const NetworkGraphPanel = lazy(() => import('@DESIGN/features/map/Palette/NetworkGraphPanel').then(m => ({ default: m.NetworkGraphPanel })));
+const DeviceConfigPanel = lazyWithRetry(() => import('@DESIGN/features/map/Palette/DeviceConfigPanel').then(m => ({ default: m.DeviceConfigPanel })), { moduleName: 'DeviceConfigPanel' });
+const CameraViewPanel = lazyWithRetry(() => import('@DESIGN/features/map/Palette/CameraViewPanel').then(m => ({ default: m.CameraViewPanel })), { moduleName: 'CameraViewPanel' });
+const SystemConfigPanel = lazyWithRetry(() => import('@DESIGN/features/map/Palette/SystemConfigPanel').then(m => ({ default: m.SystemConfigPanel })), { moduleName: 'SystemConfigPanel' });
+const BoxSummary = lazyWithRetry(() => import('@DESIGN/features/map/MapLayerComponents/BoxSummary').then(m => ({ default: m.BoxSummary })), { moduleName: 'BoxSummary' });
+const NetworkGraphPanel = lazyWithRetry(() => import('@DESIGN/features/map/Palette/NetworkGraphPanel').then(m => ({ default: m.NetworkGraphPanel })), { moduleName: 'NetworkGraphPanel' });
 
 PaletteRegistry.register('device-config', DeviceConfigPanel);
 PaletteRegistry.register('camera-view', CameraViewPanel);
@@ -33,5 +34,5 @@ PaletteRegistry.register('system-config', SystemConfigPanel);
 PaletteRegistry.register('summary-panel', BoxSummary);
 PaletteRegistry.register('network-graph', NetworkGraphPanel);
 
-const AiAssistantPanel = lazy(() => import('@DESIGN/features/map/Palette/AiAssistantPanel').then(m => ({ default: m.AiAssistantPanel })));
+const AiAssistantPanel = lazyWithRetry(() => import('@DESIGN/features/map/Palette/AiAssistantPanel').then(m => ({ default: m.AiAssistantPanel })), { moduleName: 'AiAssistantPanel' });
 PaletteRegistry.register('ai-assistant', AiAssistantPanel);

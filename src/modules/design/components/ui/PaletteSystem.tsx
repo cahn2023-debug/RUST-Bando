@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { Component, ErrorInfo, ReactNode, useEffect } from "react";
 import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
 import { PalettePanel } from "@DESIGN/features/map/Palette/PalettePanel";
 import { VerticalResizeHandle } from "@DESIGN/components/ui/VerticalResizeHandle";
@@ -9,6 +9,63 @@ import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 
 interface PaletteSystemProps {
     isOneObjectSelected: boolean;
+}
+
+interface PaletteBoundaryProps {
+    paletteId: string;
+    children: ReactNode;
+}
+
+interface PaletteBoundaryState {
+    error: Error | null;
+}
+
+class PaletteErrorBoundary extends Component<PaletteBoundaryProps, PaletteBoundaryState> {
+    public state: PaletteBoundaryState = { error: null };
+
+    public static getDerivedStateFromError(error: Error): PaletteBoundaryState {
+        return { error };
+    }
+
+    public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+        console.error(`[PaletteSystem] Failed to render palette ${this.props.paletteId}:`, error, errorInfo);
+    }
+
+    public componentDidUpdate(prevProps: PaletteBoundaryProps) {
+        if (prevProps.paletteId !== this.props.paletteId && this.state.error) {
+            this.setState({ error: null });
+        }
+    }
+
+    private handleReload = () => {
+        window.location.reload();
+    };
+
+    public render() {
+        if (this.state.error) {
+            return (
+                <div className="h-full min-h-[120px] bg-cad-bg border border-cad-danger/40 p-3 flex flex-col justify-center gap-3">
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-cad-danger">
+                            Palette failed to load
+                        </p>
+                        <p className="mt-1 text-[9px] font-mono text-cad-text-muted break-words">
+                            {this.state.error.message}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={this.handleReload}
+                        className="self-start px-3 py-1.5 bg-cad-danger/20 hover:bg-cad-danger/30 border border-cad-danger/50 text-cad-danger text-[9px] font-black uppercase tracking-widest transition-colors"
+                    >
+                        Reload workspace
+                    </button>
+                </div>
+            );
+        }
+
+        return this.props.children;
+    }
 }
 
 export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
@@ -45,9 +102,11 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
         if (!RegisteredComponent) return <div className="p-4 text-xs text-cad-muted">Unknown Palette: {id}</div>;
 
         return (
-            <Suspense fallback={<div className="p-4 flex justify-center"><Loader2 className="animate-spin text-cad-accent" size={16} /></div>}>
-                <RegisteredComponent />
-            </Suspense>
+            <PaletteErrorBoundary paletteId={id}>
+                <Suspense fallback={<div className="p-4 flex justify-center"><Loader2 className="animate-spin text-cad-accent" size={16} /></div>}>
+                    <RegisteredComponent />
+                </Suspense>
+            </PaletteErrorBoundary>
         );
     };
 

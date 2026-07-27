@@ -1,9 +1,9 @@
-import { useEffect, useState, Suspense, lazy } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Ribbon } from "@DESIGN/components/ui/Ribbon";
 import { StatusBar } from "@DESIGN/components/ui/StatusBar";
 import { TopToolbar } from "@DESIGN/components/ui/TopToolbar";
 import { HomeDashboard } from "@IMPLEMENT/features/project-management/HomeDashboard";
+import { ProjectDetail } from "@IMPLEMENT/features/project-management/ProjectDetail";
 import { useProjectManager } from "@IMPLEMENT/hooks/useProjectManager";
 import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
@@ -22,12 +22,6 @@ import { announce } from "@TOOL/utils/accessibility";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
-
-const ProjectDetail = lazy(() =>
-  import("@IMPLEMENT/features/project-management/ProjectDetail").then((module) => ({
-    default: module.ProjectDetail,
-  }))
-);
 
 export default function App() {
   const { loadSettings } = useSettingsStore();
@@ -293,26 +287,13 @@ export default function App() {
             {activeTab === "ADMIN" ? (
               <AdminPanel />
             ) : selectedProject && activeTab !== "HOME" ? (
-              <Suspense
-                fallback={
-                  <div className="flex-1 flex items-center justify-center border border-cad-border m-4 bg-cad-elevated/10">
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="animate-spin text-cad-accent" size={20} />
-                      <span className="text-[9px] font-mono text-cad-text-muted uppercase tracking-tighter">
-                        Loading Workspace Module...
-                      </span>
-                    </div>
-                  </div>
-                }
-              >
-                <ProjectDetail
-                  key={selectedProject.path}
-                  project={selectedProject}
-                  activeTab={activeTab}
-                  contractType={contractType}
-                  onProjectUpdate={refreshProject}
-                />
-              </Suspense>
+              <ProjectDetail
+                key={selectedProject.path}
+                project={selectedProject}
+                activeTab={activeTab}
+                contractType={contractType}
+                onProjectUpdate={refreshProject}
+              />
             ) : (
               <HomeDashboard
                 projects={projects}

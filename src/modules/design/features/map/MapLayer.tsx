@@ -23,6 +23,7 @@ import { useMapStyles } from './useMapStyles';
 import { MapSettingsPanel } from './MapSettings/MapSettingsPanel';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { isLowGpuRenderingEnabled } from './mapPerformance';
+import { MapLibreFastRenderer } from './MapLibreFastRenderer';
 
 // Fix Leaflet marker icon issue
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -108,7 +109,16 @@ export function MapLayer({
         mapKey
     } = useMapStyles();
     const showDORILayers = useDesignSync(s => s.showDORILayers);
+    const stateIsLargeProject = useDesignSync(s => Boolean(s.state?.isLargeProject));
+    const configuredEngine = useDesignSync(s => s.mapRenderEngine);
     const lowGpuRendering = isLowGpuRenderingEnabled();
+    const effectiveEngine = configuredEngine === 'maplibre-fast' || stateIsLargeProject
+        ? 'maplibre-fast'
+        : 'leaflet';
+
+    if (effectiveEngine === 'maplibre-fast') {
+        return <MapLibreFastRenderer center={center} zoom={zoom} />;
+    }
 
     return (
         <MapContainer

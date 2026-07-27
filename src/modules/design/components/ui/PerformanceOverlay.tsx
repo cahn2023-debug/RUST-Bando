@@ -8,6 +8,7 @@ export const PerformanceOverlay: React.FC = () => {
     const pendingSync = useDesignSync(s => s.pendingSync);
     const lastSync = useDesignSync(s => s.lastSync);
     const syncError = useDesignSync(s => s.error);
+    const renderMetrics = useDesignSync(s => s.renderMetrics);
     const showPerformanceOverlay = useLayoutStore(s => s.showPerformanceOverlay);
     const setShowPerformanceOverlay = useLayoutStore(s => s.setShowPerformanceOverlay);
 
@@ -66,6 +67,55 @@ export const PerformanceOverlay: React.FC = () => {
                         {lastSyncLabel}
                     </span>
                 </div>
+
+                {renderMetrics && (
+                    <>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[9px] text-cad-text-secondary uppercase font-mono tracking-widest">
+                                Engine
+                            </span>
+                            <span className="text-xs font-mono text-cad-text-primary font-bold tabular-nums">
+                                {renderMetrics.engine}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[9px] text-cad-text-secondary uppercase font-mono tracking-widest">
+                                LOD / Features
+                            </span>
+                            <span className="text-xs font-mono text-cad-accent font-bold tabular-nums">
+                                {renderMetrics.lodLevel} / {renderMetrics.featureCount}
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[9px] text-cad-text-secondary uppercase font-mono tracking-widest">
+                                Frame p50 / p95
+                            </span>
+                            <span className="text-xs font-mono text-cad-text-primary font-bold tabular-nums">
+                                {renderMetrics.p50FrameMs.toFixed(2)}ms / {renderMetrics.p95FrameMs.toFixed(2)}ms
+                            </span>
+                        </div>
+                        {renderMetrics.viewportQueryMs !== undefined && (
+                            <div className="flex items-center justify-between">
+                                <span className="text-[9px] text-cad-text-secondary uppercase font-mono tracking-widest">
+                                    VP Query / Build
+                                </span>
+                                <span className="text-xs font-mono text-cad-text-secondary font-bold tabular-nums">
+                                    {renderMetrics.viewportQueryMs.toFixed(1)}ms / {renderMetrics.sourceBuildMs.toFixed(1)}ms
+                                </span>
+                            </div>
+                        )}
+                        {renderMetrics.mapLibreSetDataMs !== undefined && (
+                            <div className="flex items-center justify-between">
+                                <span className="text-[9px] text-cad-text-secondary uppercase font-mono tracking-widest">
+                                    SetData
+                                </span>
+                                <span className="text-xs font-mono text-cad-text-secondary font-bold tabular-nums">
+                                    {renderMetrics.mapLibreSetDataMs.toFixed(1)}ms
+                                </span>
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
 
             <div className="mt-1 flex flex-col gap-1">

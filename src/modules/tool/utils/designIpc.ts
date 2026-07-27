@@ -345,7 +345,8 @@ export const queryVisibleFeaturesV2 = async (
   bounds: VisibleFeatureBounds,
   zoom: number,
   hiddenIds: string[] = [],
-  limit = 10000
+  limit = 10000,
+  fastPayload = false
 ): Promise<VisibleFeaturesResponse> => {
   const result = await invoke<VisibleFeaturesResponse>(
     'query_visible_features_v2',
@@ -356,6 +357,7 @@ export const queryVisibleFeaturesV2 = async (
         zoom,
         hidden_ids: hiddenIds,
         limit,
+        fast_payload: fastPayload,
       },
       {
         projectId,
@@ -363,6 +365,7 @@ export const queryVisibleFeaturesV2 = async (
         zoom,
         hiddenIds,
         limit,
+        fastPayload,
       }
     )
   );

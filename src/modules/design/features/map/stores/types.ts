@@ -16,6 +16,21 @@ export type {
 
 export const EMPTY_OBJ = {};
 
+export type MapRenderEngine = 'leaflet' | 'maplibre-fast';
+
+export interface MapRenderMetrics {
+    engine: MapRenderEngine;
+    lodLevel: 'full' | 'detail' | 'summary';
+    featureCount: number;
+    viewportQueryMs: number;
+    sourceBuildMs: number;
+    mapLibreSetDataMs: number;
+    frameMs: number;
+    sampleCount: number;
+    p50FrameMs: number;
+    p95FrameMs: number;
+}
+
 export type MapStateSlice = {
     state: MapState | null;
     projectId: string | null;
@@ -38,6 +53,8 @@ export type MapStateSlice = {
     isViewportLoading: boolean;
     viewportFeatureTotal: number;
     isViewportTruncated: boolean;
+    mapRenderEngine: MapRenderEngine;
+    renderMetrics: MapRenderMetrics | null;
 
     applyPatchToState: (response: DesignActionResponse | DesignBulkActionResponse) => void;
     applyQueuedAckToState: (response: DesignActionResponse | DesignBulkActionResponse) => void;
@@ -47,6 +64,8 @@ export type MapStateSlice = {
     setIsSaving: (isSaving: boolean) => void;
     setViewportFeatures: (features: MapState['features'][string][], total: number, truncated: boolean) => void;
     setViewportLoading: (isLoading: boolean) => void;
+    setMapRenderEngine: (engine: MapRenderEngine) => void;
+    setRenderMetrics: (metrics: MapRenderMetrics) => void;
     cacheFeatureDetail: (feature: MapState['features'][string]) => void;
     
     // Giai đoạn 5: Optimistic UI

@@ -201,6 +201,20 @@
     forced-color-adjust: none;
 }
 
+.design-maplibre-fast {
+    width: 100%;
+    height: 100%;
+    background: #111827;
+}
+
+.design-maplibre-fast .maplibregl-canvas {
+    outline: none;
+}
+
+.design-maplibre-fast .maplibregl-control-container {
+    display: none;
+}
+
 .leaflet-control-attribution {
     display: none !important;
 }

@@ -95,4 +95,20 @@ describe('featureDisplay preview metadata', () => {
     expect(info.label).toBe('Nút giao');
     expect(info.isIntersection).toBe(true);
   });
+  it('preserves point_circle as a point icon', () => {
+    const feature = {
+      id: 'f-7',
+      geom_type: 'POINT',
+      name: 'Circle point',
+      metadata: JSON.stringify({ type: 'point', icon: 'point_circle', color: '#F59E0B', size: 18 }),
+    };
+
+    const info = getFeatureDisplayInfo(feature);
+
+    expect(info.iconKey).toBe('point_circle');
+    expect(info.objectType).toBe('point');
+    expect(info.color).toBe('#F59E0B');
+    expect(info.isCamera).toBe(false);
+    expect(info.isIntersection).toBe(false);
+  });
 });

@@ -1,0 +1,56 @@
+import type { FeatureState } from '@CONTRACT/types';
+
+type Position = [number, number];
+
+export type MapLibreFastGeometry =
+    | { type: 'Point'; coordinates: Position }
+    | { type: 'LineString'; coordinates: Position[] }
+    | { type: 'Polygon'; coordinates: Position[][] };
+
+export interface MapLibreFastFeature<TGeometry = MapLibreFastGeometry, TProperties = Record<string, unknown>> {
+    type: 'Feature';
+    geometry: TGeometry;
+    properties: TProperties;
+}
+
+export interface MapLibreFastFeatureCollection<TGeometry = MapLibreFastGeometry, TProperties = Record<string, unknown>> {
+    type: 'FeatureCollection';
+    features: Array<MapLibreFastFeature<TGeometry, TProperties>>;
+}
+
+export type MapLibreLodLevel = 'full' | 'detail' | 'summary';
+
+export interface MapLibreLodPolicyInput {
+    zoom: number;
+    featureCount: number;
+    selectedFeatureId?: string | null;
+}
+
+export interface MapLibreLodPolicy {
+    level: MapLibreLodLevel;
+    maxFeatures: number;
+    showLabels: boolean;
+    clusterPoints: boolean;
+    simplifyVectors: boolean;
+}
+
+export interface MapLibreRenderFeatureProperties {
+    id: string;
+    groupId: string | null;
+    layerId: string;
+    name: string;
+    geomType: string;
+    color: string;
+    size: number;
+    selected: boolean;
+}
+
+export type MapLibreRenderFeature = MapLibreFastFeature<MapLibreFastGeometry, MapLibreRenderFeatureProperties>;
+export type MapLibreRenderFeatureCollection = MapLibreFastFeatureCollection<MapLibreFastGeometry, MapLibreRenderFeatureProperties>;
+
+export interface BuildMapLibreFeatureCollectionInput {
+    features: FeatureState[];
+    selectedFeatureId?: string | null;
+    hiddenIds?: Set<string>;
+    zoom: number;
+}

@@ -384,6 +384,53 @@ describe('useDesignSync Store', () => {
         expect(feature.properties).toEqual({ icon: 'camera-new', iconKey: 'camera-new', type: 'camera' });
     });
 
+    it('should sync optimistic feature theme updates into viewport caches', () => {
+        const feature: any = {
+            id: 'camera-1',
+            layer_id: 'layer-a',
+            group_id: 'group-a',
+            name: 'Camera 1',
+            geom_type: 'POINT',
+            coordinates: [105.62984, 21.00289],
+            properties: { icon: 'cctv', iconKey: 'cctv', type: 'cctv' },
+            metadata: JSON.stringify({ icon: 'cctv', color: '#3B82F6', size: 32 }),
+            is_visible: true,
+        };
+
+        useDesignSync.setState({
+            state: {
+                regions: {},
+                layers: {},
+                feature_groups: {},
+                settings: {},
+                features: { 'camera-1': feature },
+            },
+            visibleFeatures: { 'camera-1': feature },
+            visibleFeatureIds: ['camera-1'],
+            featureDetailsCache: { 'camera-1': feature },
+        });
+
+        useDesignSync.getState().applyEventsOptimistically([{
+            type: 'FeatureUpdated',
+            payload: {
+                id: 'camera-1',
+                metadata: JSON.stringify({ icon: 'ptz', color: '#F59E0B', size: 18, type: 'ptz' }),
+                properties: { icon: 'ptz', iconKey: 'ptz', type: 'ptz' },
+            },
+        }]);
+
+        const store = useDesignSync.getState();
+        const stateFeature = store.state!.features['camera-1'];
+        const visibleFeature = store.visibleFeatures['camera-1'];
+        const cachedFeature = store.featureDetailsCache['camera-1'];
+
+        expect(parseMetadata(stateFeature.metadata)).toMatchObject({ icon: 'ptz', color: '#F59E0B', size: 18 });
+        expect(parseMetadata(visibleFeature.metadata)).toMatchObject({ icon: 'ptz', color: '#F59E0B', size: 18 });
+        expect(parseMetadata(cachedFeature.metadata)).toMatchObject({ icon: 'ptz', color: '#F59E0B', size: 18 });
+        expect(visibleFeature.properties).toEqual({ icon: 'ptz', iconKey: 'ptz', type: 'ptz' });
+        expect(cachedFeature.properties).toEqual({ icon: 'ptz', iconKey: 'ptz', type: 'ptz' });
+    });
+
     it('should remove deleted features from viewport caches and selection state', () => {
         const feature: any = {
             id: 'feature-1',

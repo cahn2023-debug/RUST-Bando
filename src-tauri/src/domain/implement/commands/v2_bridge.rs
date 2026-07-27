@@ -256,6 +256,43 @@ fn feature_row_to_state(row: &Value) -> Value {
     })
 }
 
+fn fast_feature_row_to_state(row: &Value) -> Value {
+    let metadata = parse_json_value(row.get("metadata_json"), json!({}));
+    let properties = parse_json_value(row.get("properties_json"), json!({}));
+    let gis = metadata
+        .get("gis")
+        .filter(|value| value.is_object())
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    json!({
+        "id": row.get("id").cloned().unwrap_or(Value::Null),
+        "layer_id": row.get("layer_id").cloned().unwrap_or(Value::Null),
+        "group_id": row.get("group_id").cloned().unwrap_or(Value::Null),
+        "name": row.get("name").cloned().unwrap_or_else(|| json!("Untitled Feature")),
+        "geom_type": row.get("geom_type").cloned().unwrap_or_else(|| json!("Point")),
+        "coordinates": parse_json_value(row.get("coordinates_json"), Value::Null),
+        "properties": {
+            "color": gis.get("color")
+                .or_else(|| metadata.get("color"))
+                .or_else(|| properties.get("color"))
+                .cloned()
+                .unwrap_or(Value::Null),
+            "size": gis.get("size")
+                .or_else(|| gis.get("weight"))
+                .or_else(|| metadata.get("size"))
+                .or_else(|| metadata.get("weight"))
+                .cloned()
+                .unwrap_or(Value::Null),
+            "icon": metadata.get("icon")
+                .or_else(|| properties.get("icon"))
+                .cloned()
+                .unwrap_or(Value::Null),
+        },
+        "metadata": "{}",
+        "bbox": bbox_value_to_state(row.get("bbox_json")),
+    })
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct ViewportBounds {
     s: Option<f64>,
@@ -1225,6 +1262,8 @@ pub async fn query_visible_features_v2(
     hidden_ids: Option<Vec<String>>,
     hiddenIds: Option<Vec<String>>,
     limit: Option<i64>,
+    fast_payload: Option<bool>,
+    fastPayload: Option<bool>,
 ) -> Result<Value, String> {
     let project_id = project_id
         .or(projectId)
@@ -1238,6 +1277,7 @@ pub async fn query_visible_features_v2(
         .unwrap_or_default()
         .into_iter()
         .collect();
+    let use_fast_payload = fast_payload.or(fastPayload).unwrap_or(false);
 
     let total_rows = exec_query(
         &state,
@@ -1298,7 +1338,11 @@ pub async fn query_visible_features_v2(
         if hidden.contains(id) || hidden.contains(group_id) || hidden.contains(layer_id) {
             continue;
         }
-        features.push(feature_row_to_state(&row));
+        features.push(if use_fast_payload {
+            fast_feature_row_to_state(&row)
+        } else {
+            feature_row_to_state(&row)
+        });
     }
 
     Ok(json!({
@@ -1692,6 +1736,30 @@ mod tests {
         let rows = json!([{ "metadata_json": "bad-shape" }]);
         let out = extract_project_metadata(&rows);
         assert_eq!(out, json!({}));
+    }
+
+    #[test]
+    fn fast_feature_row_to_state_keeps_render_fields_and_flattens_style() {
+        let row = json!({
+            "id": "feature-1",
+            "layer_id": "layer-1",
+            "group_id": "group-1",
+            "name": "Camera 1",
+            "geom_type": "Point",
+            "coordinates_json": "[105.8,21.02]",
+            "properties_json": "{\"color\":\"#111111\"}",
+            "metadata_json": "{\"gis\":{\"color\":\"#22d3ee\",\"weight\":6},\"heavy\":\"ignored\"}",
+            "bbox_json": "[105.8,21.02,105.8,21.02]"
+        });
+
+        let out = fast_feature_row_to_state(&row);
+
+        assert_eq!(out.get("id").and_then(Value::as_str), Some("feature-1"));
+        assert_eq!(out.pointer("/properties/color").and_then(Value::as_str), Some("#22d3ee"));
+        assert_eq!(out.pointer("/properties/size").and_then(Value::as_i64), Some(6));
+        assert_eq!(out.get("metadata").and_then(Value::as_str), Some("{}"));
+        assert!(out.get("coordinates").and_then(Value::as_array).is_some());
+        assert!(out.get("bbox").and_then(Value::as_object).is_some());
     }
 
     #[tokio::test]

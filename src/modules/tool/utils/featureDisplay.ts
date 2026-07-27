@@ -1,4 +1,4 @@
-import { MapPin } from "lucide-react";
+import { Circle, MapPin } from "lucide-react";
 import { Intersection, PolylineIcon, CameraCCTV, CameraPTZ, CameraSpeed, CameraLPR } from '../../design/components/icons/MapIcons';
 import { getParsedMetadata, safeString } from "./featureMetadata";
 import type { FeatureProperties, IconType } from '@CONTRACT/types';
@@ -43,6 +43,7 @@ export const SYMBOL_ICON_OPTIONS: Array<{ id: IconType; label: string; component
     { id: 'ptz', label: DISPLAY_TYPES.PTZ, component: CameraPTZ },
     { id: 'speed', label: DISPLAY_TYPES.SPEED, component: CameraSpeed },
     { id: 'lpr', label: DISPLAY_TYPES.LPR, component: CameraLPR },
+    { id: 'point_circle', label: DISPLAY_TYPES.POINT, component: Circle },
 ];
 
 /**
@@ -66,6 +67,9 @@ export const normalizeIconKey = (icon: unknown): IconType => {
             return 'lpr';
         case 'intersection':
             return 'intersection';
+        case 'point_circle':
+        case 'circle':
+            return 'point_circle';
         default:
             return 'default';
     }
@@ -83,6 +87,8 @@ export const getObjectTypeForIcon = (icon: IconType): string => {
             return 'lpr';
         case 'intersection':
             return 'intersection';
+        case 'point_circle':
+            return 'point';
         default:
             return 'point';
     }
@@ -267,6 +273,9 @@ export const getFeatureDisplayInfo = (feature: any, groupType?: string, groupNam
     if (isLine) {
         IconComponent = PolylineIcon;
         colorClass = "text-emerald-400";
+    } else if (iconKey === 'point_circle') {
+        IconComponent = Circle;
+        colorClass = "text-indigo-400";
     } else if (displayType === DISPLAY_TYPES.INTERSECTION) {
         IconComponent = Intersection;
         colorClass = "text-indigo-400";
