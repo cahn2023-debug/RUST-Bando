@@ -2982,6 +2982,46 @@ pub async fn invoke_design_event_batch(
 }
 
 #[tauri::command]
+#[allow(non_snake_case)]
+pub async fn undo_design_event(
+    state: State<'_, ActorState>,
+    projectId: String,
+) -> Result<String, String> {
+    log::info!("[V2] Undo requested for project: {}", projectId);
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::UndoDesignEvent {
+            project_id: projectId,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| format!("IPC Queue error: {}", e))?;
+    let res = rx.await.map_err(|e| e.to_string())??;
+    Ok(res.to_string())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn redo_design_event(
+    state: State<'_, ActorState>,
+    projectId: String,
+) -> Result<String, String> {
+    log::info!("[V2] Redo requested for project: {}", projectId);
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::RedoDesignEvent {
+            project_id: projectId,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| format!("IPC Queue error: {}", e))?;
+    let res = rx.await.map_err(|e| e.to_string())??;
+    Ok(res.to_string())
+}
+
+#[tauri::command]
 pub async fn normalize_metadata(
     app: AppHandle,
     ai_state: State<'_, AiState>,

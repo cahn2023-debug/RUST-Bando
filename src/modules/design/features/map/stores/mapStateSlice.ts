@@ -232,6 +232,11 @@ const cleanupDeletedFeatures = (
     };
 };
 
+const hasRenderableCoordinates = (payload: any) => {
+    const coordinates = payload?.coordinates ?? payload?.geometry;
+    return Array.isArray(coordinates) && coordinates.length > 0;
+};
+
 const buildSafeFeaturePatch = (currentFeature: MapState['features'][string] | undefined, payload: any) => {
     const patch: Record<string, unknown> = Object.fromEntries(
         Object.entries(payload).filter(([key, value]) => (
@@ -445,12 +450,16 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         const newState = { ...currentState };
         const deletedFeatureIds = new Set<string>();
+        let shouldRefreshViewport = false;
 
         const applySingle = (event: DesignEventType) => {
             const { type, payload } = event as any;
             switch (type) {
                 case 'FeatureCreated':
                 case 'FeatureUpdated': {
+                    if (type === 'FeatureCreated' && hasRenderableCoordinates(payload)) {
+                        shouldRefreshViewport = true;
+                    }
                     const currentFeature = newState.features[payload.id];
                     if (IS_DEV && type === 'FeatureUpdated') {
                         console.groupCollapsed(`[Sync] applyPatchToState FeatureUpdated ${payload.id}`);
@@ -561,7 +570,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         }
 
         const normalizedState = normalizeMapStateForDisplay(newState);
-        set((s) => ({ state: normalizedState, ...cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState) }));
+        set((s) => ({
+            state: normalizedState,
+            ...(shouldRefreshViewport ? { viewportRevision: s.viewportRevision + 1 } : {}),
+            ...cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState)
+        }));
         if (IS_DEV) {
             console.log(`[Sync] Patch applied for ${normalizedState.lastEventId}`);
         }
@@ -573,12 +586,16 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         const newState = { ...currentState };
         const deletedFeatureIds = new Set<string>();
+        let shouldRefreshViewport = false;
 
         const applySingle = (event: DesignEventType) => {
             const { type, payload } = event as any;
             switch (type) {
                 case 'FeatureCreated':
                 case 'FeatureUpdated': {
+                    if (type === 'FeatureCreated' && hasRenderableCoordinates(payload)) {
+                        shouldRefreshViewport = true;
+                    }
                     if (IS_DEV && type === 'FeatureUpdated') {
                         console.groupCollapsed(`[Sync] applyQueuedAckToState FeatureUpdated ${payload.id}`);
                         console.log('incoming payload:', payload);
@@ -677,7 +694,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         }
 
         const normalizedState = normalizeMapStateForDisplay(newState);
-        set((s) => ({ state: normalizedState, ...cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState) }));
+        set((s) => ({
+            state: normalizedState,
+            ...(shouldRefreshViewport ? { viewportRevision: s.viewportRevision + 1 } : {}),
+            ...cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState)
+        }));
         if (IS_DEV) {
             console.log(`[Sync] Queued ack applied for ${normalizedState.lastEventId}`);
         }
@@ -689,6 +710,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         const newState = { ...currentState };
         const deletedFeatureIds = new Set<string>();
+        let shouldRefreshViewport = false;
 
         const apply = (ev: DesignEventType) => {
             const { type, payload } = ev as any;
@@ -697,6 +719,9 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
             switch (type) {
                 case 'FeatureCreated':
                 case 'FeatureUpdated': {
+                    if (type === 'FeatureCreated' && hasRenderableCoordinates(payload)) {
+                        shouldRefreshViewport = true;
+                    }
                     if (!newState.features) newState.features = {};
                     const fPayload = buildSafeFeaturePatch(newState.features[payload.id], payload);
                     const currentFeature = newState.features[payload.id];
@@ -799,7 +824,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         events?.forEach(apply);
         const normalizedState = normalizeMapStateForDisplay(newState);
-        set((s) => ({ state: normalizedState, ...cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState) }));
+        set((s) => ({
+            state: normalizedState,
+            ...(shouldRefreshViewport ? { viewportRevision: s.viewportRevision + 1 } : {}),
+            ...cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState)
+        }));
         if (IS_DEV) {
             console.log(`[Sync] Optimistic update applied for ${events?.length || 0} events`);
         }

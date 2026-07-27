@@ -134,6 +134,8 @@ pub fn run() {
             crate::domain::implement::commands::v2::remove_recent_project,
             crate::domain::implement::commands::v2::delete_project,
             crate::domain::implement::commands::v2::rebuild_fts_v2,
+            crate::domain::implement::commands::v2::undo_design_event,
+            crate::domain::implement::commands::v2::redo_design_event,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

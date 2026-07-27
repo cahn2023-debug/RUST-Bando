@@ -8,6 +8,7 @@ const mockLoadSettings = vi.fn();
 const mockAddTab = vi.fn();
 const mockRemoveTab = vi.fn();
 const mockResetDesign = vi.fn();
+const mockInitializeDesign = vi.fn();
 
 const createDeferred = <T,>() => {
   let resolve!: (value: T) => void;
@@ -44,6 +45,7 @@ vi.mock("@IMPLEMENT/stores/useDesignSync", () => ({
   useDesignSync: {
     getState: () => ({
       reset: mockResetDesign,
+      initialize: mockInitializeDesign,
     }),
   },
 }));
@@ -72,6 +74,7 @@ describe("useProjectManager", () => {
     mockAddTab.mockReset();
     mockRemoveTab.mockReset();
     mockResetDesign.mockReset();
+    mockInitializeDesign.mockReset();
     localStorage.clear();
   });
 
@@ -142,9 +145,10 @@ describe("useProjectManager", () => {
     expect(mockInvoke).toHaveBeenCalledWith("load_pmp_file", { path: backendProject.path });
     expect(mockInvoke).toHaveBeenCalledWith("save_recent_projects", { projects: [backendProject] });
     expect(mockInvoke).toHaveBeenCalledWith("save_last_opened_project", { project: backendProject });
+    expect(mockInitializeDesign).toHaveBeenCalledWith(backendProject.id, backendProject.path, { forceReload: true });
   });
 
-  it("opens a recent project optimistically before backend attach finishes", async () => {
+  it("waits for backend attach before opening a recent project", async () => {
     const attachedProject = {
       ...backendProject,
       name: "Existing Project Refreshed",
@@ -178,32 +182,25 @@ describe("useProjectManager", () => {
 
     let success = false;
     await act(async () => {
-      success = await result.current.handleOpenProject(backendProject.path);
+      const openPromise = result.current.handleOpenProject(backendProject.path);
+      await Promise.resolve();
+      expect(result.current.selectedProject).toBeNull();
+      loadDeferred.resolve(attachedProject);
+      success = await openPromise;
     });
 
     expect(success).toBe(true);
-    expect(result.current.selectedProject).toEqual(backendProject);
-    expect(result.current.projects).toEqual([backendProject]);
+    expect(result.current.selectedProject).toEqual(attachedProject);
     expect(mockAddTab).toHaveBeenCalledWith({
-      id: backendProject.id,
-      name: backendProject.name,
-      path: backendProject.path,
+      id: attachedProject.id,
+      name: attachedProject.name,
+      path: attachedProject.path,
     });
-
-    expect(mockInvoke).not.toHaveBeenCalledWith("save_last_opened_project", { project: backendProject });
-
-    await act(async () => {
-      loadDeferred.resolve(attachedProject);
-      await loadDeferred.promise;
-    });
-
-    await waitFor(() => {
-      expect(result.current.selectedProject).toEqual(attachedProject);
-      expect(mockInvoke).toHaveBeenCalledWith("save_last_opened_project", { project: attachedProject });
-    });
+    expect(mockInvoke).toHaveBeenCalledWith("save_last_opened_project", { project: attachedProject });
+    expect(mockInitializeDesign).toHaveBeenCalledWith(attachedProject.id, attachedProject.path, { forceReload: true });
   });
 
-  it("keeps an optimistically opened recent project if backend attach fails", async () => {
+  it("does not open a recent project if backend attach fails", async () => {
     const loadDeferred = createDeferred<typeof backendProject>();
 
     mockInvoke.mockImplementation(async (command: string) => {
@@ -229,19 +226,13 @@ describe("useProjectManager", () => {
     });
 
     await act(async () => {
-      const success = await result.current.handleOpenProject(backendProject.path);
-      expect(success).toBe(true);
-    });
-
-    expect(result.current.selectedProject).toEqual(backendProject);
-
-    await act(async () => {
+      const openPromise = result.current.handleOpenProject(backendProject.path);
+      await Promise.resolve();
       loadDeferred.reject(new Error("locked"));
-      await loadDeferred.promise.catch(() => null);
+      const success = await openPromise;
+      expect(success).toBe(false);
     });
 
-    await waitFor(() => {
-      expect(result.current.selectedProject).toEqual(backendProject);
-    });
+    expect(result.current.selectedProject).toBeNull();
   });
 });

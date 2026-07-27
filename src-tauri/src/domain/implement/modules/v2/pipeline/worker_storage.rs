@@ -2,7 +2,7 @@ use crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand;
 use crate::domain::implement::modules::v2::storage::connection::PmpDatabase;
 use crate::domain::implement::modules::v2::storage::path_meta::compute_rel_path;
 use crate::domain::implement::modules::v2::storage::schema::{
-    ensure_v8_compatibility, CURRENT_SCHEMA_VERSION,
+    ensure_runtime_schema_compatibility, CURRENT_SCHEMA_VERSION,
 };
 use crate::domain::models::v2::{AppEvent, EventEnvelope};
 use base64::{engine::general_purpose, Engine as _};
@@ -60,6 +60,8 @@ impl StorageWorker {
                                     | StorageCommand::OptimizeProjectStorage { .. }
                                     | StorageCommand::AnalyzeProjectMediaRecovery { .. }
                                     | StorageCommand::ApplyProjectMediaRecovery { .. }
+                                    | StorageCommand::UndoDesignEvent { .. }
+                                    | StorageCommand::RedoDesignEvent { .. }
                             ) {
                                 worker.execute_batch(batch).await;
                                 worker.execute(next).await;
@@ -80,6 +82,18 @@ impl StorageWorker {
 
     async fn execute(&mut self, cmd: StorageCommand) {
         match cmd {
+            StorageCommand::UndoDesignEvent { project_id, reply } => {
+                let res = catch_unwind(AssertUnwindSafe(|| self.undo_design_event(&project_id)))
+                    .map_err(panic_to_string)
+                    .and_then(|result| result);
+                let _ = reply.send(res);
+            }
+            StorageCommand::RedoDesignEvent { project_id, reply } => {
+                let res = catch_unwind(AssertUnwindSafe(|| self.redo_design_event(&project_id)))
+                    .map_err(panic_to_string)
+                    .and_then(|result| result);
+                let _ = reply.send(res);
+            }
             StorageCommand::OpenDatabase { path, reply } => {
                 log::info!("[StorageWorker] Switching database to: {:?}", path);
                 let result = match PmpDatabase::open_or_create(path) {
@@ -118,12 +132,30 @@ impl StorageWorker {
                 let _ = reply.send(res);
             }
             StorageCommand::SaveProject { reply } => {
-                log::info!("[StorageWorker] Saving project (Checkpointing WAL)...");
+                log::info!("[StorageWorker] Saving project (rebuilding snapshot and checkpointing WAL)...");
                 let res = catch_unwind(AssertUnwindSafe(|| {
+                    let active_project_id: Option<String> = self
+                        .db
+                        .conn
+                        .query_row(
+                            "SELECT value FROM sys_config WHERE key = 'active_project_id' LIMIT 1",
+                            [],
+                            |row| row.get(0),
+                        )
+                        .optional()
+                        .map_err(|e| e.to_string())?;
+
+                    if let Some(project_id) = active_project_id {
+                        let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
+                        rebuild_project_snapshot(&tx, &project_id)?;
+                        tx.commit().map_err(|e| e.to_string())?;
+                    }
+
                     self.db
                         .conn
                         .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
-                        .map_err(|e| e.to_string())
+                        .map_err(|e| e.to_string())?;
+                    Ok(())
                 }))
                 .map_err(panic_to_string)
                 .and_then(|result| result);
@@ -424,6 +456,8 @@ impl StorageWorker {
                     | StorageCommand::OptimizeProjectStorage { .. }
                     | StorageCommand::AnalyzeProjectMediaRecovery { .. }
                     | StorageCommand::ApplyProjectMediaRecovery { .. }
+                    | StorageCommand::UndoDesignEvent { .. }
+                    | StorageCommand::RedoDesignEvent { .. }
             ) {
                 self.execute(commands.into_iter().next().expect("single command"))
                     .await;
@@ -434,15 +468,162 @@ impl StorageWorker {
             log::error!("[StorageWorker] Batch transaction error: {}", e);
         }
     }
+}
 
+fn generate_inverse_event_json(
+    tx: &Transaction<'_>,
+    envelope: &EventEnvelope,
+) -> Result<Option<String>, String> {
+        let _project_id = envelope.project_id.to_string();
+    match &envelope.event {
+        AppEvent::FeatureCreated { id, .. } => {
+            Ok(Some(json!({
+                "type": "FeatureDeleted",
+                "payload": { "id": id.to_string() }
+            }).to_string()))
+        }
+        AppEvent::FeatureDeleted { id } => {
+            if let Some(snapshot) = fetch_feature_snapshot(tx, &id.to_string())? {
+                Ok(Some(json!({
+                    "type": "FeatureCreated",
+                    "payload": {
+                        "id": snapshot.get("id").cloned().unwrap_or(json!(id.to_string())),
+                        "layer_id": snapshot.get("layer_id").cloned().unwrap_or(Value::Null),
+                        "group_id": snapshot.get("group_id").cloned().unwrap_or(Value::Null),
+                        "name": snapshot.get("name").cloned().unwrap_or_else(|| json!("Untitled")),
+                        "geom_type": snapshot.get("geom_type").cloned().unwrap_or_else(|| json!("Point")),
+                        "geometry": snapshot.get("coordinates").cloned().unwrap_or(Value::Null),
+                        "properties": snapshot.get("properties").cloned().unwrap_or(json!({})),
+                        "metadata": snapshot.get("metadata").cloned().unwrap_or_else(|| json!("{}")),
+                        "is_visible": true
+                    }
+                }).to_string()))
+            } else {
+                Ok(None)
+            }
+        }
+        AppEvent::FeatureUpdated { id, changes } => {
+            if let Some(snapshot) = fetch_feature_snapshot(tx, &id.to_string())? {
+                let mut inverse_changes = json!({});
+                if let (Some(changes_obj), Some(inv_obj)) = (changes.as_object(), inverse_changes.as_object_mut()) {
+                    for (key, _val) in changes_obj {
+                        let snap_key = if key == "geometry" { "coordinates" } else { key };
+                        if let Some(old_val) = snapshot.get(snap_key) {
+                            inv_obj.insert(key.clone(), old_val.clone());
+                        }
+                    }
+                }
+                Ok(Some(json!({
+                    "type": "FeatureUpdated",
+                    "payload": {
+                        "id": id.to_string(),
+                        "changes": inverse_changes
+                    }
+                }).to_string()))
+            } else {
+                Ok(None)
+            }
+        }
+        AppEvent::FeatureGroupCreated { id, .. } => {
+            Ok(Some(json!({
+                "type": "FeatureGroupDeleted",
+                "payload": { "id": id.to_string() }
+            }).to_string()))
+        }
+        AppEvent::FeatureGroupDeleted { id } => {
+            if let Some(snapshot) = fetch_feature_group_snapshot(tx, &id.to_string())? {
+                Ok(Some(json!({
+                    "type": "FeatureGroupCreated",
+                    "payload": {
+                        "id": id.to_string(),
+                        "layer_id": snapshot.get("layer_id").cloned().unwrap_or(Value::Null),
+                        "parent_id": snapshot.get("parent_id").cloned().unwrap_or(Value::Null),
+                        "name": snapshot.get("name").cloned().unwrap_or_else(|| json!("Group")),
+                        "group_type": snapshot.get("type").cloned().unwrap_or(Value::Null),
+                        "metadata": snapshot.get("metadata").cloned().unwrap_or_else(|| json!("{}"))
+                    }
+                }).to_string()))
+            } else {
+                Ok(None)
+            }
+        }
+        AppEvent::LayerCreated { id, .. } => {
+            Ok(Some(json!({
+                "type": "LayerDeleted",
+                "payload": { "id": id.to_string() }
+            }).to_string()))
+        }
+        AppEvent::LayerDeleted { id } => {
+            if let Some(snapshot) = fetch_layer_snapshot(tx, &id.to_string())? {
+                Ok(Some(json!({
+                    "type": "LayerCreated",
+                    "payload": {
+                        "id": id.to_string(),
+                        "region_id": snapshot.get("region_id").cloned().unwrap_or(Value::Null),
+                        "name": snapshot.get("name").cloned().unwrap_or_else(|| json!("Layer")),
+                        "metadata": json!({})
+                    }
+                }).to_string()))
+            } else {
+                Ok(None)
+            }
+        }
+        AppEvent::RegionCreated { id, .. } => {
+            Ok(Some(json!({
+                "type": "RegionDeleted",
+                "payload": { "id": id.to_string() }
+            }).to_string()))
+        }
+        AppEvent::RegionDeleted { id } => {
+            if let Some(snapshot) = fetch_region_snapshot(tx, &id.to_string())? {
+                Ok(Some(json!({
+                    "type": "RegionCreated",
+                    "payload": {
+                        "id": id.to_string(),
+                        "parent_id": snapshot.get("parent_id").cloned().unwrap_or(Value::Null),
+                        "name": snapshot.get("name").cloned().unwrap_or_else(|| json!("Region")),
+                        "metadata": json!({})
+                    }
+                }).to_string()))
+            } else {
+                Ok(None)
+            }
+        }
+        _ => Ok(None),
+    }
+}
+
+impl StorageWorker {
     fn dispatch_events(&mut self, events: Vec<EventEnvelope>) -> Result<usize, String> {
-        ensure_v8_compatibility(&self.db.conn).map_err(|e| e.to_string())?;
+        if let Err(e) = ensure_runtime_schema_compatibility(&self.db.conn) {
+            log::error!("[StorageWorker] Failed to ensure runtime schema compatibility before dispatch: {e}");
+            return Err(format!("Schema compatibility check failed: {e}"));
+        }
         let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
         let mut persisted_count = 0usize;
         let mut touched_projects = std::collections::BTreeSet::new();
         for envelope in events {
             let project_id = envelope.project_id.to_string();
+            let inverse_json = generate_inverse_event_json(&tx, &envelope)?;
             persist_event(&tx, &envelope)?;
+            if let Some(inverse_payload) = inverse_json {
+                let forward_payload = serde_json::to_string(&envelope.event).unwrap_or_default();
+                tx.execute(
+                    "DELETE FROM design_history WHERE project_id = ?1 AND status = 'undone'",
+                    params![project_id],
+                ).ok();
+                tx.execute(
+                    "INSERT INTO design_history (id, project_id, event_id, event_type, forward_event_json, inverse_event_json, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'done')",
+                    params![
+                        uuid::Uuid::new_v4().to_string(),
+                        project_id,
+                        envelope.id.to_string(),
+                        envelope.event.event_type(),
+                        forward_payload,
+                        inverse_payload,
+                    ],
+                ).map_err(|e| format!("Failed to insert design_history: {e}"))?;
+            }
             apply_event_to_read_models(&tx, &envelope)?;
             touched_projects.insert(project_id);
             persisted_count += 1;
@@ -452,6 +633,92 @@ impl StorageWorker {
         }
         tx.commit().map_err(|e| e.to_string())?;
         Ok(persisted_count)
+    }
+
+    fn undo_design_event(&mut self, project_id: &str) -> Result<Value, String> {
+        let history_row: Option<(String, String, String)> = self.db.conn.query_row(
+            "SELECT id, inverse_event_json, event_type FROM design_history WHERE project_id = ?1 AND status = 'done' ORDER BY created_at DESC LIMIT 1",
+            params![project_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        ).optional().map_err(|e| e.to_string())?;
+
+        let Some((history_id, inverse_json_str, _event_type)) = history_row else {
+            return Ok(json!({ "success": true, "nothing_to_undo": true }));
+        };
+
+        let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
+        let inverse_val: Value = serde_json::from_str(&inverse_json_str).map_err(|e| e.to_string())?;
+
+        let inverse_envelopes = if let Some(arr) = inverse_val.as_array() {
+            arr.clone()
+        } else {
+            vec![inverse_val]
+        };
+
+        for inv_val in inverse_envelopes {
+            if let Ok(app_event) = crate::domain::models::v2::AppEvent::from_value_robust(inv_val) {
+                let entity_type_str = app_event.entity_type().to_string();
+                let inv_envelope = EventEnvelope::new(
+                    uuid::Uuid::parse_str(project_id).unwrap_or_else(|_| uuid::Uuid::new_v4()),
+                    &entity_type_str,
+                    uuid::Uuid::new_v4(),
+                    app_event,
+                    "system_undo",
+                    None,
+                );
+                persist_event(&tx, &inv_envelope)?;
+                apply_event_to_read_models(&tx, &inv_envelope)?;
+            }
+        }
+
+        tx.execute(
+            "UPDATE design_history SET status = 'undone' WHERE id = ?1",
+            params![history_id],
+        ).map_err(|e| e.to_string())?;
+
+        rebuild_project_snapshot(&tx, project_id)?;
+        tx.commit().map_err(|e| e.to_string())?;
+
+        Ok(json!({ "success": true, "undone_history_id": history_id }))
+    }
+
+    fn redo_design_event(&mut self, project_id: &str) -> Result<Value, String> {
+        let history_row: Option<(String, String, String)> = self.db.conn.query_row(
+            "SELECT id, forward_event_json, event_type FROM design_history WHERE project_id = ?1 AND status = 'undone' ORDER BY created_at ASC LIMIT 1",
+            params![project_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        ).optional().map_err(|e| e.to_string())?;
+
+        let Some((history_id, forward_json_str, _event_type)) = history_row else {
+            return Ok(json!({ "success": true, "nothing_to_redo": true }));
+        };
+
+        let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
+        let forward_val: Value = serde_json::from_str(&forward_json_str).map_err(|e| e.to_string())?;
+
+        if let Ok(app_event) = crate::domain::models::v2::AppEvent::from_value_robust(forward_val) {
+            let entity_type_str = app_event.entity_type().to_string();
+            let fwd_envelope = EventEnvelope::new(
+                uuid::Uuid::parse_str(project_id).unwrap_or_else(|_| uuid::Uuid::new_v4()),
+                &entity_type_str,
+                uuid::Uuid::new_v4(),
+                app_event,
+                "system_redo",
+                None,
+            );
+            persist_event(&tx, &fwd_envelope)?;
+            apply_event_to_read_models(&tx, &fwd_envelope)?;
+        }
+
+        tx.execute(
+            "UPDATE design_history SET status = 'done' WHERE id = ?1",
+            params![history_id],
+        ).map_err(|e| e.to_string())?;
+
+        rebuild_project_snapshot(&tx, project_id)?;
+        tx.commit().map_err(|e| e.to_string())?;
+
+        Ok(json!({ "success": true, "redone_history_id": history_id }))
     }
 
     fn replace_project_state(&mut self, project_id: &str, state: &Value) -> Result<(), String> {
@@ -1105,7 +1372,9 @@ impl StorageWorker {
                 | StorageCommand::ResolveMediaAsset { .. }
                 | StorageCommand::OptimizeProjectStorage { .. }
                 | StorageCommand::AnalyzeProjectMediaRecovery { .. }
-                | StorageCommand::ApplyProjectMediaRecovery { .. } => {}
+                | StorageCommand::ApplyProjectMediaRecovery { .. }
+                | StorageCommand::UndoDesignEvent { .. }
+                | StorageCommand::RedoDesignEvent { .. } => {}
             }
         }
         tx.commit().map_err(|e| e.to_string())
@@ -5985,6 +6254,12 @@ mod tests {
                 ],
             )
             .expect("seed project");
+        db.conn
+            .execute(
+                "INSERT OR REPLACE INTO sys_config(key, value) VALUES ('active_project_id', ?1)",
+                params![project_id.to_string()],
+            )
+            .expect("seed active project id");
 
         let (tx, rx) = mpsc::channel(32);
         let _handle = StorageWorker::spawn(rx, db);
@@ -6050,17 +6325,168 @@ mod tests {
         let persisted = reply_rx.await.expect("dispatch ack").expect("dispatch ok");
         assert_eq!(persisted, 3);
 
+        let feature_count: i64 = {
+            let reopened =
+                PmpDatabase::open_or_create(dir.path().join("event_roundtrip.pmp")).expect("reopen db");
+            reopened
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM features WHERE project_id = ?1",
+                    params![project_id.to_string()],
+                    |row| row.get(0),
+                )
+                .expect("feature count")
+        };
+        assert_eq!(feature_count, 1);
+
+        let (save_tx, save_rx) = oneshot::channel();
+        tx.send(StorageCommand::SaveProject { reply: save_tx })
+            .await
+            .expect("save send");
+        save_rx.await.expect("save ack").expect("save ok");
+
         let reopened =
             PmpDatabase::open_or_create(dir.path().join("event_roundtrip.pmp")).expect("reopen db");
-        let feature_count: i64 = reopened
+        let loaded: String = reopened
             .conn
             .query_row(
-                "SELECT COUNT(*) FROM features WHERE project_id = ?1",
+                "SELECT state_json FROM project_snapshots WHERE project_id = ?1",
                 params![project_id.to_string()],
                 |row| row.get(0),
             )
+            .expect("snapshot state");
+        let parsed: Value = serde_json::from_str(&loaded).expect("snapshot json");
+        assert_eq!(
+            parsed
+                .get("features")
+                .and_then(|features| features.get(feature_id.to_string()))
+                .and_then(|feature| feature.get("name"))
+                .and_then(Value::as_str),
+            Some("Point A")
+        );
+    }
+
+    #[test]
+    fn dispatch_events_repairs_missing_runtime_schema_before_insert() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("event_runtime_compat.pmp");
+        let project_id = Uuid::new_v4();
+        let layer_id = Uuid::new_v4();
+        let feature_id = Uuid::new_v4();
+
+        let db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        seed_basic_project(&db.conn, &project_id.to_string(), "Runtime Compat");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name) VALUES (?1, ?2, ?3)",
+                params![layer_id.to_string(), project_id.to_string(), "Layer"],
+            )
+            .expect("seed layer");
+        db.conn
+            .execute_batch(
+                r#"
+                PRAGMA foreign_keys=OFF;
+                DROP TABLE IF EXISTS design_history;
+                DROP TRIGGER IF EXISTS trg_features_project_insert;
+                DROP TRIGGER IF EXISTS trg_features_project_update;
+                DROP TRIGGER IF EXISTS trg_feature_rtree_insert;
+                DROP TRIGGER IF EXISTS trg_feature_rtree_update;
+                DROP TRIGGER IF EXISTS trg_feature_rtree_delete;
+                DROP INDEX IF EXISTS idx_features_project_bbox;
+                DROP TABLE IF EXISTS feature_rtree;
+
+                ALTER TABLE features RENAME TO features_with_bbox;
+                CREATE TABLE features (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    layer_id TEXT NOT NULL,
+                    group_id TEXT,
+                    name TEXT NOT NULL,
+                    geom_type TEXT NOT NULL,
+                    coordinates_json TEXT CHECK (
+                        coordinates_json IS NULL
+                        OR (json_valid(coordinates_json) AND json_type(coordinates_json) IN ('array', 'object'))
+                    ),
+                    properties_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(properties_json) AND json_type(properties_json) = 'object'),
+                    metadata_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json) AND json_type(metadata_json) = 'object'),
+                    bbox_json TEXT CHECK (
+                        bbox_json IS NULL
+                        OR (json_valid(bbox_json) AND json_type(bbox_json) = 'array')
+                    ),
+                    is_visible INTEGER NOT NULL DEFAULT 1 CHECK (is_visible IN (0, 1)),
+                    note TEXT,
+                    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+                    FOREIGN KEY(layer_id, project_id) REFERENCES layers(id, project_id) ON DELETE CASCADE,
+                    FOREIGN KEY(group_id) REFERENCES feature_groups(id) ON DELETE SET NULL,
+                    UNIQUE(id, project_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_features_project ON features (project_id);
+                INSERT INTO features (
+                    id, project_id, layer_id, group_id, name, geom_type, coordinates_json,
+                    properties_json, metadata_json, bbox_json, is_visible, note, created_at, updated_at
+                )
+                SELECT
+                    id, project_id, layer_id, group_id, name, geom_type, coordinates_json,
+                    properties_json, metadata_json, bbox_json, is_visible, note, created_at, updated_at
+                FROM features_with_bbox;
+                DROP TABLE features_with_bbox;
+                PRAGMA foreign_keys=ON;
+                "#,
+            )
+            .expect("remove runtime schema");
+
+        let mut worker = make_worker(db);
+        let event = EventEnvelope::new(
+            project_id,
+            "feature",
+            feature_id,
+            AppEvent::FeatureCreated {
+                id: feature_id,
+                layer_id,
+                group_id: None,
+                task_id: None,
+                name: "Runtime Point".to_string(),
+                geom_type: "Point".to_string(),
+                geometry: json!([106.7, 10.8]),
+                properties: json!({}),
+                style_id: None,
+                is_visible: true,
+                note: None,
+                bbox: None,
+                metadata: json!({}),
+            },
+            "test",
+            None,
+        );
+
+        let persisted = worker
+            .dispatch_events(vec![event])
+            .expect("dispatch repairs schema");
+        assert_eq!(persisted, 1);
+
+        let feature_count: i64 = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM features WHERE id = ?1",
+                params![feature_id.to_string()],
+                |row| row.get(0),
+            )
             .expect("feature count");
+        let history_count: i64 = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM design_history WHERE project_id = ?1",
+                params![project_id.to_string()],
+                |row| row.get(0),
+            )
+            .expect("history count");
+
         assert_eq!(feature_count, 1);
+        assert_eq!(history_count, 1);
     }
 
     #[test]
@@ -6989,5 +7415,82 @@ mod tests {
                 .and_then(Value::as_str),
             Some(asset_id)
         );
+    }
+
+    #[tokio::test]
+    async fn test_undo_redo_design_events() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("undo_redo_test.pmp");
+        let project_id_uuid = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+        let project_id = project_id_uuid.to_string();
+
+        let db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let (_tx, rx) = mpsc::channel(32);
+        let mut worker = StorageWorker { rx, db };
+
+        worker.db.conn.execute(
+            "INSERT INTO projects (id, name, title) VALUES (?1, ?2, ?3)",
+            params![project_id, "Undo Redo", "Undo Redo"],
+        ).unwrap();
+
+        let layer_id_uuid = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000003").unwrap();
+
+        worker.db.conn.execute(
+            "INSERT INTO layers (id, project_id, name) VALUES (?1, ?2, ?3)",
+            params![layer_id_uuid.to_string(), project_id, "Layer 1"],
+        ).unwrap();
+
+        let envelope = crate::domain::models::v2::EventEnvelope::new(
+            project_id_uuid,
+            "feature",
+            uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap(),
+            crate::domain::models::v2::AppEvent::FeatureCreated {
+                id: uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap(),
+                layer_id: layer_id_uuid,
+                group_id: None,
+                task_id: None,
+                name: "Point 1".to_string(),
+                geom_type: "Point".to_string(),
+                geometry: json!([105.0, 20.0]),
+                properties: json!({}),
+                style_id: None,
+                is_visible: true,
+                note: None,
+                bbox: None,
+                metadata: json!({}),
+            },
+            "dev1",
+            None,
+        );
+
+        let persisted = worker.dispatch_events(vec![envelope]).unwrap();
+        assert_eq!(persisted, 1);
+
+        let feature_count: i64 = worker.db.conn.query_row(
+            "SELECT COUNT(*) FROM features WHERE project_id = ?1",
+            params![project_id],
+            |r| r.get(0),
+        ).unwrap();
+        assert_eq!(feature_count, 1);
+
+        let undo_res = worker.undo_design_event(&project_id).unwrap();
+        assert_eq!(undo_res.get("success").and_then(Value::as_bool), Some(true));
+
+        let feature_count_after_undo: i64 = worker.db.conn.query_row(
+            "SELECT COUNT(*) FROM features WHERE project_id = ?1",
+            params![project_id],
+            |r| r.get(0),
+        ).unwrap();
+        assert_eq!(feature_count_after_undo, 0);
+
+        let redo_res = worker.redo_design_event(&project_id).unwrap();
+        assert_eq!(redo_res.get("success").and_then(Value::as_bool), Some(true));
+
+        let feature_count_after_redo: i64 = worker.db.conn.query_row(
+            "SELECT COUNT(*) FROM features WHERE project_id = ?1",
+            params![project_id],
+            |r| r.get(0),
+        ).unwrap();
+        assert_eq!(feature_count_after_redo, 1);
     }
 }

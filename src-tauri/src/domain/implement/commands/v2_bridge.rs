@@ -59,6 +59,13 @@ fn has_design_data(state: &Value) -> bool {
         })
 }
 
+fn feature_count_in_state(state: &Value) -> Option<i64> {
+    state
+        .get("features")
+        .and_then(Value::as_object)
+        .map(|features| features.len() as i64)
+}
+
 fn ensure_design_shape(state: Value) -> Value {
     let mut shaped = empty_design_state();
     if let Some(src) = state.as_object() {
@@ -1111,6 +1118,43 @@ pub async fn load_design_state_v2(
         load_design_state_from_tables(&state, &project_id, include_features, feature_count).await?,
     );
     if has_design_data(&read_model_state) {
+        if include_features {
+            let snapshot_rows = exec_query(
+                &state,
+                "SELECT state_json FROM project_snapshots WHERE project_id = ?1",
+                vec![project_id.clone()],
+            )
+            .await?;
+            let snapshot_state = ensure_design_shape(extract_project_metadata(&json!([{
+                "metadata_json": snapshot_rows
+                    .as_array()
+                    .and_then(|items| items.first())
+                    .and_then(|item| item.get("state_json"))
+                    .cloned()
+                    .unwrap_or_else(|| json!({}))
+            }])));
+            let snapshot_feature_count = feature_count_in_state(&snapshot_state);
+            let table_feature_count = feature_count_in_state(&read_model_state);
+            if snapshot_feature_count != table_feature_count {
+                log::info!(
+                    "[V2] Rebuilding project snapshot from tables for {} (snapshot_features={:?}, table_features={:?})",
+                    project_id,
+                    snapshot_feature_count,
+                    table_feature_count
+                );
+                let (tx, rx) = tokio::sync::oneshot::channel();
+                state
+                    .gateway_tx
+                    .send(StorageCommand::UpdateProjectState {
+                        project_id: project_id.clone(),
+                        state: read_model_state.clone(),
+                        reply: tx,
+                    })
+                    .await
+                    .map_err(|e| e.to_string())?;
+                rx.await.map_err(|e| e.to_string())??;
+            }
+        }
         return Ok(read_model_state);
     }
 

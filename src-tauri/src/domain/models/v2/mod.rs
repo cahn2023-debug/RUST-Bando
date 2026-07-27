@@ -21,6 +21,18 @@ pub struct SyncState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DesignHistoryRecord {
+    pub id: String,
+    pub project_id: String,
+    pub event_id: String,
+    pub event_type: String,
+    pub forward_event_json: String,
+    pub inverse_event_json: String,
+    pub status: String,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum AppEvent {
     // --- Project ---

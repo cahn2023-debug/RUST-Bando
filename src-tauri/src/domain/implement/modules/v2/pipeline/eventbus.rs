@@ -119,6 +119,14 @@ pub enum StorageCommand {
         server_time: Option<String>,
         reply: oneshot::Sender<Result<usize, String>>,
     },
+    UndoDesignEvent {
+        project_id: String,
+        reply: oneshot::Sender<Result<serde_json::Value, String>>,
+    },
+    RedoDesignEvent {
+        project_id: String,
+        reply: oneshot::Sender<Result<serde_json::Value, String>>,
+    },
     // Queries
     Query {
         sql: String,

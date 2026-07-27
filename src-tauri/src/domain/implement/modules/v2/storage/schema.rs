@@ -538,6 +538,19 @@ pub const BASE_SCHEMA_SQL: &str = r#"
     CREATE INDEX IF NOT EXISTS idx_equipment_project ON equipment (project_id);
     CREATE INDEX IF NOT EXISTS idx_equipment_feature ON equipment (feature_id);
 
+    CREATE TABLE IF NOT EXISTS design_history (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        event_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        forward_event_json TEXT NOT NULL CHECK (json_valid(forward_event_json)),
+        inverse_event_json TEXT NOT NULL CHECK (json_valid(inverse_event_json)),
+        status TEXT NOT NULL DEFAULT 'done' CHECK (status IN ('done', 'undone')),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_design_history_project ON design_history (project_id, created_at);
+
     UPDATE features
     SET metadata_json = json_set(
         COALESCE(NULLIF(metadata_json, ''), '{}'),
@@ -594,6 +607,18 @@ pub const BASE_SCHEMA_SQL: &str = r#"
 "#;
 
 const V9_MIGRATION_SQL: &str = r#"
+    CREATE TABLE IF NOT EXISTS design_history (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        event_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        forward_event_json TEXT NOT NULL CHECK (json_valid(forward_event_json)),
+        inverse_event_json TEXT NOT NULL CHECK (json_valid(inverse_event_json)),
+        status TEXT NOT NULL DEFAULT 'done' CHECK (status IN ('done', 'undone')),
+        created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_design_history_project ON design_history (project_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_ai_actions_conversation ON ai_actions(conversation_id);
     CREATE INDEX IF NOT EXISTS idx_ai_messages_project ON ai_messages(project_id);
     CREATE INDEX IF NOT EXISTS idx_file_tags_tag ON file_tags(tag_id);
@@ -894,6 +919,28 @@ pub fn apply_v9_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
     create_json_validation_triggers(conn)?;
     create_numeric_validation_triggers(conn)?;
     create_timestamp_validation_triggers(conn)?;
+    ensure_feature_spatial_index(conn)
+}
+
+pub fn ensure_runtime_schema_compatibility(conn: &Connection) -> Result<(), rusqlite::Error> {
+    ensure_v8_compatibility(conn)?;
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS design_history (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            forward_event_json TEXT NOT NULL CHECK (json_valid(forward_event_json)),
+            inverse_event_json TEXT NOT NULL CHECK (json_valid(inverse_event_json)),
+            status TEXT NOT NULL DEFAULT 'done' CHECK (status IN ('done', 'undone')),
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_design_history_project ON design_history (project_id, created_at);
+        "#,
+    )?;
+    ensure_feature_spatial_columns(conn)?;
     ensure_feature_spatial_index(conn)
 }
 

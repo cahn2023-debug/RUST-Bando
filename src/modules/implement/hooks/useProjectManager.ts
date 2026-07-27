@@ -235,50 +235,6 @@ export function useProjectManager() {
             const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
             useDesignSync.getState().reset();
 
-            const optimisticProject = projectsRef.current.find((project) => project.path === selectedPath);
-            if (isProjectLoadable(optimisticProject)) {
-                console.info(`[useProjectManager] Optimistically opening project: ${optimisticProject.name}`);
-                applyOpenedProject(optimisticProject, false);
-                scheduleProjectIndexing(optimisticProject.id);
-
-                void (async () => {
-                    try {
-                        console.info(`[useProjectManager] Attaching PMP file in background: ${selectedPath}`);
-                        const migratedProject = normalizeProject(await invoke<Project>("load_pmp_file", { path: selectedPath }));
-                        console.info("load_pmp_file result:", migratedProject?.name || "Null");
-
-                        if (requestId !== requestIdRef.current) {
-                            console.warn("Request ID mismatch (Stale open request), skipping background finalization.");
-                            return;
-                        }
-
-                        let recoveredProject = migratedProject;
-                        if (!isProjectLoadable(recoveredProject)) {
-                            console.info("[useProjectManager] load_pmp_file returned null, attempting fallback to active project...");
-                            recoveredProject = normalizeProject(await invoke<Project | null>("get_active_project"));
-                        }
-
-                        if (requestId !== requestIdRef.current) {
-                            console.warn("Request ID mismatch after fallback, skipping background finalization.");
-                            return;
-                        }
-
-                        if (isProjectLoadable(recoveredProject)) {
-                            const project = mergeProjectMetadata(optimisticProject, recoveredProject);
-                            console.info(`[useProjectManager] Background attach resolved project: ${project.name} (ID: ${project.id})`);
-                            applyOpenedProject(project, true);
-                            return;
-                        }
-
-                        console.warn("[useProjectManager] Background attach did not return a loadable project. Keeping optimistic workspace open.");
-                    } catch (e) {
-                        console.error("Background PMP attach failed:", e);
-                    }
-                })();
-
-                return true;
-            }
-
             console.info(`[useProjectManager] Attempting to load PMP file: ${selectedPath}`);
             const migratedProject = normalizeProject(await invoke<Project>("load_pmp_file", { path: selectedPath }));
             console.info("load_pmp_file result:", migratedProject?.name || "Null");
@@ -296,10 +252,14 @@ export function useProjectManager() {
             }
 
             if (isProjectLoadable(recoveredProject)) {
-                const project = recoveredProject;
+                const optimisticProject = projectsRef.current.find((project) => project.path === selectedPath);
+                const project = optimisticProject
+                    ? mergeProjectMetadata(optimisticProject, recoveredProject)
+                    : recoveredProject;
                 console.info(`[useProjectManager] Successfully resolved project: ${project.name} (ID: ${project.id})`);
 
                 applyOpenedProject(project, true);
+                await useDesignSync.getState().initialize(project.id, project.path, { forceReload: true });
                 scheduleProjectIndexing(project.id);
 
                 return true;

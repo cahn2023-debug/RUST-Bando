@@ -137,7 +137,7 @@ export type UIControlSlice = {
 };
 
 export type InitializationSlice = {
-    initialize: (projectId: string, projectPath?: string) => Promise<void>;
+    initialize: (projectId: string, projectPath?: string, options?: { forceReload?: boolean }) => Promise<void>;
     reset: () => void;
     setMockState: (state: MapState, projectId: string, projectKey?: string) => void;
     unsubscribeFirestore: (() => void) | null;

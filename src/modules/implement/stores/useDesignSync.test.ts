@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { safeInvoke } from '../lib/tauri';
 import { useDesignSync } from './useDesignSync';
 
@@ -32,6 +33,7 @@ describe('useDesignSync Store', () => {
     beforeEach(() => {
         vi.useRealTimers();
         vi.mocked(safeInvoke).mockReset();
+        vi.mocked(tauriInvoke).mockReset();
         // Reset store state if needed, though zustand keeps state across tests if not handled
         useDesignSync.setState({
             projectId: null,
@@ -118,6 +120,50 @@ describe('useDesignSync Store', () => {
 
         useDesignSync.getState().selectFeature(null);
         expect(useDesignSync.getState().selectedFeatureId).toBe('f1'); // Should NOT be null
+    });
+
+    it('should force reload even when the same project is already loading', async () => {
+        vi.mocked(safeInvoke).mockImplementation(async (command: string) => {
+            if (command === 'get_active_project') {
+                return { id: 'project-1' };
+            }
+            if (command === 'load_design_state_v2') {
+                return {
+                    regions: {},
+                    layers: {},
+                    feature_groups: {},
+                    features: {},
+                    settings: {},
+                };
+            }
+            return null;
+        });
+
+        useDesignSync.setState({
+            projectId: 'project-1',
+            projectPath: 'C:/workspace/project.pmp',
+            projectKey: 'C:/workspace/project.pmp',
+            isLoading: true,
+            isHydrating: true,
+            state: {
+                regions: {},
+                layers: {},
+                feature_groups: {},
+                features: {},
+                settings: {},
+            },
+        });
+
+        await useDesignSync.getState().initialize('project-1', 'C:/workspace/project.pmp', { forceReload: true });
+
+        expect(safeInvoke).toHaveBeenCalledWith(
+            'load_design_state_v2',
+            expect.objectContaining({
+                project_id: 'project-1',
+            })
+        );
+        expect(useDesignSync.getState().isLoading).toBe(false);
+        expect(useDesignSync.getState().isHydrating).toBe(false);
     });
 
     it('should batch queued persists and resolve every caller', async () => {

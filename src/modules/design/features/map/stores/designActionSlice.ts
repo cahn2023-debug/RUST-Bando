@@ -80,6 +80,7 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
                 })
                 .catch((e: any) => {
                     console.error("[Sync] Dispatch error, rolling back or re-hydrating:", e);
+                    set({ state: previousState });
                     const now = Date.now();
                     if (shouldRecoverByInitialize() && now - lastRecoveryInitializeAt > RECOVERY_INITIALIZE_COOLDOWN_MS) {
                         tryRecoveryInitialize(get, projectId);
@@ -118,6 +119,7 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
                 })
                 .catch((e: any) => {
                     console.error("[Sync] Batch dispatch error:", e);
+                    set({ state: previousState });
                     const now = Date.now();
                     if (shouldRecoverByInitialize() && now - lastRecoveryInitializeAt > RECOVERY_INITIALIZE_COOLDOWN_MS) {
                         tryRecoveryInitialize(get, projectId);

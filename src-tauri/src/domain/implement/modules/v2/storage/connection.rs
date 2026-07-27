@@ -1,7 +1,7 @@
 use crate::domain::implement::modules::v2::storage::audit::{audit_database, DatabaseAuditReport};
 use crate::domain::implement::modules::v2::storage::schema::{
-    apply_base_schema, apply_v9_schema, ensure_v8_compatibility, stamp_schema_version,
-    CURRENT_SCHEMA_VERSION,
+    apply_base_schema, apply_v9_schema, ensure_runtime_schema_compatibility,
+    ensure_v8_compatibility, stamp_schema_version, CURRENT_SCHEMA_VERSION,
 };
 use rusqlite::{backup::Backup, Connection, DatabaseName, OpenFlags, TransactionBehavior};
 use serde_json::json;
@@ -85,6 +85,13 @@ impl PmpDatabase {
                 log::warn!("[Storage] Post-migration optimizer failed: {error}");
             }
         }
+
+        ensure_runtime_schema_compatibility(&conn)?;
+
+        log::info!(
+            "[Storage] Database opened successfully with runtime schema compatibility ensured (path: {})",
+            pmp_path.display()
+        );
 
         Ok(Self {
             conn,
@@ -592,6 +599,101 @@ mod tests {
             .filter(|entry| entry.file_name().to_string_lossy().contains("pre-v8-to-v9"))
             .count();
         assert_eq!(backup_count, 1);
+    }
+
+    #[test]
+    fn current_version_database_backfills_missing_runtime_schema() {
+        let directory = tempdir().expect("tempdir");
+        let path = directory.path().join("runtime_compat.pmp");
+        {
+            let conn = Connection::open(&path).expect("fixture database");
+            conn.pragma_update(None, "foreign_keys", "OFF")
+                .expect("foreign keys off");
+            apply_v2_schema(&conn).expect("fixture schema");
+            conn.execute_batch(
+                r#"
+                DROP TABLE IF EXISTS design_history;
+                DROP TRIGGER IF EXISTS trg_features_project_insert;
+                DROP TRIGGER IF EXISTS trg_features_project_update;
+                DROP TRIGGER IF EXISTS trg_feature_rtree_insert;
+                DROP TRIGGER IF EXISTS trg_feature_rtree_update;
+                DROP TRIGGER IF EXISTS trg_feature_rtree_delete;
+                DROP INDEX IF EXISTS idx_features_project_bbox;
+                DROP TABLE IF EXISTS feature_rtree;
+
+                ALTER TABLE features RENAME TO features_with_bbox;
+                CREATE TABLE features (
+                    id TEXT PRIMARY KEY,
+                    project_id TEXT NOT NULL,
+                    layer_id TEXT NOT NULL,
+                    group_id TEXT,
+                    name TEXT NOT NULL,
+                    geom_type TEXT NOT NULL,
+                    coordinates_json TEXT CHECK (
+                        coordinates_json IS NULL
+                        OR (json_valid(coordinates_json) AND json_type(coordinates_json) IN ('array', 'object'))
+                    ),
+                    properties_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(properties_json) AND json_type(properties_json) = 'object'),
+                    metadata_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json) AND json_type(metadata_json) = 'object'),
+                    bbox_json TEXT CHECK (
+                        bbox_json IS NULL
+                        OR (json_valid(bbox_json) AND json_type(bbox_json) = 'array')
+                    ),
+                    is_visible INTEGER NOT NULL DEFAULT 1 CHECK (is_visible IN (0, 1)),
+                    note TEXT,
+                    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+                    FOREIGN KEY(layer_id, project_id) REFERENCES layers(id, project_id) ON DELETE CASCADE,
+                    FOREIGN KEY(group_id) REFERENCES feature_groups(id) ON DELETE SET NULL,
+                    UNIQUE(id, project_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_features_project ON features (project_id);
+                INSERT INTO features (
+                    id, project_id, layer_id, group_id, name, geom_type, coordinates_json,
+                    properties_json, metadata_json, bbox_json, is_visible, note, created_at, updated_at
+                )
+                SELECT
+                    id, project_id, layer_id, group_id, name, geom_type, coordinates_json,
+                    properties_json, metadata_json, bbox_json, is_visible, note, created_at, updated_at
+                FROM features_with_bbox;
+                DROP TABLE features_with_bbox;
+                "#,
+            )
+            .expect("downgrade runtime schema");
+            conn.pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)
+                .expect("current pragma");
+        }
+
+        let database = PmpDatabase::open_or_create(path).expect("runtime compatibility");
+        let history_exists: i64 = database
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='design_history'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("design_history exists");
+        let bbox_column_count: i64 = database
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('features') WHERE name IN ('bbox_min_x', 'bbox_min_y', 'bbox_max_x', 'bbox_max_y')",
+                [],
+                |row| row.get(0),
+            )
+            .expect("bbox columns");
+        let rtree_exists: i64 = database
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='feature_rtree'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("feature_rtree exists");
+
+        assert_eq!(history_exists, 1);
+        assert_eq!(bbox_column_count, 4);
+        assert_eq!(rtree_exists, 1);
     }
 
     #[test]

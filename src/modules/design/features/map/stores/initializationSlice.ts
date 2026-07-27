@@ -38,7 +38,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
         pegmanState: { ...s.pegmanState, ...updates }
     })),
 
-    initialize: async (projectId: string, projectPath?: string) => {
+    initialize: async (projectId: string, projectPath?: string, options?: { forceReload?: boolean }) => {
         const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
             return await Promise.race([
                 promise,
@@ -80,7 +80,10 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             return;
         }
 
+        const forceReload = options?.forceReload === true;
+
         if (
+            !forceReload &&
             lastInitializedKey === currentInitKey &&
             now - lastInitializedAt < 3000 &&
             currentState &&
@@ -89,20 +92,24 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             return;
         }
 
-        // 1. Nếu đang nạp chính project này, bỏ qua để tránh loop
+        // 1. Nếu đang nạp chính project này, bỏ qua để tránh loop (trừ khi forceReload)
         if (currentlyLoading && currentProjectId === projectId) {
-            const now = Date.now();
             const isStaleLoading = !!loadingSinceTs && now - loadingSinceTs > 20000;
-            if (!isStaleLoading) {
+            if (!forceReload && !isStaleLoading) {
                 logger.sync(`[Sync] Already initializing project ${projectId}. Ignoring duplicate call.`);
                 return;
             }
-            logger.warn(`[Sync] Detected stale loading state for project ${projectId}. Recovering...`);
+            logger.warn(
+                forceReload
+                    ? `[Sync] Force reloading project ${projectId}; superseding active hydration.`
+                    : `[Sync] Detected stale loading state for project ${projectId}. Recovering...`
+            );
             set({ isLoading: false, isHydrating: false });
         }
 
         // 2. Nếu đã nạp xong và không có lỗi, không cần nạp lại
         if (
+            !forceReload &&
             currentProjectId === projectId &&
             currentState &&
             !get().error &&
@@ -223,6 +230,18 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
 
             // Standardize state using the canonical helper
             const normalizedState = normalizeMapStateForDisplay(state);
+            const loadedFeatureCount = Object.keys(normalizedState.features || {}).length;
+            const loadedLayerCount = Object.keys(normalizedState.layers || {}).length;
+
+            if (import.meta.env.DEV) {
+                console.log(`[Store] Hydrated state summary for ${projectId}:`, {
+                    forceReload,
+                    requestId: initializeRequestId,
+                    featureCount: loadedFeatureCount,
+                    layerCount: loadedLayerCount,
+                    path: projectPath
+                });
+            }
 
             set({
                 state: normalizedState,
@@ -282,29 +301,39 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
         }
     },
 
-    reset: () => set({
-        state: null,
-        projectId: null,
-        projectPath: null,
-        projectKey: null,
-        error: null,
-        isLoading: false,
-        isHydrating: false,
-        pendingSync: false,
-        selectedFeatureId: null,
-        editingFeatureId: null,
-        selectionSet: new Set(),
-        currentDrawingPoints: [],
-        currentDrawingSnapIds: [],
-        snappedPoint: null,
-        hoverId: null,
-        visibleFeatures: {},
-        visibleFeatureIds: [],
-        featureDetailsCache: {},
-        isViewportLoading: false,
-        viewportFeatureTotal: 0,
-        isViewportTruncated: false
-    }),
+    reset: () => {
+        incrementInitializeRequestId();
+        loadingSinceTs = null;
+        lastInitializedKey = null;
+        lastInitializedAt = 0;
+        if (initWatchdogTimer) {
+            clearTimeout(initWatchdogTimer);
+            initWatchdogTimer = null;
+        }
+        set({
+            state: null,
+            projectId: null,
+            projectPath: null,
+            projectKey: null,
+            error: null,
+            isLoading: false,
+            isHydrating: false,
+            pendingSync: false,
+            selectedFeatureId: null,
+            editingFeatureId: null,
+            selectionSet: new Set(),
+            currentDrawingPoints: [],
+            currentDrawingSnapIds: [],
+            snappedPoint: null,
+            hoverId: null,
+            visibleFeatures: {},
+            visibleFeatureIds: [],
+            featureDetailsCache: {},
+            isViewportLoading: false,
+            viewportFeatureTotal: 0,
+            isViewportTruncated: false
+        });
+    },
 
     setMockState: (state, projectId, projectKey) => set({
         state,
