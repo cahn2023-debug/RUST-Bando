@@ -41,7 +41,7 @@ const asColor = (value: unknown) => {
 
 const asSize = (value: unknown) => {
     const size = Number(value);
-    return Number.isFinite(size) && size > 0 ? Math.min(size, 48) : 8;
+    return Number.isFinite(size) && size > 0 ? Math.min(size, 100) : 8;
 };
 
 export const getMapLibreLodPolicy = ({

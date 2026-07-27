@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Settings2, X, Play } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { getParsedMetadata, normalizeFeatureSymbolData } from '@TOOL/utils/featureUtils';
+import { getParsedMetadata, normalizeFeatureSymbolData, getObjectTypeForIcon } from '@TOOL/utils/featureUtils';
 import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 import { Button } from '@DESIGN/components/ui/Button';
 
@@ -212,39 +212,48 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
           const metadata = getParsedMetadata(f);
 
           // Use iconType if provided, otherwise preserve existing
-          let targetIcon = metadata.icon;
-          if (iconType !== 'default') {
-            targetIcon = iconType;
-          }
+          const isExplicitIcon = iconType && iconType !== 'default';
+          const targetIcon = isExplicitIcon ? iconType : metadata.icon;
 
-          // IMPORTANT: Only merge theme-related fields into metadata
-          // Do NOT overwrite the entire metadata string
           const activeColor = color || metadata.gis?.color || metadata.color;
+          const activeSize = size; // Always use current modal slider size
+
           const draftMetadata = {
             ...metadata,
             icon: targetIcon,
             color: activeColor,
-            size: size || metadata.size || 32,
+            size: activeSize,
             gis: {
               ...(metadata.gis || {}),
               color: activeColor,
-              size: size || metadata.gis?.size || metadata.size || 32,
+              size: activeSize,
             }
           };
+
+          // Override properties.icon and properties.iconKey if an explicit icon was picked in the modal
+          const existingProps = f.properties && typeof f.properties === 'object' && !Array.isArray(f.properties)
+            ? f.properties
+            : {};
+          
+          const symbolInputProps = isExplicitIcon
+            ? { ...existingProps, icon: iconType, iconKey: iconType, type: getObjectTypeForIcon(iconType) }
+            : existingProps;
+
           const symbol = normalizeFeatureSymbolData(
-            { ...f, metadata: draftMetadata },
+            { ...f, properties: symbolInputProps, metadata: draftMetadata },
             group?.type,
             group?.name || groupName,
             draftMetadata
           );
+
+          const finalIconKey = isExplicitIcon ? iconType : symbol.iconKey;
+          const finalObjectType = isExplicitIcon ? getObjectTypeForIcon(iconType) : symbol.objectType;
+
           const newMetadata = {
             ...draftMetadata,
-            icon: symbol.iconKey,
-            type: symbol.objectType,
+            icon: finalIconKey,
+            type: finalObjectType,
           };
-          const properties = f.properties && typeof f.properties === 'object' && !Array.isArray(f.properties)
-            ? f.properties
-            : {};
 
           return {
             type: 'FeatureUpdated',
@@ -256,11 +265,12 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
               name: f.name || '',
               metadata: JSON.stringify(newMetadata),
               properties: {
-                ...properties,
-                icon: symbol.iconKey,
-                iconKey: symbol.iconKey,
-                type: symbol.objectType,
+                ...existingProps,
+                icon: finalIconKey,
+                iconKey: finalIconKey,
+                type: finalObjectType,
                 color: activeColor,
+                size: activeSize,
               },
             }
           };

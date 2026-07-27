@@ -292,7 +292,7 @@ export const getFeatureDisplayInfo = (feature: any, groupType?: string, groupNam
     return {
         label: displayType,
         tailwindColor: colorClass,
-        color: meta.color || (isLine ? '#10b981' : '#6366f1'),
+        color: meta.gis?.color || meta.color || feature?.properties?.color || (isLine ? '#10b981' : '#6366f1'),
         icon: IconComponent,
         iconKey: iconKey,
         objectType: symbol.objectType,

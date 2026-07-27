@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { FeatureState } from '@CONTRACT/types';
 import { buildMapLibreFeatureCollection, getMapLibreLodPolicy } from './mapLibreFastAdapter';
 
-const pointFeature = (id: string, coordinates: [number, number] = [105.8, 21.02]): FeatureState => ({
+const pointFeature = (
+    id: string,
+    coordinates: [number, number] = [105.8, 21.02],
+    overrides: Partial<FeatureState> = {}
+): FeatureState => ({
     id,
     layer_id: 'layer-1',
     group_id: 'group-1',
@@ -11,6 +15,7 @@ const pointFeature = (id: string, coordinates: [number, number] = [105.8, 21.02]
     coordinates,
     properties: {},
     metadata: JSON.stringify({ color: '#ef4444', size: 10 }),
+    ...overrides,
 });
 
 describe('mapLibreFastAdapter', () => {
@@ -34,6 +39,67 @@ describe('mapLibreFastAdapter', () => {
             size: 10,
             selected: false,
         }));
+    });
+
+    it('preserves group theme point sizes up to the modal maximum', () => {
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [pointFeature('p1', [105.8, 21.02], {
+                metadata: JSON.stringify({ color: '#ef4444', size: 91 }),
+            })],
+            zoom: 20,
+        });
+
+        expect(collection.features[0].properties.size).toBe(91);
+    });
+
+    it('prioritizes GIS size over metadata and properties size', () => {
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [pointFeature('p1', [105.8, 21.02], {
+                properties: { size: 24 },
+                metadata: JSON.stringify({ size: 32, gis: { size: 76 } }),
+            })],
+            zoom: 20,
+        });
+
+        expect(collection.features[0].properties.size).toBe(76);
+    });
+
+    it('clamps oversized point sizes to the modal maximum', () => {
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [pointFeature('p1', [105.8, 21.02], {
+                metadata: JSON.stringify({ size: 140 }),
+            })],
+            zoom: 20,
+        });
+
+        expect(collection.features[0].properties.size).toBe(100);
+    });
+
+    it('keeps selected point size while enforcing the selected minimum', () => {
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [
+                pointFeature('large-selected', [105.8, 21.02], {
+                    metadata: JSON.stringify({ size: 91 }),
+                }),
+                pointFeature('small-selected', [105.81, 21.03], {
+                    metadata: JSON.stringify({ size: 6 }),
+                }),
+            ],
+            selectedFeatureId: 'large-selected',
+            zoom: 20,
+        });
+
+        expect(collection.features[0].properties.size).toBe(91);
+
+        const { collection: smallSelectedCollection } = buildMapLibreFeatureCollection({
+            features: [pointFeature('small-selected', [105.81, 21.03], {
+                metadata: JSON.stringify({ size: 6 }),
+            })],
+            selectedFeatureId: 'small-selected',
+            zoom: 20,
+        });
+
+        expect(smallSelectedCollection.features[0].properties.size).toBe(12);
     });
 
     it('keeps the selected feature even when LOD caps the rest', () => {

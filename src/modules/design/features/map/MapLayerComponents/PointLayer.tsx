@@ -162,13 +162,14 @@ const createNativeIcon = (
 ) => {
     const { color, iconKey, isIntersection, isCamera } = getFeatureDisplayInfo(feature, group.type, group.name, metadata);
 
-    const baseSize = metadata.size ? parseInt(String(metadata.size), 10) : 32;
+    const rawSize = metadata.gis?.size ?? metadata.size ?? feature?.properties?.size ?? 32;
+    const baseSize = typeof rawSize === 'number' ? rawSize : parseInt(String(rawSize), 10) || 32;
     // Tăng kích thước biểu tượng lên gấp rưỡi để số nằm gọn bên trong
     const size = (isIntersection || isCamera) ? Math.floor(baseSize * 1.5) : baseSize;
     const rawRotation = getFeatureMetadataValue(feature, 'gis.rotation', 'rotation', metadata) ?? 0;
     const rotationStr = (typeof rawRotation === 'string' || typeof rawRotation === 'number') ? String(rawRotation) : '0';
     const rotation = parseFloat(rotationStr);
-    const markerColor = safeString(metadata.color) || '#10b981';
+    const markerColor = color || safeString(metadata.color) || '#10b981';
 
     const baseVisualFilter = lowGpuRendering ? '' : `filter: saturate(0.96) drop-shadow(0 1px 1px rgba(0,0,0,0.18));`;
     const highlightStyle = isSelected
@@ -220,6 +221,8 @@ export const createIconCacheKey = (
     feature?.properties?.icon,
     feature?.properties?.iconKey,
     feature?.properties?.type,
+    feature?.properties?.size,
+    feature?.properties?.color,
     group?.type,
     group?.name,
     metadataIconKey(metadata),

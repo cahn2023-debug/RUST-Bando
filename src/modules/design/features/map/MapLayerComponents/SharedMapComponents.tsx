@@ -21,7 +21,8 @@ export const getParsedMetadata = (
                 ...meta,
                 icon: config.icon === 'default' ? meta.icon : config.icon,
                 color: config.color,
-                size: config.size
+                size: config.size !== undefined ? config.size : meta.size,
+                gis: config.size !== undefined ? { ...(meta.gis || {}), color: config.color, size: config.size } : (meta.gis || {})
             };
         }
     }

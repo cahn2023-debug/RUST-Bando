@@ -127,7 +127,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
             filter: ['all', ['==', ['geometry-type'], 'Point'], ['!', ['has', 'point_count']]],
             paint: {
                 'circle-color': ['get', 'color'],
-                'circle-radius': ['case', ['boolean', ['get', 'selected'], false], 9, ['get', 'size']],
+                'circle-radius': ['get', 'size'],
                 'circle-opacity': ['case', ['boolean', ['get', 'selected'], false], 1, 0.82],
                 'circle-stroke-color': ['case', ['boolean', ['get', 'selected'], false], '#ecfeff', '#ffffff'],
                 'circle-stroke-width': ['case', ['boolean', ['get', 'selected'], false], 3, 1],
