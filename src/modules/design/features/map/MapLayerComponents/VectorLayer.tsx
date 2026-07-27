@@ -20,7 +20,8 @@ export const VectorLayer = React.memo(({
     selectedFeatureId,
     previewMetadata,
     currentZoom,
-    zoomTo
+    zoomTo,
+    isHeavyRender = false
 }: any) => {
     const drawingMode = useDesignSync(s => s.drawingMode);
     const editingFeatureId = useDesignSync(s => s.editingFeatureId);
@@ -185,19 +186,22 @@ export const VectorLayer = React.memo(({
                         );
                     }
 
+                    const shouldRenderHitArea = !isHeavyRender || isSelected || Number(currentZoom) >= 18;
+
                     return (
                         <React.Fragment key={f.id}>
-                            {/* Hit Area (Invisible, wide) */}
-                            <Polyline
-                                positions={latLngs}
-                                pathOptions={{
-                                    color: 'transparent',
-                                    weight: Math.max(15, weight + 5),
-                                    className: isClickThrough ? 'pointer-events-none' : 'cursor-pointer'
-                                }}
-                                interactive={drawingMode === 'none' || drawingMode === 'move'}
-                                eventHandlers={getVectorEventHandlers(f.id, f.group_id, isEditing)}
-                            />
+                            {shouldRenderHitArea && (
+                                <Polyline
+                                    positions={latLngs}
+                                    pathOptions={{
+                                        color: 'transparent',
+                                        weight: Math.max(15, weight + 5),
+                                        className: isClickThrough ? 'pointer-events-none' : 'cursor-pointer'
+                                    }}
+                                    interactive={drawingMode === 'none' || drawingMode === 'move'}
+                                    eventHandlers={getVectorEventHandlers(f.id, f.group_id, isEditing)}
+                                />
+                            )}
                             {/* Visible Polyline */}
                             <Polyline
                                 positions={latLngs}

@@ -22,6 +22,7 @@ import { MapSettingsPortal } from './MapSettingsPortal';
 import { useMapStyles } from './useMapStyles';
 import { MapSettingsPanel } from './MapSettings/MapSettingsPanel';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+import { isLowGpuRenderingEnabled } from './mapPerformance';
 
 // Fix Leaflet marker icon issue
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -43,6 +44,8 @@ const BASEMAP_NAMES = [
     'Google Terrain'
 ] as const;
 const DEFAULT_BASEMAP_NAME = 'Google Satellite (Hybrid)';
+const MAP_MAX_ZOOM = 23;
+const MAP_MAX_NATIVE_ZOOM = 20;
 
 type BasemapName = typeof BASEMAP_NAMES[number];
 
@@ -105,19 +108,20 @@ export function MapLayer({
         mapKey
     } = useMapStyles();
     const showDORILayers = useDesignSync(s => s.showDORILayers);
+    const lowGpuRendering = isLowGpuRenderingEnabled();
 
     return (
         <MapContainer
             center={center}
             zoom={zoom}
-            maxZoom={36}
+            maxZoom={MAP_MAX_ZOOM}
             scrollWheelZoom={true}
             preferCanvas={true}
             style={{ height: '100%', width: '100%', background: 'transparent' }}
             zoomControl={false}
             attributionControl={false}
             boxZoom={false}
-            className="design-map-container"
+            className={`design-map-container ${lowGpuRendering ? 'design-map-low-gpu' : ''}`}
         >
             <LayersControl position="topright">
                 <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Streets'} name="Google Streets">
@@ -125,8 +129,8 @@ export function MapLayer({
                         className="design-basemap-tile"
                         key={`m-${mapKey}`}
                         url={getStyledUrl('m')}
-                        maxZoom={36}
-                        maxNativeZoom={20}
+                        maxZoom={MAP_MAX_ZOOM}
+                        maxNativeZoom={MAP_MAX_NATIVE_ZOOM}
                         referrerPolicy="no-referrer"
                     />
                 </LayersControl.BaseLayer>
@@ -135,8 +139,8 @@ export function MapLayer({
                         className="design-basemap-tile"
                         key={`y-${mapKey}`}
                         url={getStyledUrl('y')}
-                        maxZoom={36}
-                        maxNativeZoom={20}
+                        maxZoom={MAP_MAX_ZOOM}
+                        maxNativeZoom={MAP_MAX_NATIVE_ZOOM}
                         referrerPolicy="no-referrer"
                     />
                 </LayersControl.BaseLayer>
@@ -145,8 +149,8 @@ export function MapLayer({
                         className="design-basemap-tile"
                         key={`sbw-${mapKey}`}
                         url={getStyledUrl('y')}
-                        maxZoom={36}
-                        maxNativeZoom={20}
+                        maxZoom={MAP_MAX_ZOOM}
+                        maxNativeZoom={MAP_MAX_NATIVE_ZOOM}
                         referrerPolicy="no-referrer"
                     />
                 </LayersControl.BaseLayer>
@@ -155,8 +159,8 @@ export function MapLayer({
                         className="design-basemap-tile"
                         key={`p-${mapKey}`}
                         url={getStyledUrl('p')}
-                        maxZoom={36}
-                        maxNativeZoom={20}
+                        maxZoom={MAP_MAX_ZOOM}
+                        maxNativeZoom={MAP_MAX_NATIVE_ZOOM}
                         referrerPolicy="no-referrer"
                     />
                 </LayersControl.BaseLayer>

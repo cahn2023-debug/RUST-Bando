@@ -14,6 +14,7 @@ import {
 import { getParsedMetadata, FeaturePopupContent } from '@DESIGN/features/map/MapLayerComponents/SharedMapComponents';
 import { handleFeatureSelection } from "@DESIGN/features/map";
 import { confirmUserAction } from '@TOOL/utils/userConfirmation';
+import { isLowGpuRenderingEnabled } from '../mapPerformance';
 
 const EMPTY_OBJ = {};
 
@@ -156,7 +157,8 @@ const createNativeIcon = (
     metadata: any,
     indexInGroup: string | number,
     isSelected: boolean,
-    isClickThrough: boolean
+    isClickThrough: boolean,
+    lowGpuRendering = true
 ) => {
     const { color, iconKey, isIntersection, isCamera } = getFeatureDisplayInfo(feature, group.type, group.name, metadata);
 
@@ -168,7 +170,7 @@ const createNativeIcon = (
     const rotation = parseFloat(rotationStr);
     const markerColor = safeString(metadata.color) || '#10b981';
 
-    const baseVisualFilter = `filter: saturate(0.96) drop-shadow(0 1px 1px rgba(0,0,0,0.18));`;
+    const baseVisualFilter = lowGpuRendering ? '' : `filter: saturate(0.96) drop-shadow(0 1px 1px rgba(0,0,0,0.18));`;
     const highlightStyle = isSelected
         ? `outline: 2px solid rgba(34, 211, 238, 0.82); outline-offset: 1px; border-color: rgba(186, 230, 253, 0.92) !important; z-index: 1000;`
         : '';
@@ -180,7 +182,8 @@ const createNativeIcon = (
         const rawIconType = isCameraIcon(iconKey) ? iconKey : 'cctv';
         iconHtml = `<div style="width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center; ${baseVisualFilter} ${highlightStyle}">${getIconSvgString(rawIconType, color, size, indexInGroup, rotation)}</div>`;
     } else {
-        iconHtml = `<div style="width: ${size}px; height: ${size}px; background-color: ${markerColor}; border: 1px solid rgba(255,255,255,0.72); border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.16); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.98); font-weight: 900; font-size: ${Math.max(9, size / 2.8)}px; overflow: hidden; text-shadow: 0 1px 1px rgba(0,0,0,0.35); ${baseVisualFilter} ${highlightStyle}">${indexInGroup}</div>`;
+        const pointShadow = lowGpuRendering ? '' : 'box-shadow: 0 1px 2px rgba(0,0,0,0.16); text-shadow: 0 1px 1px rgba(0,0,0,0.35);';
+        iconHtml = `<div style="width: ${size}px; height: ${size}px; background-color: ${markerColor}; border: 1px solid rgba(255,255,255,0.72); border-radius: 50%; ${pointShadow} display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.98); font-weight: 900; font-size: ${Math.max(9, size / 2.8)}px; overflow: hidden; ${baseVisualFilter} ${highlightStyle}">${indexInGroup}</div>`;
     }
 
 
@@ -192,20 +195,47 @@ const createNativeIcon = (
     });
 }
 
-// createNativeIcon is a pure function of exactly its six arguments, so the icon it
+const metadataIconKey = (metadata: any) => [
+    metadata?.icon,
+    metadata?.type,
+    metadata?.color,
+    metadata?.size,
+    metadata?.rotation,
+    metadata?.gis?.color,
+    metadata?.gis?.size,
+    metadata?.gis?.rotation,
+].map(value => value ?? '').join('|');
+
+export const createIconCacheKey = (
+    feature: any,
+    group: any,
+    metadata: any,
+    indexInGroup: string | number,
+    isSelected: boolean,
+    isClickThrough: boolean,
+    lowGpuRendering: boolean
+) => [
+    feature?.id,
+    feature?.name,
+    feature?.properties?.icon,
+    feature?.properties?.iconKey,
+    feature?.properties?.type,
+    group?.type,
+    group?.name,
+    metadataIconKey(metadata),
+    indexInGroup,
+    isSelected ? 1 : 0,
+    isClickThrough ? 1 : 0,
+    lowGpuRendering ? 1 : 0,
+].join('::');
+
+// createNativeIcon is a pure function of its display inputs, so the icon it
 // produces can only differ when one of those arguments differs. Each marker records
-// the arguments behind its current icon; when they are all identical we skip
+// the cache key behind its current icon; when it is identical we skip
 // setIcon(), which otherwise tears down and rebuilds that marker's DOM node on every
 // effect run (any selection / preview / zoom churn re-ran it for every marker).
-const ICON_ARG_COUNT = 6;
-
-const iconArgsUnchanged = (marker: L.Marker, next: readonly unknown[]) => {
-    const prev = (marker as any)._iconArgs as readonly unknown[] | undefined;
-    if (!prev || prev.length !== ICON_ARG_COUNT) return false;
-    for (let i = 0; i < ICON_ARG_COUNT; i++) {
-        if (prev[i] !== next[i]) return false;
-    }
-    return true;
+const iconArgsUnchanged = (marker: L.Marker, nextKey: string) => {
+    return (marker as any)._iconKey === nextKey;
 };
 
 // -------------------------------------------------------------------
@@ -225,6 +255,7 @@ export const PointLayer = React.memo(({
     const showFeatureGroups = useDesignSync(s => s.showFeatureGroups);
     const groupThemePreview = useDesignSync(s => s.groupThemePreview);
     const drawingMode = useDesignSync(s => s.drawingMode);
+    const lowGpuRendering = isLowGpuRenderingEnabled();
     const nativeGroupRef = useRef<L.MarkerClusterGroup | null>(null);
     const moveToolGroupRef = useRef<L.FeatureGroup | null>(null);
     const markersMapRef = useRef<Map<string, L.Marker>>(new Map());
@@ -346,10 +377,10 @@ export const PointLayer = React.memo(({
             const targetPane = (isSelectedForMove || isClusteringDisabled) ? 'move-tool-pane' : 'markerPane';
 
             let marker = markersMap.get(f.id);
-            const iconArgs = [f, grp, metadata, indexInGroup, isSelected, isClickThrough] as const;
+            const iconKey = createIconCacheKey(f, grp, metadata, indexInGroup, isSelected, isClickThrough, lowGpuRendering);
 
             if (!marker) {
-                const icon = createNativeIcon(f, grp, metadata, indexInGroup, isSelected, isClickThrough);
+                const icon = createNativeIcon(f, grp, metadata, indexInGroup, isSelected, isClickThrough, lowGpuRendering);
                 marker = L.marker([coords[1], coords[0]], {
                     icon,
                     interactive: !isClickThrough,
@@ -382,7 +413,7 @@ export const PointLayer = React.memo(({
                 }
 
                 (marker as any)._group = targetGroup;
-                (marker as any)._iconArgs = iconArgs;
+                (marker as any)._iconKey = iconKey;
                 if (!canUseLeafletPanes(map)) {
                     continue;
                 }
@@ -397,10 +428,10 @@ export const PointLayer = React.memo(({
                 }
 
                 // Only rebuild the icon when an input to it actually changed.
-                if (!iconArgsUnchanged(marker, iconArgs)) {
-                    const icon = createNativeIcon(f, grp, metadata, indexInGroup, isSelected, isClickThrough);
+                if (!iconArgsUnchanged(marker, iconKey)) {
+                    const icon = createNativeIcon(f, grp, metadata, indexInGroup, isSelected, isClickThrough, lowGpuRendering);
                     marker.setIcon(icon);
-                    (marker as any)._iconArgs = iconArgs;
+                    (marker as any)._iconKey = iconKey;
                 }
                 (marker.options as any).interactive = !isClickThrough;
 
@@ -462,7 +493,8 @@ export const PointLayer = React.memo(({
         groupThemePreview,
         dispatchEventAction,
         map,
-        groupsReady
+        groupsReady,
+        lowGpuRendering
     ]);
 
     return null;

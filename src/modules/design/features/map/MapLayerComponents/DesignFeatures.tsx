@@ -27,8 +27,12 @@ const metadataString = (value: unknown) => (
 );
 
 const ZOOM_THRESHOLD = 19;
-const BOUNDS_DEBOUNCE_MS = 150;
+const BOUNDS_DEBOUNCE_MS = 180;
 const REPORT_CAPTURE_EVENT = 'design-report-map-capture';
+const HEAVY_RENDER_FEATURE_LIMIT = 2500;
+const HEAVY_RENDER_POINT_LIMIT = 1200;
+const FOV_RENDER_LIMIT = 250;
+const IS_DEV = import.meta.env.DEV;
 
 const canReadMapBounds = (map: L.Map) => {
     try {
@@ -116,22 +120,6 @@ export const DesignFeatures = () => {
         }, BOUNDS_DEBOUNCE_MS);
     }, [map]);
 
-    const lastMoveTimeRef = useRef(0);
-    const THROTTLE_MS = 100;
-
-    const throttledMove = useCallback(() => {
-        const now = Date.now();
-        if (now - lastMoveTimeRef.current > THROTTLE_MS) {
-            lastMoveTimeRef.current = now;
-            if (!canReadMapBounds(map)) return;
-            const nextBounds = map.getBounds();
-            setBounds(prev => {
-                if (prev && prev.equals(nextBounds)) return prev;
-                return nextBounds;
-            });
-        }
-    }, [map]);
-
     useEffect(() => {
         const syncTimer = window.setTimeout(() => {
             if (canReadMapBounds(map)) {
@@ -151,8 +139,7 @@ export const DesignFeatures = () => {
 
     useMapEvents({
         zoomend: debouncedSetBounds,
-        moveend: debouncedSetBounds,
-        move: throttledMove
+        moveend: debouncedSetBounds
     });
 
     const viewportRequestRef = useRef(0);
@@ -235,6 +222,8 @@ export const DesignFeatures = () => {
         return result;
     }, [geoVisibleFeatures, mapHiddenIds]);
 
+    const isHeavyRender = visibleFeatures.length > HEAVY_RENDER_FEATURE_LIMIT;
+
     // 4. Filtering Logic for Points (Clusters)
     const pointsToRender = React.useMemo(() => {
         const result = visibleFeatures.filter((f: FeatureState) => {
@@ -267,10 +256,36 @@ export const DesignFeatures = () => {
         return result;
     }, [visibleFeatures, feature_groups, previewMetadata, featureHierarchy, currentZoom, selectedFeatureId, isReportCaptureActive]);
 
+    const shouldLimitExpensiveOverlays = isHeavyRender || pointsToRender.length > HEAVY_RENDER_POINT_LIMIT;
+    const fovFeatures = React.useMemo(() => {
+        if (!shouldLimitExpensiveOverlays) return visibleFeatures;
+        const selected = selectedFeatureId
+            ? visibleFeatures.find(feature => feature.id === selectedFeatureId)
+            : null;
+        const pointIds = new Set(pointsToRender.slice(0, FOV_RENDER_LIMIT).map(feature => feature.id));
+        const limited = visibleFeatures.filter(feature => pointIds.has(feature.id));
+        if (selected && !pointIds.has(selected.id)) {
+            return [selected, ...limited];
+        }
+        return limited;
+    }, [shouldLimitExpensiveOverlays, visibleFeatures, selectedFeatureId, pointsToRender]);
+
     const renderedPointIds = React.useMemo(
         () => new Set(pointsToRender.map(f => f.id)),
         [pointsToRender]
     );
+
+    useEffect(() => {
+        if (!IS_DEV) return;
+        console.debug('[MapPerf] render budget', {
+            totalFeatures: Object.keys(features).length,
+            visibleFeatures: visibleFeatures.length,
+            points: pointsToRender.length,
+            fovFeatures: fovFeatures.length,
+            limited: shouldLimitExpensiveOverlays,
+            zoom: currentZoom,
+        });
+    }, [features, visibleFeatures.length, pointsToRender.length, fovFeatures.length, shouldLimitExpensiveOverlays, currentZoom]);
 
     // Previously a new L.DivIcon was constructed inline on every render of this
     // orchestrator (which re-renders on every throttled map move), forcing the
@@ -299,6 +314,12 @@ export const DesignFeatures = () => {
                     {isViewportLoading
                         ? 'Đang tải dữ liệu trong vùng nhìn...'
                         : `Đang hiển thị ${viewportFeatureLimit.toLocaleString()} / ${viewportFeatureTotal.toLocaleString()} đối tượng. Hãy zoom gần hơn.`}
+                </div>
+            )}
+
+            {shouldLimitExpensiveOverlays && (
+                <div className="pointer-events-none absolute right-3 top-14 z-[1000] rounded bg-white/95 px-3 py-2 text-[11px] font-medium text-slate-700 shadow">
+                    Đang giảm hiệu ứng bản đồ để tránh quá tải GPU.
                 </div>
             )}
 
@@ -342,11 +363,12 @@ export const DesignFeatures = () => {
 
             {/* FOV (Field of View) Layer for Cameras */}
             <FOVLayer
-                features={visibleFeatures}
+                features={fovFeatures}
                 feature_groups={feature_groups}
                 previewMetadata={previewMetadata}
                 currentZoom={isReportCaptureActive ? Math.max(currentZoom, 23) : currentZoom}
                 renderedPointIds={renderedPointIds}
+                renderLimit={FOV_RENDER_LIMIT}
             />
 
             {/* Floating Popup Manager (Cluster-aware) */}
@@ -373,6 +395,7 @@ export const DesignFeatures = () => {
                 previewMetadata={previewMetadata}
                 currentZoom={isReportCaptureActive ? Math.max(currentZoom, 23) : currentZoom}
                 zoomTo={zoomTo}
+                isHeavyRender={isHeavyRender}
             />
 
             {/* Editing Layer (Handles) */}

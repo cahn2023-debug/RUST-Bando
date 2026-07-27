@@ -65,6 +65,34 @@ describe('VectorLayer', () => {
         expect(typeof polylineProps[1].eventHandlers?.click).toBe('function');
     });
 
+    it('skips the invisible hit area during heavy render at lower zooms', () => {
+        render(
+            <VectorLayer
+                features={[{
+                    id: 'line-1',
+                    layer_id: 'layer-1',
+                    group_id: 'group-1',
+                    name: 'Line 1',
+                    geom_type: 'LineString',
+                    coordinates: [[106, 10], [106.001, 10.001]],
+                    metadata: JSON.stringify({ color: '#EF4444' }),
+                    properties: {},
+                }]}
+                allFeatures={{}}
+                parentChildMap={new Map()}
+                feature_groups={{ 'group-1': { id: 'group-1', type: 'LINE', name: 'Lines' } }}
+                selectedFeatureId={null}
+                previewMetadata={null}
+                currentZoom={16}
+                zoomTo={vi.fn()}
+                isHeavyRender={true}
+            />
+        );
+
+        expect(polylineProps).toHaveLength(1);
+        expect(polylineProps[0].pathOptions.color).toBe('#EF4444');
+    });
+
     it('disables visible polyline interaction while drawing', () => {
         useDesignSync.setState({ drawingMode: 'polyline' } as any);
 

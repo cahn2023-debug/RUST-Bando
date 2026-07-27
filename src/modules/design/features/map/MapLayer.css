@@ -276,3 +276,22 @@
     pointer-events: none !important;
     cursor: default;
 }
+
+.design-map-low-gpu .leaflet-control-layers,
+.design-map-low-gpu .measure-panel,
+.design-map-low-gpu .measure-tooltip {
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.design-map-low-gpu .custom-map-marker,
+.design-map-low-gpu .custom-map-marker.selected-marker,
+.design-map-low-gpu .custom-pegman-marker,
+.design-map-low-gpu .custom-pegman-marker.selected,
+.design-map-low-gpu .polyline-selected,
+.design-map-low-gpu .leaflet-interactive {
+    filter: none !important;
+    -webkit-filter: none !important;
+    transition: none !important;
+}
