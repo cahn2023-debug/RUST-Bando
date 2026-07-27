@@ -244,6 +244,9 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
             type: 'FeatureUpdated',
             payload: {
               id: f.id,
+              layer_id: f.layer_id,
+              group_id: f.group_id,
+              geom_type: f.geom_type,
               name: f.name || '',
               metadata: JSON.stringify(newMetadata),
               properties: {

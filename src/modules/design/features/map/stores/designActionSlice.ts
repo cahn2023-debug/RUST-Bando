@@ -65,7 +65,7 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
             set({ pendingSync: true, error: null });
 
             if (IS_DEV) {
-                console.log(`[Sync] Dispatching ${event.type} to Rust (Incremental)...`, event.payload);
+                console.log(`[Sync] Dispatching ${event.eventType} (${incomingEvent.type}) to Rust (Incremental)...`, event.payload);
             }
 
             return invoke_design_event_batch(projectId, [event])
