@@ -127,6 +127,27 @@ pub const BASE_SCHEMA_SQL: &str = r#"
     );
     CREATE INDEX IF NOT EXISTS idx_features_project ON features (project_id);
 
+    CREATE TABLE IF NOT EXISTS map_tile_cache (
+        project_id TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        z INTEGER NOT NULL,
+        x INTEGER NOT NULL,
+        y INTEGER NOT NULL,
+        tile_mvt BLOB NOT NULL,
+        feature_count INTEGER NOT NULL DEFAULT 0,
+        min_x REAL NOT NULL,
+        min_y REAL NOT NULL,
+        max_x REAL NOT NULL,
+        max_y REAL NOT NULL,
+        generated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+        PRIMARY KEY (project_id, revision, z, x, y),
+        FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_map_tile_cache_project_revision
+        ON map_tile_cache(project_id, revision);
+    CREATE INDEX IF NOT EXISTS idx_map_tile_cache_bounds
+        ON map_tile_cache(project_id, revision, min_x, max_x, min_y, max_y);
+
     CREATE TABLE IF NOT EXISTS media_assets (
         id TEXT PRIMARY KEY,
         project_id TEXT NOT NULL,
@@ -938,8 +959,42 @@ pub fn ensure_runtime_schema_compatibility(conn: &Connection) -> Result<(), rusq
             FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
         );
         CREATE INDEX IF NOT EXISTS idx_design_history_project ON design_history (project_id, created_at);
+
+        CREATE TABLE IF NOT EXISTS map_tile_cache (
+            project_id TEXT NOT NULL,
+            revision INTEGER NOT NULL,
+            z INTEGER NOT NULL,
+            x INTEGER NOT NULL,
+            y INTEGER NOT NULL,
+        tile_mvt BLOB NOT NULL,
+        feature_count INTEGER NOT NULL DEFAULT 0,
+        min_x REAL NOT NULL,
+        min_y REAL NOT NULL,
+        max_x REAL NOT NULL,
+        max_y REAL NOT NULL,
+        generated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            PRIMARY KEY (project_id, revision, z, x, y),
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_map_tile_cache_project_revision
+            ON map_tile_cache(project_id, revision);
+        CREATE INDEX IF NOT EXISTS idx_map_tile_cache_bounds
+            ON map_tile_cache(project_id, revision, min_x, max_x, min_y, max_y);
         "#,
     )?;
+    for (column, ty) in [
+        ("min_x", "REAL NOT NULL DEFAULT -180.0"),
+        ("min_y", "REAL NOT NULL DEFAULT -85.05112878"),
+        ("max_x", "REAL NOT NULL DEFAULT 180.0"),
+        ("max_y", "REAL NOT NULL DEFAULT 85.05112878"),
+    ] {
+        if table_exists(conn, "map_tile_cache")? && !column_exists(conn, "map_tile_cache", column)? {
+            conn.execute(
+                &format!("ALTER TABLE map_tile_cache ADD COLUMN {column} {ty}"),
+                [],
+            )?;
+        }
+    }
     ensure_feature_spatial_columns(conn)?;
     ensure_feature_spatial_index(conn)
 }

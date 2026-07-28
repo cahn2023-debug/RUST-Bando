@@ -325,6 +325,115 @@ export const loadDesignState = async (projectId: string): Promise<any | null> =>
   }
 };
 
+export interface ProjectBootstrap {
+  project: any;
+  featureCount: number;
+  mapRevision: number;
+  initialBounds?: {
+    south?: number | null;
+    north?: number | null;
+    west?: number | null;
+    east?: number | null;
+  } | null;
+  settings: Record<string, unknown>;
+  regions: Record<string, unknown>;
+  layers: Record<string, unknown>;
+  featureGroups: Record<string, unknown>;
+  streamingMode: boolean;
+  cacheStatus: {
+    cachedTiles: number;
+    state: 'ready' | 'missing' | 'building' | string;
+  };
+  openRequestId?: number | null;
+}
+
+export const openProjectBootstrap = async (
+  path: string,
+  openRequestId: number
+): Promise<ProjectBootstrap> => {
+  return await invoke<ProjectBootstrap>(
+    'open_project_bootstrap',
+    withCompatArgs(
+      {
+        path,
+        open_request_id: openRequestId,
+      },
+      {
+        path,
+        openRequestId,
+      }
+    )
+  );
+};
+
+export const getProjectBootstrapV2 = async (projectId: string): Promise<ProjectBootstrap> => {
+  return await invoke<ProjectBootstrap>(
+    'get_project_bootstrap_v2',
+    withCompatArgs(
+      {
+        project_id: projectId,
+      },
+      {
+        projectId,
+      }
+    )
+  );
+};
+
+export const getMapTileV2 = async (
+  projectId: string,
+  revision: number,
+  z: number,
+  x: number,
+  y: number
+): Promise<Uint8Array> => {
+  const result = await invoke<number[] | Uint8Array>('get_map_tile_v2', {
+    project_id: projectId,
+    projectId,
+    revision,
+    z,
+    x,
+    y,
+  });
+  return result instanceof Uint8Array ? result : new Uint8Array(result || []);
+};
+
+export const buildMapTilesV2 = async (
+  projectId: string,
+  revision: number,
+  options: {
+    minZoom?: number;
+    maxZoom?: number;
+    bounds?: [number, number, number, number];
+    tileLimit?: number;
+  } = {}
+): Promise<any> => {
+  return await invoke('build_map_tiles_v2', {
+    project_id: projectId,
+    projectId,
+    revision,
+    min_zoom: options.minZoom,
+    minZoom: options.minZoom,
+    max_zoom: options.maxZoom,
+    maxZoom: options.maxZoom,
+    bounds: options.bounds,
+    tile_limit: options.tileLimit,
+    tileLimit: options.tileLimit,
+  });
+};
+
+export const invalidateMapTilesV2 = async (
+  projectId: string,
+  options: { revision?: number; bbox?: [number, number, number, number] } = {}
+): Promise<any> => {
+  return await invoke('invalidate_map_tiles_v2', {
+    project_id: projectId,
+    projectId,
+    revision: options.revision,
+    bbox: options.bbox,
+  });
+};
+
 export interface VisibleFeatureBounds {
   s: number;
   n: number;
@@ -338,6 +447,8 @@ export interface VisibleFeaturesResponse {
   returned: number;
   truncated: boolean;
   limit: number;
+  revision?: number;
+  requestId?: number | null;
 }
 
 export const queryVisibleFeaturesV2 = async (
@@ -346,7 +457,9 @@ export const queryVisibleFeaturesV2 = async (
   zoom: number,
   hiddenIds: string[] = [],
   limit = 10000,
-  fastPayload = false
+  fastPayload = false,
+  revision?: number,
+  requestId?: number
 ): Promise<VisibleFeaturesResponse> => {
   const result = await invoke<VisibleFeaturesResponse>(
     'query_visible_features_v2',
@@ -358,6 +471,8 @@ export const queryVisibleFeaturesV2 = async (
         hidden_ids: hiddenIds,
         limit,
         fast_payload: fastPayload,
+        revision,
+        request_id: requestId,
       },
       {
         projectId,
@@ -366,6 +481,8 @@ export const queryVisibleFeaturesV2 = async (
         hiddenIds,
         limit,
         fastPayload,
+        revision,
+        requestId,
       }
     )
   );

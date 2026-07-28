@@ -146,7 +146,7 @@ graph TD
     node_353_file --- node_353_s13
     node_353_s14["🔧 copy_text_to_system_clipboard (fn)"]:::symbol
     node_353_file --- node_353_s14
-    node_353_more["... and 34 more symbols"]:::symbol
+    node_353_more["... and 36 more symbols"]:::symbol
     node_353_file --- node_353_more
   end
   class node_353_sub rs
@@ -268,7 +268,7 @@ graph TD
     node_360_file --- node_360_s13
     node_360_s14["🔧 rewrite_imported_feature_metadata (fn)"]:::symbol
     node_360_file --- node_360_s14
-    node_360_more["... and 90 more symbols"]:::symbol
+    node_360_more["... and 130 more symbols"]:::symbol
     node_360_file --- node_360_more
   end
   class node_360_sub rs
@@ -2371,10 +2371,12 @@ graph TD
   node_309["📄 src/modules/tool/utils/designEvents.ts"]:::ts
   subgraph node_310_sub ["src/modules/tool/utils/designIpc.ts"]
     node_310_file("📄 src/modules/tool/utils/designIpc.ts")
-    node_310_s0["📦 VisibleFeatureBounds (interface)"]:::symbol
+    node_310_s0["📦 ProjectBootstrap (interface)"]:::symbol
     node_310_file --- node_310_s0
-    node_310_s1["📦 VisibleFeaturesResponse (interface)"]:::symbol
+    node_310_s1["📦 VisibleFeatureBounds (interface)"]:::symbol
     node_310_file --- node_310_s1
+    node_310_s2["📦 VisibleFeaturesResponse (interface)"]:::symbol
+    node_310_file --- node_310_s2
   end
   class node_310_sub ts
   node_311["📄 src/modules/tool/utils/designLogic.ts"]:::ts
@@ -2607,6 +2609,7 @@ graph TD
   node_180_file --> node_183_file
   node_180_file --> node_273_file
   node_180_file --> node_328_file
+  node_180_file --> node_310_file
   node_180_file --> node_332_file
   node_181_file --> node_183_file
   node_181_file --> node_332_file

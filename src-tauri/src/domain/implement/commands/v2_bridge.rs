@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use tauri::State;
 use url::Url;
 
-const FULL_FEATURE_HYDRATION_LIMIT: i64 = 50_000;
+const FULL_FEATURE_HYDRATION_LIMIT: i64 = 10_000;
 const VIEWPORT_FEATURE_LIMIT: i64 = 10_000;
 
 fn extract_project_metadata(rows: &Value) -> Value {
@@ -93,6 +93,20 @@ fn ensure_design_shape(state: Value) -> Value {
 
 fn row_array(value: Value) -> Vec<Value> {
     value.as_array().cloned().unwrap_or_default()
+}
+
+async fn map_revision_for_project(state: &ActorState, project_id: &str) -> Result<i64, String> {
+    let rows = exec_query(
+        state,
+        "SELECT COALESCE(MAX(global_seq), 0) AS map_revision FROM events WHERE project_id = ?1",
+        vec![project_id.to_string()],
+    )
+    .await?;
+    Ok(row_array(rows)
+        .first()
+        .and_then(|row| row.get("map_revision"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0))
 }
 
 fn normalize_metadata_to_string(v: &Value) -> String {
@@ -203,6 +217,10 @@ async fn load_design_state_from_tables(
         .unwrap_or_else(|| json!({}));
     result_obj.insert("settings".to_string(), settings_value);
     result_obj.insert("featureCount".to_string(), json!(feature_count));
+    result_obj.insert(
+        "mapRevision".to_string(),
+        json!(map_revision_for_project(state, project_id).await.unwrap_or(0)),
+    );
     result_obj.insert(
         "isLargeProject".to_string(),
         json!(!include_features && feature_count > 0),
@@ -1253,6 +1271,7 @@ pub async fn load_design_state_v2(
 
 #[tauri::command]
 #[allow(non_snake_case)]
+#[allow(clippy::too_many_arguments)]
 pub async fn query_visible_features_v2(
     state: State<'_, ActorState>,
     project_id: Option<String>,
@@ -1264,6 +1283,9 @@ pub async fn query_visible_features_v2(
     limit: Option<i64>,
     fast_payload: Option<bool>,
     fastPayload: Option<bool>,
+    revision: Option<i64>,
+    request_id: Option<i64>,
+    requestId: Option<i64>,
 ) -> Result<Value, String> {
     let project_id = project_id
         .or(projectId)
@@ -1283,7 +1305,7 @@ pub async fn query_visible_features_v2(
         &state,
         "SELECT COUNT(*) AS total
          FROM feature_rtree r
-         INNER JOIN features f ON f.rowid = r.rowid
+         CROSS JOIN features f ON f.rowid = r.rowid
          WHERE f.project_id = ?1
            AND r.max_x >= ?2 AND r.min_x <= ?3
            AND r.max_y >= ?4 AND r.min_y <= ?5",
@@ -1307,7 +1329,7 @@ pub async fn query_visible_features_v2(
         "SELECT f.id, f.layer_id, f.group_id, f.name, f.geom_type, f.coordinates_json,
                 f.properties_json, f.metadata_json, f.bbox_json
          FROM feature_rtree r
-         INNER JOIN features f ON f.rowid = r.rowid
+         CROSS JOIN features f ON f.rowid = r.rowid
          WHERE f.project_id = ?1
            AND r.max_x >= ?2 AND r.min_x <= ?3
            AND r.max_y >= ?4 AND r.min_y <= ?5
@@ -1352,7 +1374,101 @@ pub async fn query_visible_features_v2(
         "truncated": total > effective_limit,
         "limit": effective_limit,
         "zoom": zoom,
+        "revision": revision.unwrap_or(map_revision_for_project(&state, &project_id).await.unwrap_or(0)),
+        "requestId": request_id.or(requestId),
     }))
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn get_map_tile_v2(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    revision: i64,
+    z: i64,
+    x: i64,
+    y: i64,
+) -> Result<Vec<u8>, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::GetMapTile {
+            project_id,
+            revision,
+            z,
+            x,
+            y,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+#[allow(clippy::too_many_arguments)]
+pub async fn build_map_tiles_v2(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    revision: i64,
+    min_zoom: Option<i64>,
+    minZoom: Option<i64>,
+    max_zoom: Option<i64>,
+    maxZoom: Option<i64>,
+    bounds: Option<[f64; 4]>,
+    tile_limit: Option<i64>,
+    tileLimit: Option<i64>,
+) -> Result<Value, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::BuildMapTiles {
+            project_id,
+            revision,
+            min_zoom: min_zoom.or(minZoom).unwrap_or(8),
+            max_zoom: max_zoom.or(maxZoom).unwrap_or(16),
+            bounds,
+            tile_limit: tile_limit.or(tileLimit),
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn invalidate_map_tiles_v2(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    revision: Option<i64>,
+    bbox: Option<[f64; 4]>,
+) -> Result<Value, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::InvalidateMapTiles {
+            project_id,
+            revision,
+            bbox,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

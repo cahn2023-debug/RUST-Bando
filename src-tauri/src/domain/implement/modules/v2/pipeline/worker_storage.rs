@@ -62,6 +62,9 @@ impl StorageWorker {
                                     | StorageCommand::ApplyProjectMediaRecovery { .. }
                                     | StorageCommand::UndoDesignEvent { .. }
                                     | StorageCommand::RedoDesignEvent { .. }
+                                    | StorageCommand::GetMapTile { .. }
+                                    | StorageCommand::BuildMapTiles { .. }
+                                    | StorageCommand::InvalidateMapTiles { .. }
                             ) {
                                 worker.execute_batch(batch).await;
                                 worker.execute(next).await;
@@ -92,6 +95,50 @@ impl StorageWorker {
                 let res = catch_unwind(AssertUnwindSafe(|| self.redo_design_event(&project_id)))
                     .map_err(panic_to_string)
                     .and_then(|result| result);
+                let _ = reply.send(res);
+            }
+            StorageCommand::GetMapTile {
+                project_id,
+                revision,
+                z,
+                x,
+                y,
+                reply,
+            } => {
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.get_or_build_map_tile(&project_id, revision, z, x, y)
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
+                let _ = reply.send(res);
+            }
+            StorageCommand::BuildMapTiles {
+                project_id,
+                revision,
+                min_zoom,
+                max_zoom,
+                bounds,
+                tile_limit,
+                reply,
+            } => {
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.build_map_tiles(&project_id, revision, min_zoom, max_zoom, bounds, tile_limit)
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
+                let _ = reply.send(res);
+            }
+            StorageCommand::InvalidateMapTiles {
+                project_id,
+                revision,
+                bbox,
+                reply,
+            } => {
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.invalidate_map_tiles(&project_id, revision, bbox)
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
                 let _ = reply.send(res);
             }
             StorageCommand::OpenDatabase { path, reply } => {
@@ -604,6 +651,13 @@ impl StorageWorker {
         let mut touched_projects = std::collections::BTreeSet::new();
         for envelope in events {
             let project_id = envelope.project_id.to_string();
+            let affected_feature_ids = feature_ids_from_event(&envelope.event);
+            let mut affected_bboxes = Vec::new();
+            for feature_id in &affected_feature_ids {
+                if let Some(bbox) = feature_bbox_from_db(&tx, feature_id)? {
+                    affected_bboxes.push(bbox);
+                }
+            }
             let inverse_json = generate_inverse_event_json(&tx, &envelope)?;
             persist_event(&tx, &envelope)?;
             if let Some(inverse_payload) = inverse_json {
@@ -625,6 +679,17 @@ impl StorageWorker {
                 ).map_err(|e| format!("Failed to insert design_history: {e}"))?;
             }
             apply_event_to_read_models(&tx, &envelope)?;
+            if event_requires_full_tile_invalidation(&envelope.event) {
+                invalidate_map_tiles_tx(&tx, &project_id, None, None)?;
+            }
+            for feature_id in &affected_feature_ids {
+                if let Some(bbox) = feature_bbox_from_db(&tx, feature_id)? {
+                    affected_bboxes.push(bbox);
+                }
+            }
+            for bbox in merge_bboxes(affected_bboxes) {
+                invalidate_map_tiles_tx(&tx, &project_id, None, Some(bbox))?;
+            }
             touched_projects.insert(project_id);
             persisted_count += 1;
         }
@@ -725,7 +790,116 @@ impl StorageWorker {
         let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
         replace_state_tables(&tx, project_id, state)?;
         rebuild_project_snapshot(&tx, project_id)?;
+        invalidate_map_tiles_tx(&tx, project_id, None, None)?;
         tx.commit().map_err(|e| e.to_string())
+    }
+
+    fn get_or_build_map_tile(
+        &mut self,
+        project_id: &str,
+        revision: i64,
+        z: i64,
+        x: i64,
+        y: i64,
+    ) -> Result<Vec<u8>, String> {
+        if let Some(bytes) = self
+            .db
+            .conn
+            .query_row(
+                "SELECT tile_mvt FROM map_tile_cache
+                 WHERE project_id = ?1 AND revision = ?2 AND z = ?3 AND x = ?4 AND y = ?5
+                 LIMIT 1",
+                params![project_id, revision, z, x, y],
+                |row| row.get::<_, Vec<u8>>(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?
+        {
+            return Ok(bytes);
+        }
+
+        let tile = build_map_tile_mvt(&self.db.conn, project_id, revision, z, x, y)?;
+        Ok(tile.bytes)
+    }
+
+    fn build_map_tiles(
+        &mut self,
+        project_id: &str,
+        revision: i64,
+        min_zoom: i64,
+        max_zoom: i64,
+        bounds: Option<[f64; 4]>,
+        tile_limit: Option<i64>,
+    ) -> Result<Value, String> {
+        let min_zoom = min_zoom.clamp(0, 22);
+        let max_zoom = max_zoom.clamp(min_zoom, 22);
+        let bounds = bounds.unwrap_or_else(|| project_bounds_for_tiles(&self.db.conn, project_id));
+        let mut built = 0i64;
+        let mut skipped = 0i64;
+        let limit = tile_limit.unwrap_or(512).clamp(1, 20_000);
+        let started = std::time::Instant::now();
+
+        for z in min_zoom..=max_zoom {
+            let (min_x, max_x, min_y, max_y) = tile_range_for_bounds(bounds, z);
+            for x in min_x..=max_x {
+                for y in min_y..=max_y {
+                    if built >= limit {
+                        return Ok(json!({
+                            "projectId": project_id,
+                            "revision": revision,
+                            "built": built,
+                            "skipped": skipped,
+                            "truncated": true,
+                            "elapsedMs": started.elapsed().as_millis() as i64,
+                        }));
+                    }
+                    let exists: Option<i64> = self
+                        .db
+                        .conn
+                        .query_row(
+                            "SELECT 1 FROM map_tile_cache
+                             WHERE project_id = ?1 AND revision = ?2 AND z = ?3 AND x = ?4 AND y = ?5
+                             LIMIT 1",
+                            params![project_id, revision, z, x, y],
+                            |row| row.get(0),
+                        )
+                        .optional()
+                        .map_err(|e| e.to_string())?;
+                    if exists.is_some() {
+                        skipped += 1;
+                        continue;
+                    }
+                    build_map_tile_mvt(&self.db.conn, project_id, revision, z, x, y)?;
+                    built += 1;
+                }
+            }
+        }
+
+        Ok(json!({
+            "projectId": project_id,
+            "revision": revision,
+            "built": built,
+            "skipped": skipped,
+            "truncated": false,
+            "elapsedMs": started.elapsed().as_millis() as i64,
+        }))
+    }
+
+    fn invalidate_map_tiles(
+        &mut self,
+        project_id: &str,
+        revision: Option<i64>,
+        bbox: Option<[f64; 4]>,
+    ) -> Result<Value, String> {
+        let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
+        let deleted = invalidate_map_tiles_tx(&tx, project_id, revision, bbox)?;
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok(json!({
+            "projectId": project_id,
+            "revision": revision,
+            "deleted": deleted,
+            "bbox": bbox,
+        }))
     }
 
     fn query(&self, sql: &str, p: Vec<String>) -> Result<Value, String> {
@@ -1374,7 +1548,10 @@ impl StorageWorker {
                 | StorageCommand::AnalyzeProjectMediaRecovery { .. }
                 | StorageCommand::ApplyProjectMediaRecovery { .. }
                 | StorageCommand::UndoDesignEvent { .. }
-                | StorageCommand::RedoDesignEvent { .. } => {}
+                | StorageCommand::RedoDesignEvent { .. }
+                | StorageCommand::GetMapTile { .. }
+                | StorageCommand::BuildMapTiles { .. }
+                | StorageCommand::InvalidateMapTiles { .. } => {}
             }
         }
         tx.commit().map_err(|e| e.to_string())
@@ -3056,23 +3233,20 @@ fn build_recovery_candidates(
 }
 
 fn collect_recovery_fields(prefix: &str, value: &Value, out: &mut HashMap<String, Value>) {
-    match value {
-        Value::Object(map) => {
-            for (key, child) in map {
-                let path = if prefix.is_empty() {
-                    key.clone()
-                } else {
-                    format!("{prefix}.{key}")
-                };
-                if is_recoverable_metadata_path(&path) && is_useful_value(child) {
-                    out.insert(path.clone(), child.clone());
-                }
-                if child.is_object() {
-                    collect_recovery_fields(&path, child, out);
-                }
+    if let Value::Object(map) = value {
+        for (key, child) in map {
+            let path = if prefix.is_empty() {
+                key.clone()
+            } else {
+                format!("{prefix}.{key}")
+            };
+            if is_recoverable_metadata_path(&path) && is_useful_value(child) {
+                out.insert(path.clone(), child.clone());
+            }
+            if child.is_object() {
+                collect_recovery_fields(&path, child, out);
             }
         }
-        _ => {}
     }
 }
 
@@ -5483,6 +5657,100 @@ fn cleanup_feature_rtree_orphans(tx: &Transaction<'_>) -> Result<(), String> {
     Ok(())
 }
 
+fn feature_ids_from_event(event: &AppEvent) -> Vec<String> {
+    match event {
+        AppEvent::FeatureCreated { id, .. }
+        | AppEvent::FeatureUpdated { id, .. }
+        | AppEvent::FeatureDeleted { id } => vec![id.to_string()],
+        _ => Vec::new(),
+    }
+}
+
+fn event_requires_full_tile_invalidation(event: &AppEvent) -> bool {
+    matches!(
+        event,
+        AppEvent::RegionDeleted { .. }
+            | AppEvent::LayerDeleted { .. }
+            | AppEvent::FeatureGroupDeleted { .. }
+            | AppEvent::ProjectDeleted { .. }
+    )
+}
+
+fn feature_bbox_from_db(
+    tx: &Transaction<'_>,
+    feature_id: &str,
+) -> Result<Option<[f64; 4]>, String> {
+    tx.query_row(
+        "SELECT bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y
+         FROM features
+         WHERE id = ?1
+         LIMIT 1",
+        params![feature_id],
+        |row| {
+            let min_x: Option<f64> = row.get(0)?;
+            let min_y: Option<f64> = row.get(1)?;
+            let max_x: Option<f64> = row.get(2)?;
+            let max_y: Option<f64> = row.get(3)?;
+            Ok([
+                min_x.unwrap_or(0.0),
+                min_y.unwrap_or(0.0),
+                max_x.unwrap_or(0.0),
+                max_y.unwrap_or(0.0),
+            ])
+        },
+    )
+    .optional()
+    .map_err(|e| e.to_string())
+}
+
+fn merge_bboxes(items: Vec<[f64; 4]>) -> Vec<[f64; 4]> {
+    if items.is_empty() {
+        return Vec::new();
+    }
+    let mut merged = items[0];
+    for bbox in items.into_iter().skip(1) {
+        merged[0] = merged[0].min(bbox[0]);
+        merged[1] = merged[1].min(bbox[1]);
+        merged[2] = merged[2].max(bbox[2]);
+        merged[3] = merged[3].max(bbox[3]);
+    }
+    vec![merged]
+}
+
+fn invalidate_map_tiles_tx(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    revision: Option<i64>,
+    bbox: Option<[f64; 4]>,
+) -> Result<i64, String> {
+    let deleted = match (revision, bbox) {
+        (Some(revision), Some([min_x, min_y, max_x, max_y])) => tx.execute(
+            "DELETE FROM map_tile_cache
+             WHERE project_id = ?1 AND revision = ?2
+               AND max_x >= ?3 AND min_x <= ?4
+               AND max_y >= ?5 AND min_y <= ?6",
+            params![project_id, revision, min_x, max_x, min_y, max_y],
+        ),
+        (None, Some([min_x, min_y, max_x, max_y])) => tx.execute(
+            "DELETE FROM map_tile_cache
+             WHERE project_id = ?1
+               AND max_x >= ?2 AND min_x <= ?3
+               AND max_y >= ?4 AND min_y <= ?5",
+            params![project_id, min_x, max_x, min_y, max_y],
+        ),
+        (Some(revision), None) => tx.execute(
+            "DELETE FROM map_tile_cache WHERE project_id = ?1 AND revision = ?2",
+            params![project_id, revision],
+        ),
+        (None, None) => tx.execute(
+            "DELETE FROM map_tile_cache WHERE project_id = ?1",
+            params![project_id],
+        ),
+    }
+    .map_err(|e| e.to_string())?;
+    Ok(deleted as i64)
+}
+
 fn delete_features_for_group_tree(
     tx: &Transaction<'_>,
     project_id: &str,
@@ -5637,6 +5905,494 @@ fn project_fiber_cable_if_eligible(
     Ok(())
 }
 
+const MVT_EXTENT: i64 = 4096;
+const MVT_LAYER_NAME: &str = "features";
+const MVT_TILE_FEATURE_LIMIT: i64 = 20_000;
+
+#[derive(Debug, Clone)]
+struct BuiltMapTile {
+    bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone)]
+struct TileFeature {
+    id: String,
+    name: String,
+    geom_type: String,
+    coordinates: Value,
+    properties: Value,
+    metadata: Value,
+}
+
+fn build_map_tile_mvt(
+    conn: &Connection,
+    project_id: &str,
+    revision: i64,
+    z: i64,
+    x: i64,
+    y: i64,
+) -> Result<BuiltMapTile, String> {
+    let bounds = tile_bounds(z, x, y);
+    let mut stmt = conn
+        .prepare(
+            "SELECT f.id, f.name, f.geom_type, f.coordinates_json, f.properties_json, f.metadata_json
+             FROM feature_rtree r
+             CROSS JOIN features f ON f.rowid = r.rowid
+             WHERE f.project_id = ?1
+               AND r.max_x >= ?2 AND r.min_x <= ?3
+               AND r.max_y >= ?4 AND r.min_y <= ?5
+             ORDER BY f.created_at, f.id
+             LIMIT ?6",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(
+            params![
+                project_id,
+                bounds[0],
+                bounds[2],
+                bounds[1],
+                bounds[3],
+                MVT_TILE_FEATURE_LIMIT
+            ],
+            |row| {
+                let coordinates_text: Option<String> = row.get(3)?;
+                let properties_text: Option<String> = row.get(4)?;
+                let metadata_text: Option<String> = row.get(5)?;
+                Ok(TileFeature {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    geom_type: row.get(2)?,
+                    coordinates: coordinates_text
+                        .as_deref()
+                        .and_then(|text| serde_json::from_str(text).ok())
+                        .unwrap_or(Value::Null),
+                    properties: properties_text
+                        .as_deref()
+                        .and_then(|text| serde_json::from_str(text).ok())
+                        .unwrap_or_else(|| json!({})),
+                    metadata: metadata_text
+                        .as_deref()
+                        .and_then(|text| serde_json::from_str(text).ok())
+                        .unwrap_or_else(|| json!({})),
+                })
+            },
+        )
+        .map_err(|e| e.to_string())?;
+    let mut features = Vec::new();
+    for row in rows {
+        features.push(row.map_err(|e| e.to_string())?);
+    }
+    let feature_count = features.len() as i64;
+    let bytes = encode_mvt_tile(features, bounds, z)?;
+    conn.execute(
+        "INSERT INTO map_tile_cache (
+            project_id, revision, z, x, y, tile_mvt, feature_count, min_x, min_y, max_x, max_y, generated_at
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, CURRENT_TIMESTAMP)
+         ON CONFLICT(project_id, revision, z, x, y) DO UPDATE SET
+            tile_mvt = excluded.tile_mvt,
+            feature_count = excluded.feature_count,
+            min_x = excluded.min_x,
+            min_y = excluded.min_y,
+            max_x = excluded.max_x,
+            max_y = excluded.max_y,
+            generated_at = CURRENT_TIMESTAMP",
+        params![
+            project_id,
+            revision,
+            z,
+            x,
+            y,
+            bytes,
+            feature_count,
+            bounds[0],
+            bounds[1],
+            bounds[2],
+            bounds[3],
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    let bytes = conn
+        .query_row(
+            "SELECT tile_mvt FROM map_tile_cache
+             WHERE project_id = ?1 AND revision = ?2 AND z = ?3 AND x = ?4 AND y = ?5",
+            params![project_id, revision, z, x, y],
+            |row| row.get::<_, Vec<u8>>(0),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(BuiltMapTile { bytes })
+}
+
+fn encode_mvt_tile(
+    features: Vec<TileFeature>,
+    bounds: [f64; 4],
+    z: i64,
+) -> Result<Vec<u8>, String> {
+    let mut layer = Vec::new();
+    write_string_field(&mut layer, 1, MVT_LAYER_NAME);
+    let encoded_features = encode_mvt_features(features, bounds, z)?;
+    for feature in encoded_features {
+        write_len_field(&mut layer, 2, &feature);
+    }
+    for key in ["id", "name", "geom_type", "color", "size", "cluster_count"] {
+        write_string_field(&mut layer, 3, key);
+    }
+    for value in [
+        mvt_string_value(""),
+        mvt_string_value(""),
+        mvt_string_value(""),
+        mvt_string_value("#22d3ee"),
+        mvt_int_value(5),
+        mvt_int_value(1),
+    ] {
+        write_len_field(&mut layer, 4, &value);
+    }
+    write_varint_field(&mut layer, 5, MVT_EXTENT as u64);
+    write_varint_field(&mut layer, 15, 2);
+
+    let mut tile = Vec::new();
+    write_len_field(&mut tile, 3, &layer);
+    Ok(tile)
+}
+
+fn encode_mvt_features(
+    features: Vec<TileFeature>,
+    bounds: [f64; 4],
+    z: i64,
+) -> Result<Vec<Vec<u8>>, String> {
+    let mut out = Vec::new();
+    let mut point_buckets: HashMap<(i64, i64), (TileFeature, i64)> = HashMap::new();
+    let cluster_points = z <= 14 && features.len() > 1_000;
+
+    for feature in features {
+        let geom_kind = mvt_geom_kind(&feature.geom_type);
+        if cluster_points && geom_kind == 1 {
+            if let Some(point) = first_point(&feature.coordinates) {
+                let tile_point = project_to_tile(point, bounds);
+                let key = (tile_point.0 / 64, tile_point.1 / 64);
+                point_buckets
+                    .entry(key)
+                    .and_modify(|(_, count)| *count += 1)
+                    .or_insert((feature, 1));
+            }
+            continue;
+        }
+        if let Some(encoded) = encode_single_mvt_feature(&feature, bounds, geom_kind, None)? {
+            out.push(encoded);
+        }
+    }
+
+    for (_, (feature, count)) in point_buckets {
+        if let Some(encoded) = encode_single_mvt_feature(&feature, bounds, 1, Some(count))? {
+            out.push(encoded);
+        }
+    }
+    Ok(out)
+}
+
+fn encode_single_mvt_feature(
+    feature: &TileFeature,
+    bounds: [f64; 4],
+    geom_kind: u64,
+    cluster_count: Option<i64>,
+) -> Result<Option<Vec<u8>>, String> {
+    let geometry = match geom_kind {
+        1 => encode_point_geometry(feature, bounds),
+        2 => encode_line_geometry(feature, bounds),
+        3 => encode_polygon_geometry(feature, bounds),
+        _ => None,
+    };
+    let Some(geometry) = geometry else {
+        return Ok(None);
+    };
+
+    let mut message = Vec::new();
+    let id = stable_numeric_id(&feature.id);
+    let _ = (&feature.name, &feature.properties, &feature.metadata);
+    write_varint_field(&mut message, 1, id);
+    let tags = encode_feature_tags(cluster_count);
+    if !tags.is_empty() {
+        write_packed_varint_field(&mut message, 2, &tags);
+    }
+    write_varint_field(&mut message, 3, geom_kind);
+    write_packed_varint_field(&mut message, 4, &geometry);
+    Ok(Some(message))
+}
+
+fn encode_feature_tags(cluster_count: Option<i64>) -> Vec<u64> {
+    let mut tags = vec![0, 0, 1, 1, 2, 2, 3, 3, 4, 4];
+    if cluster_count.is_some() {
+        tags.extend([5, 5]);
+    }
+    tags
+}
+
+fn encode_point_geometry(feature: &TileFeature, bounds: [f64; 4]) -> Option<Vec<u64>> {
+    let point = first_point(&feature.coordinates)?;
+    let (x, y) = project_to_tile(point, bounds);
+    Some(vec![command_integer(1, 1), zigzag(x), zigzag(y)])
+}
+
+fn encode_line_geometry(feature: &TileFeature, bounds: [f64; 4]) -> Option<Vec<u64>> {
+    let points = simplify_points(all_points(&feature.coordinates), 128);
+    if points.len() < 2 {
+        return None;
+    }
+    let mut out = Vec::new();
+    let (x0, y0) = project_to_tile(points[0], bounds);
+    out.push(command_integer(1, 1));
+    out.push(zigzag(x0));
+    out.push(zigzag(y0));
+    out.push(command_integer(2, (points.len() - 1) as u64));
+    let (mut px, mut py) = (x0, y0);
+    for point in points.into_iter().skip(1) {
+        let (x, y) = project_to_tile(point, bounds);
+        out.push(zigzag(x - px));
+        out.push(zigzag(y - py));
+        px = x;
+        py = y;
+    }
+    Some(out)
+}
+
+fn encode_polygon_geometry(feature: &TileFeature, bounds: [f64; 4]) -> Option<Vec<u64>> {
+    let mut rings = polygon_rings(&feature.coordinates);
+    if rings.is_empty() {
+        rings = vec![all_points(&feature.coordinates)];
+    }
+    let mut out = Vec::new();
+    for ring in rings {
+        let points = simplify_points(ring, 128);
+        if points.len() < 3 {
+            continue;
+        }
+        let (x0, y0) = project_to_tile(points[0], bounds);
+        out.push(command_integer(1, 1));
+        out.push(zigzag(x0));
+        out.push(zigzag(y0));
+        out.push(command_integer(2, (points.len() - 1) as u64));
+        let (mut px, mut py) = (x0, y0);
+        for point in points.into_iter().skip(1) {
+            let (x, y) = project_to_tile(point, bounds);
+            out.push(zigzag(x - px));
+            out.push(zigzag(y - py));
+            px = x;
+            py = y;
+        }
+        out.push(command_integer(7, 1));
+    }
+    if out.is_empty() { None } else { Some(out) }
+}
+
+fn mvt_geom_kind(geom_type: &str) -> u64 {
+    let value = geom_type.to_ascii_lowercase();
+    if value.contains("polygon") {
+        3
+    } else if value.contains("line") || value.contains("polyline") {
+        2
+    } else {
+        1
+    }
+}
+
+fn first_point(value: &Value) -> Option<[f64; 2]> {
+    all_points(value).into_iter().next()
+}
+
+fn all_points(value: &Value) -> Vec<[f64; 2]> {
+    if let Some(obj) = value.as_object() {
+        if let Some(coordinates) = obj.get("coordinates") {
+            return all_points(coordinates);
+        }
+    }
+    let mut points = Vec::new();
+    collect_points(value, &mut points);
+    points
+}
+
+fn collect_points(value: &Value, out: &mut Vec<[f64; 2]>) {
+    let Some(arr) = value.as_array() else {
+        return;
+    };
+    if arr.len() >= 2 && arr[0].is_number() && arr[1].is_number() {
+        if let (Some(x), Some(y)) = (arr[0].as_f64(), arr[1].as_f64()) {
+            out.push([x, y]);
+        }
+        return;
+    }
+    for child in arr {
+        collect_points(child, out);
+    }
+}
+
+fn polygon_rings(value: &Value) -> Vec<Vec<[f64; 2]>> {
+    let coordinates = value
+        .as_object()
+        .and_then(|obj| obj.get("coordinates"))
+        .unwrap_or(value);
+    let Some(rings) = coordinates.as_array() else {
+        return Vec::new();
+    };
+    rings
+        .iter()
+        .map(all_points)
+        .filter(|points| points.len() >= 3)
+        .collect()
+}
+
+fn simplify_points(mut points: Vec<[f64; 2]>, max_points: usize) -> Vec<[f64; 2]> {
+    if points.len() <= max_points {
+        return points;
+    }
+    let step = (points.len() as f64 / max_points as f64).ceil() as usize;
+    let last = points.last().copied();
+    points = points.into_iter().step_by(step).collect();
+    if let Some(last) = last {
+        if points.last().copied() != Some(last) {
+            points.push(last);
+        }
+    }
+    points
+}
+
+fn project_to_tile(point: [f64; 2], bounds: [f64; 4]) -> (i64, i64) {
+    let width = (bounds[2] - bounds[0]).abs().max(f64::EPSILON);
+    let height = (bounds[3] - bounds[1]).abs().max(f64::EPSILON);
+    let x = (((point[0] - bounds[0]) / width) * MVT_EXTENT as f64).round() as i64;
+    let y = (((bounds[3] - point[1]) / height) * MVT_EXTENT as f64).round() as i64;
+    (x.clamp(0, MVT_EXTENT), y.clamp(0, MVT_EXTENT))
+}
+
+fn command_integer(id: u64, count: u64) -> u64 {
+    (count << 3) | (id & 0x7)
+}
+
+fn zigzag(value: i64) -> u64 {
+    ((value << 1) ^ (value >> 63)) as u64
+}
+
+fn stable_numeric_id(value: &str) -> u64 {
+    let mut hasher = Sha256::new();
+    hasher.update(value.as_bytes());
+    let digest = hasher.finalize();
+    u64::from_be_bytes([
+        digest[0], digest[1], digest[2], digest[3], digest[4], digest[5], digest[6], digest[7],
+    ])
+}
+
+fn mvt_string_value(value: &str) -> Vec<u8> {
+    let mut out = Vec::new();
+    write_string_field(&mut out, 1, value);
+    out
+}
+
+fn mvt_int_value(value: i64) -> Vec<u8> {
+    let mut out = Vec::new();
+    write_varint_field(&mut out, 4, value as u64);
+    out
+}
+
+fn write_key(out: &mut Vec<u8>, field_number: u64, wire_type: u64) {
+    write_varint(out, (field_number << 3) | wire_type);
+}
+
+fn write_varint(out: &mut Vec<u8>, mut value: u64) {
+    while value >= 0x80 {
+        out.push((value as u8) | 0x80);
+        value >>= 7;
+    }
+    out.push(value as u8);
+}
+
+fn write_varint_field(out: &mut Vec<u8>, field_number: u64, value: u64) {
+    write_key(out, field_number, 0);
+    write_varint(out, value);
+}
+
+fn write_string_field(out: &mut Vec<u8>, field_number: u64, value: &str) {
+    write_key(out, field_number, 2);
+    write_varint(out, value.len() as u64);
+    out.extend_from_slice(value.as_bytes());
+}
+
+fn write_len_field(out: &mut Vec<u8>, field_number: u64, bytes: &[u8]) {
+    write_key(out, field_number, 2);
+    write_varint(out, bytes.len() as u64);
+    out.extend_from_slice(bytes);
+}
+
+fn write_packed_varint_field(out: &mut Vec<u8>, field_number: u64, values: &[u64]) {
+    let mut packed = Vec::new();
+    for value in values {
+        write_varint(&mut packed, *value);
+    }
+    write_len_field(out, field_number, &packed);
+}
+
+fn lon_to_tile_x(lon: f64, z: i64) -> i64 {
+    let n = 2f64.powi(z as i32);
+    (((lon + 180.0) / 360.0) * n).floor() as i64
+}
+
+fn lat_to_tile_y(lat: f64, z: i64) -> i64 {
+    let lat = lat.clamp(-85.05112878, 85.05112878).to_radians();
+    let n = 2f64.powi(z as i32);
+    ((1.0 - (lat.tan() + 1.0 / lat.cos()).ln() / std::f64::consts::PI) / 2.0 * n).floor()
+        as i64
+}
+
+fn tile_x_to_lon(x: i64, z: i64) -> f64 {
+    x as f64 / 2f64.powi(z as i32) * 360.0 - 180.0
+}
+
+fn tile_y_to_lat(y: i64, z: i64) -> f64 {
+    let n = std::f64::consts::PI
+        - 2.0 * std::f64::consts::PI * y as f64 / 2f64.powi(z as i32);
+    n.sinh().atan().to_degrees()
+}
+
+fn tile_bounds(z: i64, x: i64, y: i64) -> [f64; 4] {
+    [
+        tile_x_to_lon(x, z),
+        tile_y_to_lat(y + 1, z),
+        tile_x_to_lon(x + 1, z),
+        tile_y_to_lat(y, z),
+    ]
+}
+
+fn tile_range_for_bounds(bounds: [f64; 4], z: i64) -> (i64, i64, i64, i64) {
+    let max_tile = (1i64 << z.clamp(0, 30)) - 1;
+    let west = bounds[0].min(bounds[2]).clamp(-180.0, 180.0);
+    let east = bounds[0].max(bounds[2]).clamp(-180.0, 180.0);
+    let south = bounds[1].min(bounds[3]).clamp(-85.05112878, 85.05112878);
+    let north = bounds[1].max(bounds[3]).clamp(-85.05112878, 85.05112878);
+    let min_x = lon_to_tile_x(west, z).clamp(0, max_tile);
+    let max_x = lon_to_tile_x(east, z).clamp(0, max_tile);
+    let min_y = lat_to_tile_y(north, z).clamp(0, max_tile);
+    let max_y = lat_to_tile_y(south, z).clamp(0, max_tile);
+    (min_x, max_x, min_y, max_y)
+}
+
+fn project_bounds_for_tiles(conn: &Connection, project_id: &str) -> [f64; 4] {
+    conn.query_row(
+        "SELECT MIN(bbox_min_x), MIN(bbox_min_y), MAX(bbox_max_x), MAX(bbox_max_y)
+         FROM features
+         WHERE project_id = ?1
+           AND bbox_min_x IS NOT NULL AND bbox_min_y IS NOT NULL
+           AND bbox_max_x IS NOT NULL AND bbox_max_y IS NOT NULL",
+        params![project_id],
+        |row| {
+            Ok([
+                row.get::<_, Option<f64>>(0)?.unwrap_or(-180.0),
+                row.get::<_, Option<f64>>(1)?.unwrap_or(-85.05112878),
+                row.get::<_, Option<f64>>(2)?.unwrap_or(180.0),
+                row.get::<_, Option<f64>>(3)?.unwrap_or(85.05112878),
+            ])
+        },
+    )
+    .unwrap_or([-180.0, -85.05112878, 180.0, 85.05112878])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -5650,6 +6406,76 @@ mod tests {
             params![project_id, name, name],
         )
         .expect("seed project");
+    }
+
+    #[test]
+    fn map_tile_generation_caches_mvt_and_invalidation_deletes_intersecting_tile() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("map_tile_generation.pmp");
+        let mut db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let project_id = "tile-project";
+        seed_basic_project(&db.conn, project_id, "Tile Project");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name) VALUES (?1, ?2, ?3)",
+                params!["layer-1", project_id, "Layer 1"],
+            )
+            .expect("layer");
+        db.conn
+            .execute(
+                "INSERT INTO features (
+                    id, project_id, layer_id, name, geom_type, coordinates_json,
+                    properties_json, metadata_json, bbox_json,
+                    bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y
+                 ) VALUES (?1, ?2, ?3, ?4, 'Point', ?5, '{}', '{}', ?6, ?7, ?8, ?9, ?10)",
+                params![
+                    "feature-1",
+                    project_id,
+                    "layer-1",
+                    "Point 1",
+                    "[105.8,21.0]",
+                    "[105.8,21.0,105.8,21.0]",
+                    105.8f64,
+                    21.0f64,
+                    105.8f64,
+                    21.0f64,
+                ],
+            )
+            .expect("insert feature");
+        db.conn
+            .execute(
+                "INSERT OR REPLACE INTO feature_rtree(rowid, min_x, max_x, min_y, max_y)
+                 SELECT rowid, bbox_min_x, bbox_max_x, bbox_min_y, bbox_max_y FROM features",
+                [],
+            )
+            .expect("rtree");
+
+        let z = 14;
+        let x = lon_to_tile_x(105.8, z);
+        let y = lat_to_tile_y(21.0, z);
+        let built = build_map_tile_mvt(&db.conn, project_id, 1, z, x, y).expect("tile build");
+        assert!(!built.bytes.is_empty());
+
+        let cached_count: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM map_tile_cache WHERE project_id = ?1 AND revision = 1",
+                params![project_id],
+                |row| row.get(0),
+            )
+            .expect("cache count");
+        assert_eq!(cached_count, 1);
+
+        let tx = db.conn.transaction().expect("tx");
+        let deleted = invalidate_map_tiles_tx(
+            &tx,
+            project_id,
+            Some(1),
+            Some([105.79, 20.99, 105.81, 21.01]),
+        )
+        .expect("invalidate");
+        tx.commit().expect("commit");
+        assert_eq!(deleted, 1);
     }
 
     fn seed_source_design_with_media(db: &mut PmpDatabase, project_id: &str) -> String {

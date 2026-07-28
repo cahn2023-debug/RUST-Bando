@@ -127,6 +127,29 @@ pub enum StorageCommand {
         project_id: String,
         reply: oneshot::Sender<Result<serde_json::Value, String>>,
     },
+    GetMapTile {
+        project_id: String,
+        revision: i64,
+        z: i64,
+        x: i64,
+        y: i64,
+        reply: oneshot::Sender<Result<Vec<u8>, String>>,
+    },
+    BuildMapTiles {
+        project_id: String,
+        revision: i64,
+        min_zoom: i64,
+        max_zoom: i64,
+        bounds: Option<[f64; 4]>,
+        tile_limit: Option<i64>,
+        reply: oneshot::Sender<Result<serde_json::Value, String>>,
+    },
+    InvalidateMapTiles {
+        project_id: String,
+        revision: Option<i64>,
+        bbox: Option<[f64; 4]>,
+        reply: oneshot::Sender<Result<serde_json::Value, String>>,
+    },
     // Queries
     Query {
         sql: String,

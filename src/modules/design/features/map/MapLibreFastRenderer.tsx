@@ -52,6 +52,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
         map.addSource(SOURCE_ID, {
             type: 'geojson',
             data: emptyCollection as any,
+            promoteId: 'id',
             cluster: clusterPoints,
             clusterRadius: 48,
             clusterMaxZoom: 15,
@@ -66,7 +67,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
             filter: ['==', ['geometry-type'], 'Polygon'],
             paint: {
                 'fill-color': ['get', 'color'],
-                'fill-opacity': ['case', ['boolean', ['get', 'selected'], false], 0.42, 0.18],
+                'fill-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 0.42, 0.18],
             },
         });
     }
@@ -79,7 +80,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
             filter: ['==', ['geometry-type'], 'Polygon'],
             paint: {
                 'line-color': ['get', 'color'],
-                'line-width': ['case', ['boolean', ['get', 'selected'], false], 4, 1.5],
+                'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 4, 1.5],
                 'line-opacity': 0.9,
             },
         });
@@ -94,7 +95,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
             paint: {
                 'line-color': ['get', 'color'],
                 'line-width': ['get', 'size'],
-                'line-opacity': ['case', ['boolean', ['get', 'selected'], false], 0.98, 0.74],
+                'line-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 0.98, 0.74],
             },
             layout: {
                 'line-cap': 'round',
@@ -128,9 +129,9 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
             paint: {
                 'circle-color': ['get', 'color'],
                 'circle-radius': ['get', 'size'],
-                'circle-opacity': ['case', ['boolean', ['get', 'selected'], false], 1, 0.82],
-                'circle-stroke-color': ['case', ['boolean', ['get', 'selected'], false], '#ecfeff', '#ffffff'],
-                'circle-stroke-width': ['case', ['boolean', ['get', 'selected'], false], 3, 1],
+                'circle-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 1, 0.82],
+                'circle-stroke-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#ecfeff', '#ffffff'],
+                'circle-stroke-width': ['case', ['boolean', ['feature-state', 'selected'], false], 3, 1],
             },
         });
     }
@@ -169,6 +170,8 @@ export function MapLibreFastRenderer({
     const containerRef = React.useRef<HTMLDivElement>(null);
     const mapRef = React.useRef<maplibregl.Map | null>(null);
     const requestRef = React.useRef(0);
+    const lastBasemapUrlRef = React.useRef<string | null>(null);
+    const selectedFeatureRef = React.useRef<string | null>(null);
     const features = useDesignSync(s => s.visibleFeatures);
     const rawFeatures = useDesignSync(s => s.state?.features || {});
     const isLargeProject = useDesignSync(s => Boolean(s.state?.isLargeProject));
@@ -176,6 +179,7 @@ export function MapLibreFastRenderer({
     const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
     const mapHiddenIds = useDesignSync(s => s.mapHiddenIds);
     const viewportFeatureLimit = useDesignSync(s => s.state?.viewportFeatureLimit || 10000);
+    const mapRevision = useDesignSync(s => s.state?.mapRevision || 0);
     const viewportRevision = useDesignSync(s => s.viewportRevision);
     const selectFeature = useDesignSync(s => s.selectFeature);
     const setHoverId = useDesignSync(s => s.setHoverId);
@@ -184,6 +188,7 @@ export function MapLibreFastRenderer({
     const setViewportLoading = useDesignSync(s => s.setViewportLoading);
     const setRenderMetrics = useDesignSync(s => s.setRenderMetrics);
     const { getStyledUrl, mapKey } = useMapStyles();
+    const basemapUrl = React.useMemo(() => getStyledUrl('y'), [getStyledUrl, mapKey]);
     const [currentZoom, setCurrentZoom] = React.useState(zoom);
     const [viewportTick, setViewportTick] = React.useState(0);
     const renderFeatureValues = React.useMemo(
@@ -195,13 +200,14 @@ export function MapLibreFastRenderer({
         if (!containerRef.current || mapRef.current) return;
         const map = new maplibregl.Map({
             container: containerRef.current,
-            style: createRasterStyle(getStyledUrl('y')),
+            style: createRasterStyle(basemapUrl),
             center: toLngLat(center),
             zoom,
             maxZoom: MAP_MAX_ZOOM,
             attributionControl: false,
         });
         mapRef.current = map;
+        lastBasemapUrlRef.current = basemapUrl;
 
         map.on('zoomend', () => setCurrentZoom(map.getZoom()));
         map.on('moveend', () => {
@@ -252,10 +258,13 @@ export function MapLibreFastRenderer({
             map.getZoom(),
             Array.from(mapHiddenIds),
             viewportFeatureLimit,
-            true
+            true,
+            mapRevision,
+            requestId
         )
             .then(response => {
                 if (requestId !== requestRef.current) return;
+                if (typeof response.revision === 'number' && response.revision !== mapRevision) return;
                 setViewportFeatures(response.features || [], response.total || 0, Boolean(response.truncated));
                 const previousMetrics = useDesignSync.getState().renderMetrics;
                 if (previousMetrics) {
@@ -273,13 +282,28 @@ export function MapLibreFastRenderer({
             .finally(() => {
                 if (requestId === requestRef.current) setViewportLoading(false);
             });
-    }, [isLargeProject, mapHiddenIds, projectId, setRenderMetrics, setViewportFeatures, setViewportLoading, viewportFeatureLimit, viewportTick]);
+    }, [isLargeProject, mapHiddenIds, mapRevision, projectId, setRenderMetrics, setViewportFeatures, setViewportLoading, viewportFeatureLimit, viewportTick]);
 
     React.useEffect(() => {
         const map = mapRef.current;
         if (!map) return;
-        map.setStyle(createRasterStyle(getStyledUrl('y')));
-    }, [getStyledUrl, mapKey]);
+        if (lastBasemapUrlRef.current === basemapUrl) return;
+        lastBasemapUrlRef.current = basemapUrl;
+        map.setStyle(createRasterStyle(basemapUrl));
+    }, [basemapUrl]);
+
+    React.useEffect(() => {
+        const map = mapRef.current;
+        if (!map || !map.getSource(SOURCE_ID)) return;
+        const previousSelected = selectedFeatureRef.current;
+        if (previousSelected && previousSelected !== selectedFeatureId) {
+            map.setFeatureState({ source: SOURCE_ID, id: previousSelected }, { selected: false });
+        }
+        if (selectedFeatureId) {
+            map.setFeatureState({ source: SOURCE_ID, id: selectedFeatureId }, { selected: true });
+        }
+        selectedFeatureRef.current = selectedFeatureId;
+    }, [selectedFeatureId, viewportRevision]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -290,7 +314,7 @@ export function MapLibreFastRenderer({
             const sourceStart = now();
             const { collection, lodPolicy } = buildMapLibreFeatureCollection({
                 features: renderFeatureValues,
-                selectedFeatureId,
+                selectedFeatureId: null,
                 hiddenIds: mapHiddenIds,
                 zoom: currentZoom,
             });
@@ -322,7 +346,7 @@ export function MapLibreFastRenderer({
         };
 
         render();
-    }, [currentZoom, mapHiddenIds, renderFeatureValues, selectedFeatureId, setRenderMetrics, viewportRevision]);
+    }, [basemapUrl, currentZoom, mapHiddenIds, renderFeatureValues, setRenderMetrics, viewportRevision]);
 
     React.useEffect(() => {
         const map = mapRef.current;

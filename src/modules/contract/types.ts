@@ -263,6 +263,7 @@ export interface MapState {
   settings: Record<string, unknown>;
   lastEventId?: string | null;
   featureCount?: number;
+  mapRevision?: number;
   isLargeProject?: boolean;
   viewportFeatureLimit?: number;
 }

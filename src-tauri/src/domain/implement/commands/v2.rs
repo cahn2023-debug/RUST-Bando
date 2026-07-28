@@ -1519,6 +1519,137 @@ fn project_from_query_result(result: &Value, path: &str) -> Option<Value> {
     ))
 }
 
+fn rows_to_object_by_id(rows: Value) -> Value {
+    let mut out = serde_json::Map::new();
+    if let Some(items) = rows.as_array() {
+        for row in items {
+            if let Some(id) = row.get("id").and_then(Value::as_str) {
+                out.insert(id.to_string(), row.clone());
+            }
+        }
+    }
+    Value::Object(out)
+}
+
+fn settings_from_rows(rows: Value) -> Value {
+    rows.as_array()
+        .and_then(|items| items.first())
+        .and_then(|row| row.get("settings_json"))
+        .cloned()
+        .unwrap_or_else(|| json!({}))
+}
+
+async fn project_map_revision(state: &ActorState, project_id: &str) -> Result<i64, String> {
+    let rows = exec_query(
+        state,
+        "SELECT COALESCE(MAX(global_seq), 0) AS map_revision FROM events WHERE project_id = ?1",
+        vec![project_id.to_string()],
+    )
+    .await?;
+    Ok(rows
+        .as_array()
+        .and_then(|items| items.first())
+        .and_then(|row| row.get("map_revision"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0))
+}
+
+async fn build_project_bootstrap(
+    state: &ActorState,
+    project: Value,
+    project_id: &str,
+) -> Result<Value, String> {
+    let feature_count_rows = exec_query(
+        state,
+        "SELECT COUNT(*) AS feature_count FROM features WHERE project_id = ?1",
+        vec![project_id.to_string()],
+    )
+    .await?;
+    let feature_count = feature_count_rows
+        .as_array()
+        .and_then(|items| items.first())
+        .and_then(|row| row.get("feature_count"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+    let map_revision = project_map_revision(state, project_id).await.unwrap_or(0);
+    let regions = rows_to_object_by_id(
+        exec_query(
+            state,
+            "SELECT id, parent_id, name, description FROM regions WHERE project_id = ?1 ORDER BY created_at, id",
+            vec![project_id.to_string()],
+        )
+        .await?,
+    );
+    let layers = rows_to_object_by_id(
+        exec_query(
+            state,
+            "SELECT id, region_id, name, is_visible FROM layers WHERE project_id = ?1 ORDER BY created_at, id",
+            vec![project_id.to_string()],
+        )
+        .await?,
+    );
+    let feature_groups = rows_to_object_by_id(
+        exec_query(
+            state,
+            "SELECT id, layer_id, parent_id, name, group_type, is_visible, metadata_json FROM feature_groups WHERE project_id = ?1 ORDER BY created_at, id",
+            vec![project_id.to_string()],
+        )
+        .await?,
+    );
+    let settings = settings_from_rows(
+        exec_query(
+            state,
+            "SELECT settings_json FROM project_settings WHERE project_id = ?1 LIMIT 1",
+            vec![project_id.to_string()],
+        )
+        .await?,
+    );
+    let bounds_rows = exec_query(
+        state,
+        "SELECT MIN(bbox_min_y) AS south, MAX(bbox_max_y) AS north,
+                MIN(bbox_min_x) AS west, MAX(bbox_max_x) AS east
+         FROM features
+         WHERE project_id = ?1
+           AND bbox_min_x IS NOT NULL AND bbox_min_y IS NOT NULL
+           AND bbox_max_x IS NOT NULL AND bbox_max_y IS NOT NULL",
+        vec![project_id.to_string()],
+    )
+    .await?;
+    let initial_bounds = bounds_rows
+        .as_array()
+        .and_then(|items| items.first())
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    let cache_rows = exec_query(
+        state,
+        "SELECT COUNT(*) AS cached_tiles FROM map_tile_cache WHERE project_id = ?1 AND revision = ?2",
+        vec![project_id.to_string(), map_revision.to_string()],
+    )
+    .await?;
+    let cached_tiles = cache_rows
+        .as_array()
+        .and_then(|items| items.first())
+        .and_then(|row| row.get("cached_tiles"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0);
+
+    Ok(json!({
+        "project": project,
+        "featureCount": feature_count,
+        "mapRevision": map_revision,
+        "initialBounds": initial_bounds,
+        "settings": settings,
+        "regions": regions,
+        "layers": layers,
+        "featureGroups": feature_groups,
+        "streamingMode": feature_count > 10_000,
+        "cacheStatus": {
+            "cachedTiles": cached_tiles,
+            "state": if cached_tiles > 0 { "ready" } else { "missing" }
+        }
+    }))
+}
+
 async fn persist_active_project_keys(
     state: &ActorState,
     project_id: Option<String>,
@@ -2557,6 +2688,61 @@ pub async fn load_pmp_file(
     persist_app_state(&app_data_dir, &app_state)?;
 
     Ok(project)
+}
+
+#[tauri::command]
+pub async fn open_project_bootstrap(
+    app: AppHandle,
+    state: State<'_, ActorState>,
+    path: String,
+    open_request_id: Option<i64>,
+) -> Result<serde_json::Value, String> {
+    let path_buf = PathBuf::from(&path);
+    ensure_pmp_extension(&path_buf)?;
+    let project = load_pmp_file(app, state.clone(), path.clone()).await?;
+    let project_id = project
+        .get("id")
+        .and_then(Value::as_str)
+        .map(|value| value.to_string())
+        .ok_or_else(|| "Loaded project is missing an id".to_string())?;
+    let mut bootstrap = build_project_bootstrap(&state, project, &project_id).await?;
+    if let Some(obj) = bootstrap.as_object_mut() {
+        obj.insert("openRequestId".to_string(), json!(open_request_id));
+    }
+    Ok(bootstrap)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn get_project_bootstrap_v2(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let active_path = exec_query(
+        &state,
+        "SELECT value FROM sys_config WHERE key = 'active_project_path' LIMIT 1",
+        vec![],
+    )
+    .await?
+    .as_array()
+    .and_then(|arr| arr.first())
+    .and_then(|row| row.get("value"))
+    .and_then(Value::as_str)
+    .unwrap_or("./default_project.pmp")
+    .to_string();
+    let res = exec_query(
+        &state,
+        "SELECT id, title, description, metadata_json, created_at, updated_at FROM projects WHERE id = ? LIMIT 1",
+        vec![project_id.clone()],
+    )
+    .await?;
+    let project = project_from_query_result(&res, &active_path)
+        .ok_or_else(|| "Project not found".to_string())?;
+    build_project_bootstrap(&state, project, &project_id).await
 }
 
 #[tauri::command]

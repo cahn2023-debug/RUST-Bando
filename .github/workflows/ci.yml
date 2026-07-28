@@ -82,6 +82,9 @@ jobs:
         working-directory: src-tauri
         run: cargo test --workspace --features ai
 
+      - name: Map performance budget
+        run: python scripts/map_perf_benchmark.py --sizes 10000 100000 500000 --budget perf/map_performance_budget.json --output target/map_perf_results.json
+
       - name: Cargo clippy
         working-directory: src-tauri
         run: cargo clippy --workspace --all-targets --features ai -- -D warnings

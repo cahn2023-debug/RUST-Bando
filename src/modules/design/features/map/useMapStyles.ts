@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export interface MapFeatures {
     roads: boolean;
@@ -48,7 +48,7 @@ export function useMapStyles() {
         }
     }, [mapFeatures]);
 
-    const getStyledUrl = (lyr: string) => {
+    const getStyledUrl = useCallback((lyr: string) => {
         if (lyr === 'm') {
             return 'https://mt1.google.com/vt/lyrs=m&hl=vi&gl=vn&x={x}&y={y}&z={z}';
         }
@@ -67,7 +67,7 @@ export function useMapStyles() {
 
         const styleParam = rules.length > 0 ? `&apistyle=${encodeURIComponent(rules.join(','))}` : '';
         return `https://mt1.google.com/vt/lyrs=${lyr}&hl=vi&gl=vn&x={x}&y={y}&z={z}${styleParam}`;
-    };
+    }, [mapFeatures]);
 
     const mapKey = useMemo(() => JSON.stringify(mapFeatures), [mapFeatures]);
 

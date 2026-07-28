@@ -150,12 +150,7 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
     const bootstrap = async () => {
       loadFileTree();
       try {
-        // initialize() already hydrates design state; avoid duplicate hydration race.
-        const results = await Promise.allSettled([
-          getContentTypes(),
-          useDesignSync.getState().initialize(String(projectId), projectPath || undefined),
-        ]);
-
+        const results = await Promise.allSettled([getContentTypes()]);
         const types = results[0].status === 'fulfilled' ? results[0].value : [];
 
         setContentTypes(types);

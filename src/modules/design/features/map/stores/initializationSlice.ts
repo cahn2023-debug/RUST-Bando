@@ -8,6 +8,7 @@ import {
     getLatestInitializeRequestId,
     loadDesignState
 } from '../../../../tool/utils/designIpc';
+import type { ProjectBootstrap } from '../../../../tool/utils/designIpc';
 import { normalizeMapStateForDisplay } from '../../../../tool/utils/normalizeDisplay';
 
 
@@ -20,6 +21,18 @@ let initBurstCount = 0;
 let initBurstKey: string | null = null;
 const INIT_BURST_WINDOW_MS = 30000;
 const INIT_BURST_MAX_COUNT = 6;
+
+const mapStateFromBootstrap = (bootstrap: ProjectBootstrap): any => ({
+    regions: bootstrap.regions || {},
+    layers: bootstrap.layers || {},
+    feature_groups: bootstrap.featureGroups || {},
+    features: {},
+    settings: bootstrap.settings || {},
+    featureCount: bootstrap.featureCount || 0,
+    mapRevision: bootstrap.mapRevision || 0,
+    isLargeProject: Boolean(bootstrap.streamingMode),
+    viewportFeatureLimit: 10000
+});
 
 export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], InitializationSlice> = (set, get) => ({
     unsubscribeFirestore: null,
@@ -38,7 +51,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
         pegmanState: { ...s.pegmanState, ...updates }
     })),
 
-    initialize: async (projectId: string, projectPath?: string, options?: { forceReload?: boolean }) => {
+    initialize: async (projectId: string, projectPath?: string, options?: { forceReload?: boolean; bootstrap?: ProjectBootstrap }) => {
         const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
             return await Promise.race([
                 promise,
@@ -173,6 +186,40 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
         });
 
         try {
+            if (options?.bootstrap) {
+                const tStart = performance.now();
+                const normalizedState = normalizeMapStateForDisplay(mapStateFromBootstrap(options.bootstrap));
+                set({
+                    state: normalizedState,
+                    projectId,
+                    projectKey: normalizedProjectKey,
+                    projectPath,
+                    lastSync: Date.now()
+                });
+                lastInitializedKey = currentInitKey;
+                lastInitializedAt = Date.now();
+                logger.info(`[Store] Bootstrap map-ready in ${(performance.now() - tStart).toFixed(1)}ms for project ${projectId}`);
+
+                const handleOnline = () => set({ isOnline: true });
+                const handleOffline = () => set({ isOnline: false });
+                window.addEventListener('online', handleOnline);
+                window.addEventListener('offline', handleOffline);
+
+                const unlistenSync = await listen<number>('sync-status', (event) => {
+                    console.log(`[Sync] Status updated from backend: ${event.payload}`);
+                    set({ syncStatus: event.payload });
+                });
+
+                set({
+                    unsubscribeFirestore: () => {
+                        window.removeEventListener('online', handleOnline);
+                        window.removeEventListener('offline', handleOffline);
+                        unlistenSync();
+                    }
+                });
+                return;
+            }
+
             let activeProject = await invoke<any>('get_active_project').catch(() => null);
             const activeProjectId = activeProject?.id ? String(activeProject.id) : null;
             const needsLoad = !activeProject || activeProjectId !== projectId;

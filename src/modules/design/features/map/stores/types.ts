@@ -6,6 +6,7 @@ import type {
     SelectionSummary
 } from '@CONTRACT/designTypes';
 import type { NetworkConnectionDraft } from '../network/NetworkEndpoint';
+import type { ProjectBootstrap } from '@TOOL/utils/designIpc';
 
 export type {
     DesignEventType,
@@ -156,7 +157,7 @@ export type UIControlSlice = {
 };
 
 export type InitializationSlice = {
-    initialize: (projectId: string, projectPath?: string, options?: { forceReload?: boolean }) => Promise<void>;
+    initialize: (projectId: string, projectPath?: string, options?: { forceReload?: boolean; bootstrap?: ProjectBootstrap }) => Promise<void>;
     reset: () => void;
     setMockState: (state: MapState, projectId: string, projectKey?: string) => void;
     unsubscribeFirestore: (() => void) | null;

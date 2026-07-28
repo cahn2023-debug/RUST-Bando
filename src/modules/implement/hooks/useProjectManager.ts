@@ -4,6 +4,7 @@ import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
 import { Project } from "@CONTRACT/types";
 import { useTabStore } from "@IMPLEMENT/TabInProgram/useTabStore";
 import { backfillProjectPath } from "./projectPathUtils";
+import { buildMapTilesV2, openProjectBootstrap } from "@TOOL/utils/designIpc";
 
 const normalizeProject = (project: Project | null | undefined): Project | null => {
     if (!project || !project.path) {
@@ -112,6 +113,10 @@ export function useProjectManager() {
             if (isProjectLoadable(hydratedProject)) {
                 selectedProjectRef.current = hydratedProject;
                 setSelectedProject(hydratedProject);
+                const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
+                useDesignSync.getState().initialize(hydratedProject.id, hydratedProject.path).catch((err) => {
+                    console.warn("[useProjectManager] Startup design hydration failed:", err);
+                });
             }
         } catch (err) {
             console.error("Critical error in loadProjects:", err);
@@ -160,6 +165,36 @@ export function useProjectManager() {
             invoke("index_project_files", { projectId }).catch(console.error);
             indexingTimeoutRef.current = null;
         }, 3000);
+    };
+
+    const scheduleMapTileBuild = (projectId: string, mapRevision: number, initialBounds?: {
+        west?: number | null;
+        south?: number | null;
+        east?: number | null;
+        north?: number | null;
+    } | null) => {
+        setTimeout(() => {
+            const bounds = initialBounds
+                && Number.isFinite(initialBounds.west)
+                && Number.isFinite(initialBounds.south)
+                && Number.isFinite(initialBounds.east)
+                && Number.isFinite(initialBounds.north)
+                ? [
+                    Number(initialBounds.west),
+                    Number(initialBounds.south),
+                    Number(initialBounds.east),
+                    Number(initialBounds.north),
+                ] as [number, number, number, number]
+                : undefined;
+            buildMapTilesV2(projectId, mapRevision, {
+                minZoom: 8,
+                maxZoom: 16,
+                bounds,
+                tileLimit: 512,
+            }).catch((err) => {
+                console.warn("[useProjectManager] Background map tile build failed:", err);
+            });
+        }, 750);
     };
 
     const applyOpenedProject = (project: Project, persistLastOpened: boolean) => {
@@ -235,9 +270,15 @@ export function useProjectManager() {
             const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
             useDesignSync.getState().reset();
 
-            console.info(`[useProjectManager] Attempting to load PMP file: ${selectedPath}`);
-            const migratedProject = normalizeProject(await invoke<Project>("load_pmp_file", { path: selectedPath }));
-            console.info("load_pmp_file result:", migratedProject?.name || "Null");
+            console.info(`[useProjectManager] Attempting to bootstrap PMP file: ${selectedPath}`);
+            const bootstrap = await openProjectBootstrap(selectedPath, requestId);
+            if (bootstrap.openRequestId && bootstrap.openRequestId !== requestId) {
+                console.warn("Open request ID mismatch (Stale bootstrap), aborting.");
+                console.groupEnd();
+                return false;
+            }
+            const migratedProject = normalizeProject(bootstrap.project as Project);
+            console.info("open_project_bootstrap result:", migratedProject?.name || "Null");
 
             if (requestId !== requestIdRef.current) {
                 console.warn("Request ID mismatch (Stale open request), aborting.");
@@ -259,7 +300,11 @@ export function useProjectManager() {
                 console.info(`[useProjectManager] Successfully resolved project: ${project.name} (ID: ${project.id})`);
 
                 applyOpenedProject(project, true);
-                await useDesignSync.getState().initialize(project.id, project.path, { forceReload: true });
+                await useDesignSync.getState().initialize(project.id, project.path, {
+                    forceReload: true,
+                    bootstrap
+                });
+                scheduleMapTileBuild(project.id, bootstrap.mapRevision || 0, bootstrap.initialBounds);
                 scheduleProjectIndexing(project.id);
 
                 return true;
