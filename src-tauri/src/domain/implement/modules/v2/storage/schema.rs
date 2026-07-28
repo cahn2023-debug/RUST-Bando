@@ -145,8 +145,6 @@ pub const BASE_SCHEMA_SQL: &str = r#"
     );
     CREATE INDEX IF NOT EXISTS idx_map_tile_cache_project_revision
         ON map_tile_cache(project_id, revision);
-    CREATE INDEX IF NOT EXISTS idx_map_tile_cache_bounds
-        ON map_tile_cache(project_id, revision, min_x, max_x, min_y, max_y);
 
     CREATE TABLE IF NOT EXISTS media_assets (
         id TEXT PRIMARY KEY,
@@ -922,6 +920,7 @@ const V9_MIGRATION_SQL: &str = r#"
 pub fn apply_base_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
     ensure_legacy_composite_parent_keys(conn)?;
     conn.execute_batch(BASE_SCHEMA_SQL)?;
+    ensure_map_tile_cache_schema(conn)?;
     ensure_v8_compatibility(conn)
 }
 
@@ -978,8 +977,34 @@ pub fn ensure_runtime_schema_compatibility(conn: &Connection) -> Result<(), rusq
         );
         CREATE INDEX IF NOT EXISTS idx_map_tile_cache_project_revision
             ON map_tile_cache(project_id, revision);
-        CREATE INDEX IF NOT EXISTS idx_map_tile_cache_bounds
-            ON map_tile_cache(project_id, revision, min_x, max_x, min_y, max_y);
+        "#,
+    )?;
+    ensure_map_tile_cache_schema(conn)?;
+    ensure_feature_spatial_columns(conn)?;
+    ensure_feature_spatial_index(conn)
+}
+
+fn ensure_map_tile_cache_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS map_tile_cache (
+            project_id TEXT NOT NULL,
+            revision INTEGER NOT NULL,
+            z INTEGER NOT NULL,
+            x INTEGER NOT NULL,
+            y INTEGER NOT NULL,
+            tile_mvt BLOB NOT NULL,
+            feature_count INTEGER NOT NULL DEFAULT 0,
+            min_x REAL NOT NULL DEFAULT -180.0,
+            min_y REAL NOT NULL DEFAULT -85.05112878,
+            max_x REAL NOT NULL DEFAULT 180.0,
+            max_y REAL NOT NULL DEFAULT 85.05112878,
+            generated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            PRIMARY KEY (project_id, revision, z, x, y),
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_map_tile_cache_project_revision
+            ON map_tile_cache(project_id, revision);
         "#,
     )?;
     for (column, ty) in [
@@ -995,8 +1020,12 @@ pub fn ensure_runtime_schema_compatibility(conn: &Connection) -> Result<(), rusq
             )?;
         }
     }
-    ensure_feature_spatial_columns(conn)?;
-    ensure_feature_spatial_index(conn)
+    conn.execute_batch(
+        r#"
+        CREATE INDEX IF NOT EXISTS idx_map_tile_cache_bounds
+            ON map_tile_cache(project_id, revision, min_x, max_x, min_y, max_y);
+        "#,
+    )
 }
 
 fn ensure_feature_spatial_columns(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -1887,6 +1916,45 @@ mod tests {
             )
             .expect("fiber_cable_points table");
         assert_eq!(cable_points_table, "fiber_cable_points");
+    }
+
+    #[test]
+    fn map_tile_cache_schema_adds_bounds_before_bounds_index() {
+        let conn = Connection::open_in_memory().expect("in-memory db");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE projects(id TEXT PRIMARY KEY, name TEXT NOT NULL, title TEXT NOT NULL);
+            CREATE TABLE map_tile_cache (
+                project_id TEXT NOT NULL,
+                revision INTEGER NOT NULL,
+                z INTEGER NOT NULL,
+                x INTEGER NOT NULL,
+                y INTEGER NOT NULL,
+                tile_mvt BLOB NOT NULL,
+                feature_count INTEGER NOT NULL DEFAULT 0,
+                generated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (project_id, revision, z, x, y)
+            );
+            "#,
+        )
+        .expect("legacy tile cache");
+
+        ensure_map_tile_cache_schema(&conn).expect("tile cache compatibility");
+
+        for column in ["min_x", "min_y", "max_x", "max_y"] {
+            assert!(
+                column_exists(&conn, "map_tile_cache", column).expect("column lookup"),
+                "missing map_tile_cache.{column}"
+            );
+        }
+        let index_name: String = conn
+            .query_row(
+                "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_map_tile_cache_bounds'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("bounds index");
+        assert_eq!(index_name, "idx_map_tile_cache_bounds");
     }
 
     #[test]

@@ -333,29 +333,29 @@ graph TD
     node_365_file --- node_365_s2
     node_365_s3["🔧 ensure_runtime_schema_compatibility (fn)"]:::symbol
     node_365_file --- node_365_s3
-    node_365_s4["🔧 ensure_feature_spatial_columns (fn)"]:::symbol
+    node_365_s4["🔧 ensure_map_tile_cache_schema (fn)"]:::symbol
     node_365_file --- node_365_s4
-    node_365_s5["🔧 ensure_feature_spatial_index (fn)"]:::symbol
+    node_365_s5["🔧 ensure_feature_spatial_columns (fn)"]:::symbol
     node_365_file --- node_365_s5
-    node_365_s6["🔧 backfill_feature_bbox_columns (fn)"]:::symbol
+    node_365_s6["🔧 ensure_feature_spatial_index (fn)"]:::symbol
     node_365_file --- node_365_s6
-    node_365_s7["🔧 parse_bbox_array (fn)"]:::symbol
+    node_365_s7["🔧 backfill_feature_bbox_columns (fn)"]:::symbol
     node_365_file --- node_365_s7
-    node_365_s8["🔧 parse_coordinate_bbox (fn)"]:::symbol
+    node_365_s8["🔧 parse_bbox_array (fn)"]:::symbol
     node_365_file --- node_365_s8
-    node_365_s9["🔧 collect_coordinate_bbox (fn)"]:::symbol
+    node_365_s9["🔧 parse_coordinate_bbox (fn)"]:::symbol
     node_365_file --- node_365_s9
-    node_365_s10["🔧 ensure_legacy_composite_parent_keys (fn)"]:::symbol
+    node_365_s10["🔧 collect_coordinate_bbox (fn)"]:::symbol
     node_365_file --- node_365_s10
-    node_365_s11["🔧 normalize_legacy_v9_data (fn)"]:::symbol
+    node_365_s11["🔧 ensure_legacy_composite_parent_keys (fn)"]:::symbol
     node_365_file --- node_365_s11
-    node_365_s12["🔧 stamp_schema_version (fn)"]:::symbol
+    node_365_s12["🔧 normalize_legacy_v9_data (fn)"]:::symbol
     node_365_file --- node_365_s12
-    node_365_s13["🔧 normalize_timestamps (fn)"]:::symbol
+    node_365_s13["🔧 stamp_schema_version (fn)"]:::symbol
     node_365_file --- node_365_s13
-    node_365_s14["🔧 create_updated_at_triggers (fn)"]:::symbol
+    node_365_s14["🔧 normalize_timestamps (fn)"]:::symbol
     node_365_file --- node_365_s14
-    node_365_more["... and 8 more symbols"]:::symbol
+    node_365_more["... and 9 more symbols"]:::symbol
     node_365_file --- node_365_more
   end
   class node_365_sub rs

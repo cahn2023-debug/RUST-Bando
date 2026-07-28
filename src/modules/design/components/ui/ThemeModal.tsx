@@ -215,7 +215,8 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
           const isExplicitIcon = iconType && iconType !== 'default';
           const targetIcon = isExplicitIcon ? iconType : metadata.icon;
 
-          const activeColor = color || metadata.gis?.color || metadata.color;
+          const metaAny = metadata as Record<string, any>;
+          const activeColor = color || (metadata.gis as any)?.color || metaAny.color;
           const activeSize = size; // Always use current modal slider size
 
           const draftMetadata = {
@@ -236,7 +237,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
             : {};
           
           const symbolInputProps = isExplicitIcon
-            ? { ...existingProps, icon: iconType, iconKey: iconType, type: getObjectTypeForIcon(iconType) }
+            ? { ...existingProps, icon: iconType, iconKey: iconType, type: getObjectTypeForIcon(iconType as any) }
             : existingProps;
 
           const symbol = normalizeFeatureSymbolData(
@@ -247,7 +248,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
           );
 
           const finalIconKey = isExplicitIcon ? iconType : symbol.iconKey;
-          const finalObjectType = isExplicitIcon ? getObjectTypeForIcon(iconType) : symbol.objectType;
+          const finalObjectType = isExplicitIcon ? getObjectTypeForIcon(iconType as any) : symbol.objectType;
 
           const newMetadata = {
             ...draftMetadata,
