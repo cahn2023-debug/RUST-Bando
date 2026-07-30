@@ -7,6 +7,8 @@ import type {
     MapLibreRenderFeatureCollection,
 } from './mapLibreFastTypes';
 import { getParsedCoordinates } from '@TOOL/utils/featureUtils';
+import { getFeatureDisplayInfo, isCameraIcon } from '@TOOL/utils/featureDisplay';
+import { getFeatureMetadataValue, getParsedMetadata } from '@TOOL/utils/featureMetadata';
 
 const SUMMARY_FEATURE_LIMIT = 1800;
 const DETAIL_FEATURE_LIMIT = 6000;
@@ -28,8 +30,33 @@ const parseObject = (value: unknown): Record<string, any> => {
     return typeof value === 'object' && !Array.isArray(value) ? value as Record<string, any> : {};
 };
 
-const styleValue = (feature: FeatureState, key: string) => {
-    const metadata = parseObject(feature.metadata);
+const getFeatureMetadataWithGroupPreview = (
+    feature: FeatureState,
+    groupThemePreview?: Record<string, any> | null
+) => {
+    const metadata = getParsedMetadata(feature);
+    const groupPreview = groupThemePreview && feature.group_id
+        ? (groupThemePreview[feature.group_id] || {})
+        : {};
+    return {
+        ...metadata,
+        ...groupPreview,
+        gis: {
+            ...(metadata.gis || {}),
+            ...(groupPreview.gis || {}),
+        },
+        infrastructure: {
+            ...(metadata.infrastructure || {}),
+            ...(groupPreview.infrastructure || {}),
+        },
+        fiber: {
+            ...(metadata.fiber || {}),
+            ...(groupPreview.fiber || {}),
+        },
+    };
+};
+
+const styleValueFromMetadata = (feature: FeatureState, metadata: Record<string, any>, key: string) => {
     const properties = parseObject(feature.properties);
     const gis = parseObject(metadata.gis);
     return gis[key] ?? metadata[key] ?? properties[key];
@@ -43,6 +70,26 @@ const asSize = (value: unknown) => {
     const size = Number(value);
     return Number.isFinite(size) && size > 0 ? Math.min(size, 100) : 8;
 };
+
+const asRotation = (value: unknown) => {
+    const rotation = Number(value);
+    return Number.isFinite(rotation) ? rotation : 0;
+};
+
+const asDashArray = (value: unknown): number[] | undefined => {
+    if (Array.isArray(value)) {
+        const parsed = value.map(Number).filter(item => Number.isFinite(item) && item > 0);
+        return parsed.length >= 2 ? parsed : undefined;
+    }
+    if (typeof value !== 'string' || !value.trim()) return undefined;
+    const parsed = value.split(/[,\s]+/).map(Number).filter(item => Number.isFinite(item) && item > 0);
+    return parsed.length >= 2 ? parsed : undefined;
+};
+
+const imageIdSafe = (value: unknown) => String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-');
 
 export const getMapLibreLodPolicy = ({
     zoom,
@@ -103,17 +150,44 @@ const normalizePolygon = (coordinates: any): [number, number][][] | null => {
 
 const toRenderFeature = (
     feature: FeatureState,
-    selectedFeatureId: string | null | undefined
+    selectedFeatureId: string | null | undefined,
+    featureGroups: Record<string, any>,
+    featureNumberMap: Record<string, string | number>,
+    groupThemePreview?: Record<string, any> | null
 ): MapLibreRenderFeature | null => {
     const geomType = String(feature.geom_type || 'Point').toLowerCase();
     const coordinates = getParsedCoordinates(feature);
     const selected = feature.id === selectedFeatureId;
-    const color = selected ? SELECTED_COLOR : (asColor(styleValue(feature, 'color')) || DEFAULT_COLOR);
-    const size = selected ? Math.max(asSize(styleValue(feature, 'size')), 12) : asSize(styleValue(feature, 'size'));
+    const metadata = getFeatureMetadataWithGroupPreview(feature, groupThemePreview);
+    const color = selected ? SELECTED_COLOR : (asColor(styleValueFromMetadata(feature, metadata, 'color')) || DEFAULT_COLOR);
+    const size = selected ? Math.max(asSize(styleValueFromMetadata(feature, metadata, 'size')), 12) : asSize(styleValueFromMetadata(feature, metadata, 'size'));
 
     if (geomType === 'point' || geomType === '' || geomType === 'default') {
         const point = normalizePoint(coordinates);
         if (!point) return null;
+        const group = feature.group_id ? featureGroups[feature.group_id] : null;
+        const displayInfo = getFeatureDisplayInfo(feature, group?.type, group?.name, metadata);
+        const rawDisplaySize = metadata.gis?.size ?? metadata.size ?? feature?.properties?.size ?? size;
+        const baseDisplaySize = asSize(rawDisplaySize);
+        const displaySize = displayInfo.isIntersection || displayInfo.isCamera
+            ? Math.floor(baseDisplaySize * 1.5)
+            : baseDisplaySize;
+        const rotation = asRotation(getFeatureMetadataValue(feature, 'gis.rotation', 'rotation', metadata));
+        const labelIndex = String(featureNumberMap[feature.id] || '1');
+        const pointIconKey = isCameraIcon(displayInfo.iconKey) ? displayInfo.iconKey : (
+            displayInfo.isIntersection ? 'intersection' : (displayInfo.iconKey || 'default')
+        );
+        const hasPointIcon = Boolean(pointIconKey);
+        const iconImageId = hasPointIcon
+            ? [
+                'design-point',
+                imageIdSafe(pointIconKey),
+                imageIdSafe(displayInfo.color || color),
+                imageIdSafe(displaySize),
+                imageIdSafe(labelIndex),
+                imageIdSafe(rotation),
+            ].join('-')
+            : '';
         return {
             type: 'Feature',
             geometry: { type: 'Point', coordinates: point },
@@ -126,6 +200,14 @@ const toRenderFeature = (
                 color,
                 size,
                 selected,
+                iconKey: pointIconKey,
+                objectType: displayInfo.objectType,
+                isCamera: displayInfo.isCamera,
+                isIntersection: displayInfo.isIntersection,
+                rotation,
+                displaySize,
+                labelIndex,
+                iconImageId,
             },
         };
     }
@@ -133,6 +215,7 @@ const toRenderFeature = (
     if (geomType === 'linestring' || geomType === 'polyline' || geomType === 'line') {
         const line = normalizeLine(coordinates);
         if (!line) return null;
+        const dashArray = asDashArray(metadata.gis?.dashArray ?? metadata.dashArray);
         return {
             type: 'Feature',
             geometry: { type: 'LineString', coordinates: line },
@@ -145,6 +228,7 @@ const toRenderFeature = (
                 color,
                 size: Math.max(size, selected ? 6 : 3),
                 selected,
+                dashArray,
             },
         };
     }
@@ -176,13 +260,17 @@ export const buildMapLibreFeatureCollection = ({
     selectedFeatureId,
     hiddenIds = new Set<string>(),
     zoom,
+    featureGroups: featureGroupsInput = {},
+    featureNumberMap = {},
+    groupThemePreview = null,
 }: BuildMapLibreFeatureCollectionInput): {
     collection: MapLibreRenderFeatureCollection;
     lodPolicy: MapLibreLodPolicy;
 } => {
     const lodPolicy = getMapLibreLodPolicy({ zoom, featureCount: features.length, selectedFeatureId });
     const selected = selectedFeatureId ? features.find(feature => feature.id === selectedFeatureId) : null;
-    const selectedRenderFeature = selected ? toRenderFeature(selected, selectedFeatureId) : null;
+    const featureGroups = featureGroupsInput || {};
+    const selectedRenderFeature = selected ? toRenderFeature(selected, selectedFeatureId, featureGroups, featureNumberMap || {}, groupThemePreview) : null;
     const renderFeatures: MapLibreRenderFeature[] = [];
 
     for (const feature of features) {
@@ -192,7 +280,7 @@ export const buildMapLibreFeatureCollection = ({
         if (feature.group_id && hiddenIds.has(feature.group_id)) continue;
         if (feature.layer_id && hiddenIds.has(feature.layer_id)) continue;
 
-        const renderFeature = toRenderFeature(feature, selectedFeatureId);
+        const renderFeature = toRenderFeature(feature, selectedFeatureId, featureGroups, featureNumberMap || {}, groupThemePreview);
         if (renderFeature) renderFeatures.push(renderFeature);
     }
 

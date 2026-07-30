@@ -214,7 +214,8 @@ describe("importService", () => {
     const metadata = JSON.parse((events[0] as any).payload.metadata);
     expect(metadata.start_node_id).toBe("cabinet");
     expect(metadata.end_node_id).toBeUndefined();
-    expect(metadata.infrastructure).toBeUndefined();
+    expect(metadata.infrastructure).toMatchObject({ type: "SignalLine", line_style: "solid", icon_type: "fiber" });
+    expect(metadata.fiber).toMatchObject({ role: "cable" });
     expect(metadata.network).toBeUndefined();
   });
 
@@ -244,7 +245,8 @@ describe("importService", () => {
     const metadata = JSON.parse((events[0] as any).payload.metadata);
     expect(metadata.start_node_id).toBe("cabinet");
     expect(metadata.end_node_id).toBe("cabinet");
-    expect(metadata.infrastructure).toBeUndefined();
+    expect(metadata.infrastructure).toMatchObject({ type: "SignalLine", line_style: "solid", icon_type: "fiber" });
+    expect(metadata.fiber).toMatchObject({ role: "cable" });
     expect(metadata.network).toBeUndefined();
   });
 
@@ -409,5 +411,68 @@ describe("importService", () => {
 
     const metadataNoSnap = JSON.parse((eventsNoSnap[0] as any).payload.metadata);
     expect(metadataNoSnap.start_node_id).toBeUndefined();
+  });
+});
+
+describe("importService fiber defaults", () => {
+  const lineRecord = (overrides = {}) => ({
+    id: "11111111-1111-4111-8111-111111111111",
+    geom_type: "LineString" as const,
+    geometry: [[106.1, 10.1], [106.2, 10.2]],
+    center_lat: 10.15,
+    center_lon: 106.15,
+    tile_id: "line-1",
+    properties: { name: "Line 1" },
+    source_format: "kml" as const,
+    ...overrides,
+  });
+
+  it("marks imported line features as fiber cable metadata by default", () => {
+    const [event] = buildFeatureCreatedEvents([lineRecord()], "group-1", "layer-1");
+
+    expect(event.type).toBe("FeatureCreated");
+    if (event.type !== "FeatureCreated") return;
+    const metadata = JSON.parse(event.payload.metadata);
+    expect(metadata.infrastructure).toEqual(expect.objectContaining({
+      type: "SignalLine",
+      line_style: "solid",
+      icon_type: "fiber",
+    }));
+    expect(metadata.fiber).toEqual(expect.objectContaining({ role: "cable" }));
+    expect(metadata.gis).toEqual(expect.objectContaining({
+      color: "#0088ff",
+      size: 6,
+      weight: 6,
+      stroke: 6,
+    }));
+  });
+
+  it("preserves manual line infrastructure and style during re-import", () => {
+    const manualMetadata = {
+      manual_override: true,
+      infrastructure: { type: "PowerLine", line_style: "dotted" },
+      gis: { color: "#ff00aa", size: 9, dashArray: "2 4" },
+    };
+    const existingFeature: FeatureState = {
+      id: "11111111-1111-4111-8111-111111111111",
+      layer_id: "layer-1",
+      group_id: "group-1",
+      name: "Manual line",
+      geom_type: "LineString",
+      metadata: manualMetadata,
+      properties: {},
+      coordinates: [[106.1, 10.1], [106.2, 10.2]],
+    };
+
+    const [event] = buildFeatureCreatedEvents([lineRecord()], "group-1", "layer-1", {
+      featuresById: { [existingFeature.id]: existingFeature },
+    });
+
+    expect(event.type).toBe("FeatureCreated");
+    if (event.type !== "FeatureCreated") return;
+    const metadata = JSON.parse(event.payload.metadata);
+    expect(metadata.manual_override).toBe(true);
+    expect(metadata.infrastructure).toEqual(manualMetadata.infrastructure);
+    expect(metadata.gis).toEqual(manualMetadata.gis);
   });
 });

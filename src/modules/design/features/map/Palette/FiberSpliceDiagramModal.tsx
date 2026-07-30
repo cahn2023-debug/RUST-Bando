@@ -16,6 +16,11 @@ import {
 import type { FiberSpliceUpsertInput } from '@DESIGN/features/map/network/fiberService';
 import type { FiberInventory, FiberPort, FiberPortPatch, FiberPortTermination, FiberSplice, FiberStrand } from '@CONTRACT/types';
 import { Button } from '@DESIGN/components/ui/Button';
+import {
+  buildGroupedSpliceDiagramItems,
+  type TubeSpliceDiagramGroup,
+  type VisibleSpliceDiagramItem,
+} from './fiberSpliceDiagramModel';
 
 import { DIAGRAM_COLORS, fiberColorAt } from '@DESIGN/features/map/styles/dataColors';
 
@@ -49,6 +54,14 @@ interface SplicePath {
   leftStrandId: string;
   rightStrandId: string;
   path: string;
+}
+
+interface TubeSplicePath {
+  id: string;
+  group: TubeSpliceDiagramGroup;
+  path: string;
+  labelX: number;
+  labelY: number;
 }
 
 interface OdfStrandDrag {
@@ -91,6 +104,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
   const [dragPointer, setDragPointer] = useState<AnchorPoint | null>(null);
   const [hoveredRightStrandId, setHoveredRightStrandId] = useState<string | null>(null);
   const [splicePaths, setSplicePaths] = useState<SplicePath[]>([]);
+  const [tubeSplicePaths, setTubeSplicePaths] = useState<TubeSplicePath[]>([]);
   const [previewPath, setPreviewPath] = useState<string | null>(null);
   const [draggingOdfStrand, setDraggingOdfStrand] = useState<OdfStrandDrag | null>(null);
   const [odfDragPointer, setOdfDragPointer] = useState<AnchorPoint | null>(null);
@@ -149,9 +163,7 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
     () => (inventory?.equipment || []).find(item => item.feature_id === enclosureId) || null,
     [enclosureId, inventory?.equipment]
   );
-  const activeEquipmentKind = currentEquipment?.equipment_type === 'odf' || currentEquipment?.equipment_type === 'splice_enclosure'
-    ? currentEquipment.equipment_type
-    : equipmentKind;
+  const activeEquipmentKind = equipmentKind;
 
   useEffect(() => {
     const equipmentTimer = window.setTimeout(() => {
@@ -335,16 +347,18 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         }
 
         const leftStrand = leftStrands.find(strand => strand.id === leftStrandId);
-        if (!leftStrand || !rightStrandId) return null;
+        const rightStrand = rightStrands.find(strand => strand.id === rightStrandId);
+        if (!leftStrand || !rightStrand || !rightStrandId) return null;
 
         return {
           splice,
           leftStrand,
+          rightStrand,
           leftStrandId,
           rightStrandId,
         };
       })
-      .filter((item): item is { splice: FiberSplice; leftStrand: FiberStrand; leftStrandId: string; rightStrandId: string } => !!item);
+      .filter((item): item is VisibleSpliceDiagramItem => !!item);
   }, [leftEndpoint, leftStrands, rightEndpoint, rightStrands, splices]);
 
   const getStrandKey = useCallback((side: StrandSide, strandId: string) => `${side}:${strandId}`, []);
@@ -405,6 +419,11 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
     return `M ${from.x} ${from.y} C ${from.x + deltaX} ${from.y}, ${to.x - deltaX} ${to.y}, ${to.x} ${to.y}`;
   }, []);
 
+  const midpoint = useCallback((a: AnchorPoint, b: AnchorPoint): AnchorPoint => ({
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2,
+  }), []);
+
   const buildTerminationPath = useCallback((from: AnchorPoint, to: AnchorPoint, side: StrandSide) => {
     const deltaX = Math.abs(to.x - from.x) * 0.4;
     const deltaY = Math.abs(to.y - from.y) * 0.4;
@@ -419,7 +438,8 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
   }, []);
 
   const updateSplicePaths = useCallback(() => {
-    setSplicePaths(visibleSplices.flatMap(item => {
+    const groupedItems = buildGroupedSpliceDiagramItems(visibleSplices);
+    setSplicePaths(groupedItems.singleSplices.flatMap(item => {
       const from = getStrandAnchor('left', item.leftStrandId);
       const to = getStrandAnchor('right', item.rightStrandId);
       if (!from || !to) return [];
@@ -428,7 +448,26 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         path: buildSplicePath(from, to),
       }];
     }));
-  }, [buildSplicePath, getStrandAnchor, visibleSplices]);
+    setTubeSplicePaths(groupedItems.tubeGroups.flatMap(group => {
+      const first = group.splices[0];
+      const last = group.splices[group.splices.length - 1];
+      if (!first || !last) return [];
+      const leftFirst = getStrandAnchor('left', first.leftStrandId);
+      const leftLast = getStrandAnchor('left', last.leftStrandId);
+      const rightFirst = getStrandAnchor('right', first.rightStrandId);
+      const rightLast = getStrandAnchor('right', last.rightStrandId);
+      if (!leftFirst || !leftLast || !rightFirst || !rightLast) return [];
+      const from = midpoint(leftFirst, leftLast);
+      const to = midpoint(rightFirst, rightLast);
+      return [{
+        id: group.id,
+        group,
+        path: buildSplicePath(from, to),
+        labelX: (from.x + to.x) / 2,
+        labelY: (from.y + to.y) / 2,
+      }];
+    }));
+  }, [buildSplicePath, getStrandAnchor, midpoint, visibleSplices]);
 
   const updateOdfPaths = useCallback(() => {
     const nextPaths: OdfPath[] = [];
@@ -515,7 +554,17 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
     return () => window.clearTimeout(previewTimer);
   }, [buildTerminationPath, draggingOdfStrand, getPortAnchor, getStrandAnchor, hoveredPortId, odfDragPointer]);
 
-  const runWrite = async (successMessage: string, action: () => Promise<unknown>) => {
+  const isDuplicateEventIdError = (error: unknown) =>
+    String(error instanceof Error ? error.message : error).includes('UNIQUE constraint failed: events.id');
+
+  const isFiberSplicePairExistsError = (error: unknown) =>
+    String(error instanceof Error ? error.message : error).includes('fiber splice pair already exists');
+
+  const runWrite = async (
+    successMessage: string,
+    action: () => Promise<unknown>,
+    options: { treatDuplicateEventAsSuccess?: boolean } = {}
+  ): Promise<boolean> => {
     setSaving(true);
     setStatusMessage(null);
     try {
@@ -524,25 +573,40 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
         throw new Error(res.error || 'Server rejected the transaction');
       }
       setStatusMessage(successMessage);
-          } catch (error) {
+      return true;
+    } catch (error) {
+      if (options.treatDuplicateEventAsSuccess && isDuplicateEventIdError(error)) {
+        setStatusMessage(`${successMessage} Đang đồng bộ lại dữ liệu.`);
+        return true;
+      }
       setStatusMessage(error instanceof Error ? error.message : 'Thao tác thất bại.');
+      return false;
     } finally {
       setSaving(false);
     }
   };
 
   const handleEquipmentKindChange = async (value: EquipmentKind) => {
+    const previousKind = activeEquipmentKind;
     setEquipmentKind(value);
     if (!projectId) return;
-    await runWrite(`Đã cập nhật loại điểm nối: ${equipmentLabels[value]}.`, () =>
-      upsertEquipment({
-        id: currentEquipment?.id || enclosureId,
-        projectId,
-        featureId: enclosureId,
-        equipmentType: value,
-        status: currentEquipment?.status || 'active',
-      })
+    const saved = await runWrite(
+      `Đã cập nhật loại điểm nối: ${equipmentLabels[value]}.`,
+      () =>
+        upsertEquipment({
+          id: currentEquipment?.id || enclosureId,
+          projectId,
+          featureId: enclosureId,
+          equipmentType: value,
+          status: currentEquipment?.status || 'active',
+        }),
+      { treatDuplicateEventAsSuccess: true }
     );
+    if (saved) {
+      void refreshInventory();
+    } else {
+      setEquipmentKind(previousKind);
+    }
   };
 
   const handleEnsureOdfPorts = async () => {
@@ -641,9 +705,27 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
       return;
     }
 
-    await runWrite(`Nối ${splicesToCreate.length} cặp. (Bỏ qua: Thiếu phải=${noRightStrand}, Trùng=${sameStrand}, Bận trái=${leftOccupied}, Bận phải=${rightOccupied})`, () =>
-      upsertFiberSplices(projectId, splicesToCreate)
+    const saved = await runWrite(`Nối ${splicesToCreate.length} cặp. (Bỏ qua: Thiếu phải=${noRightStrand}, Trùng=${sameStrand}, Bận trái=${leftOccupied}, Bận phải=${rightOccupied})`, async () => {
+      try {
+        await upsertFiberSplices(projectId, splicesToCreate);
+        return;
+      } catch (error) {
+        if (!isFiberSplicePairExistsError(error)) throw error;
+      }
+
+      const failures: unknown[] = [];
+      for (const splice of splicesToCreate) {
+        try {
+          await upsertFiberSplice(projectId, splice);
+        } catch (error) {
+          if (isFiberSplicePairExistsError(error) || isDuplicateEventIdError(error)) continue;
+          failures.push(error);
+        }
+      }
+      if (failures.length > 0) throw failures[0];
+    }
     );
+    if (saved) void refreshInventory();
     
     setSelectedLeftStrandId(null);
     setSelectedRightStrandId(null);
@@ -792,6 +874,13 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
     await runWrite('Đã xóa mối nối.', () => deleteFiberSplice(projectId, spliceId));
   };
 
+  const handleRemoveSpliceGroup = async (spliceIds: string[]) => {
+    if (!projectId || spliceIds.length === 0) return;
+    await runWrite(`Đã xóa ${spliceIds.length} mối nối trong tube.`, () =>
+      Promise.all(spliceIds.map(spliceId => deleteFiberSplice(projectId, spliceId)))
+    );
+  };
+
   const handleRemoveOdfPath = async (path: OdfPath) => {
     if (!projectId) return;
     if (path.kind === 'termination') {
@@ -808,13 +897,13 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
   const diagramSummary = useMemo(() => {
     const parts = [
       `Sơ đồ nối core: ${leftStrands.length} core IN, ${rightStrands.length} core OUT`,
-      `${splicePaths.length} mối nối đang hiển thị`,
+      `${splicePaths.length + tubeSplicePaths.length} mối/nhóm nối đang hiển thị`,
     ];
     if (activeEquipmentKind === 'odf') {
       parts.push(`${odfPorts.length} cổng ODF, ${odfPaths.length} đường đấu nối ODF`);
     }
     return `${parts.join('. ')}.`;
-  }, [activeEquipmentKind, leftStrands.length, odfPaths.length, odfPorts.length, rightStrands.length, splicePaths.length]);
+  }, [activeEquipmentKind, leftStrands.length, odfPaths.length, odfPorts.length, rightStrands.length, splicePaths.length, tubeSplicePaths.length]);
 
   const renderStrand = (strand: FiberStrand, side: 'left' | 'right') => {
     const color = getStrandColor(strand.strand_no);
@@ -1072,6 +1161,42 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
                   role="img"
                   aria-label={diagramSummary}
                 >
+                {tubeSplicePaths.map(item => (
+                  <g
+                    key={item.id}
+                    className="pointer-events-auto cursor-pointer"
+                    onClick={() => void handleRemoveSpliceGroup(item.group.splices.map(spliceItem => spliceItem.splice.id))}
+                  >
+                    <path
+                      d={item.path}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth={18}
+                      className="pointer-events-auto"
+                    />
+                    <path
+                      d={item.path}
+                      fill="none"
+                      stroke={item.group.color}
+                      strokeLinecap="round"
+                      strokeWidth={7}
+                      className="drop-shadow-[0_0_9px_rgba(34,211,238,0.38)]"
+                      data-testid="fiber-splice-tube-path"
+                    />
+                    <text
+                      x={item.labelX}
+                      y={item.labelY - 8}
+                      textAnchor="middle"
+                      className="select-none fill-cad-text-primary text-[10px] font-black"
+                      paintOrder="stroke"
+                      stroke={DIAGRAM_COLORS.canvas}
+                      strokeWidth={4}
+                      data-testid="fiber-splice-tube-label"
+                    >
+                      {item.group.startCore}-{item.group.endCore}
+                    </text>
+                  </g>
+                ))}
                 {splicePaths.map(({ splice, leftStrand, path }) => (
                   <g key={splice.id}>
                     <path

@@ -93,4 +93,5 @@ scripts/watch_graph.ps1
 opencode.json
 src-tauri/local_data/
 *dead_code_analysis.json
+BAK/
 

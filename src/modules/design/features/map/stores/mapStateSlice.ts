@@ -254,11 +254,9 @@ const syncUpdatedFeatureCaches = (
             visibleChanged = true;
         }
 
-        if (featureDetailsCache[id]) {
-            if (!cacheChanged) featureDetailsCache = { ...featureDetailsCache };
-            featureDetailsCache[id] = feature;
-            cacheChanged = true;
-        }
+        if (!cacheChanged) featureDetailsCache = { ...featureDetailsCache };
+        featureDetailsCache[id] = feature;
+        cacheChanged = true;
     });
 
     return {
@@ -266,6 +264,16 @@ const syncUpdatedFeatureCaches = (
         ...(cacheChanged ? { featureDetailsCache } : {}),
     };
 };
+
+const resolveFeatureById = (
+    state: DesignSyncStore,
+    nextState: MapState,
+    id: string
+): MapState['features'][string] | undefined => (
+    nextState.features?.[id] ||
+    state.featureDetailsCache[id] ||
+    state.visibleFeatures[id]
+);
 
 const hasRenderableCoordinates = (payload: any) => {
     const coordinates = payload?.coordinates ?? payload?.geometry;
@@ -486,7 +494,8 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
     },
 
     applyPatchToState: (response) => {
-        const currentState = get().state;
+        const storeState = get();
+        const currentState = storeState.state;
         if (!currentState) return;
 
         const newState = { ...currentState };
@@ -502,7 +511,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                     if (type === 'FeatureCreated' && hasRenderableCoordinates(payload)) {
                         shouldRefreshViewport = true;
                     }
-                    const currentFeature = newState.features[payload.id];
+                    const currentFeature = resolveFeatureById(storeState, newState, payload.id);
                     if (IS_DEV && type === 'FeatureUpdated') {
                         console.groupCollapsed(`[Sync] applyPatchToState FeatureUpdated ${payload.id}`);
                         console.log('incoming payload:', payload);
@@ -625,7 +634,8 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
     },
 
     applyQueuedAckToState: (response) => {
-        const currentState = get().state;
+        const storeState = get();
+        const currentState = storeState.state;
         if (!currentState) return;
 
         const newState = { ...currentState };
@@ -642,13 +652,14 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                         shouldRefreshViewport = true;
                     }
                     if (IS_DEV && type === 'FeatureUpdated') {
+                        const currentFeature = resolveFeatureById(storeState, newState, payload.id);
                         console.groupCollapsed(`[Sync] applyQueuedAckToState FeatureUpdated ${payload.id}`);
                         console.log('incoming payload:', payload);
-                        console.log('before metadata:', newState.features[payload.id]?.metadata);
-                        console.log('before properties:', newState.features[payload.id]?.properties);
+                        console.log('before metadata:', currentFeature?.metadata);
+                        console.log('before properties:', currentFeature?.properties);
                         console.groupEnd();
                     }
-                    const currentFeature = newState.features[payload.id];
+                    const currentFeature = resolveFeatureById(storeState, newState, payload.id);
                     const safePatch = buildSafeFeaturePatch(currentFeature, payload);
                     newState.features = {
                         ...newState.features,
@@ -752,7 +763,8 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
     },
 
     applyEventsOptimistically: (events) => {
-        const currentState = get().state;
+        const storeState = get();
+        const currentState = storeState.state;
         if (!currentState) return;
 
         const newState = { ...currentState };
@@ -771,8 +783,8 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                         shouldRefreshViewport = true;
                     }
                     if (!newState.features) newState.features = {};
-                    const fPayload = buildSafeFeaturePatch(newState.features[payload.id], payload);
-                    const currentFeature = newState.features[payload.id];
+                    const currentFeature = resolveFeatureById(storeState, newState, payload.id);
+                    const fPayload = buildSafeFeaturePatch(currentFeature, payload);
                     if (IS_DEV && type === 'FeatureUpdated') {
                         console.groupCollapsed(`[Sync] applyEventsOptimistically FeatureUpdated ${payload.id}`);
                         console.log('incoming payload:', fPayload);

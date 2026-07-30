@@ -66,8 +66,26 @@ interface BuildFeatureCreatedEventsOptions {
 }
 
 type PointLikeCoordinate = [number, number];
+type NetworkLineStyle = 'solid' | 'dashed' | 'dotted';
 
 const DEFAULT_IMPORT_SNAP_THRESHOLD = 0.00009;
+const DEFAULT_FIBER_LINE_COLOR = '#0088ff';
+const DEFAULT_FIBER_LINE_SIZE = 6;
+
+const lineStyleDashArray: Record<NetworkLineStyle, string | undefined> = {
+  solid: undefined,
+  dashed: '6 4',
+  dotted: '2 4',
+};
+
+const isNetworkLineStyle = (value: unknown): value is NetworkLineStyle =>
+  value === 'solid' || value === 'dashed' || value === 'dotted';
+
+const asStringValue = (value: unknown): string | undefined =>
+  typeof value === 'string' && value.trim() ? value.trim() : undefined;
+
+const asNumberValue = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 
 const ensureAbsolutePath = (filePath: string): string => {
   const normalized = filePath?.trim();
@@ -123,6 +141,57 @@ const createImportedFeatureMetadata = (record: FeatureRecord) => syncDisplayOrde
   record.properties.display_order,
   record.properties
 );
+
+const createDefaultFiberLineMetadata = (
+  metadata: FeatureMetadata & Record<string, unknown>
+): FeatureMetadata & Record<string, unknown> => {
+  const infrastructure = typeof metadata.infrastructure === 'object' && metadata.infrastructure
+    ? metadata.infrastructure as Record<string, unknown>
+    : {};
+  const gis = typeof metadata.gis === 'object' && metadata.gis
+    ? metadata.gis as Record<string, unknown>
+    : {};
+  const fiber = typeof metadata.fiber === 'object' && metadata.fiber
+    ? metadata.fiber as Record<string, unknown>
+    : {};
+  const lineStyle = isNetworkLineStyle(infrastructure.line_style) ? infrastructure.line_style : 'solid';
+  const dashArray = asStringValue(gis.dashArray) ?? asStringValue(metadata.dashArray) ?? lineStyleDashArray[lineStyle];
+  const color = asStringValue(gis.color) ?? asStringValue(metadata.color) ?? DEFAULT_FIBER_LINE_COLOR;
+  const size = asNumberValue(gis.size)
+    ?? asNumberValue(gis.weight)
+    ?? asNumberValue(gis.stroke)
+    ?? asNumberValue(metadata.size)
+    ?? asNumberValue(metadata.weight)
+    ?? asNumberValue(metadata.stroke)
+    ?? DEFAULT_FIBER_LINE_SIZE;
+
+  return {
+    ...metadata,
+    color,
+    size,
+    weight: asNumberValue(metadata.weight) ?? size,
+    stroke: asNumberValue(metadata.stroke) ?? size,
+    ...(dashArray ? { dashArray } : {}),
+    gis: {
+      ...gis,
+      color,
+      size,
+      weight: asNumberValue(gis.weight) ?? size,
+      stroke: asNumberValue(gis.stroke) ?? size,
+      ...(dashArray ? { dashArray } : {}),
+    },
+    infrastructure: {
+      ...infrastructure,
+      type: asStringValue(infrastructure.type) ?? 'SignalLine',
+      line_style: lineStyle,
+      icon_type: asStringValue(infrastructure.icon_type) ?? 'fiber',
+    } as FeatureMetadata['infrastructure'] & Record<string, unknown>,
+    fiber: {
+      ...fiber,
+      role: asStringValue(fiber.role) ?? 'cable',
+    },
+  };
+};
 
 const createImportedFeatureDraft = (
   record: FeatureRecord,
@@ -191,6 +260,7 @@ const enrichImportedLineFeature = (
   const nextMetadata = {
     ...(getParsedMetadata(feature) as FeatureMetadata),
   } as FeatureMetadata & Record<string, unknown>;
+  Object.assign(nextMetadata, createDefaultFiberLineMetadata(nextMetadata));
   const snapLinks = buildSnapLinks(snapIds);
 
   if (snapLinks) {
@@ -218,9 +288,10 @@ const enrichImportedLineFeature = (
   const resolvedTo = resolveNetworkNodeIdFromSnap(featuresById, endSnapId, feature.coordinates[feature.coordinates.length - 1]);
 
   if (resolvedFrom && resolvedTo && resolvedFrom !== resolvedTo) {
+    const infrastructure = typeof nextMetadata.infrastructure === 'object' && nextMetadata.infrastructure ? nextMetadata.infrastructure as Record<string, unknown> : {};
     nextMetadata.infrastructure = {
-      ...(typeof nextMetadata.infrastructure === 'object' && nextMetadata.infrastructure ? nextMetadata.infrastructure as Record<string, unknown> : {}),
-      type: 'SignalLine',
+      ...infrastructure,
+      type: asStringValue(infrastructure.type) ?? 'SignalLine',
     };
     nextMetadata.network = {
       ...(typeof nextMetadata.network === 'object' && nextMetadata.network ? nextMetadata.network as Record<string, unknown> : {}),
@@ -247,7 +318,7 @@ const preserveManualNetworkMetadata = (
     manual_override: true,
   };
 
-  (['start_node_id', 'end_node_id', 'snap_links', 'network', 'infrastructure'] as const).forEach((key) => {
+  (['start_node_id', 'end_node_id', 'snap_links', 'network', 'infrastructure', 'gis', 'fiber', 'color', 'size', 'weight', 'stroke', 'dashArray'] as const).forEach((key) => {
     if (Object.prototype.hasOwnProperty.call(existingMetadata, key)) {
       preservedMetadata[key] = existingMetadata[key];
     }

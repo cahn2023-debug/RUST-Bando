@@ -17,7 +17,16 @@ export const IS_REAL_TAURI = typeof window !== 'undefined' && (
 export async function safeInvoke<T>(command: string, args?: any): Promise<T> {
   try {
     if (!IS_REAL_TAURI) {
-      if (!["sync_v2_get_status", "get_active_project"].includes(command)) {
+      if (![
+        "sync_v2_get_status",
+        "sync_v2_is_online",
+        "sync_v2_start",
+        "sync_v2_go_online",
+        "sync_v2_go_offline",
+        "get_pending_sync_outbox",
+        "mark_outbox_synced",
+        "get_active_project",
+      ].includes(command)) {
         console.warn(`[Tauri SafeInvoke] No real Tauri environment detected for command: ${command}`);
       }
       return null as any;

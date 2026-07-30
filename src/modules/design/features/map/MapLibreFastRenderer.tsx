@@ -2,23 +2,46 @@ import React from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+import { useFeatureNumbering } from '@IMPLEMENT/hooks/useDesignFeatures';
+import { useSnap } from '@IMPLEMENT/hooks/useSnap';
 import { queryVisibleFeaturesV2 } from '@TOOL/utils/designIpc';
+import { confirmUserAction } from '@TOOL/utils/userConfirmation';
+import { getParsedCoordinates, getParsedMetadata } from '@TOOL/utils/featureUtils';
 import { useMapStyles } from './useMapStyles';
 import { buildMapLibreFeatureCollection } from './mapLibreFastAdapter';
 import { buildRenderMetrics } from './mapRenderMetrics';
-import type { MapLibreRenderFeatureCollection } from './mapLibreFastTypes';
+import { getIconSvgString } from '@DESIGN/components/icons/MapIcons';
+import { buildPolylineSnapMarkers, type PolylineSnapMarker } from './polylineSnapMarkers';
+import type { FeatureState } from '@CONTRACT/types';
+import type { MapLibreFastFeatureCollection, MapLibreRenderFeatureCollection } from './mapLibreFastTypes';
 
 const SOURCE_ID = 'design-fast-features';
 const POINT_LAYER_ID = 'design-fast-points';
+const POINT_ICON_LAYER_ID = 'design-fast-point-icons';
+const POINT_LABEL_LAYER_ID = 'design-fast-point-labels';
 const POINT_CLUSTER_LAYER_ID = 'design-fast-point-clusters';
+const LINE_HIT_LAYER_ID = 'design-fast-line-hit-area';
 const LINE_LAYER_ID = 'design-fast-lines';
 const POLYGON_LAYER_ID = 'design-fast-polygons';
 const POLYGON_STROKE_LAYER_ID = 'design-fast-polygon-strokes';
 const LABEL_LAYER_ID = 'design-fast-labels';
+const DRAWING_SOURCE_ID = 'design-fast-drawing';
+const DRAWING_LINE_LAYER_ID = 'design-fast-drawing-line';
+const DRAWING_VERTEX_LAYER_ID = 'design-fast-drawing-vertices';
+const SNAP_LAYER_ID = 'design-fast-snap-indicator';
+const EDIT_SOURCE_ID = 'design-fast-edit-handles';
+const EDIT_VERTEX_LAYER_ID = 'design-fast-edit-vertices';
+const EDIT_MIDPOINT_LAYER_ID = 'design-fast-edit-midpoints';
+const EDIT_SNAP_LINK_LAYER_ID = 'design-fast-edit-snap-links';
 const MAP_MAX_ZOOM = 23;
 const MAP_MAX_NATIVE_ZOOM = 20;
 
 const emptyCollection: MapLibreRenderFeatureCollection = {
+    type: 'FeatureCollection',
+    features: [],
+};
+
+const emptyOverlayCollection: MapLibreFastFeatureCollection = {
     type: 'FeatureCollection',
     features: [],
 };
@@ -46,6 +69,159 @@ const createRasterStyle = (tileUrl: string): maplibregl.StyleSpecification => ({
         },
     ],
 });
+
+const imageCache = new Map<string, Promise<HTMLImageElement>>();
+
+const escapeSvgText = (value: unknown) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+const svgDataUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+
+const loadSvgImage = (id: string, svg: string) => {
+    const cached = imageCache.get(id);
+    if (cached) return cached;
+
+    const promise = new Promise<HTMLImageElement>((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = svgDataUrl(svg);
+    });
+    imageCache.set(id, promise);
+    return promise;
+};
+
+const iconSvgForFeature = (properties: Record<string, any>) => {
+    const color = String(properties.color || '#6366f1');
+    const size = Number(properties.displaySize || properties.size || 24);
+    const labelIndex = escapeSvgText(properties.labelIndex || '');
+    if (properties.isIntersection) {
+        const textColor = ['#ffffff', 'white', '#fff'].includes(color.toLowerCase().trim()) ? '#111827' : '#ffffff';
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">
+            <g transform="rotate(45 12 12)" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 2 L8 8 L2 8"/>
+                <path d="M16 2 L16 8 L22 8"/>
+                <path d="M22 16 L16 16 L16 22"/>
+                <path d="M8 22 L8 16 L2 16"/>
+            </g>
+            ${labelIndex ? `<text x="12" y="15" font-family="Arial, sans-serif" font-size="8" font-weight="900" text-anchor="middle" fill="${textColor}" stroke="rgba(0,0,0,0.7)" stroke-width="1" paint-order="stroke">${labelIndex}</text>` : ''}
+        </svg>`;
+    }
+    return getIconSvgString(
+        String(properties.iconKey || 'cctv'),
+        color,
+        size,
+        labelIndex,
+        Number(properties.rotation || 0)
+    );
+};
+
+const ensurePointImages = (map: maplibregl.Map, collection: MapLibreRenderFeatureCollection) => {
+    for (const feature of collection.features) {
+        const properties = feature.properties as Record<string, any>;
+        const imageId = properties.iconImageId;
+        if (!imageId || map.hasImage(imageId)) continue;
+        const svg = iconSvgForFeature(properties);
+        void loadSvgImage(imageId, svg)
+            .then(image => {
+                if (!map.hasImage(imageId)) {
+                    map.addImage(imageId, image);
+                    map.triggerRepaint();
+                }
+            })
+            .catch(error => console.warn('[MapLibreFastRenderer] Failed to load point icon:', imageId, error));
+    }
+};
+
+const setGeoJsonData = (
+    map: maplibregl.Map,
+    sourceId: string,
+    data: MapLibreFastFeatureCollection | MapLibreRenderFeatureCollection
+) => {
+    const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+    source?.setData(data as any);
+};
+
+const toLngLatEvent = (event: any) => ({
+    lat: event.lngLat.lat,
+    lng: event.lngLat.lng,
+});
+
+const featureCoordinates = (feature: FeatureState | null): [number, number][] => {
+    if (!feature) return [];
+    const parsed = getParsedCoordinates(feature);
+    if (!parsed || !Array.isArray(parsed)) return [];
+    const isPolygon = feature.geom_type?.toLowerCase() === 'polygon';
+    const coords = isPolygon ? (Array.isArray((parsed as any)[0]) ? (parsed as any)[0] : parsed) : parsed;
+    return Array.isArray(coords) ? coords as [number, number][] : [];
+};
+
+const buildDrawingOverlay = (
+    currentDrawingPoints: [number, number][],
+    snappedPoint: { x: number; y: number; id?: string } | null
+): MapLibreFastFeatureCollection => {
+    const features: MapLibreFastFeatureCollection['features'] = [];
+    if (currentDrawingPoints.length >= 2) {
+        features.push({
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: currentDrawingPoints },
+            properties: { kind: 'drawing-line' },
+        });
+    }
+    currentDrawingPoints.forEach((point, index) => {
+        features.push({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: point },
+            properties: { kind: 'drawing-vertex', index },
+        });
+    });
+    if (snappedPoint) {
+        features.push({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [snappedPoint.x, snappedPoint.y] },
+            properties: { kind: 'snap' },
+        });
+    }
+    return { type: 'FeatureCollection', features };
+};
+
+const buildEditOverlay = (
+    coords: [number, number][],
+    snapMarkers: PolylineSnapMarker[] = []
+): MapLibreFastFeatureCollection => {
+    const features: MapLibreFastFeatureCollection['features'] = [];
+    coords.forEach((point, index) => {
+        features.push({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: point },
+            properties: { kind: 'vertex', index },
+        });
+    });
+    coords.slice(0, -1).forEach((point, index) => {
+        const next = coords[index + 1];
+        features.push({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [(point[0] + next[0]) / 2, (point[1] + next[1]) / 2] },
+            properties: { kind: 'midpoint', index: index + 1 },
+        });
+    });
+    snapMarkers.forEach(marker => {
+        features.push({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: marker.coordinate },
+            properties: { kind: 'snap-link', index: marker.index, targetId: marker.targetId },
+        });
+    });
+    return { type: 'FeatureCollection', features };
+};
+
+const moveLayerToTop = (map: maplibregl.Map, layerId: string) => {
+    if (!map.getLayer(layerId) || typeof (map as any).moveLayer !== 'function') return;
+    (map as any).moveLayer(layerId);
+};
 
 const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLabels: boolean) => {
     if (!map.getSource(SOURCE_ID)) {
@@ -86,6 +262,24 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
         });
     }
 
+    if (!map.getLayer(LINE_HIT_LAYER_ID)) {
+        map.addLayer({
+            id: LINE_HIT_LAYER_ID,
+            type: 'line',
+            source: SOURCE_ID,
+            filter: ['==', ['geometry-type'], 'LineString'],
+            paint: {
+                'line-color': '#000000',
+                'line-width': ['max', 18, ['+', ['get', 'size'], 10]],
+                'line-opacity': 0.01,
+            },
+            layout: {
+                'line-cap': 'round',
+                'line-join': 'round',
+            },
+        });
+    }
+
     if (!map.getLayer(LINE_LAYER_ID)) {
         map.addLayer({
             id: LINE_LAYER_ID,
@@ -95,6 +289,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
             paint: {
                 'line-color': ['get', 'color'],
                 'line-width': ['get', 'size'],
+                'line-dasharray': ['case', ['has', 'dashArray'], ['get', 'dashArray'], ['literal', [1, 0]]],
                 'line-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 0.98, 0.74],
             },
             layout: {
@@ -128,10 +323,56 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
             filter: ['all', ['==', ['geometry-type'], 'Point'], ['!', ['has', 'point_count']]],
             paint: {
                 'circle-color': ['get', 'color'],
-                'circle-radius': ['get', 'size'],
-                'circle-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 1, 0.82],
+                'circle-radius': [
+                    'case',
+                    ['to-boolean', ['get', 'iconImageId']],
+                    ['case', ['boolean', ['feature-state', 'selected'], false], ['/', ['get', 'displaySize'], 2], ['/', ['get', 'displaySize'], 2.15]],
+                    ['/', ['get', 'displaySize'], 2],
+                ],
+                'circle-opacity': [
+                    'case',
+                    ['to-boolean', ['get', 'iconImageId']],
+                    ['case', ['boolean', ['feature-state', 'selected'], false], 0.96, 0.86],
+                    ['case', ['boolean', ['feature-state', 'selected'], false], 1, 0.82],
+                ],
                 'circle-stroke-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#ecfeff', '#ffffff'],
-                'circle-stroke-width': ['case', ['boolean', ['feature-state', 'selected'], false], 3, 1],
+                'circle-stroke-width': ['case', ['boolean', ['feature-state', 'selected'], false], 3, 1.5],
+            },
+        });
+    }
+
+    if (!map.getLayer(POINT_ICON_LAYER_ID)) {
+        map.addLayer({
+            id: POINT_ICON_LAYER_ID,
+            type: 'symbol',
+            source: SOURCE_ID,
+            filter: ['all', ['==', ['geometry-type'], 'Point'], ['!', ['has', 'point_count']], ['to-boolean', ['get', 'iconImageId']]],
+            layout: {
+                'icon-image': ['get', 'iconImageId'],
+                'icon-size': 1,
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true,
+            },
+        });
+    }
+
+    if (!map.getLayer(POINT_LABEL_LAYER_ID)) {
+        map.addLayer({
+            id: POINT_LABEL_LAYER_ID,
+            type: 'symbol',
+            source: SOURCE_ID,
+            filter: ['all', ['==', ['geometry-type'], 'Point'], ['!', ['has', 'point_count']], ['!', ['to-boolean', ['get', 'iconImageId']]]],
+            layout: {
+                'text-field': ['get', 'labelIndex'],
+                'text-size': 11,
+                'text-anchor': 'center',
+                'text-allow-overlap': true,
+                'text-ignore-placement': true,
+            },
+            paint: {
+                'text-color': '#ffffff',
+                'text-halo-color': '#0f172a',
+                'text-halo-width': 1,
             },
         });
     }
@@ -160,12 +401,125 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
     map.setLayoutProperty(LABEL_LAYER_ID, 'visibility', showLabels ? 'visible' : 'none');
 };
 
+const ensureOverlayLayers = (map: maplibregl.Map) => {
+    if (!map.getSource(DRAWING_SOURCE_ID)) {
+        map.addSource(DRAWING_SOURCE_ID, { type: 'geojson', data: emptyOverlayCollection as any });
+    }
+    if (!map.getSource(EDIT_SOURCE_ID)) {
+        map.addSource(EDIT_SOURCE_ID, { type: 'geojson', data: emptyOverlayCollection as any });
+    }
+    if (!map.getLayer(DRAWING_LINE_LAYER_ID)) {
+        map.addLayer({
+            id: DRAWING_LINE_LAYER_ID,
+            type: 'line',
+            source: DRAWING_SOURCE_ID,
+            filter: ['==', ['get', 'kind'], 'drawing-line'],
+            paint: {
+                'line-color': '#06b6d4',
+                'line-width': 3,
+                'line-dasharray': [1.5, 3],
+                'line-opacity': 0.8,
+            },
+        });
+    }
+    if (!map.getLayer(DRAWING_VERTEX_LAYER_ID)) {
+        map.addLayer({
+            id: DRAWING_VERTEX_LAYER_ID,
+            type: 'circle',
+            source: DRAWING_SOURCE_ID,
+            filter: ['==', ['get', 'kind'], 'drawing-vertex'],
+            paint: {
+                'circle-radius': 5,
+                'circle-color': '#ffffff',
+                'circle-stroke-color': '#06b6d4',
+                'circle-stroke-width': 2,
+            },
+        });
+    }
+    if (!map.getLayer(SNAP_LAYER_ID)) {
+        map.addLayer({
+            id: SNAP_LAYER_ID,
+            type: 'circle',
+            source: DRAWING_SOURCE_ID,
+            filter: ['==', ['get', 'kind'], 'snap'],
+            paint: {
+                'circle-radius': 7,
+                'circle-color': 'rgba(251, 146, 60, 0.42)',
+                'circle-stroke-color': '#fb923c',
+                'circle-stroke-width': 2,
+                'circle-blur': 0.2,
+            },
+        });
+    }
+    if (!map.getLayer(EDIT_VERTEX_LAYER_ID)) {
+        map.addLayer({
+            id: EDIT_VERTEX_LAYER_ID,
+            type: 'circle',
+            source: EDIT_SOURCE_ID,
+            filter: ['==', ['get', 'kind'], 'vertex'],
+            paint: {
+                'circle-radius': 8,
+                'circle-color': '#3b82f6',
+                'circle-stroke-color': '#ffffff',
+                'circle-stroke-width': 2,
+            },
+        });
+    }
+    if (!map.getLayer(EDIT_MIDPOINT_LAYER_ID)) {
+        map.addLayer({
+            id: EDIT_MIDPOINT_LAYER_ID,
+            type: 'circle',
+            source: EDIT_SOURCE_ID,
+            filter: ['==', ['get', 'kind'], 'midpoint'],
+            paint: {
+                'circle-radius': 6,
+                'circle-color': '#ffffff',
+                'circle-opacity': 0.65,
+                'circle-stroke-color': '#3b82f6',
+                'circle-stroke-width': 2,
+            },
+        });
+    }
+    if (!map.getLayer(EDIT_SNAP_LINK_LAYER_ID)) {
+        map.addLayer({
+            id: EDIT_SNAP_LINK_LAYER_ID,
+            type: 'circle',
+            source: EDIT_SOURCE_ID,
+            filter: ['==', ['get', 'kind'], 'snap-link'],
+            paint: {
+                'circle-radius': 7,
+                'circle-color': 'rgba(251, 146, 60, 0.72)',
+                'circle-stroke-color': '#fff7ed',
+                'circle-stroke-width': 2,
+                'circle-blur': 0.05,
+            },
+        });
+    }
+
+    [
+        DRAWING_LINE_LAYER_ID,
+        DRAWING_VERTEX_LAYER_ID,
+        SNAP_LAYER_ID,
+        EDIT_VERTEX_LAYER_ID,
+        EDIT_MIDPOINT_LAYER_ID,
+        EDIT_SNAP_LINK_LAYER_ID,
+    ].forEach(layerId => moveLayerToTop(map, layerId));
+};
+
 export function MapLibreFastRenderer({
     center,
     zoom,
+    onLocationChange,
+    onFinishDrawing,
+    onFinishDrawingSession,
+    isMeasureActive = false,
 }: {
     center: [number, number];
     zoom: number;
+    onLocationChange?: (lat: number, lng: number, snapId?: string | null) => void;
+    onFinishDrawing?: () => void;
+    onFinishDrawingSession?: () => void;
+    isMeasureActive?: boolean;
 }) {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const mapRef = React.useRef<maplibregl.Map | null>(null);
@@ -175,18 +529,27 @@ export function MapLibreFastRenderer({
     const features = useDesignSync(s => s.visibleFeatures);
     const rawFeatures = useDesignSync(s => s.state?.features || {});
     const isLargeProject = useDesignSync(s => Boolean(s.state?.isLargeProject));
+    const featureGroups = useDesignSync(s => s.state?.feature_groups || {});
     const projectId = useDesignSync(s => s.projectId);
     const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
     const mapHiddenIds = useDesignSync(s => s.mapHiddenIds);
+    const groupThemePreview = useDesignSync(s => s.groupThemePreview);
+    const drawingMode = useDesignSync(s => s.drawingMode);
+    const editingFeatureId = useDesignSync(s => s.editingFeatureId);
+    const currentDrawingPoints = useDesignSync(s => s.currentDrawingPoints);
+    const snappedPoint = useDesignSync(s => s.snappedPoint);
     const viewportFeatureLimit = useDesignSync(s => s.state?.viewportFeatureLimit || 10000);
     const mapRevision = useDesignSync(s => s.state?.mapRevision || 0);
     const viewportRevision = useDesignSync(s => s.viewportRevision);
     const selectFeature = useDesignSync(s => s.selectFeature);
     const setHoverId = useDesignSync(s => s.setHoverId);
+    const setDrawingPoint = useDesignSync(s => s.setDrawingPoint);
+    const insertDrawingPoint = useDesignSync(s => s.insertDrawingPoint);
     const zoomToTrigger = useDesignSync(s => s.zoomToTrigger);
     const setViewportFeatures = useDesignSync(s => s.setViewportFeatures);
     const setViewportLoading = useDesignSync(s => s.setViewportLoading);
     const setRenderMetrics = useDesignSync(s => s.setRenderMetrics);
+    const { performSnap, snapNow, clearSnap, snappedPointRef } = useSnap();
     const { getStyledUrl, mapKey } = useMapStyles();
     const basemapUrl = React.useMemo(() => getStyledUrl('y'), [getStyledUrl, mapKey]);
     const [currentZoom, setCurrentZoom] = React.useState(zoom);
@@ -195,6 +558,85 @@ export function MapLibreFastRenderer({
         () => Object.values(isLargeProject ? features : rawFeatures),
         [features, isLargeProject, rawFeatures]
     );
+    const renderFeatureRecord = React.useMemo(() => {
+        const record: Record<string, FeatureState> = {};
+        for (const feature of renderFeatureValues as FeatureState[]) {
+            if (feature?.id) record[feature.id] = feature;
+        }
+        return record;
+    }, [renderFeatureValues]);
+    const featureNumberMap = useFeatureNumbering(renderFeatureRecord);
+    const editingFeature = React.useMemo(
+        () => editingFeatureId ? (rawFeatures as Record<string, FeatureState>)[editingFeatureId] || (features as Record<string, FeatureState>)[editingFeatureId] || null : null,
+        [editingFeatureId, features, rawFeatures]
+    );
+    const selectedFeature = React.useMemo(
+        () => selectedFeatureId ? (rawFeatures as Record<string, FeatureState>)[selectedFeatureId] || (features as Record<string, FeatureState>)[selectedFeatureId] || null : null,
+        [features, rawFeatures, selectedFeatureId]
+    );
+    const snapFeatureRecord = React.useMemo(() => {
+        const record: Record<string, FeatureState> = {
+            ...(features as Record<string, FeatureState>),
+            ...(rawFeatures as Record<string, FeatureState>),
+        };
+        if (selectedFeature?.id) record[selectedFeature.id] = selectedFeature;
+        if (editingFeature?.id) record[editingFeature.id] = editingFeature;
+        return record;
+    }, [editingFeature, features, rawFeatures, selectedFeature]);
+    const editCoords = React.useMemo(() => featureCoordinates(editingFeature || selectedFeature), [editingFeature, selectedFeature]);
+    const polylineSnapMarkers = React.useMemo(() => {
+        const feature = editingFeature || selectedFeature;
+        if (!feature) return [];
+        return buildPolylineSnapMarkers(feature, snapFeatureRecord, getParsedMetadata(feature));
+    }, [editingFeature, selectedFeature, snapFeatureRecord]);
+    const dragRef = React.useRef<{ index: number; type: 'update' | 'insert' } | null>(null);
+    const latestRef = React.useRef({
+        drawingMode,
+        editingFeatureId,
+        editCoords,
+        performSnap,
+        snapNow,
+        clearSnap,
+        snappedPointRef,
+        onLocationChange,
+        onFinishDrawing,
+        onFinishDrawingSession,
+        setDrawingPoint,
+        insertDrawingPoint,
+        isMeasureActive,
+    });
+
+    React.useEffect(() => {
+        latestRef.current = {
+            drawingMode,
+            editingFeatureId,
+            editCoords,
+            performSnap,
+            snapNow,
+            clearSnap,
+            snappedPointRef,
+            onLocationChange,
+            onFinishDrawing,
+            onFinishDrawingSession,
+            setDrawingPoint,
+            insertDrawingPoint,
+            isMeasureActive,
+        };
+    }, [
+        drawingMode,
+        editingFeatureId,
+        editCoords,
+        performSnap,
+        snapNow,
+        clearSnap,
+        snappedPointRef,
+        onLocationChange,
+        onFinishDrawing,
+        onFinishDrawingSession,
+        setDrawingPoint,
+        insertDrawingPoint,
+        isMeasureActive,
+    ]);
 
     React.useEffect(() => {
         if (!containerRef.current || mapRef.current) return;
@@ -216,8 +658,9 @@ export function MapLibreFastRenderer({
         });
         map.once('load', () => setViewportTick(tick => tick + 1));
 
-        const interactiveLayers = [POINT_LAYER_ID, LINE_LAYER_ID, POLYGON_LAYER_ID];
+        const interactiveLayers = [POINT_LAYER_ID, POINT_ICON_LAYER_ID, POINT_LABEL_LAYER_ID, LINE_HIT_LAYER_ID, LINE_LAYER_ID, POLYGON_LAYER_ID];
         map.on('click', interactiveLayers, event => {
+            if (latestRef.current.drawingMode !== 'none') return;
             const feature = event.features?.[0];
             const id = feature?.properties?.id;
             if (typeof id !== 'string') return;
@@ -232,6 +675,75 @@ export function MapLibreFastRenderer({
         map.on('mouseleave', interactiveLayers, () => {
             setHoverId(null);
             map.getCanvas().style.cursor = '';
+        });
+
+        map.on('click', async event => {
+            const latest = latestRef.current;
+            if (latest.drawingMode === 'none') return;
+            const { lat, lng } = toLngLatEvent(event);
+            let snapped = latest.snappedPointRef.current;
+            if (!snapped) snapped = await latest.snapNow(lat, lng, 0.00002);
+            latest.onLocationChange?.(snapped ? snapped.y : lat, snapped ? snapped.x : lng, snapped?.id || null);
+        });
+        map.on('dblclick', event => {
+            const latest = latestRef.current;
+            if (latest.drawingMode !== 'polyline') return;
+            event.preventDefault();
+            latest.onFinishDrawing?.();
+        });
+        map.on('contextmenu', event => {
+            const latest = latestRef.current;
+            if (latest.drawingMode !== 'none') {
+                event.preventDefault();
+                latest.onFinishDrawingSession?.();
+            }
+        });
+        map.on('mousemove', event => {
+            const latest = latestRef.current;
+            if (latest.drawingMode === 'none' && !latest.editingFeatureId) return;
+            const { lat, lng } = toLngLatEvent(event);
+            latest.performSnap(lat, lng);
+        });
+        map.on('mouseout', () => {
+            const latest = latestRef.current;
+            if (latest.drawingMode === 'none' && !latest.editingFeatureId) return;
+            latest.clearSnap();
+        });
+
+        const startEditDrag = (type: 'update' | 'insert') => (event: any) => {
+            const feature = event.features?.[0];
+            const index = Number(feature?.properties?.index);
+            if (!Number.isInteger(index)) return;
+            event.preventDefault();
+            dragRef.current = { index, type };
+            map.dragPan.disable();
+            map.getCanvas().style.cursor = 'grabbing';
+        };
+        map.on('mousedown', EDIT_VERTEX_LAYER_ID, startEditDrag('update'));
+        map.on('mousedown', EDIT_MIDPOINT_LAYER_ID, startEditDrag('insert'));
+        map.on('mouseup', async event => {
+            const drag = dragRef.current;
+            if (!drag) return;
+            dragRef.current = null;
+            map.dragPan.enable();
+            map.getCanvas().style.cursor = '';
+
+            const latest = latestRef.current;
+            const { lat, lng } = toLngLatEvent(event);
+            let snapped = latest.snappedPointRef.current;
+            if (!snapped) snapped = await latest.snapNow(lat, lng, 0.00003);
+            const finalLat = snapped ? snapped.y : lat;
+            const finalLng = snapped ? snapped.x : lng;
+            if (!(await confirmUserAction('Xác nhận thay đổi vị trí điểm này?'))) {
+                latest.clearSnap();
+                return;
+            }
+            if (drag.type === 'insert') {
+                await latest.insertDrawingPoint(drag.index, finalLat, finalLng);
+            } else {
+                await latest.setDrawingPoint(drag.index, finalLat, finalLng, snapped?.id || null);
+            }
+            latest.clearSnap();
         });
 
         return () => {
@@ -314,14 +826,19 @@ export function MapLibreFastRenderer({
             const sourceStart = now();
             const { collection, lodPolicy } = buildMapLibreFeatureCollection({
                 features: renderFeatureValues,
-                selectedFeatureId: null,
+                selectedFeatureId,
                 hiddenIds: mapHiddenIds,
                 zoom: currentZoom,
+                featureGroups,
+                featureNumberMap,
+                groupThemePreview,
             });
             const sourceBuildMs = now() - sourceStart;
 
             const applyData = () => {
                 ensureDesignLayers(map, lodPolicy.clusterPoints, lodPolicy.showLabels);
+                ensureOverlayLayers(map);
+                ensurePointImages(map, collection);
                 const setDataStart = now();
                 const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
                 source?.setData(collection as any);
@@ -346,7 +863,24 @@ export function MapLibreFastRenderer({
         };
 
         render();
-    }, [basemapUrl, currentZoom, mapHiddenIds, renderFeatureValues, setRenderMetrics, viewportRevision]);
+    }, [basemapUrl, currentZoom, featureGroups, featureNumberMap, groupThemePreview, mapHiddenIds, renderFeatureValues, selectedFeatureId, setRenderMetrics, viewportRevision]);
+
+    React.useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+
+        const applyData = () => {
+            ensureOverlayLayers(map);
+            setGeoJsonData(map, DRAWING_SOURCE_ID, buildDrawingOverlay(currentDrawingPoints, snappedPoint));
+            setGeoJsonData(map, EDIT_SOURCE_ID, buildEditOverlay(editCoords, polylineSnapMarkers));
+        };
+
+        if (map.isStyleLoaded()) {
+            applyData();
+        } else {
+            map.once('styledata', applyData);
+        }
+    }, [basemapUrl, currentDrawingPoints, editCoords, polylineSnapMarkers, snappedPoint]);
 
     React.useEffect(() => {
         const map = mapRef.current;

@@ -76,6 +76,10 @@ pub enum StorageCommand {
         events: Vec<crate::domain::models::v2::EventEnvelope>,
         reply: oneshot::Sender<Result<usize, String>>,
     },
+    ApplyRemoteEvents {
+        events: Vec<crate::domain::models::v2::EventEnvelope>,
+        reply: oneshot::Sender<Result<serde_json::Value, String>>,
+    },
     SaveProject {
         reply: oneshot::Sender<Result<(), String>>,
     },

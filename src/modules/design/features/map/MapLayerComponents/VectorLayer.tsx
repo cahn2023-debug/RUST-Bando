@@ -1,5 +1,5 @@
 import React from 'react';
-import { Polyline, Polygon, CircleMarker } from 'react-leaflet';
+import { Polyline, Polygon, CircleMarker, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import {
@@ -10,6 +10,14 @@ import {
 } from '@TOOL/utils/featureUtils';
 import { getParsedMetadata } from '@DESIGN/features/map/MapLayerComponents/SharedMapComponents';
 import { handleFeatureSelection, stopFeatureEventPropagation } from '@DESIGN/features/map';
+import { buildPolylineSnapMarkers } from '../polylineSnapMarkers';
+
+const POLYLINE_SNAP_ICON = new L.DivIcon({
+    className: 'polyline-snap-marker pointer-events-none',
+    html: `<div style="width: 12px; height: 12px; background: rgba(251, 146, 60, 0.72); border: 2px solid #fff7ed; border-radius: 50%; box-shadow: 0 0 10px rgba(251,146,60,0.85); pointer-events: none;"></div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6]
+});
 
 export const VectorLayer = React.memo(({
     features,
@@ -140,7 +148,7 @@ export const VectorLayer = React.memo(({
                     const gis = metadata.gis && typeof metadata.gis === 'object'
                         ? metadata.gis as Record<string, unknown>
                         : {};
-                    const baseWeight = Number(gis.weight || gis.size || gis.stroke || metadata.weight || metadata.size || metadata.stroke || 0);
+                    const baseWeight = Number(gis.size || gis.weight || gis.stroke || metadata.size || metadata.weight || metadata.stroke || 0);
                     const lineColor = safeString(gis.color || metadata.color) || '#10b981';
                     const lineOpacity = Number(gis.opacity ?? metadata.opacity ?? 0.72);
                     const dashArray = safeString(gis.dashArray || metadata.dashArray) || undefined;
@@ -187,6 +195,9 @@ export const VectorLayer = React.memo(({
                     }
 
                     const shouldRenderHitArea = !isHeavyRender || isSelected || Number(currentZoom) >= 18;
+                    const snapMarkers = (isSelected || isEditing)
+                        ? buildPolylineSnapMarkers(f, allFeatures, metadata)
+                        : [];
 
                     return (
                         <React.Fragment key={f.id}>
@@ -217,6 +228,15 @@ export const VectorLayer = React.memo(({
                                 interactive={drawingMode === 'none' || drawingMode === 'move'}
                                 eventHandlers={getVectorEventHandlers(f.id, f.group_id, isEditing)}
                             />
+                            {snapMarkers.map(marker => (
+                                <Marker
+                                    key={`snap-${f.id}-${marker.index}-${marker.targetId}`}
+                                    position={[marker.coordinate[1], marker.coordinate[0]]}
+                                    interactive={false}
+                                    zIndexOffset={950}
+                                    icon={POLYLINE_SNAP_ICON}
+                                />
+                            ))}
                         </React.Fragment>
                     );
                 }

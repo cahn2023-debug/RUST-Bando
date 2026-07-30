@@ -11,6 +11,7 @@ import {
   upsertFiberPortPatch,
   upsertFiberPortTermination,
   upsertFiberSplice,
+  upsertFiberSplices,
 } from '@DESIGN/features/map/network/fiberService';
 
 const mockDesignSync = vi.hoisted(() => ({
@@ -40,6 +41,7 @@ vi.mock('@DESIGN/features/map/network/fiberService', () => ({
   deleteFiberPortPatch: vi.fn(),
   deleteFiberPortTermination: vi.fn(),
   upsertFiberSplice: vi.fn(),
+  upsertFiberSplices: vi.fn(),
   deleteFiberSplice: vi.fn(),
 }));
 
@@ -351,6 +353,58 @@ describe('FiberSpliceDiagramModal', () => {
     await waitFor(() => {
       expect(upsertFiberSplice).not.toHaveBeenCalled();
     });
+  });
+
+  it('falls back to per-core full connect when one splice pair already exists', async () => {
+    renderModal(makeInventory());
+    vi.mocked(upsertFiberSplices).mockRejectedValue(new Error('fiber splice pair already exists'));
+    vi.mocked(upsertFiberSplice)
+      .mockRejectedValueOnce(new Error('fiber splice pair already exists'))
+      .mockResolvedValue({} as any);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Nối full/i }));
+
+    await waitFor(() => {
+      expect(upsertFiberSplices).toHaveBeenCalledTimes(1);
+      expect(upsertFiberSplice).toHaveBeenCalledTimes(2);
+      expect(screen.queryByText(/fiber splice pair already exists/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it('keeps ODF selected when equipment upsert reports a duplicate event id', async () => {
+    const spliceInventory = {
+      ...makeSameCableInventory(),
+      equipment: [{
+        id: 'equipment-splice',
+        project_id: 'project-1',
+        feature_id: 'enclosure-1',
+        equipment_type: 'splice_enclosure',
+        status: 'active',
+        created_at: now,
+        updated_at: now,
+      }],
+    } satisfies FiberInventory;
+    const odfInventory = {
+      ...spliceInventory,
+      equipment: [{
+        ...spliceInventory.equipment[0],
+        equipment_type: 'odf',
+      }],
+    } satisfies FiberInventory;
+    mockDesignSync.value.state.inventory = spliceInventory;
+    vi.mocked(getFiberInventory).mockResolvedValue(odfInventory);
+    vi.mocked(upsertEquipment).mockRejectedValue(new Error('UNIQUE constraint failed: events.id'));
+
+    render(<FiberSpliceDiagramModal enclosureId="enclosure-1" evaluation={{ edges: [] }} onClose={vi.fn()} />);
+    const select = await screen.findByLabelText(/Loại điểm nối/i) as HTMLSelectElement;
+
+    fireEvent.change(select, { target: { value: 'odf' } });
+
+    await waitFor(() => {
+      expect(upsertEquipment).toHaveBeenCalledWith(expect.objectContaining({ equipmentType: 'odf' }));
+      expect(select.value).toBe('odf');
+    });
+    expect(await screen.findByText(/Đang đồng bộ lại dữ liệu/i)).toBeInTheDocument();
   });
 
   it('creates manual ODF ports', async () => {

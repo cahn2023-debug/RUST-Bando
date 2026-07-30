@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
 use std::net::{IpAddr, ToSocketAddrs};
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::{mpsc, oneshot};
@@ -27,6 +28,21 @@ const BINARY_READ_EXTENSIONS: &[&str] = &["pmp", "xlsx", "xls", "csv", "kml", "k
 #[derive(Clone)]
 pub struct ActorState {
     pub gateway_tx: mpsc::Sender<StorageCommand>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct SyncRuntimeState {
+    online: bool,
+    coordinator_url: Option<String>,
+    shared_secret: Option<String>,
+    last_error: Option<String>,
+    last_result: Option<Value>,
+}
+
+static SYNC_RUNTIME: OnceLock<Mutex<SyncRuntimeState>> = OnceLock::new();
+
+fn sync_runtime() -> &'static Mutex<SyncRuntimeState> {
+    SYNC_RUNTIME.get_or_init(|| Mutex::new(SyncRuntimeState::default()))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -2611,12 +2627,401 @@ pub async fn get_project_tree(
 
 #[tauri::command]
 pub async fn sync_v2_get_status() -> Result<serde_json::Value, String> {
-    Ok(json!({ "status": "offline", "reason": "v2_zero_legacy_no_sync" }))
+    let runtime = sync_runtime()
+        .lock()
+        .map_err(|_| "Failed to lock sync runtime".to_string())?
+        .clone();
+    let status = if let Some(error) = &runtime.last_error {
+        json!({ "status": "error", "reason": error })
+    } else if runtime.online {
+        json!({ "status": "online" })
+    } else {
+        json!({ "status": "offline", "reason": "sync_v2_offline" })
+    };
+    Ok(json!({
+        "status": status.get("status").cloned().unwrap_or_else(|| json!("offline")),
+        "reason": status.get("reason").cloned(),
+        "online": runtime.online,
+        "hasCoordinator": runtime.coordinator_url.is_some(),
+        "lastResult": runtime.last_result,
+    }))
 }
 
 #[tauri::command]
 pub async fn sync_v2_is_online() -> Result<bool, String> {
-    Ok(false)
+    sync_runtime()
+        .lock()
+        .map(|runtime| runtime.online)
+        .map_err(|_| "Failed to lock sync runtime".to_string())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn sync_v2_go_online(
+    coordinatorUrl: Option<String>,
+    coordinator_url: Option<String>,
+    sharedSecret: Option<String>,
+    shared_secret: Option<String>,
+) -> Result<Value, String> {
+    let url = trim_to_option(coordinatorUrl.or(coordinator_url))
+        .or_else(|| trim_to_option(std::env::var("PMP_COLLAB_COORDINATOR_URL").ok()))
+        .or_else(|| trim_to_option(std::env::var("VITE_COLLAB_COORDINATOR_URL").ok()));
+    let secret = trim_to_option(sharedSecret.or(shared_secret))
+        .or_else(|| trim_to_option(std::env::var("PMP_COLLAB_SHARED_SECRET").ok()))
+        .or_else(|| trim_to_option(std::env::var("VITE_COLLAB_SHARED_SECRET").ok()));
+    let mut runtime = sync_runtime()
+        .lock()
+        .map_err(|_| "Failed to lock sync runtime".to_string())?;
+    runtime.online = true;
+    if url.is_some() {
+        runtime.coordinator_url = url;
+    }
+    if secret.is_some() {
+        runtime.shared_secret = secret;
+    }
+    runtime.last_error = None;
+    Ok(json!({
+        "status": "online",
+        "hasCoordinator": runtime.coordinator_url.is_some(),
+    }))
+}
+
+#[tauri::command]
+pub async fn sync_v2_go_offline() -> Result<Value, String> {
+    let mut runtime = sync_runtime()
+        .lock()
+        .map_err(|_| "Failed to lock sync runtime".to_string())?;
+    runtime.online = false;
+    runtime.last_error = None;
+    Ok(json!({ "status": "offline" }))
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn get_pending_sync_outbox(
+    state: State<'_, ActorState>,
+    projectId: Option<String>,
+    project_id: Option<String>,
+) -> Result<Vec<Value>, String> {
+    let project_id = resolve_sync_project_id(&state, projectId.or(project_id)).await?;
+    storage_get_pending_sync_outbox(&state, &project_id).await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn mark_outbox_synced(
+    state: State<'_, ActorState>,
+    eventIds: Option<Vec<String>>,
+    event_ids: Option<Vec<String>>,
+    serverSeqStart: Option<i64>,
+    server_seq_start: Option<i64>,
+    ledgerHash: Option<String>,
+    ledger_hash: Option<String>,
+    serverTime: Option<String>,
+    server_time: Option<String>,
+) -> Result<usize, String> {
+    storage_mark_outbox_synced(
+        &state,
+        eventIds.or(event_ids).unwrap_or_default(),
+        serverSeqStart.or(server_seq_start),
+        ledgerHash.or(ledger_hash),
+        serverTime.or(server_time),
+    )
+    .await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn sync_v2_start(
+    state: State<'_, ActorState>,
+    projectId: Option<String>,
+    project_id: Option<String>,
+    coordinatorUrl: Option<String>,
+    coordinator_url: Option<String>,
+    sharedSecret: Option<String>,
+    shared_secret: Option<String>,
+) -> Result<Value, String> {
+    let project_id = resolve_sync_project_id(&state, projectId.or(project_id)).await?;
+    let incoming_url = trim_to_option(coordinatorUrl.or(coordinator_url));
+    let incoming_secret = trim_to_option(sharedSecret.or(shared_secret));
+    let (online, url, secret) = {
+        let mut runtime = sync_runtime()
+            .lock()
+            .map_err(|_| "Failed to lock sync runtime".to_string())?;
+        if incoming_url.is_some() {
+            runtime.coordinator_url = incoming_url;
+        }
+        if incoming_secret.is_some() {
+            runtime.shared_secret = incoming_secret;
+        }
+        (
+            runtime.online,
+            runtime.coordinator_url.clone(),
+            runtime.shared_secret.clone(),
+        )
+    };
+
+    if !online {
+        let result = json!({
+            "pushed": 0,
+            "pulled": 0,
+            "conflicts": 0,
+            "status": "offline",
+            "reason": "sync_v2_offline",
+        });
+        remember_sync_result(result.clone(), None)?;
+        return Ok(result);
+    }
+    let Some(url) = url else {
+        let result = json!({
+            "pushed": 0,
+            "pulled": 0,
+            "conflicts": 0,
+            "status": "offline",
+            "reason": "missing_coordinator_url",
+        });
+        remember_sync_result(result.clone(), None)?;
+        return Ok(result);
+    };
+
+    let pending = storage_get_pending_sync_outbox(&state, &project_id).await?;
+    let pushed = if pending.is_empty() {
+        0usize
+    } else {
+        let push_response = coordinator_action(
+            &url,
+            secret.as_deref(),
+            "commitBatch",
+            json!({
+                "project_id": project_id,
+                "projectId": project_id,
+                "events": pending,
+            }),
+        )
+        .await?;
+        let mut event_ids = extract_acked_event_ids(&push_response);
+        if event_ids.is_empty() {
+            event_ids = pending
+                .iter()
+                .filter_map(|event| event.get("eventId").and_then(Value::as_str))
+                .map(ToString::to_string)
+                .collect();
+        }
+        let server_seq_start = push_response
+            .get("serverSeqStart")
+            .or_else(|| push_response.get("server_seq_start"))
+            .or_else(|| push_response.get("seqStart"))
+            .and_then(Value::as_i64);
+        let ledger_hash = push_response
+            .get("ledgerHash")
+            .or_else(|| push_response.get("ledger_hash"))
+            .and_then(Value::as_str)
+            .map(ToString::to_string);
+        let server_time = push_response
+            .get("serverTime")
+            .or_else(|| push_response.get("server_time"))
+            .and_then(Value::as_str)
+            .map(ToString::to_string);
+        storage_mark_outbox_synced(&state, event_ids, server_seq_start, ledger_hash, server_time)
+            .await?
+    };
+
+    let after_seq = current_sync_cursor(&state, &project_id).await?;
+    let pull_response = coordinator_action(
+        &url,
+        secret.as_deref(),
+        "pullEvents",
+        json!({
+            "project_id": project_id,
+            "projectId": project_id,
+            "after_seq": after_seq,
+            "afterSeq": after_seq,
+            "limit": 250,
+        }),
+    )
+    .await?;
+    let remote_events = extract_remote_events(&pull_response);
+    let apply_report = if remote_events.is_empty() {
+        json!({ "applied": 0, "skipped": 0, "conflicts": 0 })
+    } else {
+        let mut envelopes = Vec::new();
+        for value in remote_events {
+            let obj = value
+                .as_object()
+                .cloned()
+                .ok_or_else(|| "Remote event must be an object".to_string())?;
+            let (envelope, _) = frontend_event_to_envelope(&project_id, obj)?;
+            envelopes.push(envelope);
+        }
+        storage_apply_remote_events(&state, envelopes).await?
+    };
+    let pulled = apply_report
+        .get("applied")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let conflicts = apply_report
+        .get("conflicts")
+        .and_then(Value::as_u64)
+        .unwrap_or(0);
+    let result = json!({
+        "pushed": pushed,
+        "pulled": pulled,
+        "conflicts": conflicts,
+        "status": "online",
+    });
+    remember_sync_result(result.clone(), None)?;
+    Ok(result)
+}
+
+fn remember_sync_result(result: Value, error: Option<String>) -> Result<(), String> {
+    let mut runtime = sync_runtime()
+        .lock()
+        .map_err(|_| "Failed to lock sync runtime".to_string())?;
+    runtime.last_result = Some(result);
+    runtime.last_error = error;
+    Ok(())
+}
+
+async fn resolve_sync_project_id(
+    state: &ActorState,
+    project_id: Option<String>,
+) -> Result<String, String> {
+    if let Some(project_id) = trim_to_option(project_id) {
+        return Ok(project_id);
+    }
+    let configured = exec_query(
+        state,
+        "SELECT value FROM sys_config WHERE key = 'active_project_id' LIMIT 1",
+        vec![],
+    )
+    .await?;
+    if let Some(project_id) = configured
+        .as_array()
+        .and_then(|rows| rows.first())
+        .and_then(|row| row.get("value"))
+        .and_then(Value::as_str)
+        .and_then(|value| trim_to_option(Some(value.to_string())))
+    {
+        return Ok(project_id);
+    }
+    let fallback = exec_query(
+        state,
+        "SELECT id FROM projects ORDER BY updated_at DESC, created_at DESC LIMIT 1",
+        vec![],
+    )
+    .await?;
+    fallback
+        .as_array()
+        .and_then(|rows| rows.first())
+        .and_then(|row| row.get("id"))
+        .and_then(Value::as_str)
+        .and_then(|value| trim_to_option(Some(value.to_string())))
+        .ok_or_else(|| "No active project is available for sync".to_string())
+}
+
+async fn current_sync_cursor(state: &ActorState, project_id: &str) -> Result<i64, String> {
+    let rows = exec_query(
+        state,
+        "SELECT last_server_seq FROM sync_cursor WHERE project_id = ? LIMIT 1",
+        vec![project_id.to_string()],
+    )
+    .await?;
+    Ok(rows
+        .as_array()
+        .and_then(|rows| rows.first())
+        .and_then(|row| row.get("last_server_seq"))
+        .and_then(Value::as_i64)
+        .unwrap_or(0))
+}
+
+async fn storage_get_pending_sync_outbox(
+    state: &ActorState,
+    project_id: &str,
+) -> Result<Vec<Value>, String> {
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::GetPendingSyncOutbox {
+            project_id: project_id.to_string(),
+            reply: tx,
+        })
+        .await
+        .map_err(|e| format!("IPC Queue error: {}", e))?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+async fn storage_mark_outbox_synced(
+    state: &ActorState,
+    event_ids: Vec<String>,
+    server_seq_start: Option<i64>,
+    ledger_hash: Option<String>,
+    server_time: Option<String>,
+) -> Result<usize, String> {
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::MarkOutboxSynced {
+            event_ids,
+            server_seq_start,
+            ledger_hash,
+            server_time,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| format!("IPC Queue error: {}", e))?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+async fn storage_apply_remote_events(
+    state: &ActorState,
+    events: Vec<crate::domain::models::v2::EventEnvelope>,
+) -> Result<Value, String> {
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::ApplyRemoteEvents { events, reply: tx })
+        .await
+        .map_err(|e| format!("IPC Queue error: {}", e))?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+async fn coordinator_action(
+    url: &str,
+    secret: Option<&str>,
+    action: &str,
+    request: Value,
+) -> Result<Value, String> {
+    post_collaboration_json(
+        url.to_string(),
+        json!({
+            "action": action,
+            "secret": secret,
+            "request": request,
+        }),
+    )
+    .await
+}
+
+fn extract_acked_event_ids(response: &Value) -> Vec<String> {
+    for key in ["ackedEventIds", "acked_event_ids", "eventIds", "event_ids"] {
+        if let Some(ids) = response.get(key).and_then(Value::as_array) {
+            return ids
+                .iter()
+                .filter_map(Value::as_str)
+                .map(ToString::to_string)
+                .collect();
+        }
+    }
+    Vec::new()
+}
+
+fn extract_remote_events(response: &Value) -> Vec<Value> {
+    for key in ["events", "appliedEvents", "applied_events"] {
+        if let Some(events) = response.get(key).and_then(Value::as_array) {
+            return events.clone();
+        }
+    }
+    Vec::new()
 }
 
 #[tauri::command]
@@ -2628,6 +3033,9 @@ pub async fn load_pmp_file(
     log::info!("[V2] load_pmp_file requesting switch to: {}", path);
     let path_buf = PathBuf::from(&path);
     ensure_pmp_extension(&path_buf)?;
+    if !path_buf.exists() {
+        return Err(format!("Tệp PMP không tồn tại tại đường dẫn: {}", path));
+    }
     let title = path_buf
         .file_stem()
         .and_then(|s| s.to_str())
@@ -2699,6 +3107,9 @@ pub async fn open_project_bootstrap(
 ) -> Result<serde_json::Value, String> {
     let path_buf = PathBuf::from(&path);
     ensure_pmp_extension(&path_buf)?;
+    if !path_buf.exists() {
+        return Err(format!("Tệp PMP không tồn tại tại đường dẫn: {}", path));
+    }
     let project = load_pmp_file(app, state.clone(), path.clone()).await?;
     let project_id = project
         .get("id")
@@ -2732,7 +3143,7 @@ pub async fn get_project_bootstrap_v2(
     .and_then(|arr| arr.first())
     .and_then(|row| row.get("value"))
     .and_then(Value::as_str)
-    .unwrap_or("./default_project.pmp")
+    .unwrap_or("")
     .to_string();
     let res = exec_query(
         &state,
@@ -2787,7 +3198,7 @@ pub async fn get_active_project(state: State<'_, ActorState>) -> Result<Option<V
 
     Ok(project_from_query_result(
         &res,
-        &active_path.unwrap_or_else(|| "./default_project.pmp".to_string()),
+        &active_path.unwrap_or_default(),
     ))
 }
 
@@ -3021,7 +3432,7 @@ pub async fn get_projects(state: State<'_, ActorState>) -> Result<Vec<Value>, St
     .and_then(|arr| arr.first())
     .and_then(|row| row.get("value"))
     .and_then(|v| v.as_str())
-    .unwrap_or("./default_project.pmp")
+    .unwrap_or("")
     .to_string();
     let res = exec_query(
         &state,

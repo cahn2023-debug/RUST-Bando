@@ -20,6 +20,7 @@ use tokio::sync::mpsc;
 
 const MAX_EVENT_PAYLOAD_BYTES: usize = 256 * 1024;
 const HISTORY_RETENTION_DAYS: i64 = 7;
+const MAX_DESIGN_HISTORY_STEPS: usize = 50;
 
 #[derive(Debug)]
 pub struct StorageWorker {
@@ -44,6 +45,7 @@ impl StorageWorker {
                                 StorageCommand::Query { .. }
                                     | StorageCommand::OpenDatabase { .. }
                                     | StorageCommand::DispatchEvents { .. }
+                                    | StorageCommand::ApplyRemoteEvents { .. }
                                     | StorageCommand::UpdateProjectState { .. }
                                     | StorageCommand::SaveProject { .. }
                                     | StorageCommand::BackupProject { .. }
@@ -51,6 +53,8 @@ impl StorageWorker {
                                     | StorageCommand::RestoreProject { .. }
                                     | StorageCommand::VerifyIntegrity { .. }
                                     | StorageCommand::GetProjectHealth { .. }
+                                    | StorageCommand::GetPendingSyncOutbox { .. }
+                                    | StorageCommand::MarkOutboxSynced { .. }
                                     | StorageCommand::ImportMediaAsset { .. }
                                     | StorageCommand::ReplaceMediaAsset { .. }
                                     | StorageCommand::AnalyzePmpImport { .. }
@@ -146,7 +150,7 @@ impl StorageWorker {
                 let result = match PmpDatabase::open_or_create(path) {
                     Ok(new_db) => {
                         self.db = new_db;
-                        self.auto_migrate_legacy_media_on_open()
+                        Ok(())
                     }
                     Err(e) => Err(e.to_string()),
                 };
@@ -162,6 +166,12 @@ impl StorageWorker {
             }
             StorageCommand::DispatchEvents { events, reply } => {
                 let res = catch_unwind(AssertUnwindSafe(|| self.dispatch_events(events)))
+                    .map_err(panic_to_string)
+                    .and_then(|result| result);
+                let _ = reply.send(res);
+            }
+            StorageCommand::ApplyRemoteEvents { events, reply } => {
+                let res = catch_unwind(AssertUnwindSafe(|| self.apply_remote_events(events)))
                     .map_err(panic_to_string)
                     .and_then(|result| result);
                 let _ = reply.send(res);
@@ -485,6 +495,7 @@ impl StorageWorker {
                 StorageCommand::Query { .. }
                     | StorageCommand::OpenDatabase { .. }
                     | StorageCommand::DispatchEvents { .. }
+                    | StorageCommand::ApplyRemoteEvents { .. }
                     | StorageCommand::UpdateProjectState { .. }
                     | StorageCommand::SaveProject { .. }
                     | StorageCommand::BackupProject { .. }
@@ -521,7 +532,7 @@ fn generate_inverse_event_json(
     tx: &Transaction<'_>,
     envelope: &EventEnvelope,
 ) -> Result<Option<String>, String> {
-        let _project_id = envelope.project_id.to_string();
+    let project_id = envelope.project_id.to_string();
     match &envelope.event {
         AppEvent::FeatureCreated { id, .. } => {
             Ok(Some(json!({
@@ -530,7 +541,7 @@ fn generate_inverse_event_json(
             }).to_string()))
         }
         AppEvent::FeatureDeleted { id } => {
-            if let Some(snapshot) = fetch_feature_snapshot(tx, &id.to_string())? {
+            if let Some(snapshot) = fetch_feature_snapshot(tx, &project_id, &id.to_string())? {
                 Ok(Some(json!({
                     "type": "FeatureCreated",
                     "payload": {
@@ -550,7 +561,7 @@ fn generate_inverse_event_json(
             }
         }
         AppEvent::FeatureUpdated { id, changes } => {
-            if let Some(snapshot) = fetch_feature_snapshot(tx, &id.to_string())? {
+            if let Some(snapshot) = fetch_feature_snapshot(tx, &project_id, &id.to_string())? {
                 let mut inverse_changes = json!({});
                 if let (Some(changes_obj), Some(inv_obj)) = (changes.as_object(), inverse_changes.as_object_mut()) {
                     for (key, _val) in changes_obj {
@@ -677,6 +688,7 @@ impl StorageWorker {
                         inverse_payload,
                     ],
                 ).map_err(|e| format!("Failed to insert design_history: {e}"))?;
+                prune_design_history(&tx, &project_id, MAX_DESIGN_HISTORY_STEPS).ok();
             }
             apply_event_to_read_models(&tx, &envelope)?;
             if event_requires_full_tile_invalidation(&envelope.event) {
@@ -698,6 +710,74 @@ impl StorageWorker {
         }
         tx.commit().map_err(|e| e.to_string())?;
         Ok(persisted_count)
+    }
+
+    fn apply_remote_events(&mut self, events: Vec<EventEnvelope>) -> Result<Value, String> {
+        if let Err(e) = ensure_runtime_schema_compatibility(&self.db.conn) {
+            log::error!("[StorageWorker] Failed to ensure runtime schema compatibility before remote apply: {e}");
+            return Err(format!("Schema compatibility check failed: {e}"));
+        }
+        let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
+        let mut applied = 0usize;
+        let mut skipped = 0usize;
+        let mut conflicts = 0usize;
+        let mut touched_projects = std::collections::BTreeSet::new();
+        let mut cursor_updates: std::collections::BTreeMap<String, (i64, String)> =
+            std::collections::BTreeMap::new();
+
+        for envelope in events {
+            let event_id = envelope.id.to_string();
+            let project_id = envelope.project_id.to_string();
+            let entity_id = envelope.entity_id.to_string();
+            if event_exists(&tx, &event_id)? {
+                skipped += 1;
+                continue;
+            }
+            if has_pending_local_outbox_for_entity(&tx, &project_id, &entity_id)? {
+                record_sync_conflict(&tx, &envelope)?;
+                conflicts += 1;
+                continue;
+            }
+
+            let affected_feature_ids = feature_ids_from_event(&envelope.event);
+            let mut affected_bboxes = Vec::new();
+            for feature_id in &affected_feature_ids {
+                if let Some(bbox) = feature_bbox_from_db(&tx, feature_id)? {
+                    affected_bboxes.push(bbox);
+                }
+            }
+            persist_remote_event(&tx, &envelope)?;
+            apply_event_to_read_models(&tx, &envelope)?;
+            if event_requires_full_tile_invalidation(&envelope.event) {
+                invalidate_map_tiles_tx(&tx, &project_id, None, None)?;
+            }
+            for feature_id in &affected_feature_ids {
+                if let Some(bbox) = feature_bbox_from_db(&tx, feature_id)? {
+                    affected_bboxes.push(bbox);
+                }
+            }
+            for bbox in merge_bboxes(affected_bboxes) {
+                invalidate_map_tiles_tx(&tx, &project_id, None, Some(bbox))?;
+            }
+            if envelope.global_seq > 0 {
+                cursor_updates.insert(project_id.clone(), (envelope.global_seq, event_id));
+            }
+            touched_projects.insert(project_id);
+            applied += 1;
+        }
+
+        for project_id in touched_projects {
+            rebuild_project_snapshot(&tx, &project_id)?;
+        }
+        for (project_id, (server_seq, event_id)) in cursor_updates {
+            upsert_sync_cursor(&tx, &project_id, server_seq, &event_id, None)?;
+        }
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok(json!({
+            "applied": applied,
+            "skipped": skipped,
+            "conflicts": conflicts,
+        }))
     }
 
     fn undo_design_event(&mut self, project_id: &str) -> Result<Value, String> {
@@ -1331,6 +1411,7 @@ impl StorageWorker {
         let compacted_events = compact_large_events(&tx, project_id)?;
         let compacted_history = compact_old_event_payloads(&tx, project_id)?;
         let deleted_outbox = delete_old_acked_outbox(&tx, project_id)?;
+        let pruned_history = prune_design_history(&tx, project_id, MAX_DESIGN_HISTORY_STEPS)?;
         rebuild_project_snapshot(&tx, project_id)?;
         tx.execute(
             "UPDATE projects
@@ -1352,6 +1433,7 @@ impl StorageWorker {
                     "compactedEvents": compacted_events,
                     "compactedHistoryEvents": compacted_history,
                     "deletedAckedOutbox": deleted_outbox,
+                    "prunedHistorySteps": pruned_history,
                     "before": before,
                 })
                 .to_string()
@@ -1390,6 +1472,7 @@ impl StorageWorker {
         }))
     }
 
+    #[allow(dead_code)]
     fn auto_migrate_legacy_media_on_open(&mut self) -> Result<(), String> {
         let project_ids = list_project_ids(&self.db.conn)?;
         if project_ids.is_empty() {
@@ -1404,10 +1487,18 @@ impl StorageWorker {
             let needs_link_repair = project_needs_media_link_repair(&self.db.conn, &project_id)?;
             let needs_coordinate_repair =
                 project_needs_coordinate_repair(&self.db.conn, &project_id)?;
-            if !needs_legacy_migration && !needs_link_repair && !needs_coordinate_repair {
+            let needs_missing_feature_repair =
+                project_needs_missing_feature_repair(&self.db.conn, &project_id)?;
+            if !needs_legacy_migration
+                && !needs_link_repair
+                && !needs_coordinate_repair
+                && !needs_missing_feature_repair
+            {
                 continue;
             }
-            if (needs_legacy_migration || needs_coordinate_repair) && !backup_created {
+            if (needs_legacy_migration || needs_coordinate_repair || needs_missing_feature_repair)
+                && !backup_created
+            {
                 self.db
                     .conn
                     .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
@@ -1424,12 +1515,14 @@ impl StorageWorker {
                 migrate_feature_media(&tx, &self.db.base_dir, &self.db.pmp_path, &project_id)?;
             let repaired_links =
                 repair_media_links(&tx, &self.db.base_dir, &self.db.pmp_path, &project_id)?;
+            let repaired_missing_features = repair_missing_features_from_events(&tx, &project_id)?;
             let repaired_coordinates = repair_missing_feature_coordinates(&tx, &project_id)?;
             let compacted_events = compact_large_events(&tx, &project_id)?;
             if hydrated_from_snapshot
                 || migrated_refs > 0
                 || compacted_events > 0
                 || repaired_links > 0
+                || repaired_missing_features > 0
                 || repaired_coordinates > 0
             {
                 rebuild_project_snapshot(&tx, &project_id)?;
@@ -1449,6 +1542,7 @@ impl StorageWorker {
                             "migratedAt": chrono::Local::now().to_rfc3339(),
                             "migratedMediaRefs": migrated_refs,
                             "repairedMediaLinks": repaired_links,
+                            "repairedMissingFeatures": repaired_missing_features,
                             "repairedCoordinates": repaired_coordinates,
                             "compactedEvents": compacted_events,
                             "hydratedFromSnapshot": hydrated_from_snapshot,
@@ -1527,6 +1621,7 @@ impl StorageWorker {
                         .map_err(|e| e.to_string())?;
                 }
                 StorageCommand::DispatchEvents { .. }
+                | StorageCommand::ApplyRemoteEvents { .. }
                 | StorageCommand::UpdateProjectState { .. }
                 | StorageCommand::SaveProject { .. }
                 | StorageCommand::Query { .. }
@@ -3372,6 +3467,7 @@ fn table_size_summary_for_conn(conn: &rusqlite::Connection) -> Result<Value, Str
     Ok(Value::Array(values))
 }
 
+#[allow(dead_code)]
 fn list_project_ids(conn: &rusqlite::Connection) -> Result<Vec<String>, String> {
     let mut stmt = conn
         .prepare("SELECT id FROM projects ORDER BY created_at, id")
@@ -3386,6 +3482,7 @@ fn list_project_ids(conn: &rusqlite::Connection) -> Result<Vec<String>, String> 
     Ok(ids)
 }
 
+#[allow(dead_code)]
 fn project_needs_legacy_media_migration(
     conn: &rusqlite::Connection,
     project_id: &str,
@@ -3433,6 +3530,7 @@ fn project_needs_legacy_media_migration(
     Ok(large_event_hits > 0)
 }
 
+#[allow(dead_code)]
 fn project_needs_media_link_repair(
     conn: &rusqlite::Connection,
     project_id: &str,
@@ -3457,6 +3555,7 @@ fn project_needs_media_link_repair(
     Ok(asset_count > 0 || feature_link_count > 0)
 }
 
+#[allow(dead_code)]
 fn project_needs_coordinate_repair(
     conn: &rusqlite::Connection,
     project_id: &str,
@@ -3483,6 +3582,42 @@ fn project_needs_coordinate_repair(
     Ok(hits > 0)
 }
 
+#[allow(dead_code)]
+fn project_needs_missing_feature_repair(
+    conn: &rusqlite::Connection,
+    project_id: &str,
+) -> Result<bool, String> {
+    let hits: i64 = conn
+        .query_row(
+            "WITH created_missing AS (
+                SELECT DISTINCT e.project_id, e.entity_id
+                FROM events e
+                LEFT JOIN features f
+                  ON f.project_id = e.project_id
+                 AND f.id = e.entity_id
+                WHERE e.project_id = ?1
+                  AND e.event_type = 'FeatureCreated'
+                  AND json_extract(e.payload_json, '$.type') = 'FeatureCreated'
+                  AND f.id IS NULL
+             )
+             SELECT COUNT(*)
+             FROM created_missing m
+             WHERE COALESCE((
+                SELECT e2.event_type
+                FROM events e2
+                WHERE e2.project_id = m.project_id
+                  AND e2.entity_id = m.entity_id
+                  AND e2.event_type IN ('FeatureCreated', 'FeatureUpdated', 'FeatureDeleted')
+                ORDER BY e2.global_seq DESC
+                LIMIT 1
+             ), '') != 'FeatureDeleted'",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(hits > 0)
+}
+
 fn repair_media_links(
     tx: &Transaction<'_>,
     base_dir: &Path,
@@ -3494,6 +3629,141 @@ fn repair_media_links(
     Ok(repaired)
 }
 
+#[allow(dead_code)]
+fn repair_missing_features_from_events(
+    tx: &Transaction<'_>,
+    project_id: &str,
+) -> Result<usize, String> {
+    let before_missing: i64 = tx
+        .query_row(
+            "WITH created_missing AS (
+                SELECT DISTINCT e.project_id, e.entity_id
+                FROM events e
+                LEFT JOIN features f
+                  ON f.project_id = e.project_id
+                 AND f.id = e.entity_id
+                WHERE e.project_id = ?1
+                  AND e.event_type = 'FeatureCreated'
+                  AND json_extract(e.payload_json, '$.type') = 'FeatureCreated'
+                  AND f.id IS NULL
+             )
+             SELECT COUNT(*)
+             FROM created_missing m
+             WHERE COALESCE((
+                SELECT e2.event_type
+                FROM events e2
+                WHERE e2.project_id = m.project_id
+                  AND e2.entity_id = m.entity_id
+                  AND e2.event_type IN ('FeatureCreated', 'FeatureUpdated', 'FeatureDeleted')
+                ORDER BY e2.global_seq DESC
+                LIMIT 1
+             ), '') != 'FeatureDeleted'",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if before_missing == 0 {
+        return Ok(0);
+    }
+
+    let project_uuid = uuid::Uuid::parse_str(project_id)
+        .map_err(|_| format!("Invalid project_id for missing feature repair: {}", project_id))?;
+    let events: Vec<(String, String)> = {
+        let mut stmt = tx
+            .prepare(
+                "WITH created_missing AS (
+                    SELECT DISTINCT e.project_id, e.entity_id
+                    FROM events e
+                    LEFT JOIN features f
+                      ON f.project_id = e.project_id
+                     AND f.id = e.entity_id
+                    WHERE e.project_id = ?1
+                      AND e.event_type = 'FeatureCreated'
+                      AND json_extract(e.payload_json, '$.type') = 'FeatureCreated'
+                      AND f.id IS NULL
+                 ),
+                 missing_features AS (
+                    SELECT m.entity_id
+                    FROM created_missing m
+                    WHERE COALESCE((
+                        SELECT e2.event_type
+                        FROM events e2
+                        WHERE e2.project_id = m.project_id
+                          AND e2.entity_id = m.entity_id
+                          AND e2.event_type IN ('FeatureCreated', 'FeatureUpdated', 'FeatureDeleted')
+                        ORDER BY e2.global_seq DESC
+                        LIMIT 1
+                    ), '') != 'FeatureDeleted'
+                 )
+                 SELECT e.entity_id, e.payload_json
+                 FROM events e
+                 INNER JOIN missing_features m ON m.entity_id = e.entity_id
+                 WHERE e.project_id = ?1
+                   AND e.event_type IN ('FeatureCreated', 'FeatureUpdated')
+                   AND json_extract(e.payload_json, '$.type') = e.event_type
+                 ORDER BY e.global_seq",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![project_id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .map_err(|e| e.to_string())?;
+        let mut events = Vec::new();
+        for row in rows {
+            events.push(row.map_err(|e| e.to_string())?);
+        }
+        events
+    };
+
+    for (entity_id, payload_json) in events {
+        let entity_uuid = uuid::Uuid::parse_str(&entity_id)
+            .map_err(|_| format!("Invalid feature id for missing feature repair: {}", entity_id))?;
+        let event = AppEvent::robust_deserialize(&payload_json)?;
+        let entity_type = event.entity_type().to_string();
+        let envelope = EventEnvelope::new(
+            project_uuid,
+            &entity_type,
+            entity_uuid,
+            event,
+            "missing-feature-repair",
+            None,
+        );
+        apply_event_to_read_models(tx, &envelope)?;
+    }
+
+    let after_missing: i64 = tx
+        .query_row(
+            "WITH created_missing AS (
+                SELECT DISTINCT e.project_id, e.entity_id
+                FROM events e
+                LEFT JOIN features f
+                  ON f.project_id = e.project_id
+                 AND f.id = e.entity_id
+                WHERE e.project_id = ?1
+                  AND e.event_type = 'FeatureCreated'
+                  AND json_extract(e.payload_json, '$.type') = 'FeatureCreated'
+                  AND f.id IS NULL
+             )
+             SELECT COUNT(*)
+             FROM created_missing m
+             WHERE COALESCE((
+                SELECT e2.event_type
+                FROM events e2
+                WHERE e2.project_id = m.project_id
+                  AND e2.entity_id = m.entity_id
+                  AND e2.event_type IN ('FeatureCreated', 'FeatureUpdated', 'FeatureDeleted')
+                ORDER BY e2.global_seq DESC
+                LIMIT 1
+             ), '') != 'FeatureDeleted'",
+            params![project_id],
+            |row| row.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(before_missing.saturating_sub(after_missing) as usize)
+}
+
+#[allow(dead_code)]
 fn repair_missing_feature_coordinates(
     tx: &Transaction<'_>,
     project_id: &str,
@@ -3520,7 +3790,7 @@ fn repair_missing_feature_coordinates(
 
     let mut repaired = 0usize;
     for feature_id in feature_ids {
-        let Some(coordinates) = recover_feature_created_coordinates(tx, &feature_id)? else {
+        let Some(coordinates) = recover_feature_created_coordinates(tx, project_id, &feature_id)? else {
             continue;
         };
         let Some(coordinates_json) = coordinates_json_for_db(&coordinates) else {
@@ -3752,6 +4022,7 @@ fn restore_feature_media_links_from_metadata(
     Ok(restored)
 }
 
+#[allow(dead_code)]
 fn backup_legacy_media_migration(pmp_path: &Path) -> Result<(), String> {
     let backup_path = next_legacy_backup_path(pmp_path);
     backup_database_snapshot(pmp_path, &backup_path)
@@ -3790,6 +4061,7 @@ fn backup_database_snapshot(source_path: &Path, backup_path: &Path) -> Result<()
     Ok(())
 }
 
+#[allow(dead_code)]
 fn next_legacy_backup_path(pmp_path: &Path) -> PathBuf {
     let preferred = PathBuf::from(format!("{}.bak", pmp_path.to_string_lossy()));
     if !preferred.exists() {
@@ -3802,6 +4074,7 @@ fn next_legacy_backup_path(pmp_path: &Path) -> PathBuf {
     ))
 }
 
+#[allow(dead_code)]
 fn hydrate_tables_from_legacy_snapshot_if_needed(
     tx: &Transaction<'_>,
     project_id: &str,
@@ -3825,6 +4098,7 @@ fn hydrate_tables_from_legacy_snapshot_if_needed(
     Ok(true)
 }
 
+#[allow(dead_code)]
 fn load_legacy_design_state(tx: &Transaction<'_>, project_id: &str) -> Result<Value, String> {
     let snapshot_state: Option<String> = tx
         .query_row(
@@ -3854,6 +4128,7 @@ fn load_legacy_design_state(tx: &Transaction<'_>, project_id: &str) -> Result<Va
         .unwrap_or_else(|| json!({})))
 }
 
+#[allow(dead_code)]
 fn state_has_design_data(state: &Value) -> bool {
     ["regions", "layers", "feature_groups", "features"]
         .iter()
@@ -4086,15 +4361,52 @@ fn compact_old_event_payloads(tx: &Transaction<'_>, project_id: &str) -> Result<
     .map_err(|e| e.to_string())
 }
 
-fn delete_old_acked_outbox(tx: &Transaction<'_>, project_id: &str) -> Result<usize, String> {
+fn prune_design_history(tx: &Transaction<'_>, project_id: &str, max_steps: usize) -> Result<usize, String> {
     tx.execute(
+        "DELETE FROM design_history
+         WHERE project_id = ?1
+           AND id NOT IN (
+               SELECT id FROM design_history
+               WHERE project_id = ?1
+               ORDER BY created_at DESC
+               LIMIT ?2
+           )",
+        params![project_id, max_steps as i64],
+    )
+    .map_err(|e| e.to_string())
+}
+
+fn delete_old_acked_outbox(tx: &Transaction<'_>, project_id: &str) -> Result<usize, String> {
+    let acked = tx.execute(
         "DELETE FROM sync_outbox
          WHERE project_id = ?1
            AND status = 'acked'
            AND julianday('now') - julianday(COALESCE(acked_at, updated_at, created_at)) > ?2",
         params![project_id, HISTORY_RETENTION_DAYS],
-    )
-    .map_err(|e| e.to_string())
+    ).unwrap_or(0);
+
+    let local = tx.execute(
+        "DELETE FROM sync_outbox
+         WHERE project_id = ?1
+           AND status IN ('pending', 'local', 'acked')
+           AND event_id IN (SELECT id FROM events WHERE project_id = ?1)
+           AND julianday('now') - julianday(created_at) > 1.0",
+        params![project_id],
+    ).unwrap_or(0);
+
+    let capped = tx.execute(
+        "DELETE FROM sync_outbox
+         WHERE project_id = ?1
+           AND event_id NOT IN (
+               SELECT event_id FROM sync_outbox
+               WHERE project_id = ?1
+               ORDER BY created_at DESC
+               LIMIT 500
+           )",
+        params![project_id],
+    ).unwrap_or(0);
+
+    Ok(acked + local + capped)
 }
 
 fn empty_design_state() -> Value {
@@ -4190,17 +4502,19 @@ fn bbox_json_for_db(coordinates: Option<&Value>, bbox: Option<&Value>) -> Option
 
 fn recover_feature_created_coordinates(
     tx: &Transaction<'_>,
+    project_id: &str,
     feature_id: &str,
 ) -> Result<Option<Value>, String> {
     let payload: Option<String> = tx
         .query_row(
             "SELECT payload_json
              FROM events
-             WHERE entity_id = ?1
+             WHERE project_id = ?1
+               AND entity_id = ?2
                AND event_type = 'FeatureCreated'
              ORDER BY global_seq
              LIMIT 1",
-            params![feature_id],
+            params![project_id, feature_id],
             |row| row.get(0),
         )
         .optional()
@@ -4219,6 +4533,19 @@ fn recover_feature_created_coordinates(
 }
 
 fn persist_event(tx: &Transaction<'_>, envelope: &EventEnvelope) -> Result<(), String> {
+    persist_event_record(tx, envelope, "local", true)
+}
+
+fn persist_remote_event(tx: &Transaction<'_>, envelope: &EventEnvelope) -> Result<(), String> {
+    persist_event_record(tx, envelope, "acked", false)
+}
+
+fn persist_event_record(
+    tx: &Transaction<'_>,
+    envelope: &EventEnvelope,
+    sync_status: &str,
+    write_outbox: bool,
+) -> Result<(), String> {
     let payload = serde_json::to_string(&envelope.event).map_err(|e| e.to_string())?;
     if payload.len() > MAX_EVENT_PAYLOAD_BYTES {
         return Err(format!(
@@ -4232,9 +4559,24 @@ fn persist_event(tx: &Transaction<'_>, envelope: &EventEnvelope) -> Result<(), S
         .hash
         .clone()
         .unwrap_or_else(|| envelope.calculate_hash());
+    let server_seq = if envelope.global_seq > 0 {
+        Some(envelope.global_seq)
+    } else {
+        None
+    };
     tx.execute(
-        "INSERT INTO events (id, project_id, entity_type, entity_id, event_type, payload_json, metadata_json, device_id, entity_version, sync_status, hash)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'local', ?10)",
+        "INSERT INTO events (
+            id, project_id, entity_type, entity_id, event_type, payload_json,
+            metadata_json, device_id, entity_version, server_seq, sync_status,
+            acked_at, server_time, hash
+         )
+         VALUES (
+            ?1, ?2, ?3, ?4, ?5, ?6,
+            ?7, ?8, ?9, ?10, ?11,
+            CASE WHEN ?11 = 'acked' THEN CURRENT_TIMESTAMP ELSE NULL END,
+            CASE WHEN ?11 = 'acked' THEN CURRENT_TIMESTAMP ELSE NULL END,
+            ?12
+         )",
         params![
             envelope.id.to_string(),
             envelope.project_id.to_string(),
@@ -4245,11 +4587,114 @@ fn persist_event(tx: &Transaction<'_>, envelope: &EventEnvelope) -> Result<(), S
             meta,
             envelope.device_id,
             envelope.version,
+            server_seq,
+            sync_status,
             hash,
         ],
     )
     .map_err(|e| e.to_string())?;
-    persist_sync_outbox(tx, envelope)?;
+    if write_outbox {
+        persist_sync_outbox(tx, envelope)?;
+    }
+    Ok(())
+}
+
+fn event_exists(tx: &Transaction<'_>, event_id: &str) -> Result<bool, String> {
+    tx.query_row(
+        "SELECT 1 FROM events WHERE id = ?1 LIMIT 1",
+        params![event_id],
+        |_| Ok(()),
+    )
+    .optional()
+    .map(|row| row.is_some())
+    .map_err(|e| e.to_string())
+}
+
+fn has_pending_local_outbox_for_entity(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    entity_id: &str,
+) -> Result<bool, String> {
+    tx.query_row(
+        "SELECT 1
+         FROM sync_outbox
+         WHERE project_id = ?1
+           AND entity_id = ?2
+           AND status IN ('pending', 'failed', 'conflicted')
+         LIMIT 1",
+        params![project_id, entity_id],
+        |_| Ok(()),
+    )
+    .optional()
+    .map(|row| row.is_some())
+    .map_err(|e| e.to_string())
+}
+
+fn record_sync_conflict(tx: &Transaction<'_>, envelope: &EventEnvelope) -> Result<(), String> {
+    let project_id = envelope.project_id.to_string();
+    let entity_id = envelope.entity_id.to_string();
+    let local_event_json: Option<String> = tx
+        .query_row(
+            "SELECT payload_json
+             FROM sync_outbox
+             WHERE project_id = ?1
+               AND entity_id = ?2
+               AND status IN ('pending', 'failed', 'conflicted')
+             ORDER BY updated_at DESC, created_at DESC
+             LIMIT 1",
+            params![project_id, entity_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    let local_event_json = local_event_json.unwrap_or_else(|| "{}".to_string());
+    let server_event_json = serde_json::to_string(envelope).map_err(|e| e.to_string())?;
+    tx.execute(
+        "INSERT OR IGNORE INTO sync_conflicts (
+            conflict_id, project_id, entity_id, base_entity_version,
+            local_event_json, server_event_json, resolution_status,
+            created_at, updated_at
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'open', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+        params![
+            uuid::Uuid::new_v4().to_string(),
+            project_id,
+            entity_id,
+            envelope.version,
+            local_event_json,
+            server_event_json,
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn upsert_sync_cursor(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    server_seq: i64,
+    event_id: &str,
+    ledger_hash: Option<&str>,
+) -> Result<(), String> {
+    tx.execute(
+        "INSERT INTO sync_cursor (
+            project_id, last_server_seq, last_event_id, last_ledger_hash, updated_at
+         ) VALUES (?1, ?2, ?3, ?4, CURRENT_TIMESTAMP)
+         ON CONFLICT(project_id) DO UPDATE SET
+            last_server_seq = CASE
+                WHEN excluded.last_server_seq > sync_cursor.last_server_seq
+                THEN excluded.last_server_seq
+                ELSE sync_cursor.last_server_seq
+            END,
+            last_event_id = CASE
+                WHEN excluded.last_server_seq >= sync_cursor.last_server_seq
+                THEN excluded.last_event_id
+                ELSE sync_cursor.last_event_id
+            END,
+            last_ledger_hash = COALESCE(excluded.last_ledger_hash, sync_cursor.last_ledger_hash),
+            updated_at = CURRENT_TIMESTAMP",
+        params![project_id, server_seq, event_id, ledger_hash],
+    )
+    .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -4329,6 +4774,14 @@ impl StorageWorker {
         let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
         let mut updated = 0usize;
         for (offset, event_id) in event_ids.into_iter().enumerate() {
+            let project_and_entity: Option<(String, String)> = tx
+                .query_row(
+                    "SELECT project_id, entity_id FROM sync_outbox WHERE event_id = ?1 LIMIT 1",
+                    params![event_id],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .optional()
+                .map_err(|e| e.to_string())?;
             let server_seq = server_seq_start.map(|seq| seq + offset as i64);
             let ledger_hash_value = ledger_hash.clone();
             let server_time_value = server_time.clone();
@@ -4360,6 +4813,9 @@ impl StorageWorker {
                 ],
             )
             .map_err(|e| e.to_string())?;
+            if let (Some((project_id, _)), Some(seq)) = (project_and_entity, server_seq) {
+                upsert_sync_cursor(&tx, &project_id, seq, &event_id, ledger_hash.as_deref())?;
+            }
             updated += 1;
         }
         tx.commit().map_err(|e| e.to_string())?;
@@ -4614,19 +5070,13 @@ fn apply_event_to_read_models(
             project_fiber_cable_if_eligible(tx, &project_id, &id.to_string(), geom_type, metadata)?;
         }
         AppEvent::FeatureUpdated { id, changes } => {
-            let mut current = fetch_feature_snapshot(tx, &id.to_string())?.unwrap_or_else(|| {
-                json!({
-                    "id": id.to_string(),
-                    "layer_id": "",
-                    "group_id": null,
-                    "name": "",
-                    "geom_type": "",
-                    "metadata": "{}",
-                    "properties": {},
-                    "coordinates": null,
-                    "bbox": null
-                })
-            });
+            let mut current = fetch_feature_snapshot(tx, &project_id, &id.to_string())?
+                .ok_or_else(|| {
+                    format!(
+                        "FeatureUpdated target not found in project: project_id={}, feature_id={}",
+                        project_id, id
+                    )
+                })?;
             let mut safe_changes = changes.clone();
             if let Some(changes_obj) = safe_changes.as_object_mut() {
                 if let Some(geometry) = changes_obj.remove("geometry") {
@@ -4641,7 +5091,7 @@ fn apply_event_to_read_models(
                         .unwrap_or(true)
                 {
                     if let Some(recovered_coordinates) =
-                        recover_feature_created_coordinates(tx, &id.to_string())?
+                        recover_feature_created_coordinates(tx, &project_id, &id.to_string())?
                     {
                         if let Some(current_obj) = current.as_object_mut() {
                             current_obj.insert("coordinates".to_string(), recovered_coordinates);
@@ -4706,8 +5156,8 @@ fn apply_event_to_read_models(
         }
         AppEvent::FeatureDeleted { id } => {
             tx.execute(
-                "DELETE FROM features WHERE id = ?1",
-                params![id.to_string()],
+                "DELETE FROM features WHERE project_id = ?1 AND id = ?2",
+                params![project_id, id.to_string()],
             )
             .map_err(|e| e.to_string())?;
             cleanup_feature_rtree_orphans(tx)?;
@@ -5467,10 +5917,16 @@ fn fetch_feature_group_snapshot(tx: &Transaction<'_>, id: &str) -> Result<Option
     .map_err(|e| e.to_string())
 }
 
-fn fetch_feature_snapshot(tx: &Transaction<'_>, id: &str) -> Result<Option<Value>, String> {
+fn fetch_feature_snapshot(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    id: &str,
+) -> Result<Option<Value>, String> {
     tx.query_row(
-        "SELECT id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json FROM features WHERE id = ?1",
-        params![id],
+        "SELECT id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json
+         FROM features
+         WHERE project_id = ?1 AND id = ?2",
+        params![project_id, id],
         |row| {
             let coordinates_json: Option<String> = row.get(5)?;
             let properties_json: String = row.get(6)?;
@@ -5624,7 +6080,8 @@ fn write_feature_snapshot(
     tx.execute(
         "INSERT INTO features (id, project_id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json, bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y, is_visible, note, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, CURRENT_TIMESTAMP)
-         ON CONFLICT(id) DO UPDATE SET layer_id = excluded.layer_id, group_id = excluded.group_id, name = excluded.name, geom_type = excluded.geom_type, coordinates_json = excluded.coordinates_json, properties_json = excluded.properties_json, metadata_json = excluded.metadata_json, bbox_json = excluded.bbox_json, bbox_min_x = excluded.bbox_min_x, bbox_min_y = excluded.bbox_min_y, bbox_max_x = excluded.bbox_max_x, bbox_max_y = excluded.bbox_max_y, is_visible = excluded.is_visible, note = excluded.note, updated_at = CURRENT_TIMESTAMP",
+         ON CONFLICT(id) DO UPDATE SET layer_id = excluded.layer_id, group_id = excluded.group_id, name = excluded.name, geom_type = excluded.geom_type, coordinates_json = excluded.coordinates_json, properties_json = excluded.properties_json, metadata_json = excluded.metadata_json, bbox_json = excluded.bbox_json, bbox_min_x = excluded.bbox_min_x, bbox_min_y = excluded.bbox_min_y, bbox_max_x = excluded.bbox_max_x, bbox_max_y = excluded.bbox_max_y, is_visible = excluded.is_visible, note = excluded.note, updated_at = CURRENT_TIMESTAMP
+         WHERE features.project_id = excluded.project_id",
         params![
             id,
             project_id,
@@ -6397,7 +6854,7 @@ fn project_bounds_for_tiles(conn: &Connection, project_id: &str) -> [f64; 4] {
 mod tests {
     use super::*;
     use tempfile::tempdir;
-    use tokio::sync::oneshot;
+    use tokio::sync::{mpsc, oneshot};
     use uuid::Uuid;
 
     fn seed_basic_project(conn: &Connection, project_id: &str, name: &str) {
@@ -6406,6 +6863,526 @@ mod tests {
             params![project_id, name, name],
         )
         .expect("seed project");
+    }
+
+    fn seed_feature_for_project(
+        conn: &Connection,
+        project_id: &str,
+        layer_id: &str,
+        feature_id: &str,
+        name: &str,
+        metadata: Value,
+    ) {
+        conn.execute(
+            "INSERT INTO layers (id, project_id, name) VALUES (?1, ?2, ?3)",
+            params![layer_id, project_id, "Layer"],
+        )
+        .expect("seed layer");
+        conn.execute(
+            "INSERT INTO features (id, project_id, layer_id, name, geom_type, coordinates_json, properties_json, metadata_json)
+             VALUES (?1, ?2, ?3, ?4, 'Point', ?5, ?6, ?7)",
+            params![
+                feature_id,
+                project_id,
+                layer_id,
+                name,
+                json!([105.0, 21.0]).to_string(),
+                json!({"iconKey": "intersection"}).to_string(),
+                metadata.to_string(),
+            ],
+        )
+        .expect("seed feature");
+    }
+
+    fn storage_worker_for(db: PmpDatabase) -> StorageWorker {
+        let (_tx, rx) = mpsc::channel(1);
+        StorageWorker { rx, db }
+    }
+
+    #[test]
+    fn feature_updated_updates_only_the_target_project_feature() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("feature_update_project_scope.pmp");
+        let mut db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let project_id = Uuid::new_v4();
+        let layer_id = Uuid::new_v4();
+        let feature_id = Uuid::new_v4();
+        seed_basic_project(&db.conn, &project_id.to_string(), "Project A");
+        seed_feature_for_project(
+            &db.conn,
+            &project_id.to_string(),
+            &layer_id.to_string(),
+            &feature_id.to_string(),
+            "Node A",
+            json!({"description": "before", "network": {"role": "device"}}),
+        );
+
+        let tx = db.conn.transaction().expect("tx");
+        let envelope = EventEnvelope::new(
+            project_id,
+            "feature",
+            feature_id,
+            AppEvent::FeatureUpdated {
+                id: feature_id,
+                changes: json!({
+                    "name": "Node A Updated",
+                    "metadata": json!({"description": "after"})
+                }),
+            },
+            "test-device",
+            None,
+        );
+        apply_event_to_read_models(&tx, &envelope).expect("apply update");
+        tx.commit().expect("commit");
+
+        let (name, metadata): (String, String) = db
+            .conn
+            .query_row(
+                "SELECT name, metadata_json FROM features WHERE project_id = ?1 AND id = ?2",
+                params![project_id.to_string(), feature_id.to_string()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("updated feature");
+        let metadata: Value = serde_json::from_str(&metadata).expect("metadata json");
+        assert_eq!(name, "Node A Updated");
+        assert_eq!(metadata.get("description"), Some(&json!("after")));
+        assert_eq!(metadata.pointer("/network/role"), Some(&json!("device")));
+    }
+
+    #[test]
+    fn mark_outbox_synced_updates_event_and_cursor() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("mark_outbox_synced.pmp");
+        let mut db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let project_id = Uuid::new_v4();
+        let entity_id = Uuid::new_v4();
+        seed_basic_project(&db.conn, &project_id.to_string(), "Project A");
+
+        let envelope = EventEnvelope::new(
+            project_id,
+            "settings",
+            entity_id,
+            AppEvent::SettingsUpdated {
+                changes: json!({"theme": "dark"}),
+            },
+            "test-device",
+            None,
+        );
+        let event_id = envelope.id.to_string();
+        {
+            let tx = db.conn.transaction().expect("tx");
+            persist_event(&tx, &envelope).expect("persist local event");
+            tx.commit().expect("commit");
+        }
+
+        let mut worker = storage_worker_for(db);
+        let updated = worker
+            .mark_outbox_synced(
+                vec![event_id.clone()],
+                Some(42),
+                Some("ledger-42".to_string()),
+                Some("2026-07-28T00:00:00Z".to_string()),
+            )
+            .expect("mark acked");
+        assert_eq!(updated, 1);
+
+        let (outbox_status, event_status, cursor_seq): (String, String, i64) = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT o.status, e.sync_status, c.last_server_seq
+                 FROM sync_outbox o
+                 JOIN events e ON e.id = o.event_id
+                 JOIN sync_cursor c ON c.project_id = o.project_id
+                 WHERE o.event_id = ?1",
+                params![event_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("acked rows");
+        assert_eq!(outbox_status, "acked");
+        assert_eq!(event_status, "acked");
+        assert_eq!(cursor_seq, 42);
+    }
+
+    #[test]
+    fn apply_remote_events_skips_duplicate_event_ids() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("remote_duplicate.pmp");
+        let db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let project_id = Uuid::new_v4();
+        let entity_id = Uuid::new_v4();
+        seed_basic_project(&db.conn, &project_id.to_string(), "Project A");
+
+        let mut remote = EventEnvelope::new(
+            project_id,
+            "settings",
+            entity_id,
+            AppEvent::SettingsUpdated {
+                changes: json!({"basemap": "satellite"}),
+            },
+            "remote-device",
+            None,
+        );
+        remote.global_seq = 7;
+        let event_id = remote.id.to_string();
+        let mut worker = storage_worker_for(db);
+
+        let first = worker
+            .apply_remote_events(vec![remote.clone()])
+            .expect("apply first remote");
+        let second = worker
+            .apply_remote_events(vec![remote])
+            .expect("skip duplicate remote");
+
+        assert_eq!(first.get("applied").and_then(Value::as_u64), Some(1));
+        assert_eq!(second.get("skipped").and_then(Value::as_u64), Some(1));
+        let event_count: i64 = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM events WHERE id = ?1",
+                params![event_id],
+                |row| row.get(0),
+            )
+            .expect("event count");
+        assert_eq!(event_count, 1);
+    }
+
+    #[test]
+    fn apply_remote_events_records_conflict_when_local_outbox_is_pending() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("remote_conflict.pmp");
+        let mut db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let project_id = Uuid::new_v4();
+        let entity_id = Uuid::new_v4();
+        seed_basic_project(&db.conn, &project_id.to_string(), "Project A");
+
+        let local = EventEnvelope::new(
+            project_id,
+            "settings",
+            entity_id,
+            AppEvent::SettingsUpdated {
+                changes: json!({"theme": "local"}),
+            },
+            "local-device",
+            None,
+        );
+        {
+            let tx = db.conn.transaction().expect("tx");
+            persist_event(&tx, &local).expect("persist pending local event");
+            tx.commit().expect("commit");
+        }
+
+        let mut remote = EventEnvelope::new(
+            project_id,
+            "settings",
+            entity_id,
+            AppEvent::SettingsUpdated {
+                changes: json!({"theme": "remote"}),
+            },
+            "remote-device",
+            None,
+        );
+        remote.global_seq = 8;
+        let mut worker = storage_worker_for(db);
+        let report = worker
+            .apply_remote_events(vec![remote])
+            .expect("record conflict");
+
+        assert_eq!(report.get("conflicts").and_then(Value::as_u64), Some(1));
+        let conflict_count: i64 = worker
+            .db
+            .conn
+            .query_row("SELECT COUNT(*) FROM sync_conflicts", [], |row| row.get(0))
+            .expect("conflict count");
+        assert_eq!(conflict_count, 1);
+    }
+
+    #[test]
+    fn feature_updated_for_missing_project_feature_fails_without_creating_partial_row() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("feature_update_missing_project.pmp");
+        let mut db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let project_a = Uuid::new_v4();
+        let project_b = Uuid::new_v4();
+        let layer_id = Uuid::new_v4();
+        let feature_id = Uuid::new_v4();
+        seed_basic_project(&db.conn, &project_a.to_string(), "Project A");
+        seed_basic_project(&db.conn, &project_b.to_string(), "Project B");
+        seed_feature_for_project(
+            &db.conn,
+            &project_a.to_string(),
+            &layer_id.to_string(),
+            &feature_id.to_string(),
+            "Node A",
+            json!({"description": "original"}),
+        );
+
+        let tx = db.conn.transaction().expect("tx");
+        let envelope = EventEnvelope::new(
+            project_b,
+            "feature",
+            feature_id,
+            AppEvent::FeatureUpdated {
+                id: feature_id,
+                changes: json!({
+                    "name": "Wrong Project Update",
+                    "metadata": json!({"description": "wrong"})
+                }),
+            },
+            "test-device",
+            None,
+        );
+        let err = apply_event_to_read_models(&tx, &envelope).expect_err("missing target should fail");
+        assert!(err.contains("FeatureUpdated target not found in project"));
+        tx.rollback().expect("rollback");
+
+        let project_a_row: (String, String) = db
+            .conn
+            .query_row(
+                "SELECT name, metadata_json FROM features WHERE project_id = ?1 AND id = ?2",
+                params![project_a.to_string(), feature_id.to_string()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("project A feature");
+        let project_a_metadata: Value =
+            serde_json::from_str(&project_a_row.1).expect("metadata json");
+        assert_eq!(project_a_row.0, "Node A");
+        assert_eq!(project_a_metadata.get("description"), Some(&json!("original")));
+
+        let project_b_count: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM features WHERE project_id = ?1",
+                params![project_b.to_string()],
+                |row| row.get(0),
+            )
+            .expect("project B count");
+        assert_eq!(project_b_count, 0);
+    }
+
+    #[test]
+    fn repair_missing_features_from_events_restores_created_and_updated_feature_rows() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("repair_missing_features_from_events.pmp");
+        let mut db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let project_id = Uuid::new_v4();
+        let layer_id = Uuid::new_v4();
+        let group_id = Uuid::new_v4();
+        let feature_id = Uuid::new_v4();
+        seed_basic_project(&db.conn, &project_id.to_string(), "Repair Missing Features");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name) VALUES (?1, ?2, ?3)",
+                params![layer_id.to_string(), project_id.to_string(), "Layer"],
+            )
+            .expect("layer");
+        db.conn
+            .execute(
+                "INSERT INTO feature_groups (id, project_id, layer_id, name, metadata_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    group_id.to_string(),
+                    project_id.to_string(),
+                    layer_id.to_string(),
+                    "Group",
+                    "{}",
+                ],
+            )
+            .expect("group");
+
+        let tx = db.conn.transaction().expect("tx");
+        let created = EventEnvelope::new(
+            project_id,
+            "feature",
+            feature_id,
+            AppEvent::FeatureCreated {
+                id: feature_id,
+                layer_id,
+                group_id: Some(group_id),
+                task_id: None,
+                name: "Lost Feature".to_string(),
+                geom_type: "Point".to_string(),
+                geometry: json!([105.847, 21.251]),
+                properties: json!({"iconKey": "default"}),
+                style_id: None,
+                is_visible: true,
+                note: None,
+                bbox: None,
+                metadata: json!({"description": "created"}),
+            },
+            "test-device",
+            None,
+        );
+        persist_event(&tx, &created).expect("persist created event");
+        let updated = EventEnvelope::new(
+            project_id,
+            "feature",
+            feature_id,
+            AppEvent::FeatureUpdated {
+                id: feature_id,
+                changes: json!({
+                    "name": "Restored Feature",
+                    "metadata": json!({"description": "updated", "network": {"role": "device"}})
+                }),
+            },
+            "test-device",
+            None,
+        );
+        persist_event(&tx, &updated).expect("persist updated event");
+
+        assert!(project_needs_missing_feature_repair(&tx, &project_id.to_string())
+            .expect("needs repair"));
+        let repaired = repair_missing_features_from_events(&tx, &project_id.to_string())
+            .expect("repair missing feature");
+        assert_eq!(repaired, 1);
+        tx.commit().expect("commit");
+
+        let (name, coordinates, metadata): (String, String, String) = db
+            .conn
+            .query_row(
+                "SELECT name, coordinates_json, metadata_json
+                 FROM features
+                 WHERE project_id = ?1 AND id = ?2",
+                params![project_id.to_string(), feature_id.to_string()],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("restored feature");
+        let coordinates: Value = serde_json::from_str(&coordinates).expect("coordinates json");
+        let metadata: Value = serde_json::from_str(&metadata).expect("metadata json");
+        assert_eq!(name, "Restored Feature");
+        assert_eq!(coordinates, json!([105.847, 21.251]));
+        assert_eq!(metadata.get("description"), Some(&json!("updated")));
+        assert_eq!(metadata.pointer("/network/role"), Some(&json!("device")));
+    }
+
+    #[test]
+    fn repair_missing_features_from_events_skips_features_deleted_later() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("repair_missing_features_skip_deleted.pmp");
+        let mut db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let project_id = Uuid::new_v4();
+        let layer_id = Uuid::new_v4();
+        let active_feature_id = Uuid::new_v4();
+        let deleted_feature_id = Uuid::new_v4();
+        seed_basic_project(&db.conn, &project_id.to_string(), "Repair Skip Deleted");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name) VALUES (?1, ?2, ?3)",
+                params![layer_id.to_string(), project_id.to_string(), "Layer"],
+            )
+            .expect("layer");
+
+        let tx = db.conn.transaction().expect("tx");
+        for (feature_id, name) in [
+            (active_feature_id, "Active Missing"),
+            (deleted_feature_id, "Deleted Missing"),
+        ] {
+            let created = EventEnvelope::new(
+                project_id,
+                "feature",
+                feature_id,
+                AppEvent::FeatureCreated {
+                    id: feature_id,
+                    layer_id,
+                    group_id: None,
+                    task_id: None,
+                    name: name.to_string(),
+                    geom_type: "Point".to_string(),
+                    geometry: json!([105.0, 21.0]),
+                    properties: json!({}),
+                    style_id: None,
+                    is_visible: true,
+                    note: None,
+                    bbox: None,
+                    metadata: json!({}),
+                },
+                "test-device",
+                None,
+            );
+            persist_event(&tx, &created).expect("persist created event");
+        }
+        let deleted = EventEnvelope::new(
+            project_id,
+            "feature",
+            deleted_feature_id,
+            AppEvent::FeatureDeleted {
+                id: deleted_feature_id,
+            },
+            "test-device",
+            None,
+        );
+        persist_event(&tx, &deleted).expect("persist deleted event");
+
+        let repaired = repair_missing_features_from_events(&tx, &project_id.to_string())
+            .expect("repair missing features");
+        assert_eq!(repaired, 1);
+        tx.commit().expect("commit");
+
+        let active_count: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM features WHERE project_id = ?1 AND id = ?2",
+                params![project_id.to_string(), active_feature_id.to_string()],
+                |row| row.get(0),
+            )
+            .expect("active count");
+        let deleted_count: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM features WHERE project_id = ?1 AND id = ?2",
+                params![project_id.to_string(), deleted_feature_id.to_string()],
+                |row| row.get(0),
+            )
+            .expect("deleted count");
+        assert_eq!(active_count, 1);
+        assert_eq!(deleted_count, 0);
+    }
+
+    #[test]
+    fn repair_missing_features_from_events_skips_compacted_created_payloads() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("repair_missing_features_skip_compacted.pmp");
+        let mut db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let project_id = Uuid::new_v4();
+        let feature_id = Uuid::new_v4();
+        seed_basic_project(&db.conn, &project_id.to_string(), "Repair Skip Compacted");
+
+        let tx = db.conn.transaction().expect("tx");
+        tx.execute(
+            "INSERT INTO events (id, project_id, entity_type, entity_id, event_type, payload_json, metadata_json)
+             VALUES (?1, ?2, 'feature', ?3, 'FeatureCreated', ?4, '{}')",
+            params![
+                Uuid::new_v4().to_string(),
+                project_id.to_string(),
+                feature_id.to_string(),
+                json!({
+                    "type": "CompactedHistoryEvent",
+                    "reason": "event is older than local retention window"
+                })
+                .to_string(),
+            ],
+        )
+        .expect("compacted event");
+
+        assert!(
+            !project_needs_missing_feature_repair(&tx, &project_id.to_string())
+                .expect("compacted created payload should not need repair")
+        );
+        let repaired = repair_missing_features_from_events(&tx, &project_id.to_string())
+            .expect("repair should skip compacted payload");
+        assert_eq!(repaired, 0);
+        tx.commit().expect("commit");
+
+        let feature_count: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM features WHERE project_id = ?1 AND id = ?2",
+                params![project_id.to_string(), feature_id.to_string()],
+                |row| row.get(0),
+            )
+            .expect("feature count");
+        assert_eq!(feature_count, 0);
     }
 
     #[test]

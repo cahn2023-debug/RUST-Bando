@@ -14,402 +14,408 @@ graph TD
   classDef external fill:#eee,stroke:#999,stroke-dasharray: 5 5;
   classDef symbol fill:#f9f9f9,stroke:#333,stroke-width:1px;
 
-  subgraph node_340_sub ["src-tauri/build.rs"]
+  subgraph node_347_sub ["src-tauri/build.rs"]
     direction LR
-    node_340_file("📄 src-tauri/build.rs")
-    node_340_s0["🔧 main (fn)"]:::symbol
-    node_340_file --- node_340_s0
-  end
-  class node_340_sub rs
-  node_341["📄 src-tauri/crates/app_domain/src/interfaces.rs"]:::rs
-  subgraph node_342_sub ["src-tauri/crates/app_domain/src/lib.rs"]
-    direction LR
-    node_342_file("📄 src-tauri/crates/app_domain/src/lib.rs")
-    node_342_s0["📋 EntityType (enum)"]:::symbol
-    node_342_file --- node_342_s0
-    node_342_s1["📦 Entity (struct)"]:::symbol
-    node_342_file --- node_342_s1
-    node_342_s2["📦 MapData (struct)"]:::symbol
-    node_342_file --- node_342_s2
-    node_342_s3["📦 DeltaMapData (struct)"]:::symbol
-    node_342_file --- node_342_s3
-    node_342_s4["📦 DoriZone (struct)"]:::symbol
-    node_342_file --- node_342_s4
-    node_342_s5["📦 StreetViewMetadata (struct)"]:::symbol
-    node_342_file --- node_342_s5
-  end
-  class node_342_sub rs
-  subgraph node_343_sub ["src-tauri/crates/app_domain/src/pmp_v2.rs"]
-    direction LR
-    node_343_file("📄 src-tauri/crates/app_domain/src/pmp_v2.rs")
-    node_343_s0["📦 PmpV2Project (struct)"]:::symbol
-    node_343_file --- node_343_s0
-    node_343_s1["📦 PmpV2File (struct)"]:::symbol
-    node_343_file --- node_343_s1
-    node_343_s2["📦 PmpV2Tag (struct)"]:::symbol
-    node_343_file --- node_343_s2
-    node_343_s3["📦 VersionedMetadata (struct)"]:::symbol
-    node_343_file --- node_343_s3
-  end
-  class node_343_sub rs
-  subgraph node_344_sub ["src-tauri/crates/gis_engine/src/lib.rs"]
-    direction LR
-    node_344_file("📄 src-tauri/crates/gis_engine/src/lib.rs")
-    node_344_s0["📦 GisEngine (struct)"]:::symbol
-    node_344_file --- node_344_s0
-  end
-  class node_344_sub rs
-  subgraph node_345_sub ["src-tauri/crates/module_gis/src/lib.rs"]
-    direction LR
-    node_345_file("📄 src-tauri/crates/module_gis/src/lib.rs")
-    node_345_s0["📦 GisService (struct)"]:::symbol
-    node_345_file --- node_345_s0
-  end
-  class node_345_sub rs
-  subgraph node_346_sub ["src-tauri/crates/module_p2p/src/lib.rs"]
-    direction LR
-    node_346_file("📄 src-tauri/crates/module_p2p/src/lib.rs")
-    node_346_s0["📦 AntigravityBehaviour (struct)"]:::symbol
-    node_346_file --- node_346_s0
-    node_346_s1["📋 SyncMessage (enum)"]:::symbol
-    node_346_file --- node_346_s1
-    node_346_s2["📦 P2PService (struct)"]:::symbol
-    node_346_file --- node_346_s2
-  end
-  class node_346_sub rs
-  subgraph node_347_sub ["src-tauri/crates/shared_kernel/src/lib.rs"]
-    direction LR
-    node_347_file("📄 src-tauri/crates/shared_kernel/src/lib.rs")
-    node_347_s0["📦 Point (struct)"]:::symbol
+    node_347_file("📄 src-tauri/build.rs")
+    node_347_s0["🔧 main (fn)"]:::symbol
     node_347_file --- node_347_s0
-    node_347_s1["📦 Color (struct)"]:::symbol
-    node_347_file --- node_347_s1
-    node_347_s2["📦 CameraSpecs (struct)"]:::symbol
-    node_347_file --- node_347_s2
-    node_347_s3["📦 DoriDistances (struct)"]:::symbol
-    node_347_file --- node_347_s3
-    node_347_s4["📦 BoundingBox (struct)"]:::symbol
-    node_347_file --- node_347_s4
-    node_347_s5["📦 ZeroCopyEventEnvelope (struct)"]:::symbol
-    node_347_file --- node_347_s5
-    node_347_s6["📦 TaskV2 (struct)"]:::symbol
-    node_347_file --- node_347_s6
-    node_347_s7["📦 NoteV2 (struct)"]:::symbol
-    node_347_file --- node_347_s7
-    node_347_s8["📦 ContractV2 (struct)"]:::symbol
-    node_347_file --- node_347_s8
-    node_347_s9["📦 TaskLinkV2 (struct)"]:::symbol
-    node_347_file --- node_347_s9
-    node_347_s10["📦 BOMItemV2 (struct)"]:::symbol
-    node_347_file --- node_347_s10
-    node_347_s11["📦 ProjectBOMResponse (struct)"]:::symbol
-    node_347_file --- node_347_s11
-    node_347_s12["📦 SearchResultV2 (struct)"]:::symbol
-    node_347_file --- node_347_s12
-    node_347_s13["📦 SearchV2Response (struct)"]:::symbol
-    node_347_file --- node_347_s13
-    node_347_s14["📦 SearchFiltersV2 (struct)"]:::symbol
-    node_347_file --- node_347_s14
   end
   class node_347_sub rs
-  node_352["📄 src-tauri/src/domain/implement/commands/mod.rs"]:::rs
-  subgraph node_353_sub ["src-tauri/src/domain/implement/commands/v2.rs"]
+  node_348["📄 src-tauri/crates/app_domain/src/interfaces.rs"]:::rs
+  subgraph node_349_sub ["src-tauri/crates/app_domain/src/lib.rs"]
     direction LR
-    node_353_file("📄 src-tauri/src/domain/implement/commands/v2.rs")
-    node_353_s0["📦 ActorState (struct)"]:::symbol
+    node_349_file("📄 src-tauri/crates/app_domain/src/lib.rs")
+    node_349_s0["📋 EntityType (enum)"]:::symbol
+    node_349_file --- node_349_s0
+    node_349_s1["📦 Entity (struct)"]:::symbol
+    node_349_file --- node_349_s1
+    node_349_s2["📦 MapData (struct)"]:::symbol
+    node_349_file --- node_349_s2
+    node_349_s3["📦 DeltaMapData (struct)"]:::symbol
+    node_349_file --- node_349_s3
+    node_349_s4["📦 DoriZone (struct)"]:::symbol
+    node_349_file --- node_349_s4
+    node_349_s5["📦 StreetViewMetadata (struct)"]:::symbol
+    node_349_file --- node_349_s5
+  end
+  class node_349_sub rs
+  subgraph node_350_sub ["src-tauri/crates/app_domain/src/pmp_v2.rs"]
+    direction LR
+    node_350_file("📄 src-tauri/crates/app_domain/src/pmp_v2.rs")
+    node_350_s0["📦 PmpV2Project (struct)"]:::symbol
+    node_350_file --- node_350_s0
+    node_350_s1["📦 PmpV2File (struct)"]:::symbol
+    node_350_file --- node_350_s1
+    node_350_s2["📦 PmpV2Tag (struct)"]:::symbol
+    node_350_file --- node_350_s2
+    node_350_s3["📦 VersionedMetadata (struct)"]:::symbol
+    node_350_file --- node_350_s3
+  end
+  class node_350_sub rs
+  subgraph node_351_sub ["src-tauri/crates/gis_engine/src/lib.rs"]
+    direction LR
+    node_351_file("📄 src-tauri/crates/gis_engine/src/lib.rs")
+    node_351_s0["📦 GisEngine (struct)"]:::symbol
+    node_351_file --- node_351_s0
+  end
+  class node_351_sub rs
+  subgraph node_352_sub ["src-tauri/crates/module_gis/src/lib.rs"]
+    direction LR
+    node_352_file("📄 src-tauri/crates/module_gis/src/lib.rs")
+    node_352_s0["📦 GisService (struct)"]:::symbol
+    node_352_file --- node_352_s0
+  end
+  class node_352_sub rs
+  subgraph node_353_sub ["src-tauri/crates/module_p2p/src/lib.rs"]
+    direction LR
+    node_353_file("📄 src-tauri/crates/module_p2p/src/lib.rs")
+    node_353_s0["📦 AntigravityBehaviour (struct)"]:::symbol
     node_353_file --- node_353_s0
-    node_353_s1["📦 DashboardProjectStats (struct)"]:::symbol
+    node_353_s1["📋 SyncMessage (enum)"]:::symbol
     node_353_file --- node_353_s1
-    node_353_s2["📦 DashboardExtensionStat (struct)"]:::symbol
+    node_353_s2["📦 P2PService (struct)"]:::symbol
     node_353_file --- node_353_s2
-    node_353_s3["📦 DashboardFileStat (struct)"]:::symbol
-    node_353_file --- node_353_s3
-    node_353_s4["📦 ImportMappingPayload (struct)"]:::symbol
-    node_353_file --- node_353_s4
-    node_353_s5["📦 ImportFieldMeta (struct)"]:::symbol
-    node_353_file --- node_353_s5
-    node_353_s6["📦 DatasetMetaResponse (struct)"]:::symbol
-    node_353_file --- node_353_s6
-    node_353_s7["📦 ImportMediaAssetPayload (struct)"]:::symbol
-    node_353_file --- node_353_s7
-    node_353_s8["📦 ImportFeatureRecord (struct)"]:::symbol
-    node_353_file --- node_353_s8
-    node_353_s9["📦 PmpImportPreview (struct)"]:::symbol
-    node_353_file --- node_353_s9
-    node_353_s10["📦 PmpImportResult (struct)"]:::symbol
-    node_353_file --- node_353_s10
-    node_353_s11["🔧 ensure_absolute_path (fn)"]:::symbol
-    node_353_file --- node_353_s11
-    node_353_s12["🔧 ensure_excel_extension (fn)"]:::symbol
-    node_353_file --- node_353_s12
-    node_353_s13["🔧 validate_binary_path (fn)"]:::symbol
-    node_353_file --- node_353_s13
-    node_353_s14["🔧 copy_text_to_system_clipboard (fn)"]:::symbol
-    node_353_file --- node_353_s14
-    node_353_more["... and 36 more symbols"]:::symbol
-    node_353_file --- node_353_more
   end
   class node_353_sub rs
-  subgraph node_354_sub ["src-tauri/src/domain/implement/commands/v2_bridge.rs"]
+  subgraph node_354_sub ["src-tauri/crates/shared_kernel/src/lib.rs"]
     direction LR
-    node_354_file("📄 src-tauri/src/domain/implement/commands/v2_bridge.rs")
-    node_354_s0["🔧 extract_project_metadata (fn)"]:::symbol
+    node_354_file("📄 src-tauri/crates/shared_kernel/src/lib.rs")
+    node_354_s0["📦 Point (struct)"]:::symbol
     node_354_file --- node_354_s0
-    node_354_s1["🔧 empty_design_state (fn)"]:::symbol
+    node_354_s1["📦 Color (struct)"]:::symbol
     node_354_file --- node_354_s1
-    node_354_s2["🔧 has_design_data (fn)"]:::symbol
+    node_354_s2["📦 CameraSpecs (struct)"]:::symbol
     node_354_file --- node_354_s2
-    node_354_s3["🔧 feature_count_in_state (fn)"]:::symbol
+    node_354_s3["📦 DoriDistances (struct)"]:::symbol
     node_354_file --- node_354_s3
-    node_354_s4["🔧 ensure_design_shape (fn)"]:::symbol
+    node_354_s4["📦 BoundingBox (struct)"]:::symbol
     node_354_file --- node_354_s4
-    node_354_s5["🔧 row_array (fn)"]:::symbol
+    node_354_s5["📦 ZeroCopyEventEnvelope (struct)"]:::symbol
     node_354_file --- node_354_s5
-    node_354_s6["🔧 normalize_metadata_to_string (fn)"]:::symbol
+    node_354_s6["📦 TaskV2 (struct)"]:::symbol
     node_354_file --- node_354_s6
-    node_354_s7["🔧 parse_json_value (fn)"]:::symbol
+    node_354_s7["📦 NoteV2 (struct)"]:::symbol
     node_354_file --- node_354_s7
-    node_354_s8["🔧 bbox_value_to_state (fn)"]:::symbol
+    node_354_s8["📦 ContractV2 (struct)"]:::symbol
     node_354_file --- node_354_s8
-    node_354_s9["🔧 feature_row_to_state (fn)"]:::symbol
+    node_354_s9["📦 TaskLinkV2 (struct)"]:::symbol
     node_354_file --- node_354_s9
-    node_354_s10["🔧 fast_feature_row_to_state (fn)"]:::symbol
+    node_354_s10["📦 BOMItemV2 (struct)"]:::symbol
     node_354_file --- node_354_s10
-    node_354_s11["📦 ViewportBounds (struct)"]:::symbol
+    node_354_s11["📦 ProjectBOMResponse (struct)"]:::symbol
     node_354_file --- node_354_s11
-    node_354_s12["🔧 trace_fiber_diagnostics (fn)"]:::symbol
+    node_354_s12["📦 SearchResultV2 (struct)"]:::symbol
     node_354_file --- node_354_s12
-    node_354_s13["🔧 validate_fiber_inventory (fn)"]:::symbol
+    node_354_s13["📦 SearchV2Response (struct)"]:::symbol
     node_354_file --- node_354_s13
-    node_354_s14["🔧 navigate_webview (fn)"]:::symbol
+    node_354_s14["📦 SearchFiltersV2 (struct)"]:::symbol
     node_354_file --- node_354_s14
-    node_354_more["... and 12 more symbols"]:::symbol
-    node_354_file --- node_354_more
   end
   class node_354_sub rs
-  node_351["📄 src-tauri/src/domain/implement/mod.rs"]:::rs
-  node_355["📄 src-tauri/src/domain/implement/modules/mod.rs"]:::rs
-  subgraph node_356_sub ["src-tauri/src/domain/implement/modules/v2/ai.rs"]
+  node_359["📄 src-tauri/src/domain/implement/commands/mod.rs"]:::rs
+  subgraph node_360_sub ["src-tauri/src/domain/implement/commands/v2.rs"]
     direction LR
-    node_356_file("📄 src-tauri/src/domain/implement/modules/v2/ai.rs")
-    node_356_s0["📋 AiRuntimeState (enum)"]:::symbol
-    node_356_file --- node_356_s0
-    node_356_s1["📦 AiConfig (struct)"]:::symbol
-    node_356_file --- node_356_s1
-    node_356_s2["📦 ModelManifestEntry (struct)"]:::symbol
-    node_356_file --- node_356_s2
-    node_356_s3["📦 InstalledModel (struct)"]:::symbol
-    node_356_file --- node_356_s3
-    node_356_s4["📦 AiStatus (struct)"]:::symbol
-    node_356_file --- node_356_s4
-    node_356_s5["📦 UpdateAiConfigRequest (struct)"]:::symbol
-    node_356_file --- node_356_s5
-    node_356_s6["📦 SendAiMessageRequest (struct)"]:::symbol
-    node_356_file --- node_356_s6
-    node_356_s7["📦 AiCitation (struct)"]:::symbol
-    node_356_file --- node_356_s7
-    node_356_s8["📦 AiActionProposal (struct)"]:::symbol
-    node_356_file --- node_356_s8
-    node_356_s9["📦 AiChatResult (struct)"]:::symbol
-    node_356_file --- node_356_s9
-    node_356_s10["📦 AiManager (struct)"]:::symbol
-    node_356_file --- node_356_s10
-    node_356_s11["📦 AiState (struct)"]:::symbol
-    node_356_file --- node_356_s11
-    node_356_s12["🔧 model_manifest (fn)"]:::symbol
-    node_356_file --- node_356_s12
-    node_356_s13["🔧 model_manifest (fn)"]:::symbol
-    node_356_file --- node_356_s13
-    node_356_s14["🔧 ai_config_path (fn)"]:::symbol
-    node_356_file --- node_356_s14
-    node_356_more["... and 27 more symbols"]:::symbol
-    node_356_file --- node_356_more
-  end
-  class node_356_sub rs
-  node_357["📄 src-tauri/src/domain/implement/modules/v2/mod.rs"]:::rs
-  subgraph node_358_sub ["src-tauri/src/domain/implement/modules/v2/pipeline/eventbus.rs"]
-    direction LR
-    node_358_file("📄 src-tauri/src/domain/implement/modules/v2/pipeline/eventbus.rs")
-    node_358_s0["📋 StorageCommand (enum)"]:::symbol
-    node_358_file --- node_358_s0
-  end
-  class node_358_sub rs
-  node_359["📄 src-tauri/src/domain/implement/modules/v2/pipeline/mod.rs"]:::rs
-  subgraph node_360_sub ["src-tauri/src/domain/implement/modules/v2/pipeline/worker_storage.rs"]
-    direction LR
-    node_360_file("📄 src-tauri/src/domain/implement/modules/v2/pipeline/worker_storage.rs")
-    node_360_s0["📦 StorageWorker (struct)"]:::symbol
+    node_360_file("📄 src-tauri/src/domain/implement/commands/v2.rs")
+    node_360_s0["📦 ActorState (struct)"]:::symbol
     node_360_file --- node_360_s0
-    node_360_s1["🔧 generate_inverse_event_json (fn)"]:::symbol
+    node_360_s1["📦 SyncRuntimeState (struct)"]:::symbol
     node_360_file --- node_360_s1
-    node_360_s2["📦 SourcePmpContext (struct)"]:::symbol
+    node_360_s2["🔧 sync_runtime (fn)"]:::symbol
     node_360_file --- node_360_s2
-    node_360_s3["📦 ImportedIdMaps (struct)"]:::symbol
+    node_360_s3["📦 DashboardProjectStats (struct)"]:::symbol
     node_360_file --- node_360_s3
-    node_360_s4["📦 ImportedMediaCounts (struct)"]:::symbol
+    node_360_s4["📦 DashboardExtensionStat (struct)"]:::symbol
     node_360_file --- node_360_s4
-    node_360_s5["📦 SourceMediaAssetLink (struct)"]:::symbol
+    node_360_s5["📦 DashboardFileStat (struct)"]:::symbol
     node_360_file --- node_360_s5
-    node_360_s6["📦 SourceMediaAssetRecord (struct)"]:::symbol
+    node_360_s6["📦 ImportMappingPayload (struct)"]:::symbol
     node_360_file --- node_360_s6
-    node_360_s7["🔧 panic_to_string (fn)"]:::symbol
+    node_360_s7["📦 ImportFieldMeta (struct)"]:::symbol
     node_360_file --- node_360_s7
-    node_360_s8["🔧 inspect_source_pmp (fn)"]:::symbol
+    node_360_s8["📦 DatasetMetaResponse (struct)"]:::symbol
     node_360_file --- node_360_s8
-    node_360_s9["🔧 ensure_target_project_exists (fn)"]:::symbol
+    node_360_s9["📦 ImportMediaAssetPayload (struct)"]:::symbol
     node_360_file --- node_360_s9
-    node_360_s10["🔧 import_source_design_tables (fn)"]:::symbol
+    node_360_s10["📦 ImportFeatureRecord (struct)"]:::symbol
     node_360_file --- node_360_s10
-    node_360_s11["🔧 import_source_media_assets (fn)"]:::symbol
+    node_360_s11["📦 PmpImportPreview (struct)"]:::symbol
     node_360_file --- node_360_s11
-    node_360_s12["🔧 collect_source_media_assets (fn)"]:::symbol
+    node_360_s12["📦 PmpImportResult (struct)"]:::symbol
     node_360_file --- node_360_s12
-    node_360_s13["🔧 normalize_json_object_text (fn)"]:::symbol
+    node_360_s13["🔧 ensure_absolute_path (fn)"]:::symbol
     node_360_file --- node_360_s13
-    node_360_s14["🔧 rewrite_imported_feature_metadata (fn)"]:::symbol
+    node_360_s14["🔧 ensure_excel_extension (fn)"]:::symbol
     node_360_file --- node_360_s14
-    node_360_more["... and 130 more symbols"]:::symbol
+    node_360_more["... and 41 more symbols"]:::symbol
     node_360_file --- node_360_more
   end
   class node_360_sub rs
-  subgraph node_361_sub ["src-tauri/src/domain/implement/modules/v2/storage/audit.rs"]
+  subgraph node_361_sub ["src-tauri/src/domain/implement/commands/v2_bridge.rs"]
     direction LR
-    node_361_file("📄 src-tauri/src/domain/implement/modules/v2/storage/audit.rs")
-    node_361_s0["📋 DatabaseAuditSeverity (enum)"]:::symbol
+    node_361_file("📄 src-tauri/src/domain/implement/commands/v2_bridge.rs")
+    node_361_s0["🔧 extract_project_metadata (fn)"]:::symbol
     node_361_file --- node_361_s0
-    node_361_s1["📦 DatabaseAuditIssue (struct)"]:::symbol
+    node_361_s1["🔧 empty_design_state (fn)"]:::symbol
     node_361_file --- node_361_s1
-    node_361_s2["📦 SyncOutboxAuditSummary (struct)"]:::symbol
+    node_361_s2["🔧 has_design_data (fn)"]:::symbol
     node_361_file --- node_361_s2
-    node_361_s3["📦 DatabaseAuditReport (struct)"]:::symbol
+    node_361_s3["🔧 feature_count_in_state (fn)"]:::symbol
     node_361_file --- node_361_s3
-    node_361_s4["🔧 table_exists (fn)"]:::symbol
+    node_361_s4["🔧 ensure_design_shape (fn)"]:::symbol
     node_361_file --- node_361_s4
-    node_361_s5["🔧 scalar_i64 (fn)"]:::symbol
+    node_361_s5["🔧 row_array (fn)"]:::symbol
     node_361_file --- node_361_s5
-    node_361_s6["🔧 collect_issues (fn)"]:::symbol
+    node_361_s6["🔧 normalize_metadata_to_string (fn)"]:::symbol
     node_361_file --- node_361_s6
-    node_361_s7["🔧 collect_count_warning (fn)"]:::symbol
+    node_361_s7["🔧 parse_json_value (fn)"]:::symbol
     node_361_file --- node_361_s7
-    node_361_s8["🔧 collect_record_warnings (fn)"]:::symbol
+    node_361_s8["🔧 bbox_value_to_state (fn)"]:::symbol
     node_361_file --- node_361_s8
-    node_361_s9["🔧 audit_database (fn)"]:::symbol
+    node_361_s9["🔧 feature_row_to_state (fn)"]:::symbol
     node_361_file --- node_361_s9
+    node_361_s10["🔧 fast_feature_row_to_state (fn)"]:::symbol
+    node_361_file --- node_361_s10
+    node_361_s11["📦 ViewportBounds (struct)"]:::symbol
+    node_361_file --- node_361_s11
+    node_361_s12["🔧 trace_fiber_diagnostics (fn)"]:::symbol
+    node_361_file --- node_361_s12
+    node_361_s13["🔧 validate_fiber_inventory (fn)"]:::symbol
+    node_361_file --- node_361_s13
+    node_361_s14["🔧 navigate_webview (fn)"]:::symbol
+    node_361_file --- node_361_s14
+    node_361_more["... and 12 more symbols"]:::symbol
+    node_361_file --- node_361_more
   end
   class node_361_sub rs
-  subgraph node_362_sub ["src-tauri/src/domain/implement/modules/v2/storage/connection.rs"]
+  node_358["📄 src-tauri/src/domain/implement/mod.rs"]:::rs
+  node_362["📄 src-tauri/src/domain/implement/modules/mod.rs"]:::rs
+  subgraph node_363_sub ["src-tauri/src/domain/implement/modules/v2/ai.rs"]
     direction LR
-    node_362_file("📄 src-tauri/src/domain/implement/modules/v2/storage/connection.rs")
-    node_362_s0["📦 PmpDatabase (struct)"]:::symbol
-    node_362_file --- node_362_s0
-    node_362_s1["🔧 reject_blocking_audit (fn)"]:::symbol
-    node_362_file --- node_362_s1
-    node_362_s2["🔧 create_pre_migration_backup (fn)"]:::symbol
-    node_362_file --- node_362_s2
-    node_362_s3["🔧 migrate_foundational_v4_state (fn)"]:::symbol
-    node_362_file --- node_362_s3
-    node_362_s4["🔧 migrate_sync_state (fn)"]:::symbol
-    node_362_file --- node_362_s4
+    node_363_file("📄 src-tauri/src/domain/implement/modules/v2/ai.rs")
+    node_363_s0["📋 AiRuntimeState (enum)"]:::symbol
+    node_363_file --- node_363_s0
+    node_363_s1["📦 AiConfig (struct)"]:::symbol
+    node_363_file --- node_363_s1
+    node_363_s2["📦 ModelManifestEntry (struct)"]:::symbol
+    node_363_file --- node_363_s2
+    node_363_s3["📦 InstalledModel (struct)"]:::symbol
+    node_363_file --- node_363_s3
+    node_363_s4["📦 AiStatus (struct)"]:::symbol
+    node_363_file --- node_363_s4
+    node_363_s5["📦 UpdateAiConfigRequest (struct)"]:::symbol
+    node_363_file --- node_363_s5
+    node_363_s6["📦 SendAiMessageRequest (struct)"]:::symbol
+    node_363_file --- node_363_s6
+    node_363_s7["📦 AiCitation (struct)"]:::symbol
+    node_363_file --- node_363_s7
+    node_363_s8["📦 AiActionProposal (struct)"]:::symbol
+    node_363_file --- node_363_s8
+    node_363_s9["📦 AiChatResult (struct)"]:::symbol
+    node_363_file --- node_363_s9
+    node_363_s10["📦 AiManager (struct)"]:::symbol
+    node_363_file --- node_363_s10
+    node_363_s11["📦 AiState (struct)"]:::symbol
+    node_363_file --- node_363_s11
+    node_363_s12["🔧 model_manifest (fn)"]:::symbol
+    node_363_file --- node_363_s12
+    node_363_s13["🔧 model_manifest (fn)"]:::symbol
+    node_363_file --- node_363_s13
+    node_363_s14["🔧 ai_config_path (fn)"]:::symbol
+    node_363_file --- node_363_s14
+    node_363_more["... and 27 more symbols"]:::symbol
+    node_363_file --- node_363_more
   end
-  class node_362_sub rs
-  node_363["📄 src-tauri/src/domain/implement/modules/v2/storage/mod.rs"]:::rs
-  subgraph node_364_sub ["src-tauri/src/domain/implement/modules/v2/storage/path_meta.rs"]
+  class node_363_sub rs
+  node_364["📄 src-tauri/src/domain/implement/modules/v2/mod.rs"]:::rs
+  subgraph node_365_sub ["src-tauri/src/domain/implement/modules/v2/pipeline/eventbus.rs"]
     direction LR
-    node_364_file("📄 src-tauri/src/domain/implement/modules/v2/storage/path_meta.rs")
-    node_364_s0["🔧 compute_rel_path (fn)"]:::symbol
-    node_364_file --- node_364_s0
-    node_364_s1["🔧 validate_metadata (fn)"]:::symbol
-    node_364_file --- node_364_s1
-  end
-  class node_364_sub rs
-  subgraph node_365_sub ["src-tauri/src/domain/implement/modules/v2/storage/schema.rs"]
-    direction LR
-    node_365_file("📄 src-tauri/src/domain/implement/modules/v2/storage/schema.rs")
-    node_365_s0["🔧 apply_base_schema (fn)"]:::symbol
+    node_365_file("📄 src-tauri/src/domain/implement/modules/v2/pipeline/eventbus.rs")
+    node_365_s0["📋 StorageCommand (enum)"]:::symbol
     node_365_file --- node_365_s0
-    node_365_s1["🔧 apply_v2_schema (fn)"]:::symbol
-    node_365_file --- node_365_s1
-    node_365_s2["🔧 apply_v9_schema (fn)"]:::symbol
-    node_365_file --- node_365_s2
-    node_365_s3["🔧 ensure_runtime_schema_compatibility (fn)"]:::symbol
-    node_365_file --- node_365_s3
-    node_365_s4["🔧 ensure_map_tile_cache_schema (fn)"]:::symbol
-    node_365_file --- node_365_s4
-    node_365_s5["🔧 ensure_feature_spatial_columns (fn)"]:::symbol
-    node_365_file --- node_365_s5
-    node_365_s6["🔧 ensure_feature_spatial_index (fn)"]:::symbol
-    node_365_file --- node_365_s6
-    node_365_s7["🔧 backfill_feature_bbox_columns (fn)"]:::symbol
-    node_365_file --- node_365_s7
-    node_365_s8["🔧 parse_bbox_array (fn)"]:::symbol
-    node_365_file --- node_365_s8
-    node_365_s9["🔧 parse_coordinate_bbox (fn)"]:::symbol
-    node_365_file --- node_365_s9
-    node_365_s10["🔧 collect_coordinate_bbox (fn)"]:::symbol
-    node_365_file --- node_365_s10
-    node_365_s11["🔧 ensure_legacy_composite_parent_keys (fn)"]:::symbol
-    node_365_file --- node_365_s11
-    node_365_s12["🔧 normalize_legacy_v9_data (fn)"]:::symbol
-    node_365_file --- node_365_s12
-    node_365_s13["🔧 stamp_schema_version (fn)"]:::symbol
-    node_365_file --- node_365_s13
-    node_365_s14["🔧 normalize_timestamps (fn)"]:::symbol
-    node_365_file --- node_365_s14
-    node_365_more["... and 9 more symbols"]:::symbol
-    node_365_file --- node_365_more
   end
   class node_365_sub rs
-  subgraph node_366_sub ["src-tauri/src/domain/implement/state/hydrator.rs"]
+  node_366["📄 src-tauri/src/domain/implement/modules/v2/pipeline/mod.rs"]:::rs
+  subgraph node_367_sub ["src-tauri/src/domain/implement/modules/v2/pipeline/worker_storage.rs"]
     direction LR
-    node_366_file("📄 src-tauri/src/domain/implement/state/hydrator.rs")
-    node_366_s0["📦 StoredRecentProject (struct)"]:::symbol
-    node_366_file --- node_366_s0
-    node_366_s1["📦 AppState (struct)"]:::symbol
-    node_366_file --- node_366_s1
-    node_366_s2["🔧 load_state (fn)"]:::symbol
-    node_366_file --- node_366_s2
-    node_366_s3["🔧 save_state (fn)"]:::symbol
-    node_366_file --- node_366_s3
+    node_367_file("📄 src-tauri/src/domain/implement/modules/v2/pipeline/worker_storage.rs")
+    node_367_s0["📦 StorageWorker (struct)"]:::symbol
+    node_367_file --- node_367_s0
+    node_367_s1["🔧 generate_inverse_event_json (fn)"]:::symbol
+    node_367_file --- node_367_s1
+    node_367_s2["📦 SourcePmpContext (struct)"]:::symbol
+    node_367_file --- node_367_s2
+    node_367_s3["📦 ImportedIdMaps (struct)"]:::symbol
+    node_367_file --- node_367_s3
+    node_367_s4["📦 ImportedMediaCounts (struct)"]:::symbol
+    node_367_file --- node_367_s4
+    node_367_s5["📦 SourceMediaAssetLink (struct)"]:::symbol
+    node_367_file --- node_367_s5
+    node_367_s6["📦 SourceMediaAssetRecord (struct)"]:::symbol
+    node_367_file --- node_367_s6
+    node_367_s7["🔧 panic_to_string (fn)"]:::symbol
+    node_367_file --- node_367_s7
+    node_367_s8["🔧 inspect_source_pmp (fn)"]:::symbol
+    node_367_file --- node_367_s8
+    node_367_s9["🔧 ensure_target_project_exists (fn)"]:::symbol
+    node_367_file --- node_367_s9
+    node_367_s10["🔧 import_source_design_tables (fn)"]:::symbol
+    node_367_file --- node_367_s10
+    node_367_s11["🔧 import_source_media_assets (fn)"]:::symbol
+    node_367_file --- node_367_s11
+    node_367_s12["🔧 collect_source_media_assets (fn)"]:::symbol
+    node_367_file --- node_367_s12
+    node_367_s13["🔧 normalize_json_object_text (fn)"]:::symbol
+    node_367_file --- node_367_s13
+    node_367_s14["🔧 rewrite_imported_feature_metadata (fn)"]:::symbol
+    node_367_file --- node_367_s14
+    node_367_more["... and 139 more symbols"]:::symbol
+    node_367_file --- node_367_more
   end
-  class node_366_sub rs
-  node_367["📄 src-tauri/src/domain/implement/state/mod.rs"]:::rs
-  node_350["📄 src-tauri/src/domain/mod.rs"]:::rs
-  node_368["📄 src-tauri/src/domain/models/mod.rs"]:::rs
-  subgraph node_369_sub ["src-tauri/src/domain/models/v2/mod.rs"]
+  class node_367_sub rs
+  subgraph node_368_sub ["src-tauri/src/domain/implement/modules/v2/storage/audit.rs"]
     direction LR
-    node_369_file("📄 src-tauri/src/domain/models/v2/mod.rs")
-    node_369_s0["📋 SyncStatus (enum)"]:::symbol
+    node_368_file("📄 src-tauri/src/domain/implement/modules/v2/storage/audit.rs")
+    node_368_s0["📋 DatabaseAuditSeverity (enum)"]:::symbol
+    node_368_file --- node_368_s0
+    node_368_s1["📦 DatabaseAuditIssue (struct)"]:::symbol
+    node_368_file --- node_368_s1
+    node_368_s2["📦 SyncOutboxAuditSummary (struct)"]:::symbol
+    node_368_file --- node_368_s2
+    node_368_s3["📦 DatabaseAuditReport (struct)"]:::symbol
+    node_368_file --- node_368_s3
+    node_368_s4["🔧 table_exists (fn)"]:::symbol
+    node_368_file --- node_368_s4
+    node_368_s5["🔧 scalar_i64 (fn)"]:::symbol
+    node_368_file --- node_368_s5
+    node_368_s6["🔧 collect_issues (fn)"]:::symbol
+    node_368_file --- node_368_s6
+    node_368_s7["🔧 collect_count_warning (fn)"]:::symbol
+    node_368_file --- node_368_s7
+    node_368_s8["🔧 collect_record_warnings (fn)"]:::symbol
+    node_368_file --- node_368_s8
+    node_368_s9["🔧 audit_database (fn)"]:::symbol
+    node_368_file --- node_368_s9
+  end
+  class node_368_sub rs
+  subgraph node_369_sub ["src-tauri/src/domain/implement/modules/v2/storage/connection.rs"]
+    direction LR
+    node_369_file("📄 src-tauri/src/domain/implement/modules/v2/storage/connection.rs")
+    node_369_s0["📦 PmpDatabase (struct)"]:::symbol
     node_369_file --- node_369_s0
-    node_369_s1["🔧 default_json (fn)"]:::symbol
+    node_369_s1["🔧 repair_legacy_design_relations (fn)"]:::symbol
     node_369_file --- node_369_s1
-    node_369_s2["📦 SyncState (struct)"]:::symbol
+    node_369_s2["🔧 create_open_repair_backup (fn)"]:::symbol
     node_369_file --- node_369_s2
-    node_369_s3["📦 DesignHistoryRecord (struct)"]:::symbol
+    node_369_s3["🔧 next_open_repair_backup_path (fn)"]:::symbol
     node_369_file --- node_369_s3
-    node_369_s4["📋 AppEvent (enum)"]:::symbol
+    node_369_s4["🔧 reject_blocking_audit (fn)"]:::symbol
     node_369_file --- node_369_s4
-    node_369_s5["📦 EventEnvelope (struct)"]:::symbol
+    node_369_s5["🔧 create_pre_migration_backup (fn)"]:::symbol
     node_369_file --- node_369_s5
-    node_369_s6["📦 Manifest (struct)"]:::symbol
+    node_369_s6["🔧 migrate_foundational_v4_state (fn)"]:::symbol
     node_369_file --- node_369_s6
-    node_369_s7["📦 ProjectSettings (struct)"]:::symbol
+    node_369_s7["🔧 migrate_sync_state (fn)"]:::symbol
     node_369_file --- node_369_s7
   end
   class node_369_sub rs
-  subgraph node_348_sub ["src-tauri/src/lib.rs"]
+  node_370["📄 src-tauri/src/domain/implement/modules/v2/storage/mod.rs"]:::rs
+  subgraph node_371_sub ["src-tauri/src/domain/implement/modules/v2/storage/path_meta.rs"]
     direction LR
-    node_348_file("📄 src-tauri/src/lib.rs")
-    node_348_s0["🔧 run (fn)"]:::symbol
-    node_348_file --- node_348_s0
+    node_371_file("📄 src-tauri/src/domain/implement/modules/v2/storage/path_meta.rs")
+    node_371_s0["🔧 compute_rel_path (fn)"]:::symbol
+    node_371_file --- node_371_s0
+    node_371_s1["🔧 validate_metadata (fn)"]:::symbol
+    node_371_file --- node_371_s1
   end
-  class node_348_sub rs
-  subgraph node_349_sub ["src-tauri/src/main.rs"]
+  class node_371_sub rs
+  subgraph node_372_sub ["src-tauri/src/domain/implement/modules/v2/storage/schema.rs"]
     direction LR
-    node_349_file("📄 src-tauri/src/main.rs")
-    node_349_s0["🔧 main (fn)"]:::symbol
-    node_349_file --- node_349_s0
+    node_372_file("📄 src-tauri/src/domain/implement/modules/v2/storage/schema.rs")
+    node_372_s0["🔧 apply_base_schema (fn)"]:::symbol
+    node_372_file --- node_372_s0
+    node_372_s1["🔧 apply_v2_schema (fn)"]:::symbol
+    node_372_file --- node_372_s1
+    node_372_s2["🔧 apply_v9_schema (fn)"]:::symbol
+    node_372_file --- node_372_s2
+    node_372_s3["🔧 ensure_runtime_schema_compatibility (fn)"]:::symbol
+    node_372_file --- node_372_s3
+    node_372_s4["🔧 ensure_map_tile_cache_schema (fn)"]:::symbol
+    node_372_file --- node_372_s4
+    node_372_s5["🔧 ensure_feature_spatial_columns (fn)"]:::symbol
+    node_372_file --- node_372_s5
+    node_372_s6["🔧 ensure_feature_spatial_index (fn)"]:::symbol
+    node_372_file --- node_372_s6
+    node_372_s7["🔧 backfill_feature_bbox_columns (fn)"]:::symbol
+    node_372_file --- node_372_s7
+    node_372_s8["🔧 parse_bbox_array (fn)"]:::symbol
+    node_372_file --- node_372_s8
+    node_372_s9["🔧 parse_coordinate_bbox (fn)"]:::symbol
+    node_372_file --- node_372_s9
+    node_372_s10["🔧 collect_coordinate_bbox (fn)"]:::symbol
+    node_372_file --- node_372_s10
+    node_372_s11["🔧 ensure_legacy_composite_parent_keys (fn)"]:::symbol
+    node_372_file --- node_372_s11
+    node_372_s12["🔧 normalize_legacy_v9_data (fn)"]:::symbol
+    node_372_file --- node_372_s12
+    node_372_s13["🔧 stamp_schema_version (fn)"]:::symbol
+    node_372_file --- node_372_s13
+    node_372_s14["🔧 normalize_timestamps (fn)"]:::symbol
+    node_372_file --- node_372_s14
+    node_372_more["... and 9 more symbols"]:::symbol
+    node_372_file --- node_372_more
   end
-  class node_349_sub rs
+  class node_372_sub rs
+  subgraph node_373_sub ["src-tauri/src/domain/implement/state/hydrator.rs"]
+    direction LR
+    node_373_file("📄 src-tauri/src/domain/implement/state/hydrator.rs")
+    node_373_s0["📦 StoredRecentProject (struct)"]:::symbol
+    node_373_file --- node_373_s0
+    node_373_s1["📦 AppState (struct)"]:::symbol
+    node_373_file --- node_373_s1
+    node_373_s2["🔧 load_state (fn)"]:::symbol
+    node_373_file --- node_373_s2
+    node_373_s3["🔧 save_state (fn)"]:::symbol
+    node_373_file --- node_373_s3
+  end
+  class node_373_sub rs
+  node_374["📄 src-tauri/src/domain/implement/state/mod.rs"]:::rs
+  node_357["📄 src-tauri/src/domain/mod.rs"]:::rs
+  node_375["📄 src-tauri/src/domain/models/mod.rs"]:::rs
+  subgraph node_376_sub ["src-tauri/src/domain/models/v2/mod.rs"]
+    direction LR
+    node_376_file("📄 src-tauri/src/domain/models/v2/mod.rs")
+    node_376_s0["📋 SyncStatus (enum)"]:::symbol
+    node_376_file --- node_376_s0
+    node_376_s1["🔧 default_json (fn)"]:::symbol
+    node_376_file --- node_376_s1
+    node_376_s2["📦 SyncState (struct)"]:::symbol
+    node_376_file --- node_376_s2
+    node_376_s3["📦 DesignHistoryRecord (struct)"]:::symbol
+    node_376_file --- node_376_s3
+    node_376_s4["📋 AppEvent (enum)"]:::symbol
+    node_376_file --- node_376_s4
+    node_376_s5["📦 EventEnvelope (struct)"]:::symbol
+    node_376_file --- node_376_s5
+    node_376_s6["📦 Manifest (struct)"]:::symbol
+    node_376_file --- node_376_s6
+    node_376_s7["📦 ProjectSettings (struct)"]:::symbol
+    node_376_file --- node_376_s7
+  end
+  class node_376_sub rs
+  subgraph node_355_sub ["src-tauri/src/lib.rs"]
+    direction LR
+    node_355_file("📄 src-tauri/src/lib.rs")
+    node_355_s0["🔧 run (fn)"]:::symbol
+    node_355_file --- node_355_s0
+  end
+  class node_355_sub rs
+  subgraph node_356_sub ["src-tauri/src/main.rs"]
+    direction LR
+    node_356_file("📄 src-tauri/src/main.rs")
+    node_356_s0["🔧 main (fn)"]:::symbol
+    node_356_file --- node_356_s0
+  end
+  class node_356_sub rs
   node_2["📄 src/modules/analytics/AnalyticsDashboard.test.tsx"]:::ts
   subgraph node_3_sub ["src/modules/analytics/AnalyticsDashboard.tsx"]
     node_3_file("📄 src/modules/analytics/AnalyticsDashboard.tsx")
@@ -707,1981 +713,2027 @@ graph TD
     node_39_file --- node_39_s0
   end
   class node_39_sub ts
-  subgraph node_40_sub ["src/modules/design/components/icons/MapIcons.tsx"]
-    node_40_file("📄 src/modules/design/components/icons/MapIcons.tsx")
-    node_40_s0["📦 IconProps (interface)"]:::symbol
-    node_40_file --- node_40_s0
-  end
-  class node_40_sub ts
-  subgraph node_41_sub ["src/modules/design/components/ui/AnalysisTable.tsx"]
-    node_41_file("📄 src/modules/design/components/ui/AnalysisTable.tsx")
-    node_41_s0["📋 CellPosition (type)"]:::symbol
+  node_40["📄 src/modules/design/components/icons/MapIcons.test.tsx"]:::ts
+  subgraph node_41_sub ["src/modules/design/components/icons/MapIcons.tsx"]
+    node_41_file("📄 src/modules/design/components/icons/MapIcons.tsx")
+    node_41_s0["📦 IconProps (interface)"]:::symbol
     node_41_file --- node_41_s0
-    node_41_s1["📋 CellRange (type)"]:::symbol
-    node_41_file --- node_41_s1
-    node_41_s2["📋 RowContextMenu (type)"]:::symbol
-    node_41_file --- node_41_s2
-    node_41_s3["📦 BatchActionField (interface)"]:::symbol
-    node_41_file --- node_41_s3
-    node_41_s4["📋 DataSourceStatus (type)"]:::symbol
-    node_41_file --- node_41_s4
-    node_41_s5["📦 AnalysisTableProps (interface)"]:::symbol
-    node_41_file --- node_41_s5
-    node_41_s6["🔧 AnalysisTable (function)"]:::symbol
-    node_41_file --- node_41_s6
   end
   class node_41_sub ts
-  subgraph node_42_sub ["src/modules/design/components/ui/BOMSummaryPanel.tsx"]
-    node_42_file("📄 src/modules/design/components/ui/BOMSummaryPanel.tsx")
-    node_42_s0["📦 BOMSummaryProps (interface)"]:::symbol
+  subgraph node_42_sub ["src/modules/design/components/ui/AnalysisTable.tsx"]
+    node_42_file("📄 src/modules/design/components/ui/AnalysisTable.tsx")
+    node_42_s0["📋 CellPosition (type)"]:::symbol
     node_42_file --- node_42_s0
+    node_42_s1["📋 CellRange (type)"]:::symbol
+    node_42_file --- node_42_s1
+    node_42_s2["📋 RowContextMenu (type)"]:::symbol
+    node_42_file --- node_42_s2
+    node_42_s3["📦 BatchActionField (interface)"]:::symbol
+    node_42_file --- node_42_s3
+    node_42_s4["📋 DataSourceStatus (type)"]:::symbol
+    node_42_file --- node_42_s4
+    node_42_s5["📦 AnalysisTableProps (interface)"]:::symbol
+    node_42_file --- node_42_s5
+    node_42_s6["🔧 AnalysisTable (function)"]:::symbol
+    node_42_file --- node_42_s6
   end
   class node_42_sub ts
-  subgraph node_43_sub ["src/modules/design/components/ui/Button.tsx"]
-    node_43_file("📄 src/modules/design/components/ui/Button.tsx")
-    node_43_s0["📋 ButtonVariant (type)"]:::symbol
+  subgraph node_43_sub ["src/modules/design/components/ui/BOMSummaryPanel.tsx"]
+    node_43_file("📄 src/modules/design/components/ui/BOMSummaryPanel.tsx")
+    node_43_s0["📦 BOMSummaryProps (interface)"]:::symbol
     node_43_file --- node_43_s0
-    node_43_s1["📋 ButtonSize (type)"]:::symbol
-    node_43_file --- node_43_s1
-    node_43_s2["📦 ButtonProps (interface)"]:::symbol
-    node_43_file --- node_43_s2
   end
   class node_43_sub ts
-  subgraph node_44_sub ["src/modules/design/components/ui/CommandLine.tsx"]
-    node_44_file("📄 src/modules/design/components/ui/CommandLine.tsx")
-    node_44_s0["🔧 CommandLine (function)"]:::symbol
+  subgraph node_44_sub ["src/modules/design/components/ui/Button.tsx"]
+    node_44_file("📄 src/modules/design/components/ui/Button.tsx")
+    node_44_s0["📋 ButtonVariant (type)"]:::symbol
     node_44_file --- node_44_s0
+    node_44_s1["📋 ButtonSize (type)"]:::symbol
+    node_44_file --- node_44_s1
+    node_44_s2["📦 ButtonProps (interface)"]:::symbol
+    node_44_file --- node_44_s2
   end
   class node_44_sub ts
-  subgraph node_45_sub ["src/modules/design/components/ui/DeleteConfirmationModal.tsx"]
-    node_45_file("📄 src/modules/design/components/ui/DeleteConfirmationModal.tsx")
-    node_45_s0["📦 DeleteConfirmationModalProps (interface)"]:::symbol
+  subgraph node_45_sub ["src/modules/design/components/ui/CommandLine.tsx"]
+    node_45_file("📄 src/modules/design/components/ui/CommandLine.tsx")
+    node_45_s0["🔧 CommandLine (function)"]:::symbol
     node_45_file --- node_45_s0
-    node_45_s1["🔧 DeleteConfirmationModal (function)"]:::symbol
-    node_45_file --- node_45_s1
   end
   class node_45_sub ts
-  subgraph node_46_sub ["src/modules/design/components/ui/ErrorBoundary.tsx"]
-    node_46_file("📄 src/modules/design/components/ui/ErrorBoundary.tsx")
-    node_46_s0["📦 Props (interface)"]:::symbol
+  subgraph node_46_sub ["src/modules/design/components/ui/DeleteConfirmationModal.tsx"]
+    node_46_file("📄 src/modules/design/components/ui/DeleteConfirmationModal.tsx")
+    node_46_s0["📦 DeleteConfirmationModalProps (interface)"]:::symbol
     node_46_file --- node_46_s0
-    node_46_s1["📦 State (interface)"]:::symbol
+    node_46_s1["🔧 DeleteConfirmationModal (function)"]:::symbol
     node_46_file --- node_46_s1
-    node_46_s2["📦 ErrorBoundary (class)"]:::symbol
-    node_46_file --- node_46_s2
   end
   class node_46_sub ts
-  node_47["📄 src/modules/design/components/ui/ExportProgressModal.tsx"]:::ts
-  subgraph node_48_sub ["src/modules/design/components/ui/IconSelector.tsx"]
-    node_48_file("📄 src/modules/design/components/ui/IconSelector.tsx")
-    node_48_s0["📦 IconSelectorProps (interface)"]:::symbol
-    node_48_file --- node_48_s0
+  subgraph node_47_sub ["src/modules/design/components/ui/ErrorBoundary.tsx"]
+    node_47_file("📄 src/modules/design/components/ui/ErrorBoundary.tsx")
+    node_47_s0["📦 Props (interface)"]:::symbol
+    node_47_file --- node_47_s0
+    node_47_s1["📦 State (interface)"]:::symbol
+    node_47_file --- node_47_s1
+    node_47_s2["📦 ErrorBoundary (class)"]:::symbol
+    node_47_file --- node_47_s2
   end
-  class node_48_sub ts
-  subgraph node_49_sub ["src/modules/design/components/ui/ImageEditorModal.test.tsx"]
-    node_49_file("📄 src/modules/design/components/ui/ImageEditorModal.test.tsx")
-    node_49_s0["📋 MockCanvasContext (type)"]:::symbol
+  class node_47_sub ts
+  node_48["📄 src/modules/design/components/ui/ExportProgressModal.tsx"]:::ts
+  subgraph node_49_sub ["src/modules/design/components/ui/IconSelector.tsx"]
+    node_49_file("📄 src/modules/design/components/ui/IconSelector.tsx")
+    node_49_s0["📦 IconSelectorProps (interface)"]:::symbol
     node_49_file --- node_49_s0
   end
   class node_49_sub ts
-  subgraph node_50_sub ["src/modules/design/components/ui/ImageEditorModal.tsx"]
-    node_50_file("📄 src/modules/design/components/ui/ImageEditorModal.tsx")
-    node_50_s0["📦 ImageEditorSaveResult (interface)"]:::symbol
+  subgraph node_50_sub ["src/modules/design/components/ui/ImageEditorModal.test.tsx"]
+    node_50_file("📄 src/modules/design/components/ui/ImageEditorModal.test.tsx")
+    node_50_s0["📋 MockCanvasContext (type)"]:::symbol
     node_50_file --- node_50_s0
-    node_50_s1["📦 ImageEditorModalProps (interface)"]:::symbol
-    node_50_file --- node_50_s1
-    node_50_s2["📋 ImageEditTool (type)"]:::symbol
-    node_50_file --- node_50_s2
-    node_50_s3["📋 StrokePattern (type)"]:::symbol
-    node_50_file --- node_50_s3
-    node_50_s4["📋 AssetStamp (type)"]:::symbol
-    node_50_file --- node_50_s4
-    node_50_s5["📦 DragPoint (interface)"]:::symbol
-    node_50_file --- node_50_s5
-    node_50_s6["📦 CropRect (interface)"]:::symbol
-    node_50_file --- node_50_s6
-    node_50_s7["📦 ImageEditSnapshot (interface)"]:::symbol
-    node_50_file --- node_50_s7
-    node_50_s8["📦 RotationPreviewSource (interface)"]:::symbol
-    node_50_file --- node_50_s8
   end
   class node_50_sub ts
-  node_51["📄 src/modules/design/components/ui/LanguageSwitcher.tsx"]:::ts
-  subgraph node_52_sub ["src/modules/design/components/ui/PaletteSystem.tsx"]
-    node_52_file("📄 src/modules/design/components/ui/PaletteSystem.tsx")
-    node_52_s0["📦 PaletteSystemProps (interface)"]:::symbol
-    node_52_file --- node_52_s0
-    node_52_s1["📦 PaletteBoundaryProps (interface)"]:::symbol
-    node_52_file --- node_52_s1
-    node_52_s2["📦 PaletteBoundaryState (interface)"]:::symbol
-    node_52_file --- node_52_s2
-    node_52_s3["📦 PaletteErrorBoundary (class)"]:::symbol
-    node_52_file --- node_52_s3
+  subgraph node_51_sub ["src/modules/design/components/ui/ImageEditorModal.tsx"]
+    node_51_file("📄 src/modules/design/components/ui/ImageEditorModal.tsx")
+    node_51_s0["📦 ImageEditorSaveResult (interface)"]:::symbol
+    node_51_file --- node_51_s0
+    node_51_s1["📦 ImageEditorModalProps (interface)"]:::symbol
+    node_51_file --- node_51_s1
+    node_51_s2["📋 ImageEditTool (type)"]:::symbol
+    node_51_file --- node_51_s2
+    node_51_s3["📋 StrokePattern (type)"]:::symbol
+    node_51_file --- node_51_s3
+    node_51_s4["📋 AssetStamp (type)"]:::symbol
+    node_51_file --- node_51_s4
+    node_51_s5["📦 DragPoint (interface)"]:::symbol
+    node_51_file --- node_51_s5
+    node_51_s6["📦 CropRect (interface)"]:::symbol
+    node_51_file --- node_51_s6
+    node_51_s7["📦 ImageEditSnapshot (interface)"]:::symbol
+    node_51_file --- node_51_s7
+    node_51_s8["📦 RotationPreviewSource (interface)"]:::symbol
+    node_51_file --- node_51_s8
   end
-  class node_52_sub ts
-  node_53["📄 src/modules/design/components/ui/PerformanceOverlay.tsx"]:::ts
-  subgraph node_54_sub ["src/modules/design/components/ui/Portal.tsx"]
-    node_54_file("📄 src/modules/design/components/ui/Portal.tsx")
-    node_54_s0["📦 PortalProps (interface)"]:::symbol
-    node_54_file --- node_54_s0
+  class node_51_sub ts
+  node_52["📄 src/modules/design/components/ui/LanguageSwitcher.tsx"]:::ts
+  subgraph node_53_sub ["src/modules/design/components/ui/PaletteSystem.tsx"]
+    node_53_file("📄 src/modules/design/components/ui/PaletteSystem.tsx")
+    node_53_s0["📦 PaletteSystemProps (interface)"]:::symbol
+    node_53_file --- node_53_s0
+    node_53_s1["📦 PaletteBoundaryProps (interface)"]:::symbol
+    node_53_file --- node_53_s1
+    node_53_s2["📦 PaletteBoundaryState (interface)"]:::symbol
+    node_53_file --- node_53_s2
+    node_53_s3["📦 PaletteErrorBoundary (class)"]:::symbol
+    node_53_file --- node_53_s3
   end
-  class node_54_sub ts
-  subgraph node_55_sub ["src/modules/design/components/ui/ResizeHandle.tsx"]
-    node_55_file("📄 src/modules/design/components/ui/ResizeHandle.tsx")
-    node_55_s0["📦 ResizeHandleProps (interface)"]:::symbol
+  class node_53_sub ts
+  node_54["📄 src/modules/design/components/ui/PerformanceOverlay.tsx"]:::ts
+  subgraph node_55_sub ["src/modules/design/components/ui/Portal.tsx"]
+    node_55_file("📄 src/modules/design/components/ui/Portal.tsx")
+    node_55_s0["📦 PortalProps (interface)"]:::symbol
     node_55_file --- node_55_s0
   end
   class node_55_sub ts
-  node_56["📄 src/modules/design/components/ui/Ribbon.report.test.tsx"]:::ts
-  subgraph node_57_sub ["src/modules/design/components/ui/Ribbon.tsx"]
-    node_57_file("📄 src/modules/design/components/ui/Ribbon.tsx")
-    node_57_s0["📦 RibbonProps (interface)"]:::symbol
-    node_57_file --- node_57_s0
-    node_57_s1["🔧 Ribbon (function)"]:::symbol
-    node_57_file --- node_57_s1
+  subgraph node_56_sub ["src/modules/design/components/ui/ResizeHandle.tsx"]
+    node_56_file("📄 src/modules/design/components/ui/ResizeHandle.tsx")
+    node_56_s0["📦 ResizeHandleProps (interface)"]:::symbol
+    node_56_file --- node_56_s0
   end
-  class node_57_sub ts
-  subgraph node_58_sub ["src/modules/design/components/ui/RibbonComponents.tsx"]
-    node_58_file("📄 src/modules/design/components/ui/RibbonComponents.tsx")
-    node_58_s0["🔧 ToolGroup (function)"]:::symbol
+  class node_56_sub ts
+  node_57["📄 src/modules/design/components/ui/Ribbon.report.test.tsx"]:::ts
+  subgraph node_58_sub ["src/modules/design/components/ui/Ribbon.tsx"]
+    node_58_file("📄 src/modules/design/components/ui/Ribbon.tsx")
+    node_58_s0["📦 RibbonProps (interface)"]:::symbol
     node_58_file --- node_58_s0
-    node_58_s1["📦 ToolButtonProps (interface)"]:::symbol
+    node_58_s1["🔧 Ribbon (function)"]:::symbol
     node_58_file --- node_58_s1
-    node_58_s2["🔧 ToolButton (function)"]:::symbol
-    node_58_file --- node_58_s2
   end
   class node_58_sub ts
-  subgraph node_59_sub ["src/modules/design/components/ui/RibbonTabContent.tsx"]
-    node_59_file("📄 src/modules/design/components/ui/RibbonTabContent.tsx")
-    node_59_s0["📦 CommonRibbonProps (interface)"]:::symbol
+  subgraph node_59_sub ["src/modules/design/components/ui/RibbonComponents.tsx"]
+    node_59_file("📄 src/modules/design/components/ui/RibbonComponents.tsx")
+    node_59_s0["🔧 ToolGroup (function)"]:::symbol
     node_59_file --- node_59_s0
+    node_59_s1["📦 ToolButtonProps (interface)"]:::symbol
+    node_59_file --- node_59_s1
+    node_59_s2["🔧 ToolButton (function)"]:::symbol
+    node_59_file --- node_59_s2
   end
   class node_59_sub ts
-  subgraph node_60_sub ["src/modules/design/components/ui/StatusBar.tsx"]
-    node_60_file("📄 src/modules/design/components/ui/StatusBar.tsx")
-    node_60_s0["🔧 StatusBar (function)"]:::symbol
+  subgraph node_60_sub ["src/modules/design/components/ui/RibbonTabContent.tsx"]
+    node_60_file("📄 src/modules/design/components/ui/RibbonTabContent.tsx")
+    node_60_s0["📦 CommonRibbonProps (interface)"]:::symbol
     node_60_file --- node_60_s0
   end
   class node_60_sub ts
-  subgraph node_61_sub ["src/modules/design/components/ui/StorageHealthIndicator.tsx"]
-    node_61_file("📄 src/modules/design/components/ui/StorageHealthIndicator.tsx")
-    node_61_s0["🔧 StorageHealthIndicator (function)"]:::symbol
+  subgraph node_61_sub ["src/modules/design/components/ui/StatusBar.tsx"]
+    node_61_file("📄 src/modules/design/components/ui/StatusBar.tsx")
+    node_61_s0["🔧 StatusBar (function)"]:::symbol
     node_61_file --- node_61_s0
-    node_61_s1["🔧 Metric (function)"]:::symbol
-    node_61_file --- node_61_s1
   end
   class node_61_sub ts
-  node_62["📄 src/modules/design/components/ui/SyncController.tsx"]:::ts
-  subgraph node_63_sub ["src/modules/design/components/ui/TechnicalSpecsPanel.tsx"]
-    node_63_file("📄 src/modules/design/components/ui/TechnicalSpecsPanel.tsx")
-    node_63_s0["📦 TechnicalSpecsPanelProps (interface)"]:::symbol
-    node_63_file --- node_63_s0
-    node_63_s1["📦 SpecField (interface)"]:::symbol
-    node_63_file --- node_63_s1
+  subgraph node_62_sub ["src/modules/design/components/ui/StorageHealthIndicator.tsx"]
+    node_62_file("📄 src/modules/design/components/ui/StorageHealthIndicator.tsx")
+    node_62_s0["🔧 StorageHealthIndicator (function)"]:::symbol
+    node_62_file --- node_62_s0
+    node_62_s1["🔧 Metric (function)"]:::symbol
+    node_62_file --- node_62_s1
   end
-  class node_63_sub ts
-  subgraph node_64_sub ["src/modules/design/components/ui/ThemeModal.tsx"]
-    node_64_file("📄 src/modules/design/components/ui/ThemeModal.tsx")
-    node_64_s0["📦 ThemeModalProps (interface)"]:::symbol
+  class node_62_sub ts
+  node_63["📄 src/modules/design/components/ui/SyncController.tsx"]:::ts
+  subgraph node_64_sub ["src/modules/design/components/ui/TechnicalSpecsPanel.tsx"]
+    node_64_file("📄 src/modules/design/components/ui/TechnicalSpecsPanel.tsx")
+    node_64_s0["📦 TechnicalSpecsPanelProps (interface)"]:::symbol
     node_64_file --- node_64_s0
-    node_64_s1["🔧 ThemeModal (function)"]:::symbol
+    node_64_s1["📦 SpecField (interface)"]:::symbol
     node_64_file --- node_64_s1
   end
   class node_64_sub ts
-  subgraph node_65_sub ["src/modules/design/components/ui/TitleBar.tsx"]
-    node_65_file("📄 src/modules/design/components/ui/TitleBar.tsx")
-    node_65_s0["📦 TitleBarProps (interface)"]:::symbol
-    node_65_file --- node_65_s0
-    node_65_s1["🔧 TitleBar (function)"]:::symbol
-    node_65_file --- node_65_s1
-  end
-  class node_65_sub ts
-  subgraph node_66_sub ["src/modules/design/components/ui/Toolbar.tsx"]
-    node_66_file("📄 src/modules/design/components/ui/Toolbar.tsx")
-    node_66_s0["🔧 cn (function)"]:::symbol
+  node_65["📄 src/modules/design/components/ui/ThemeModal.test.ts"]:::ts
+  subgraph node_66_sub ["src/modules/design/components/ui/ThemeModal.tsx"]
+    node_66_file("📄 src/modules/design/components/ui/ThemeModal.tsx")
+    node_66_s0["📦 ThemeModalProps (interface)"]:::symbol
     node_66_file --- node_66_s0
-    node_66_s1["📦 ToolbarProps (interface)"]:::symbol
+    node_66_s1["📋 FeatureUpdatedEvent (type)"]:::symbol
     node_66_file --- node_66_s1
-    node_66_s2["📋 ViewToggleMode (type)"]:::symbol
+    node_66_s2["📋 NetworkLineStyle (type)"]:::symbol
     node_66_file --- node_66_s2
-    node_66_s3["🔧 ToolbarButton (function)"]:::symbol
+    node_66_s3["📦 FiberThemeSettings (interface)"]:::symbol
     node_66_file --- node_66_s3
-    node_66_s4["🔧 DesignToolbarTools (function)"]:::symbol
+    node_66_s4["📦 BuildFeatureThemeUpdateEventArgs (interface)"]:::symbol
     node_66_file --- node_66_s4
-    node_66_s5["🔧 ViewToggle (function)"]:::symbol
+    node_66_s5["🔧 ThemeModal (function)"]:::symbol
     node_66_file --- node_66_s5
   end
   class node_66_sub ts
-  subgraph node_67_sub ["src/modules/design/components/ui/TopToolbar.tsx"]
-    node_67_file("📄 src/modules/design/components/ui/TopToolbar.tsx")
-    node_67_s0["📦 TopToolbarProps (interface)"]:::symbol
+  subgraph node_67_sub ["src/modules/design/components/ui/TitleBar.tsx"]
+    node_67_file("📄 src/modules/design/components/ui/TitleBar.tsx")
+    node_67_s0["📦 TitleBarProps (interface)"]:::symbol
     node_67_file --- node_67_s0
-    node_67_s1["🔧 TopToolbar (function)"]:::symbol
+    node_67_s1["🔧 TitleBar (function)"]:::symbol
     node_67_file --- node_67_s1
   end
   class node_67_sub ts
-  subgraph node_68_sub ["src/modules/design/components/ui/VerticalResizeHandle.tsx"]
-    node_68_file("📄 src/modules/design/components/ui/VerticalResizeHandle.tsx")
-    node_68_s0["📦 VerticalResizeHandleProps (interface)"]:::symbol
+  subgraph node_68_sub ["src/modules/design/components/ui/Toolbar.tsx"]
+    node_68_file("📄 src/modules/design/components/ui/Toolbar.tsx")
+    node_68_s0["🔧 cn (function)"]:::symbol
     node_68_file --- node_68_s0
+    node_68_s1["📦 ToolbarProps (interface)"]:::symbol
+    node_68_file --- node_68_s1
+    node_68_s2["📋 ViewToggleMode (type)"]:::symbol
+    node_68_file --- node_68_s2
+    node_68_s3["🔧 ToolbarButton (function)"]:::symbol
+    node_68_file --- node_68_s3
+    node_68_s4["🔧 DesignToolbarTools (function)"]:::symbol
+    node_68_file --- node_68_s4
+    node_68_s5["🔧 ViewToggle (function)"]:::symbol
+    node_68_file --- node_68_s5
   end
   class node_68_sub ts
-  subgraph node_70_sub ["src/modules/design/features/map/MapClickHandler.ts"]
-    node_70_file("📄 src/modules/design/features/map/MapClickHandler.ts")
-    node_70_s0["🔧 createGoogleMapsStyleHandler (function)"]:::symbol
+  subgraph node_69_sub ["src/modules/design/components/ui/TopToolbar.tsx"]
+    node_69_file("📄 src/modules/design/components/ui/TopToolbar.tsx")
+    node_69_s0["📦 TopToolbarProps (interface)"]:::symbol
+    node_69_file --- node_69_s0
+    node_69_s1["🔧 TopToolbar (function)"]:::symbol
+    node_69_file --- node_69_s1
+  end
+  class node_69_sub ts
+  subgraph node_70_sub ["src/modules/design/components/ui/VerticalResizeHandle.tsx"]
+    node_70_file("📄 src/modules/design/components/ui/VerticalResizeHandle.tsx")
+    node_70_s0["📦 VerticalResizeHandleProps (interface)"]:::symbol
     node_70_file --- node_70_s0
-    node_70_s1["🔧 isFeatureElement (function)"]:::symbol
-    node_70_file --- node_70_s1
-    node_70_s2["🔧 createEnhancedFeatureClickHandler (function)"]:::symbol
-    node_70_file --- node_70_s2
-    node_70_s3["🔧 createBackgroundClickHandler (function)"]:::symbol
-    node_70_file --- node_70_s3
   end
   class node_70_sub ts
-  subgraph node_71_sub ["src/modules/design/features/map/MapContext.tsx"]
-    node_71_file("📄 src/modules/design/features/map/MapContext.tsx")
-    node_71_s0["📦 MapContextType (interface)"]:::symbol
-    node_71_file --- node_71_s0
-  end
-  class node_71_sub ts
-  subgraph node_72_sub ["src/modules/design/features/map/MapLayer.tsx"]
-    node_72_file("📄 src/modules/design/features/map/MapLayer.tsx")
-    node_72_s0["📋 BasemapName (type)"]:::symbol
+  subgraph node_72_sub ["src/modules/design/features/map/MapClickHandler.ts"]
+    node_72_file("📄 src/modules/design/features/map/MapClickHandler.ts")
+    node_72_s0["🔧 createGoogleMapsStyleHandler (function)"]:::symbol
     node_72_file --- node_72_s0
-    node_72_s1["📦 MapLayerProps (interface)"]:::symbol
+    node_72_s1["🔧 isFeatureElement (function)"]:::symbol
     node_72_file --- node_72_s1
-    node_72_s2["🔧 BasemapPersistence (function)"]:::symbol
+    node_72_s2["🔧 createEnhancedFeatureClickHandler (function)"]:::symbol
     node_72_file --- node_72_s2
-    node_72_s3["🔧 MapLayer (function)"]:::symbol
+    node_72_s3["🔧 createBackgroundClickHandler (function)"]:::symbol
     node_72_file --- node_72_s3
   end
   class node_72_sub ts
-  subgraph node_87_sub ["src/modules/design/features/map/MapLayerComponents/BoxSelectionHandler.tsx"]
-    node_87_file("📄 src/modules/design/features/map/MapLayerComponents/BoxSelectionHandler.tsx")
-    node_87_s0["🔧 BoxSelectionHandler (function)"]:::symbol
-    node_87_file --- node_87_s0
+  subgraph node_73_sub ["src/modules/design/features/map/MapContext.tsx"]
+    node_73_file("📄 src/modules/design/features/map/MapContext.tsx")
+    node_73_s0["📦 MapContextType (interface)"]:::symbol
+    node_73_file --- node_73_s0
   end
-  class node_87_sub ts
-  subgraph node_88_sub ["src/modules/design/features/map/MapLayerComponents/BoxSummary.tsx"]
-    node_88_file("📄 src/modules/design/features/map/MapLayerComponents/BoxSummary.tsx")
-    node_88_s0["📦 BoxSummaryProps (interface)"]:::symbol
-    node_88_file --- node_88_s0
+  class node_73_sub ts
+  subgraph node_74_sub ["src/modules/design/features/map/MapLayer.tsx"]
+    node_74_file("📄 src/modules/design/features/map/MapLayer.tsx")
+    node_74_s0["📋 BasemapName (type)"]:::symbol
+    node_74_file --- node_74_s0
+    node_74_s1["📦 MapLayerProps (interface)"]:::symbol
+    node_74_file --- node_74_s1
+    node_74_s2["🔧 BasemapPersistence (function)"]:::symbol
+    node_74_file --- node_74_s2
+    node_74_s3["🔧 MapLayer (function)"]:::symbol
+    node_74_file --- node_74_s3
   end
-  class node_88_sub ts
-  node_90["📄 src/modules/design/features/map/MapLayerComponents/DORILegend.tsx"]:::ts
-  node_91["📄 src/modules/design/features/map/MapLayerComponents/DORIOverlay.test.tsx"]:::ts
-  node_92["📄 src/modules/design/features/map/MapLayerComponents/DORIOverlay.tsx"]:::ts
-  node_89["📄 src/modules/design/features/map/MapLayerComponents/DesignFeatures.tsx"]:::ts
-  node_93["📄 src/modules/design/features/map/MapLayerComponents/DrawingLayer.tsx"]:::ts
-  node_94["📄 src/modules/design/features/map/MapLayerComponents/FOVLayer.test.tsx"]:::ts
-  node_95["📄 src/modules/design/features/map/MapLayerComponents/FOVLayer.tsx"]:::ts
-  node_97["📄 src/modules/design/features/map/MapLayerComponents/InteractivePPM.test.tsx"]:::ts
-  node_98["📄 src/modules/design/features/map/MapLayerComponents/InteractivePPM.tsx"]:::ts
-  node_99["📄 src/modules/design/features/map/MapLayerComponents/LocationMarker.test.tsx"]:::ts
-  subgraph node_100_sub ["src/modules/design/features/map/MapLayerComponents/LocationMarker.tsx"]
-    node_100_file("📄 src/modules/design/features/map/MapLayerComponents/LocationMarker.tsx")
-    node_100_s0["📦 LocationMarkerProps (interface)"]:::symbol
-    node_100_file --- node_100_s0
-    node_100_s1["📋 CoordinatePopupState (type)"]:::symbol
-    node_100_file --- node_100_s1
-    node_100_s2["🔧 LocationMarker (function)"]:::symbol
-    node_100_file --- node_100_s2
+  class node_74_sub ts
+  subgraph node_92_sub ["src/modules/design/features/map/MapLayerComponents/BoxSelectionHandler.tsx"]
+    node_92_file("📄 src/modules/design/features/map/MapLayerComponents/BoxSelectionHandler.tsx")
+    node_92_s0["🔧 BoxSelectionHandler (function)"]:::symbol
+    node_92_file --- node_92_s0
   end
-  class node_100_sub ts
-  subgraph node_101_sub ["src/modules/design/features/map/MapLayerComponents/MapCaptureHandler.tsx"]
-    node_101_file("📄 src/modules/design/features/map/MapLayerComponents/MapCaptureHandler.tsx")
-    node_101_s0["📋 MapCaptureRequest (type)"]:::symbol
-    node_101_file --- node_101_s0
-    node_101_s1["🔧 MapCaptureHandler (function)"]:::symbol
-    node_101_file --- node_101_s1
+  class node_92_sub ts
+  subgraph node_93_sub ["src/modules/design/features/map/MapLayerComponents/BoxSummary.tsx"]
+    node_93_file("📄 src/modules/design/features/map/MapLayerComponents/BoxSummary.tsx")
+    node_93_s0["📦 BoxSummaryProps (interface)"]:::symbol
+    node_93_file --- node_93_s0
   end
-  class node_101_sub ts
-  subgraph node_104_sub ["src/modules/design/features/map/MapLayerComponents/MapResizeObserver.tsx"]
-    node_104_file("📄 src/modules/design/features/map/MapLayerComponents/MapResizeObserver.tsx")
-    node_104_s0["🔧 MapResizeObserver (function)"]:::symbol
-    node_104_file --- node_104_s0
+  class node_93_sub ts
+  node_95["📄 src/modules/design/features/map/MapLayerComponents/DORILegend.tsx"]:::ts
+  node_96["📄 src/modules/design/features/map/MapLayerComponents/DORIOverlay.test.tsx"]:::ts
+  node_97["📄 src/modules/design/features/map/MapLayerComponents/DORIOverlay.tsx"]:::ts
+  node_94["📄 src/modules/design/features/map/MapLayerComponents/DesignFeatures.tsx"]:::ts
+  node_98["📄 src/modules/design/features/map/MapLayerComponents/DrawingLayer.tsx"]:::ts
+  node_99["📄 src/modules/design/features/map/MapLayerComponents/FOVLayer.test.tsx"]:::ts
+  node_100["📄 src/modules/design/features/map/MapLayerComponents/FOVLayer.tsx"]:::ts
+  node_102["📄 src/modules/design/features/map/MapLayerComponents/InteractivePPM.test.tsx"]:::ts
+  node_103["📄 src/modules/design/features/map/MapLayerComponents/InteractivePPM.tsx"]:::ts
+  node_104["📄 src/modules/design/features/map/MapLayerComponents/LocationMarker.test.tsx"]:::ts
+  subgraph node_105_sub ["src/modules/design/features/map/MapLayerComponents/LocationMarker.tsx"]
+    node_105_file("📄 src/modules/design/features/map/MapLayerComponents/LocationMarker.tsx")
+    node_105_s0["📦 LocationMarkerProps (interface)"]:::symbol
+    node_105_file --- node_105_s0
+    node_105_s1["📋 CoordinatePopupState (type)"]:::symbol
+    node_105_file --- node_105_s1
+    node_105_s2["🔧 LocationMarker (function)"]:::symbol
+    node_105_file --- node_105_s2
   end
-  class node_104_sub ts
-  node_105["📄 src/modules/design/features/map/MapLayerComponents/MapSearchBar.tsx"]:::ts
-  node_106["📄 src/modules/design/features/map/MapLayerComponents/MeasurementTool.test.tsx"]:::ts
-  subgraph node_107_sub ["src/modules/design/features/map/MapLayerComponents/MeasurementTool.tsx"]
-    node_107_file("📄 src/modules/design/features/map/MapLayerComponents/MeasurementTool.tsx")
-    node_107_s0["📦 MeasurementToolProps (interface)"]:::symbol
-    node_107_file --- node_107_s0
-    node_107_s1["🔧 MeasurementTool (function)"]:::symbol
-    node_107_file --- node_107_s1
+  class node_105_sub ts
+  subgraph node_106_sub ["src/modules/design/features/map/MapLayerComponents/MapCaptureHandler.tsx"]
+    node_106_file("📄 src/modules/design/features/map/MapLayerComponents/MapCaptureHandler.tsx")
+    node_106_s0["📋 MapCaptureRequest (type)"]:::symbol
+    node_106_file --- node_106_s0
+    node_106_s1["🔧 MapCaptureHandler (function)"]:::symbol
+    node_106_file --- node_106_s1
   end
-  class node_107_sub ts
-  node_108["📄 src/modules/design/features/map/MapLayerComponents/PointLayer.test.tsx"]:::ts
-  node_109["📄 src/modules/design/features/map/MapLayerComponents/PointLayer.tsx"]:::ts
-  subgraph node_110_sub ["src/modules/design/features/map/MapLayerComponents/PrintAreaHandler.tsx"]
-    node_110_file("📄 src/modules/design/features/map/MapLayerComponents/PrintAreaHandler.tsx")
-    node_110_s0["🔧 PrintAreaHandler (function)"]:::symbol
-    node_110_file --- node_110_s0
+  class node_106_sub ts
+  subgraph node_109_sub ["src/modules/design/features/map/MapLayerComponents/MapResizeObserver.tsx"]
+    node_109_file("📄 src/modules/design/features/map/MapLayerComponents/MapResizeObserver.tsx")
+    node_109_s0["🔧 MapResizeObserver (function)"]:::symbol
+    node_109_file --- node_109_s0
   end
-  class node_110_sub ts
-  node_111["📄 src/modules/design/features/map/MapLayerComponents/SharedMapComponents.tsx"]:::ts
-  node_112["📄 src/modules/design/features/map/MapLayerComponents/StreetViewControl.test.ts"]:::ts
-  subgraph node_113_sub ["src/modules/design/features/map/MapLayerComponents/StreetViewControl.tsx"]
-    node_113_file("📄 src/modules/design/features/map/MapLayerComponents/StreetViewControl.tsx")
-    node_113_s0["🔧 isAttachedElement (function)"]:::symbol
-    node_113_file --- node_113_s0
-    node_113_s1["🔧 canUseLeafletPane (function)"]:::symbol
-    node_113_file --- node_113_s1
-    node_113_s2["🔧 canUpdatePegmanMarker (function)"]:::symbol
-    node_113_file --- node_113_s2
-    node_113_s3["📋 PegmanSource (type)"]:::symbol
-    node_113_file --- node_113_s3
-    node_113_s4["📋 StreetViewLocationPayload (type)"]:::symbol
-    node_113_file --- node_113_s4
-    node_113_s5["📋 StreetViewPovPayload (type)"]:::symbol
-    node_113_file --- node_113_s5
-    node_113_s6["🔧 normalizeHeading (function)"]:::symbol
-    node_113_file --- node_113_s6
-    node_113_s7["🔧 clampFov (function)"]:::symbol
-    node_113_file --- node_113_s7
-    node_113_s8["🔧 getHeadingDelta (function)"]:::symbol
-    node_113_file --- node_113_s8
-    node_113_s9["🔧 blendHeading (function)"]:::symbol
-    node_113_file --- node_113_s9
-    node_113_s10["🔧 getPegmanRotationDegrees (function)"]:::symbol
-    node_113_file --- node_113_s10
-    node_113_s11["🔧 hasMeaningfulMovement (function)"]:::symbol
-    node_113_file --- node_113_s11
-    node_113_s12["🔧 formatCoords (function)"]:::symbol
-    node_113_file --- node_113_s12
-    node_113_s13["🔧 buildStreetViewUrl (function)"]:::symbol
-    node_113_file --- node_113_s13
-    node_113_s14["🔧 parseStreetViewUrl (function)"]:::symbol
-    node_113_file --- node_113_s14
-    node_113_more["... and 3 more symbols"]:::symbol
-    node_113_file --- node_113_more
+  class node_109_sub ts
+  node_110["📄 src/modules/design/features/map/MapLayerComponents/MapSearchBar.tsx"]:::ts
+  node_111["📄 src/modules/design/features/map/MapLayerComponents/MeasurementTool.test.tsx"]:::ts
+  subgraph node_112_sub ["src/modules/design/features/map/MapLayerComponents/MeasurementTool.tsx"]
+    node_112_file("📄 src/modules/design/features/map/MapLayerComponents/MeasurementTool.tsx")
+    node_112_s0["📦 MeasurementToolProps (interface)"]:::symbol
+    node_112_file --- node_112_s0
+    node_112_s1["🔧 MeasurementTool (function)"]:::symbol
+    node_112_file --- node_112_s1
   end
-  class node_113_sub ts
-  node_114["📄 src/modules/design/features/map/MapLayerComponents/StreetViewPage.tsx"]:::ts
-  node_115["📄 src/modules/design/features/map/MapLayerComponents/VectorLayer.test.tsx"]:::ts
-  node_116["📄 src/modules/design/features/map/MapLayerComponents/VectorLayer.tsx"]:::ts
-  node_117["📄 src/modules/design/features/map/MapLayerComponents/VertexEditor.test.tsx"]:::ts
-  node_118["📄 src/modules/design/features/map/MapLayerComponents/VertexEditor.tsx"]:::ts
-  subgraph node_119_sub ["src/modules/design/features/map/MapLayerComponents/VisibilityTool.tsx"]
-    node_119_file("📄 src/modules/design/features/map/MapLayerComponents/VisibilityTool.tsx")
-    node_119_s0["🔧 cn (function)"]:::symbol
-    node_119_file --- node_119_s0
+  class node_112_sub ts
+  node_113["📄 src/modules/design/features/map/MapLayerComponents/PointLayer.test.tsx"]:::ts
+  node_114["📄 src/modules/design/features/map/MapLayerComponents/PointLayer.tsx"]:::ts
+  subgraph node_115_sub ["src/modules/design/features/map/MapLayerComponents/PrintAreaHandler.tsx"]
+    node_115_file("📄 src/modules/design/features/map/MapLayerComponents/PrintAreaHandler.tsx")
+    node_115_s0["🔧 PrintAreaHandler (function)"]:::symbol
+    node_115_file --- node_115_s0
   end
-  class node_119_sub ts
-  subgraph node_120_sub ["src/modules/design/features/map/MapLayerComponents/ZoomExtendControl.tsx"]
-    node_120_file("📄 src/modules/design/features/map/MapLayerComponents/ZoomExtendControl.tsx")
-    node_120_s0["🔧 ZoomExtendControl (function)"]:::symbol
-    node_120_file --- node_120_s0
+  class node_115_sub ts
+  node_116["📄 src/modules/design/features/map/MapLayerComponents/SharedMapComponents.tsx"]:::ts
+  node_117["📄 src/modules/design/features/map/MapLayerComponents/StreetViewControl.test.ts"]:::ts
+  subgraph node_118_sub ["src/modules/design/features/map/MapLayerComponents/StreetViewControl.tsx"]
+    node_118_file("📄 src/modules/design/features/map/MapLayerComponents/StreetViewControl.tsx")
+    node_118_s0["🔧 isAttachedElement (function)"]:::symbol
+    node_118_file --- node_118_s0
+    node_118_s1["🔧 canUseLeafletPane (function)"]:::symbol
+    node_118_file --- node_118_s1
+    node_118_s2["🔧 canUpdatePegmanMarker (function)"]:::symbol
+    node_118_file --- node_118_s2
+    node_118_s3["📋 PegmanSource (type)"]:::symbol
+    node_118_file --- node_118_s3
+    node_118_s4["📋 StreetViewLocationPayload (type)"]:::symbol
+    node_118_file --- node_118_s4
+    node_118_s5["📋 StreetViewPovPayload (type)"]:::symbol
+    node_118_file --- node_118_s5
+    node_118_s6["🔧 normalizeHeading (function)"]:::symbol
+    node_118_file --- node_118_s6
+    node_118_s7["🔧 clampFov (function)"]:::symbol
+    node_118_file --- node_118_s7
+    node_118_s8["🔧 getHeadingDelta (function)"]:::symbol
+    node_118_file --- node_118_s8
+    node_118_s9["🔧 blendHeading (function)"]:::symbol
+    node_118_file --- node_118_s9
+    node_118_s10["🔧 getPegmanRotationDegrees (function)"]:::symbol
+    node_118_file --- node_118_s10
+    node_118_s11["🔧 hasMeaningfulMovement (function)"]:::symbol
+    node_118_file --- node_118_s11
+    node_118_s12["🔧 formatCoords (function)"]:::symbol
+    node_118_file --- node_118_s12
+    node_118_s13["🔧 buildStreetViewUrl (function)"]:::symbol
+    node_118_file --- node_118_s13
+    node_118_s14["🔧 parseStreetViewUrl (function)"]:::symbol
+    node_118_file --- node_118_s14
+    node_118_more["... and 3 more symbols"]:::symbol
+    node_118_file --- node_118_more
   end
-  class node_120_sub ts
-  subgraph node_121_sub ["src/modules/design/features/map/MapLayerComponents/ZoomToHandler.tsx"]
-    node_121_file("📄 src/modules/design/features/map/MapLayerComponents/ZoomToHandler.tsx")
-    node_121_s0["🔧 ZoomToHandler (function)"]:::symbol
-    node_121_file --- node_121_s0
+  class node_118_sub ts
+  node_119["📄 src/modules/design/features/map/MapLayerComponents/StreetViewPage.tsx"]:::ts
+  node_120["📄 src/modules/design/features/map/MapLayerComponents/VectorLayer.test.tsx"]:::ts
+  node_121["📄 src/modules/design/features/map/MapLayerComponents/VectorLayer.tsx"]:::ts
+  node_122["📄 src/modules/design/features/map/MapLayerComponents/VertexEditor.test.tsx"]:::ts
+  node_123["📄 src/modules/design/features/map/MapLayerComponents/VertexEditor.tsx"]:::ts
+  subgraph node_124_sub ["src/modules/design/features/map/MapLayerComponents/VisibilityTool.tsx"]
+    node_124_file("📄 src/modules/design/features/map/MapLayerComponents/VisibilityTool.tsx")
+    node_124_s0["🔧 cn (function)"]:::symbol
+    node_124_file --- node_124_s0
   end
-  class node_121_sub ts
-  node_96["📄 src/modules/design/features/map/MapLayerComponents/index.ts"]:::ts
-  node_102["📄 src/modules/design/features/map/MapLayerComponents/mapCaptureValidation.test.ts"]:::ts
-  subgraph node_103_sub ["src/modules/design/features/map/MapLayerComponents/mapCaptureValidation.ts"]
-    node_103_file("📄 src/modules/design/features/map/MapLayerComponents/mapCaptureValidation.ts")
-    node_103_s0["📋 CaptureValidationResult (type)"]:::symbol
-    node_103_file --- node_103_s0
+  class node_124_sub ts
+  subgraph node_125_sub ["src/modules/design/features/map/MapLayerComponents/ZoomExtendControl.tsx"]
+    node_125_file("📄 src/modules/design/features/map/MapLayerComponents/ZoomExtendControl.tsx")
+    node_125_s0["🔧 ZoomExtendControl (function)"]:::symbol
+    node_125_file --- node_125_s0
   end
-  class node_103_sub ts
-  subgraph node_75_sub ["src/modules/design/features/map/MapLibreFastRenderer.tsx"]
-    node_75_file("📄 src/modules/design/features/map/MapLibreFastRenderer.tsx")
-    node_75_s0["🔧 MapLibreFastRenderer (function)"]:::symbol
-    node_75_file --- node_75_s0
+  class node_125_sub ts
+  subgraph node_126_sub ["src/modules/design/features/map/MapLayerComponents/ZoomToHandler.tsx"]
+    node_126_file("📄 src/modules/design/features/map/MapLayerComponents/ZoomToHandler.tsx")
+    node_126_s0["🔧 ZoomToHandler (function)"]:::symbol
+    node_126_file --- node_126_s0
   end
-  class node_75_sub ts
-  subgraph node_122_sub ["src/modules/design/features/map/MapSettings/MapSettingsPanel.tsx"]
-    node_122_file("📄 src/modules/design/features/map/MapSettings/MapSettingsPanel.tsx")
-    node_122_s0["📦 MapFeatureFlags (interface)"]:::symbol
-    node_122_file --- node_122_s0
-    node_122_s1["📋 MapFeatureKey (type)"]:::symbol
-    node_122_file --- node_122_s1
-    node_122_s2["📦 MapSettingsPanelProps (interface)"]:::symbol
-    node_122_file --- node_122_s2
-    node_122_s3["📋 Translate (type)"]:::symbol
-    node_122_file --- node_122_s3
-    node_122_s4["🔧 MapSettingsPanel (function)"]:::symbol
-    node_122_file --- node_122_s4
+  class node_126_sub ts
+  node_101["📄 src/modules/design/features/map/MapLayerComponents/index.ts"]:::ts
+  node_107["📄 src/modules/design/features/map/MapLayerComponents/mapCaptureValidation.test.ts"]:::ts
+  subgraph node_108_sub ["src/modules/design/features/map/MapLayerComponents/mapCaptureValidation.ts"]
+    node_108_file("📄 src/modules/design/features/map/MapLayerComponents/mapCaptureValidation.ts")
+    node_108_s0["📋 CaptureValidationResult (type)"]:::symbol
+    node_108_file --- node_108_s0
   end
-  class node_122_sub ts
-  node_80["📄 src/modules/design/features/map/MapSettingsPortal.tsx"]:::ts
-  subgraph node_81_sub ["src/modules/design/features/map/MapToolbar.tsx"]
-    node_81_file("📄 src/modules/design/features/map/MapToolbar.tsx")
-    node_81_s0["📦 MapToolbarProps (interface)"]:::symbol
-    node_81_file --- node_81_s0
+  class node_108_sub ts
+  node_77["📄 src/modules/design/features/map/MapLibreFastRenderer.test.tsx"]:::ts
+  subgraph node_78_sub ["src/modules/design/features/map/MapLibreFastRenderer.tsx"]
+    node_78_file("📄 src/modules/design/features/map/MapLibreFastRenderer.tsx")
+    node_78_s0["🔧 MapLibreFastRenderer (function)"]:::symbol
+    node_78_file --- node_78_s0
   end
-  class node_81_sub ts
-  node_150["📄 src/modules/design/features/map/Palette/AiAssistantPanel.test.tsx"]:::ts
-  subgraph node_151_sub ["src/modules/design/features/map/Palette/AiAssistantPanel.tsx"]
-    node_151_file("📄 src/modules/design/features/map/Palette/AiAssistantPanel.tsx")
-    node_151_s0["📋 AiPanelTab (type)"]:::symbol
-    node_151_file --- node_151_s0
-    node_151_s1["📦 AiConfig (interface)"]:::symbol
-    node_151_file --- node_151_s1
-    node_151_s2["📦 AiStatusModel (interface)"]:::symbol
-    node_151_file --- node_151_s2
-    node_151_s3["📦 AiStatus (interface)"]:::symbol
-    node_151_file --- node_151_s3
-    node_151_s4["📦 AiCitation (interface)"]:::symbol
-    node_151_file --- node_151_s4
-    node_151_s5["📦 AiActionProposal (interface)"]:::symbol
-    node_151_file --- node_151_s5
-    node_151_s6["📦 Message (interface)"]:::symbol
-    node_151_file --- node_151_s6
-    node_151_s7["📦 DownloadProgress (interface)"]:::symbol
-    node_151_file --- node_151_s7
-    node_151_s8["🔧 AiAssistantPanel (function)"]:::symbol
-    node_151_file --- node_151_s8
+  class node_78_sub ts
+  subgraph node_127_sub ["src/modules/design/features/map/MapSettings/MapSettingsPanel.tsx"]
+    node_127_file("📄 src/modules/design/features/map/MapSettings/MapSettingsPanel.tsx")
+    node_127_s0["📦 MapFeatureFlags (interface)"]:::symbol
+    node_127_file --- node_127_s0
+    node_127_s1["📋 MapFeatureKey (type)"]:::symbol
+    node_127_file --- node_127_s1
+    node_127_s2["📦 MapSettingsPanelProps (interface)"]:::symbol
+    node_127_file --- node_127_s2
+    node_127_s3["📋 Translate (type)"]:::symbol
+    node_127_file --- node_127_s3
+    node_127_s4["🔧 MapSettingsPanel (function)"]:::symbol
+    node_127_file --- node_127_s4
   end
-  class node_151_sub ts
-  subgraph node_152_sub ["src/modules/design/features/map/Palette/CameraHudFallback.tsx"]
-    node_152_file("📄 src/modules/design/features/map/Palette/CameraHudFallback.tsx")
-    node_152_s0["📦 CameraHudFallbackProps (interface)"]:::symbol
-    node_152_file --- node_152_s0
+  class node_127_sub ts
+  node_83["📄 src/modules/design/features/map/MapSettingsPortal.tsx"]:::ts
+  subgraph node_84_sub ["src/modules/design/features/map/MapToolbar.tsx"]
+    node_84_file("📄 src/modules/design/features/map/MapToolbar.tsx")
+    node_84_s0["📦 MapToolbarProps (interface)"]:::symbol
+    node_84_file --- node_84_s0
   end
-  class node_152_sub ts
-  node_153["📄 src/modules/design/features/map/Palette/CameraViewPanel.tsx"]:::ts
-  node_154["📄 src/modules/design/features/map/Palette/DeviceConfigPanel.tsx"]:::ts
-  subgraph node_155_sub ["src/modules/design/features/map/Palette/EquipmentPanel.tsx"]
-    node_155_file("📄 src/modules/design/features/map/Palette/EquipmentPanel.tsx")
-    node_155_s0["📦 EquipmentPanelProps (interface)"]:::symbol
-    node_155_file --- node_155_s0
+  class node_84_sub ts
+  node_155["📄 src/modules/design/features/map/Palette/AiAssistantPanel.test.tsx"]:::ts
+  subgraph node_156_sub ["src/modules/design/features/map/Palette/AiAssistantPanel.tsx"]
+    node_156_file("📄 src/modules/design/features/map/Palette/AiAssistantPanel.tsx")
+    node_156_s0["📋 AiPanelTab (type)"]:::symbol
+    node_156_file --- node_156_s0
+    node_156_s1["📦 AiConfig (interface)"]:::symbol
+    node_156_file --- node_156_s1
+    node_156_s2["📦 AiStatusModel (interface)"]:::symbol
+    node_156_file --- node_156_s2
+    node_156_s3["📦 AiStatus (interface)"]:::symbol
+    node_156_file --- node_156_s3
+    node_156_s4["📦 AiCitation (interface)"]:::symbol
+    node_156_file --- node_156_s4
+    node_156_s5["📦 AiActionProposal (interface)"]:::symbol
+    node_156_file --- node_156_s5
+    node_156_s6["📦 Message (interface)"]:::symbol
+    node_156_file --- node_156_s6
+    node_156_s7["📦 DownloadProgress (interface)"]:::symbol
+    node_156_file --- node_156_s7
+    node_156_s8["🔧 AiAssistantPanel (function)"]:::symbol
+    node_156_file --- node_156_s8
   end
-  class node_155_sub ts
-  subgraph node_176_sub ["src/modules/design/features/map/Palette/EquipmentUI/OneEndEquipmentUI.tsx"]
-    node_176_file("📄 src/modules/design/features/map/Palette/EquipmentUI/OneEndEquipmentUI.tsx")
-    node_176_s0["📦 OneEndEquipmentUIProps (interface)"]:::symbol
-    node_176_file --- node_176_s0
-  end
-  class node_176_sub ts
-  subgraph node_177_sub ["src/modules/design/features/map/Palette/EquipmentUI/TwoEndEquipmentUI.tsx"]
-    node_177_file("📄 src/modules/design/features/map/Palette/EquipmentUI/TwoEndEquipmentUI.tsx")
-    node_177_s0["📦 TwoEndEquipmentUIProps (interface)"]:::symbol
-    node_177_file --- node_177_s0
-  end
-  class node_177_sub ts
-  subgraph node_157_sub ["src/modules/design/features/map/Palette/FiberCapacityPanel.tsx"]
-    node_157_file("📄 src/modules/design/features/map/Palette/FiberCapacityPanel.tsx")
-    node_157_s0["📦 FiberCapacityPanelProps (interface)"]:::symbol
+  class node_156_sub ts
+  subgraph node_157_sub ["src/modules/design/features/map/Palette/CameraHudFallback.tsx"]
+    node_157_file("📄 src/modules/design/features/map/Palette/CameraHudFallback.tsx")
+    node_157_s0["📦 CameraHudFallbackProps (interface)"]:::symbol
     node_157_file --- node_157_s0
   end
   class node_157_sub ts
-  subgraph node_158_sub ["src/modules/design/features/map/Palette/FiberCircuitPanel.tsx"]
-    node_158_file("📄 src/modules/design/features/map/Palette/FiberCircuitPanel.tsx")
-    node_158_s0["📦 FiberCircuitPanelProps (interface)"]:::symbol
-    node_158_file --- node_158_s0
+  node_158["📄 src/modules/design/features/map/Palette/CameraViewPanel.tsx"]:::ts
+  node_159["📄 src/modules/design/features/map/Palette/DeviceConfigPanel.tsx"]:::ts
+  subgraph node_160_sub ["src/modules/design/features/map/Palette/EquipmentPanel.tsx"]
+    node_160_file("📄 src/modules/design/features/map/Palette/EquipmentPanel.tsx")
+    node_160_s0["📦 EquipmentPanelProps (interface)"]:::symbol
+    node_160_file --- node_160_s0
   end
-  class node_158_sub ts
-  subgraph node_159_sub ["src/modules/design/features/map/Palette/FiberInspector.tsx"]
-    node_159_file("📄 src/modules/design/features/map/Palette/FiberInspector.tsx")
-    node_159_s0["📦 FiberInspectorProps (interface)"]:::symbol
-    node_159_file --- node_159_s0
-    node_159_s1["📦 StrandRowProps (interface)"]:::symbol
-    node_159_file --- node_159_s1
+  class node_160_sub ts
+  subgraph node_183_sub ["src/modules/design/features/map/Palette/EquipmentUI/OneEndEquipmentUI.tsx"]
+    node_183_file("📄 src/modules/design/features/map/Palette/EquipmentUI/OneEndEquipmentUI.tsx")
+    node_183_s0["📦 OneEndEquipmentUIProps (interface)"]:::symbol
+    node_183_file --- node_183_s0
   end
-  class node_159_sub ts
-  node_160["📄 src/modules/design/features/map/Palette/FiberSpliceDiagramModal.test.tsx"]:::ts
-  subgraph node_161_sub ["src/modules/design/features/map/Palette/FiberSpliceDiagramModal.tsx"]
-    node_161_file("📄 src/modules/design/features/map/Palette/FiberSpliceDiagramModal.tsx")
-    node_161_s0["📋 EndpointDirection (type)"]:::symbol
-    node_161_file --- node_161_s0
-    node_161_s1["📋 EquipmentKind (type)"]:::symbol
-    node_161_file --- node_161_s1
-    node_161_s2["📦 Props (interface)"]:::symbol
-    node_161_file --- node_161_s2
-    node_161_s3["📦 CableEndpoint (interface)"]:::symbol
-    node_161_file --- node_161_s3
-    node_161_s4["📋 StrandSide (type)"]:::symbol
-    node_161_file --- node_161_s4
-    node_161_s5["📦 AnchorPoint (interface)"]:::symbol
-    node_161_file --- node_161_s5
-    node_161_s6["📦 SplicePath (interface)"]:::symbol
-    node_161_file --- node_161_s6
-    node_161_s7["📦 OdfStrandDrag (interface)"]:::symbol
-    node_161_file --- node_161_s7
-    node_161_s8["📦 OdfPath (interface)"]:::symbol
-    node_161_file --- node_161_s8
-    node_161_s9["🔧 FiberSpliceDiagramModal (function)"]:::symbol
-    node_161_file --- node_161_s9
+  class node_183_sub ts
+  subgraph node_184_sub ["src/modules/design/features/map/Palette/EquipmentUI/TwoEndEquipmentUI.tsx"]
+    node_184_file("📄 src/modules/design/features/map/Palette/EquipmentUI/TwoEndEquipmentUI.tsx")
+    node_184_s0["📦 TwoEndEquipmentUIProps (interface)"]:::symbol
+    node_184_file --- node_184_s0
   end
-  class node_161_sub ts
-  node_163["📄 src/modules/design/features/map/Palette/InteractiveStreetViewPreview.test.tsx"]:::ts
-  subgraph node_164_sub ["src/modules/design/features/map/Palette/InteractiveStreetViewPreview.tsx"]
-    node_164_file("📄 src/modules/design/features/map/Palette/InteractiveStreetViewPreview.tsx")
-    node_164_s0["📦 InteractiveStreetViewPreviewProps (interface)"]:::symbol
+  class node_184_sub ts
+  subgraph node_162_sub ["src/modules/design/features/map/Palette/FiberCapacityPanel.tsx"]
+    node_162_file("📄 src/modules/design/features/map/Palette/FiberCapacityPanel.tsx")
+    node_162_s0["📦 FiberCapacityPanelProps (interface)"]:::symbol
+    node_162_file --- node_162_s0
+  end
+  class node_162_sub ts
+  subgraph node_163_sub ["src/modules/design/features/map/Palette/FiberCircuitPanel.tsx"]
+    node_163_file("📄 src/modules/design/features/map/Palette/FiberCircuitPanel.tsx")
+    node_163_s0["📦 FiberCircuitPanelProps (interface)"]:::symbol
+    node_163_file --- node_163_s0
+  end
+  class node_163_sub ts
+  subgraph node_164_sub ["src/modules/design/features/map/Palette/FiberInspector.tsx"]
+    node_164_file("📄 src/modules/design/features/map/Palette/FiberInspector.tsx")
+    node_164_s0["📦 FiberInspectorProps (interface)"]:::symbol
     node_164_file --- node_164_s0
+    node_164_s1["📦 StrandRowProps (interface)"]:::symbol
+    node_164_file --- node_164_s1
   end
   class node_164_sub ts
-  subgraph node_165_sub ["src/modules/design/features/map/Palette/NetworkGraphPanel.tsx"]
-    node_165_file("📄 src/modules/design/features/map/Palette/NetworkGraphPanel.tsx")
-    node_165_s0["📋 NetworkTab (type)"]:::symbol
-    node_165_file --- node_165_s0
-    node_165_s1["📋 LayoutMode (type)"]:::symbol
-    node_165_file --- node_165_s1
-    node_165_s2["📋 SelectedGraphEntity (type)"]:::symbol
-    node_165_file --- node_165_s2
-    node_165_s3["📋 NetworkLineStyle (type)"]:::symbol
-    node_165_file --- node_165_s3
-    node_165_s4["📋 NetworkLinkIcon (type)"]:::symbol
-    node_165_file --- node_165_s4
-    node_165_s5["📋 LayoutPosition (type)"]:::symbol
-    node_165_file --- node_165_s5
-    node_165_s6["📋 LayoutPositions (type)"]:::symbol
-    node_165_file --- node_165_s6
-    node_165_s7["📦 NetworkGraphFlowProps (interface)"]:::symbol
-    node_165_file --- node_165_s7
-  end
-  class node_165_sub ts
-  subgraph node_166_sub ["src/modules/design/features/map/Palette/NetworkNodeWidget.tsx"]
-    node_166_file("📄 src/modules/design/features/map/Palette/NetworkNodeWidget.tsx")
-    node_166_s0["📦 NetworkNodeData (interface)"]:::symbol
+  node_165["📄 src/modules/design/features/map/Palette/FiberSpliceDiagramModal.test.tsx"]:::ts
+  subgraph node_166_sub ["src/modules/design/features/map/Palette/FiberSpliceDiagramModal.tsx"]
+    node_166_file("📄 src/modules/design/features/map/Palette/FiberSpliceDiagramModal.tsx")
+    node_166_s0["📋 EndpointDirection (type)"]:::symbol
     node_166_file --- node_166_s0
+    node_166_s1["📋 EquipmentKind (type)"]:::symbol
+    node_166_file --- node_166_s1
+    node_166_s2["📦 Props (interface)"]:::symbol
+    node_166_file --- node_166_s2
+    node_166_s3["📦 CableEndpoint (interface)"]:::symbol
+    node_166_file --- node_166_s3
+    node_166_s4["📋 StrandSide (type)"]:::symbol
+    node_166_file --- node_166_s4
+    node_166_s5["📦 AnchorPoint (interface)"]:::symbol
+    node_166_file --- node_166_s5
+    node_166_s6["📦 SplicePath (interface)"]:::symbol
+    node_166_file --- node_166_s6
+    node_166_s7["📦 TubeSplicePath (interface)"]:::symbol
+    node_166_file --- node_166_s7
+    node_166_s8["📦 OdfStrandDrag (interface)"]:::symbol
+    node_166_file --- node_166_s8
+    node_166_s9["📦 OdfPath (interface)"]:::symbol
+    node_166_file --- node_166_s9
+    node_166_s10["🔧 FiberSpliceDiagramModal (function)"]:::symbol
+    node_166_file --- node_166_s10
   end
   class node_166_sub ts
-  subgraph node_167_sub ["src/modules/design/features/map/Palette/PaletteContext.tsx"]
-    node_167_file("📄 src/modules/design/features/map/Palette/PaletteContext.tsx")
-    node_167_s0["📦 PaletteContextType (interface)"]:::symbol
-    node_167_file --- node_167_s0
-  end
-  class node_167_sub ts
-  subgraph node_168_sub ["src/modules/design/features/map/Palette/PalettePanel.tsx"]
-    node_168_file("📄 src/modules/design/features/map/Palette/PalettePanel.tsx")
-    node_168_s0["📦 PalettePanelProps (interface)"]:::symbol
-    node_168_file --- node_168_s0
-  end
-  class node_168_sub ts
-  subgraph node_169_sub ["src/modules/design/features/map/Palette/PaletteRegistry.ts"]
-    node_169_file("📄 src/modules/design/features/map/Palette/PaletteRegistry.ts")
-    node_169_s0["📦 PaletteDefinition (interface)"]:::symbol
-    node_169_file --- node_169_s0
-  end
-  class node_169_sub ts
-  node_170["📄 src/modules/design/features/map/Palette/PaletteSidebar.tsx"]:::ts
-  subgraph node_171_sub ["src/modules/design/features/map/Palette/RecognitionSimulator.tsx"]
-    node_171_file("📄 src/modules/design/features/map/Palette/RecognitionSimulator.tsx")
-    node_171_s0["📦 RecognitionSimulatorProps (interface)"]:::symbol
+  node_170["📄 src/modules/design/features/map/Palette/InteractiveStreetViewPreview.test.tsx"]:::ts
+  subgraph node_171_sub ["src/modules/design/features/map/Palette/InteractiveStreetViewPreview.tsx"]
+    node_171_file("📄 src/modules/design/features/map/Palette/InteractiveStreetViewPreview.tsx")
+    node_171_s0["📦 InteractiveStreetViewPreviewProps (interface)"]:::symbol
     node_171_file --- node_171_s0
   end
   class node_171_sub ts
-  node_172["📄 src/modules/design/features/map/Palette/StaticCameraPreview.test.tsx"]:::ts
-  subgraph node_173_sub ["src/modules/design/features/map/Palette/StaticStreetViewPreview.tsx"]
-    node_173_file("📄 src/modules/design/features/map/Palette/StaticStreetViewPreview.tsx")
-    node_173_s0["📦 StaticStreetViewPreviewProps (interface)"]:::symbol
+  subgraph node_172_sub ["src/modules/design/features/map/Palette/NetworkGraphPanel.tsx"]
+    node_172_file("📄 src/modules/design/features/map/Palette/NetworkGraphPanel.tsx")
+    node_172_s0["📋 NetworkTab (type)"]:::symbol
+    node_172_file --- node_172_s0
+    node_172_s1["📋 LayoutMode (type)"]:::symbol
+    node_172_file --- node_172_s1
+    node_172_s2["📋 SelectedGraphEntity (type)"]:::symbol
+    node_172_file --- node_172_s2
+    node_172_s3["📋 NetworkLineStyle (type)"]:::symbol
+    node_172_file --- node_172_s3
+    node_172_s4["📋 NetworkLinkIcon (type)"]:::symbol
+    node_172_file --- node_172_s4
+    node_172_s5["📋 LayoutPosition (type)"]:::symbol
+    node_172_file --- node_172_s5
+    node_172_s6["📋 LayoutPositions (type)"]:::symbol
+    node_172_file --- node_172_s6
+    node_172_s7["📦 NetworkGraphFlowProps (interface)"]:::symbol
+    node_172_file --- node_172_s7
+  end
+  class node_172_sub ts
+  subgraph node_173_sub ["src/modules/design/features/map/Palette/NetworkNodeWidget.tsx"]
+    node_173_file("📄 src/modules/design/features/map/Palette/NetworkNodeWidget.tsx")
+    node_173_s0["📦 NetworkNodeData (interface)"]:::symbol
     node_173_file --- node_173_s0
-    node_173_s1["📋 StreetViewLocationSource (type)"]:::symbol
-    node_173_file --- node_173_s1
-    node_173_s2["📋 ResolvedStreetViewPano (type)"]:::symbol
-    node_173_file --- node_173_s2
-    node_173_s3["📋 PreviewStatus (type)"]:::symbol
-    node_173_file --- node_173_s3
   end
   class node_173_sub ts
-  subgraph node_174_sub ["src/modules/design/features/map/Palette/StreetViewJS.tsx"]
-    node_174_file("📄 src/modules/design/features/map/Palette/StreetViewJS.tsx")
-    node_174_s0["📦 StreetViewJSProps (interface)"]:::symbol
+  subgraph node_174_sub ["src/modules/design/features/map/Palette/PaletteContext.tsx"]
+    node_174_file("📄 src/modules/design/features/map/Palette/PaletteContext.tsx")
+    node_174_s0["📦 PaletteContextType (interface)"]:::symbol
     node_174_file --- node_174_s0
   end
   class node_174_sub ts
-  node_175["📄 src/modules/design/features/map/Palette/SystemConfigPanel.tsx"]:::ts
-  subgraph node_156_sub ["src/modules/design/features/map/Palette/eventBus.ts"]
-    node_156_file("📄 src/modules/design/features/map/Palette/eventBus.ts")
-    node_156_s0["📦 Pov (interface)"]:::symbol
-    node_156_file --- node_156_s0
-    node_156_s1["📋 PovListener (type)"]:::symbol
-    node_156_file --- node_156_s1
-    node_156_s2["📦 PovEventBus (class)"]:::symbol
-    node_156_file --- node_156_s2
+  subgraph node_175_sub ["src/modules/design/features/map/Palette/PalettePanel.tsx"]
+    node_175_file("📄 src/modules/design/features/map/Palette/PalettePanel.tsx")
+    node_175_s0["📦 PalettePanelProps (interface)"]:::symbol
+    node_175_file --- node_175_s0
   end
-  class node_156_sub ts
-  node_162["📄 src/modules/design/features/map/Palette/index.ts"]:::ts
-  node_82["📄 src/modules/design/features/map/SelectionManager.test.ts"]:::ts
-  subgraph node_83_sub ["src/modules/design/features/map/SelectionManager.ts"]
-    node_83_file("📄 src/modules/design/features/map/SelectionManager.ts")
-    node_83_s0["🔧 handleFeatureSelection (function)"]:::symbol
-    node_83_file --- node_83_s0
-    node_83_s1["🔧 stopFeatureEventPropagation (function)"]:::symbol
-    node_83_file --- node_83_s1
-    node_83_s2["🔧 isFeatureElement (function)"]:::symbol
-    node_83_file --- node_83_s2
+  class node_175_sub ts
+  subgraph node_176_sub ["src/modules/design/features/map/Palette/PaletteRegistry.ts"]
+    node_176_file("📄 src/modules/design/features/map/Palette/PaletteRegistry.ts")
+    node_176_s0["📦 PaletteDefinition (interface)"]:::symbol
+    node_176_file --- node_176_s0
   end
-  class node_83_sub ts
-  subgraph node_84_sub ["src/modules/design/features/map/SmoothZoomController.ts"]
-    node_84_file("📄 src/modules/design/features/map/SmoothZoomController.ts")
-    node_84_s0["🔧 googleMapsEasing (function)"]:::symbol
-    node_84_file --- node_84_s0
-    node_84_s1["🔧 smoothZoomTo (function)"]:::symbol
-    node_84_file --- node_84_s1
-    node_84_s2["🔧 smoothPanTo (function)"]:::symbol
-    node_84_file --- node_84_s2
-    node_84_s3["🔧 smoothZoomToFeature (function)"]:::symbol
-    node_84_file --- node_84_s3
-    node_84_s4["🔧 smoothFitBounds (function)"]:::symbol
-    node_84_file --- node_84_s4
-    node_84_s5["🔧 flyToLocation (function)"]:::symbol
-    node_84_file --- node_84_s5
+  class node_176_sub ts
+  node_177["📄 src/modules/design/features/map/Palette/PaletteSidebar.tsx"]:::ts
+  subgraph node_178_sub ["src/modules/design/features/map/Palette/RecognitionSimulator.tsx"]
+    node_178_file("📄 src/modules/design/features/map/Palette/RecognitionSimulator.tsx")
+    node_178_s0["📦 RecognitionSimulatorProps (interface)"]:::symbol
+    node_178_file --- node_178_s0
   end
-  class node_84_sub ts
-  subgraph node_86_sub ["src/modules/design/features/map/ZoomController.ts"]
-    node_86_file("📄 src/modules/design/features/map/ZoomController.ts")
-    node_86_s0["🔧 zoomToFeature (function)"]:::symbol
-    node_86_file --- node_86_s0
-    node_86_s1["🔧 zoomToPoint (function)"]:::symbol
-    node_86_file --- node_86_s1
-    node_86_s2["🔧 zoomToLine (function)"]:::symbol
-    node_86_file --- node_86_s2
-    node_86_s3["🔧 zoomToPolygon (function)"]:::symbol
-    node_86_file --- node_86_s3
-    node_86_s4["🔧 createZoomTrigger (function)"]:::symbol
-    node_86_file --- node_86_s4
+  class node_178_sub ts
+  node_179["📄 src/modules/design/features/map/Palette/StaticCameraPreview.test.tsx"]:::ts
+  subgraph node_180_sub ["src/modules/design/features/map/Palette/StaticStreetViewPreview.tsx"]
+    node_180_file("📄 src/modules/design/features/map/Palette/StaticStreetViewPreview.tsx")
+    node_180_s0["📦 StaticStreetViewPreviewProps (interface)"]:::symbol
+    node_180_file --- node_180_s0
+    node_180_s1["📋 StreetViewLocationSource (type)"]:::symbol
+    node_180_file --- node_180_s1
+    node_180_s2["📋 ResolvedStreetViewPano (type)"]:::symbol
+    node_180_file --- node_180_s2
+    node_180_s3["📋 PreviewStatus (type)"]:::symbol
+    node_180_file --- node_180_s3
   end
-  class node_86_sub ts
-  node_69["📄 src/modules/design/features/map/index.ts"]:::ts
-  node_73["📄 src/modules/design/features/map/mapLibreFastAdapter.test.ts"]:::ts
-  node_74["📄 src/modules/design/features/map/mapLibreFastAdapter.ts"]:::ts
-  subgraph node_76_sub ["src/modules/design/features/map/mapLibreFastTypes.ts"]
-    node_76_file("📄 src/modules/design/features/map/mapLibreFastTypes.ts")
-    node_76_s0["📋 Position (type)"]:::symbol
-    node_76_file --- node_76_s0
-    node_76_s1["📋 MapLibreFastGeometry (type)"]:::symbol
-    node_76_file --- node_76_s1
-    node_76_s2["📦 MapLibreFastFeature (interface)"]:::symbol
-    node_76_file --- node_76_s2
-    node_76_s3["📦 MapLibreFastFeatureCollection (interface)"]:::symbol
-    node_76_file --- node_76_s3
-    node_76_s4["📋 MapLibreLodLevel (type)"]:::symbol
-    node_76_file --- node_76_s4
-    node_76_s5["📦 MapLibreLodPolicyInput (interface)"]:::symbol
-    node_76_file --- node_76_s5
-    node_76_s6["📦 MapLibreLodPolicy (interface)"]:::symbol
-    node_76_file --- node_76_s6
-    node_76_s7["📦 MapLibreRenderFeatureProperties (interface)"]:::symbol
-    node_76_file --- node_76_s7
-    node_76_s8["📋 MapLibreRenderFeature (type)"]:::symbol
-    node_76_file --- node_76_s8
-    node_76_s9["📋 MapLibreRenderFeatureCollection (type)"]:::symbol
-    node_76_file --- node_76_s9
-    node_76_s10["📦 BuildMapLibreFeatureCollectionInput (interface)"]:::symbol
-    node_76_file --- node_76_s10
+  class node_180_sub ts
+  subgraph node_181_sub ["src/modules/design/features/map/Palette/StreetViewJS.tsx"]
+    node_181_file("📄 src/modules/design/features/map/Palette/StreetViewJS.tsx")
+    node_181_s0["📦 StreetViewJSProps (interface)"]:::symbol
+    node_181_file --- node_181_s0
   end
-  class node_76_sub ts
-  node_77["📄 src/modules/design/features/map/mapPerformance.ts"]:::ts
-  node_78["📄 src/modules/design/features/map/mapRenderMetrics.test.ts"]:::ts
-  node_79["📄 src/modules/design/features/map/mapRenderMetrics.ts"]:::ts
-  subgraph node_134_sub ["src/modules/design/features/map/network/NetworkConnectionCreation.ts"]
-    node_134_file("📄 src/modules/design/features/map/network/NetworkConnectionCreation.ts")
-    node_134_s0["📦 BuildNetworkConnectionCreateEventsArgs (interface)"]:::symbol
-    node_134_file --- node_134_s0
-    node_134_s1["📦 BuildNetworkConnectionCreateEventsResult (interface)"]:::symbol
-    node_134_file --- node_134_s1
+  class node_181_sub ts
+  node_182["📄 src/modules/design/features/map/Palette/SystemConfigPanel.tsx"]:::ts
+  subgraph node_161_sub ["src/modules/design/features/map/Palette/eventBus.ts"]
+    node_161_file("📄 src/modules/design/features/map/Palette/eventBus.ts")
+    node_161_s0["📦 Pov (interface)"]:::symbol
+    node_161_file --- node_161_s0
+    node_161_s1["📋 PovListener (type)"]:::symbol
+    node_161_file --- node_161_s1
+    node_161_s2["📦 PovEventBus (class)"]:::symbol
+    node_161_file --- node_161_s2
   end
-  class node_134_sub ts
-  node_135["📄 src/modules/design/features/map/network/NetworkConnectionDraft.test.ts"]:::ts
-  subgraph node_136_sub ["src/modules/design/features/map/network/NetworkConnectionDraft.ts"]
-    node_136_file("📄 src/modules/design/features/map/network/NetworkConnectionDraft.ts")
-    node_136_s0["📦 PrepareNetworkConnectionDraftResult (interface)"]:::symbol
-    node_136_file --- node_136_s0
+  class node_161_sub ts
+  node_167["📄 src/modules/design/features/map/Palette/fiberSpliceDiagramModel.test.ts"]:::ts
+  subgraph node_168_sub ["src/modules/design/features/map/Palette/fiberSpliceDiagramModel.ts"]
+    node_168_file("📄 src/modules/design/features/map/Palette/fiberSpliceDiagramModel.ts")
+    node_168_s0["📦 VisibleSpliceDiagramItem (interface)"]:::symbol
+    node_168_file --- node_168_s0
+    node_168_s1["📦 TubeSpliceDiagramGroup (interface)"]:::symbol
+    node_168_file --- node_168_s1
+    node_168_s2["📦 GroupedSpliceDiagramItems (interface)"]:::symbol
+    node_168_file --- node_168_s2
   end
-  class node_136_sub ts
-  subgraph node_137_sub ["src/modules/design/features/map/network/NetworkEndpoint.ts"]
-    node_137_file("📄 src/modules/design/features/map/network/NetworkEndpoint.ts")
-    node_137_s0["📋 NetworkEndpointRef (type)"]:::symbol
-    node_137_file --- node_137_s0
-    node_137_s1["📋 NetworkFeatureEndpointRef (type)"]:::symbol
-    node_137_file --- node_137_s1
-    node_137_s2["📋 NetworkSharedPointEndpointRef (type)"]:::symbol
-    node_137_file --- node_137_s2
-    node_137_s3["📦 NetworkConnectionDraft (interface)"]:::symbol
-    node_137_file --- node_137_s3
+  class node_168_sub ts
+  node_169["📄 src/modules/design/features/map/Palette/index.ts"]:::ts
+  node_87["📄 src/modules/design/features/map/SelectionManager.test.ts"]:::ts
+  subgraph node_88_sub ["src/modules/design/features/map/SelectionManager.ts"]
+    node_88_file("📄 src/modules/design/features/map/SelectionManager.ts")
+    node_88_s0["🔧 handleFeatureSelection (function)"]:::symbol
+    node_88_file --- node_88_s0
+    node_88_s1["🔧 stopFeatureEventPropagation (function)"]:::symbol
+    node_88_file --- node_88_s1
+    node_88_s2["🔧 isFeatureElement (function)"]:::symbol
+    node_88_file --- node_88_s2
   end
-  class node_137_sub ts
-  node_138["📄 src/modules/design/features/map/network/NetworkGraphAggregation.test.ts"]:::ts
-  subgraph node_139_sub ["src/modules/design/features/map/network/NetworkGraphAggregation.ts"]
-    node_139_file("📄 src/modules/design/features/map/network/NetworkGraphAggregation.ts")
-    node_139_s0["📦 DisplayNetworkNode (interface)"]:::symbol
+  class node_88_sub ts
+  subgraph node_89_sub ["src/modules/design/features/map/SmoothZoomController.ts"]
+    node_89_file("📄 src/modules/design/features/map/SmoothZoomController.ts")
+    node_89_s0["🔧 googleMapsEasing (function)"]:::symbol
+    node_89_file --- node_89_s0
+    node_89_s1["🔧 smoothZoomTo (function)"]:::symbol
+    node_89_file --- node_89_s1
+    node_89_s2["🔧 smoothPanTo (function)"]:::symbol
+    node_89_file --- node_89_s2
+    node_89_s3["🔧 smoothZoomToFeature (function)"]:::symbol
+    node_89_file --- node_89_s3
+    node_89_s4["🔧 smoothFitBounds (function)"]:::symbol
+    node_89_file --- node_89_s4
+    node_89_s5["🔧 flyToLocation (function)"]:::symbol
+    node_89_file --- node_89_s5
+  end
+  class node_89_sub ts
+  subgraph node_91_sub ["src/modules/design/features/map/ZoomController.ts"]
+    node_91_file("📄 src/modules/design/features/map/ZoomController.ts")
+    node_91_s0["🔧 zoomToFeature (function)"]:::symbol
+    node_91_file --- node_91_s0
+    node_91_s1["🔧 zoomToPoint (function)"]:::symbol
+    node_91_file --- node_91_s1
+    node_91_s2["🔧 zoomToLine (function)"]:::symbol
+    node_91_file --- node_91_s2
+    node_91_s3["🔧 zoomToPolygon (function)"]:::symbol
+    node_91_file --- node_91_s3
+    node_91_s4["🔧 createZoomTrigger (function)"]:::symbol
+    node_91_file --- node_91_s4
+  end
+  class node_91_sub ts
+  node_71["📄 src/modules/design/features/map/index.ts"]:::ts
+  node_75["📄 src/modules/design/features/map/mapLibreFastAdapter.test.ts"]:::ts
+  node_76["📄 src/modules/design/features/map/mapLibreFastAdapter.ts"]:::ts
+  subgraph node_79_sub ["src/modules/design/features/map/mapLibreFastTypes.ts"]
+    node_79_file("📄 src/modules/design/features/map/mapLibreFastTypes.ts")
+    node_79_s0["📋 Position (type)"]:::symbol
+    node_79_file --- node_79_s0
+    node_79_s1["📋 MapLibreFastGeometry (type)"]:::symbol
+    node_79_file --- node_79_s1
+    node_79_s2["📦 MapLibreFastFeature (interface)"]:::symbol
+    node_79_file --- node_79_s2
+    node_79_s3["📦 MapLibreFastFeatureCollection (interface)"]:::symbol
+    node_79_file --- node_79_s3
+    node_79_s4["📋 MapLibreLodLevel (type)"]:::symbol
+    node_79_file --- node_79_s4
+    node_79_s5["📦 MapLibreLodPolicyInput (interface)"]:::symbol
+    node_79_file --- node_79_s5
+    node_79_s6["📦 MapLibreLodPolicy (interface)"]:::symbol
+    node_79_file --- node_79_s6
+    node_79_s7["📦 MapLibreRenderFeatureProperties (interface)"]:::symbol
+    node_79_file --- node_79_s7
+    node_79_s8["📋 MapLibreRenderFeature (type)"]:::symbol
+    node_79_file --- node_79_s8
+    node_79_s9["📋 MapLibreRenderFeatureCollection (type)"]:::symbol
+    node_79_file --- node_79_s9
+    node_79_s10["📦 BuildMapLibreFeatureCollectionInput (interface)"]:::symbol
+    node_79_file --- node_79_s10
+  end
+  class node_79_sub ts
+  node_80["📄 src/modules/design/features/map/mapPerformance.ts"]:::ts
+  node_81["📄 src/modules/design/features/map/mapRenderMetrics.test.ts"]:::ts
+  node_82["📄 src/modules/design/features/map/mapRenderMetrics.ts"]:::ts
+  subgraph node_139_sub ["src/modules/design/features/map/network/NetworkConnectionCreation.ts"]
+    node_139_file("📄 src/modules/design/features/map/network/NetworkConnectionCreation.ts")
+    node_139_s0["📦 BuildNetworkConnectionCreateEventsArgs (interface)"]:::symbol
     node_139_file --- node_139_s0
-    node_139_s1["📦 DisplayNetworkEdge (interface)"]:::symbol
+    node_139_s1["📦 BuildNetworkConnectionCreateEventsResult (interface)"]:::symbol
     node_139_file --- node_139_s1
-    node_139_s2["📦 DisplayNetworkGraph (interface)"]:::symbol
-    node_139_file --- node_139_s2
   end
   class node_139_sub ts
-  node_140["📄 src/modules/design/features/map/network/NetworkGraphService.test.ts"]:::ts
-  subgraph node_141_sub ["src/modules/design/features/map/network/NetworkGraphService.ts"]
-    node_141_file("📄 src/modules/design/features/map/network/NetworkGraphService.ts")
-    node_141_s0["📋 NetworkEntityStatus (type)"]:::symbol
+  node_140["📄 src/modules/design/features/map/network/NetworkConnectionDraft.test.ts"]:::ts
+  subgraph node_141_sub ["src/modules/design/features/map/network/NetworkConnectionDraft.ts"]
+    node_141_file("📄 src/modules/design/features/map/network/NetworkConnectionDraft.ts")
+    node_141_s0["📦 PrepareNetworkConnectionDraftResult (interface)"]:::symbol
     node_141_file --- node_141_s0
-    node_141_s1["📋 NetworkComputedStatus (type)"]:::symbol
-    node_141_file --- node_141_s1
-    node_141_s2["📦 NetworkStatusSnapshot (interface)"]:::symbol
-    node_141_file --- node_141_s2
-    node_141_s3["📦 NetworkNode (interface)"]:::symbol
-    node_141_file --- node_141_s3
-    node_141_s4["📦 NetworkEdge (interface)"]:::symbol
-    node_141_file --- node_141_s4
-    node_141_s5["📦 NetworkDiagnostic (interface)"]:::symbol
-    node_141_file --- node_141_s5
-    node_141_s6["📦 NetworkNodeState (interface)"]:::symbol
-    node_141_file --- node_141_s6
-    node_141_s7["📦 NetworkGraph (interface)"]:::symbol
-    node_141_file --- node_141_s7
-    node_141_s8["📦 NetworkEvaluation (interface)"]:::symbol
-    node_141_file --- node_141_s8
-    node_141_s9["📋 NetworkComponent (type)"]:::symbol
-    node_141_file --- node_141_s9
-    node_141_s10["📋 EdgePairEntry (type)"]:::symbol
-    node_141_file --- node_141_s10
   end
   class node_141_sub ts
-  node_142["📄 src/modules/design/features/map/network/NetworkStatusAdapter.test.ts"]:::ts
-  subgraph node_143_sub ["src/modules/design/features/map/network/NetworkStatusAdapter.ts"]
-    node_143_file("📄 src/modules/design/features/map/network/NetworkStatusAdapter.ts")
-    node_143_s0["📋 NetworkStatusMode (type)"]:::symbol
-    node_143_file --- node_143_s0
-    node_143_s1["📋 NetworkEntityType (type)"]:::symbol
-    node_143_file --- node_143_s1
-    node_143_s2["📦 NetworkStatusEvent (interface)"]:::symbol
-    node_143_file --- node_143_s2
-    node_143_s3["📦 NetworkStatusState (interface)"]:::symbol
-    node_143_file --- node_143_s3
-    node_143_s4["📦 NetworkStatusAdapter (class)"]:::symbol
-    node_143_file --- node_143_s4
+  subgraph node_142_sub ["src/modules/design/features/map/network/NetworkEndpoint.ts"]
+    node_142_file("📄 src/modules/design/features/map/network/NetworkEndpoint.ts")
+    node_142_s0["📋 NetworkEndpointRef (type)"]:::symbol
+    node_142_file --- node_142_s0
+    node_142_s1["📋 NetworkFeatureEndpointRef (type)"]:::symbol
+    node_142_file --- node_142_s1
+    node_142_s2["📋 NetworkSharedPointEndpointRef (type)"]:::symbol
+    node_142_file --- node_142_s2
+    node_142_s3["📦 NetworkConnectionDraft (interface)"]:::symbol
+    node_142_file --- node_142_s3
   end
-  class node_143_sub ts
-  node_148["📄 src/modules/design/features/map/network/__tests__/NetworkConnectionCreation.test.ts"]:::ts
-  node_149["📄 src/modules/design/features/map/network/__tests__/NetworkGraphService.test.ts"]:::ts
-  node_123["📄 src/modules/design/features/map/network/fiberGeometryValidation.test.ts"]:::ts
-  node_124["📄 src/modules/design/features/map/network/fiberGeometryValidation.ts"]:::ts
-  subgraph node_125_sub ["src/modules/design/features/map/network/fiberGraphService.ts"]
-    node_125_file("📄 src/modules/design/features/map/network/fiberGraphService.ts")
-    node_125_s0["📋 FiberGraphNodeKind (type)"]:::symbol
-    node_125_file --- node_125_s0
-    node_125_s1["📦 FiberGraphNode (interface)"]:::symbol
-    node_125_file --- node_125_s1
-    node_125_s2["📦 FiberGraphEdge (interface)"]:::symbol
-    node_125_file --- node_125_s2
-    node_125_s3["📦 FiberGraph (interface)"]:::symbol
-    node_125_file --- node_125_s3
+  class node_142_sub ts
+  node_143["📄 src/modules/design/features/map/network/NetworkGraphAggregation.test.ts"]:::ts
+  subgraph node_144_sub ["src/modules/design/features/map/network/NetworkGraphAggregation.ts"]
+    node_144_file("📄 src/modules/design/features/map/network/NetworkGraphAggregation.ts")
+    node_144_s0["📦 DisplayNetworkNode (interface)"]:::symbol
+    node_144_file --- node_144_s0
+    node_144_s1["📦 DisplayNetworkEdge (interface)"]:::symbol
+    node_144_file --- node_144_s1
+    node_144_s2["📦 DisplayNetworkGraph (interface)"]:::symbol
+    node_144_file --- node_144_s2
   end
-  class node_125_sub ts
-  node_126["📄 src/modules/design/features/map/network/fiberPolylineMaterializer.test.ts"]:::ts
-  subgraph node_127_sub ["src/modules/design/features/map/network/fiberPolylineMaterializer.ts"]
-    node_127_file("📄 src/modules/design/features/map/network/fiberPolylineMaterializer.ts")
-    node_127_s0["📦 FiberPointMetadata (interface)"]:::symbol
-    node_127_file --- node_127_s0
-    node_127_s1["📦 ParsedMetadata (interface)"]:::symbol
-    node_127_file --- node_127_s1
-    node_127_s2["📦 FiberPolylineMaterializationOptions (interface)"]:::symbol
-    node_127_file --- node_127_s2
-    node_127_s3["📦 FiberPolylineMaterializationResult (interface)"]:::symbol
-    node_127_file --- node_127_s3
-    node_127_s4["📦 LineCandidate (interface)"]:::symbol
-    node_127_file --- node_127_s4
-    node_127_s5["📦 CablePointInput (interface)"]:::symbol
-    node_127_file --- node_127_s5
+  class node_144_sub ts
+  node_145["📄 src/modules/design/features/map/network/NetworkGraphService.test.ts"]:::ts
+  subgraph node_146_sub ["src/modules/design/features/map/network/NetworkGraphService.ts"]
+    node_146_file("📄 src/modules/design/features/map/network/NetworkGraphService.ts")
+    node_146_s0["📋 NetworkEntityStatus (type)"]:::symbol
+    node_146_file --- node_146_s0
+    node_146_s1["📋 NetworkComputedStatus (type)"]:::symbol
+    node_146_file --- node_146_s1
+    node_146_s2["📦 NetworkStatusSnapshot (interface)"]:::symbol
+    node_146_file --- node_146_s2
+    node_146_s3["📦 NetworkNode (interface)"]:::symbol
+    node_146_file --- node_146_s3
+    node_146_s4["📦 NetworkEdge (interface)"]:::symbol
+    node_146_file --- node_146_s4
+    node_146_s5["📦 NetworkDiagnostic (interface)"]:::symbol
+    node_146_file --- node_146_s5
+    node_146_s6["📦 NetworkNodeState (interface)"]:::symbol
+    node_146_file --- node_146_s6
+    node_146_s7["📦 NetworkGraph (interface)"]:::symbol
+    node_146_file --- node_146_s7
+    node_146_s8["📦 NetworkEvaluation (interface)"]:::symbol
+    node_146_file --- node_146_s8
+    node_146_s9["📋 NetworkComponent (type)"]:::symbol
+    node_146_file --- node_146_s9
+    node_146_s10["📋 EdgePairEntry (type)"]:::symbol
+    node_146_file --- node_146_s10
   end
-  class node_127_sub ts
-  node_128["📄 src/modules/design/features/map/network/fiberRouteDisplay.test.ts"]:::ts
-  node_129["📄 src/modules/design/features/map/network/fiberRouteDisplay.ts"]:::ts
-  subgraph node_130_sub ["src/modules/design/features/map/network/fiberService.ts"]
-    node_130_file("📄 src/modules/design/features/map/network/fiberService.ts")
-    node_130_s0["📦 FiberInventoryFilter (interface)"]:::symbol
+  class node_146_sub ts
+  node_147["📄 src/modules/design/features/map/network/NetworkStatusAdapter.test.ts"]:::ts
+  subgraph node_148_sub ["src/modules/design/features/map/network/NetworkStatusAdapter.ts"]
+    node_148_file("📄 src/modules/design/features/map/network/NetworkStatusAdapter.ts")
+    node_148_s0["📋 NetworkStatusMode (type)"]:::symbol
+    node_148_file --- node_148_s0
+    node_148_s1["📋 NetworkEntityType (type)"]:::symbol
+    node_148_file --- node_148_s1
+    node_148_s2["📦 NetworkStatusEvent (interface)"]:::symbol
+    node_148_file --- node_148_s2
+    node_148_s3["📦 NetworkStatusState (interface)"]:::symbol
+    node_148_file --- node_148_s3
+    node_148_s4["📦 NetworkStatusAdapter (class)"]:::symbol
+    node_148_file --- node_148_s4
+  end
+  class node_148_sub ts
+  node_153["📄 src/modules/design/features/map/network/__tests__/NetworkConnectionCreation.test.ts"]:::ts
+  node_154["📄 src/modules/design/features/map/network/__tests__/NetworkGraphService.test.ts"]:::ts
+  node_128["📄 src/modules/design/features/map/network/fiberGeometryValidation.test.ts"]:::ts
+  node_129["📄 src/modules/design/features/map/network/fiberGeometryValidation.ts"]:::ts
+  subgraph node_130_sub ["src/modules/design/features/map/network/fiberGraphService.ts"]
+    node_130_file("📄 src/modules/design/features/map/network/fiberGraphService.ts")
+    node_130_s0["📋 FiberGraphNodeKind (type)"]:::symbol
     node_130_file --- node_130_s0
-    node_130_s1["📦 FiberCableUpsertInput (interface)"]:::symbol
+    node_130_s1["📦 FiberGraphNode (interface)"]:::symbol
     node_130_file --- node_130_s1
-    node_130_s2["📦 FiberStrandInitializationInput (interface)"]:::symbol
+    node_130_s2["📦 FiberGraphEdge (interface)"]:::symbol
     node_130_file --- node_130_s2
-    node_130_s3["📦 FiberPortUpsertInput (interface)"]:::symbol
+    node_130_s3["📦 FiberGraph (interface)"]:::symbol
     node_130_file --- node_130_s3
-    node_130_s4["📦 FiberPortTerminationUpsertInput (interface)"]:::symbol
-    node_130_file --- node_130_s4
-    node_130_s5["📦 FiberPortPatchUpsertInput (interface)"]:::symbol
-    node_130_file --- node_130_s5
-    node_130_s6["📦 FiberSpliceUpsertInput (interface)"]:::symbol
-    node_130_file --- node_130_s6
-    node_130_s7["📦 EquipmentUpsertInput (interface)"]:::symbol
-    node_130_file --- node_130_s7
-    node_130_s8["📦 FiberCircuitUpsertInput (interface)"]:::symbol
-    node_130_file --- node_130_s8
-    node_130_s9["📋 FiberInventoryResponse (type)"]:::symbol
-    node_130_file --- node_130_s9
-    node_130_s10["📦 FiberCapacityResponse (interface)"]:::symbol
-    node_130_file --- node_130_s10
-    node_130_s11["📦 FiberCablePointsResponse (interface)"]:::symbol
-    node_130_file --- node_130_s11
-    node_130_s12["📦 FiberNetworkValidationResponse (interface)"]:::symbol
-    node_130_file --- node_130_s12
   end
   class node_130_sub ts
-  node_131["📄 src/modules/design/features/map/network/fiberUiModel.test.ts"]:::ts
-  subgraph node_132_sub ["src/modules/design/features/map/network/fiberUiModel.ts"]
-    node_132_file("📄 src/modules/design/features/map/network/fiberUiModel.ts")
-    node_132_s0["📋 FiberInspectorTab (type)"]:::symbol
+  node_131["📄 src/modules/design/features/map/network/fiberPolylineMaterializer.test.ts"]:::ts
+  subgraph node_132_sub ["src/modules/design/features/map/network/fiberPolylineMaterializer.ts"]
+    node_132_file("📄 src/modules/design/features/map/network/fiberPolylineMaterializer.ts")
+    node_132_s0["📦 FiberPointMetadata (interface)"]:::symbol
     node_132_file --- node_132_s0
-    node_132_s1["📦 FiberCableRow (interface)"]:::symbol
+    node_132_s1["📦 ParsedMetadata (interface)"]:::symbol
     node_132_file --- node_132_s1
-    node_132_s2["📦 FiberLegacyCableCandidate (interface)"]:::symbol
+    node_132_s2["📦 FiberPolylineMaterializationOptions (interface)"]:::symbol
     node_132_file --- node_132_s2
-    node_132_s3["📦 FiberSpliceChainItem (interface)"]:::symbol
+    node_132_s3["📦 FiberPolylineMaterializationResult (interface)"]:::symbol
     node_132_file --- node_132_s3
-    node_132_s4["📦 FiberDiagnosticGroup (interface)"]:::symbol
+    node_132_s4["📦 LineCandidate (interface)"]:::symbol
     node_132_file --- node_132_s4
+    node_132_s5["📦 CablePointInput (interface)"]:::symbol
+    node_132_file --- node_132_s5
   end
   class node_132_sub ts
-  subgraph node_133_sub ["src/modules/design/features/map/network/fiberValidation.ts"]
-    node_133_file("📄 src/modules/design/features/map/network/fiberValidation.ts")
-    node_133_s0["📋 FiberDiagnosticSummary (type)"]:::symbol
-    node_133_file --- node_133_s0
+  node_133["📄 src/modules/design/features/map/network/fiberRouteDisplay.test.ts"]:::ts
+  node_134["📄 src/modules/design/features/map/network/fiberRouteDisplay.ts"]:::ts
+  subgraph node_135_sub ["src/modules/design/features/map/network/fiberService.ts"]
+    node_135_file("📄 src/modules/design/features/map/network/fiberService.ts")
+    node_135_s0["📦 FiberInventoryFilter (interface)"]:::symbol
+    node_135_file --- node_135_s0
+    node_135_s1["📦 FiberCableUpsertInput (interface)"]:::symbol
+    node_135_file --- node_135_s1
+    node_135_s2["📦 FiberStrandInitializationInput (interface)"]:::symbol
+    node_135_file --- node_135_s2
+    node_135_s3["📦 FiberPortUpsertInput (interface)"]:::symbol
+    node_135_file --- node_135_s3
+    node_135_s4["📦 FiberPortTerminationUpsertInput (interface)"]:::symbol
+    node_135_file --- node_135_s4
+    node_135_s5["📦 FiberPortPatchUpsertInput (interface)"]:::symbol
+    node_135_file --- node_135_s5
+    node_135_s6["📦 FiberSpliceUpsertInput (interface)"]:::symbol
+    node_135_file --- node_135_s6
+    node_135_s7["📦 EquipmentUpsertInput (interface)"]:::symbol
+    node_135_file --- node_135_s7
+    node_135_s8["📦 FiberCircuitUpsertInput (interface)"]:::symbol
+    node_135_file --- node_135_s8
+    node_135_s9["📋 FiberInventoryResponse (type)"]:::symbol
+    node_135_file --- node_135_s9
+    node_135_s10["📦 FiberCapacityResponse (interface)"]:::symbol
+    node_135_file --- node_135_s10
+    node_135_s11["📦 FiberCablePointsResponse (interface)"]:::symbol
+    node_135_file --- node_135_s11
+    node_135_s12["📦 FiberNetworkValidationResponse (interface)"]:::symbol
+    node_135_file --- node_135_s12
   end
-  class node_133_sub ts
-  node_144["📄 src/modules/design/features/map/network/networkTopology.test.ts"]:::ts
-  subgraph node_145_sub ["src/modules/design/features/map/network/networkTopology.ts"]
-    node_145_file("📄 src/modules/design/features/map/network/networkTopology.ts")
-    node_145_s0["📋 NetworkRole (type)"]:::symbol
-    node_145_file --- node_145_s0
-    node_145_s1["📋 StoredDirectionMode (type)"]:::symbol
-    node_145_file --- node_145_s1
-    node_145_s2["📦 NetworkNodeDescriptor (interface)"]:::symbol
-    node_145_file --- node_145_s2
-    node_145_s3["📦 NetworkEdgeDescriptor (interface)"]:::symbol
-    node_145_file --- node_145_s3
-    node_145_s4["📦 NetworkComponentDescriptor (interface)"]:::symbol
-    node_145_file --- node_145_s4
-    node_145_s5["📦 OrientedEdgeDescriptor (interface)"]:::symbol
-    node_145_file --- node_145_s5
+  class node_135_sub ts
+  node_136["📄 src/modules/design/features/map/network/fiberUiModel.test.ts"]:::ts
+  subgraph node_137_sub ["src/modules/design/features/map/network/fiberUiModel.ts"]
+    node_137_file("📄 src/modules/design/features/map/network/fiberUiModel.ts")
+    node_137_s0["📋 FiberInspectorTab (type)"]:::symbol
+    node_137_file --- node_137_s0
+    node_137_s1["📦 FiberCableRow (interface)"]:::symbol
+    node_137_file --- node_137_s1
+    node_137_s2["📦 FiberLegacyCableCandidate (interface)"]:::symbol
+    node_137_file --- node_137_s2
+    node_137_s3["📦 FiberSpliceChainItem (interface)"]:::symbol
+    node_137_file --- node_137_s3
+    node_137_s4["📦 FiberDiagnosticGroup (interface)"]:::symbol
+    node_137_file --- node_137_s4
   end
-  class node_145_sub ts
-  node_146["📄 src/modules/design/features/map/network/useNetworkStatusStore.test.ts"]:::ts
-  subgraph node_147_sub ["src/modules/design/features/map/network/useNetworkStatusStore.ts"]
-    node_147_file("📄 src/modules/design/features/map/network/useNetworkStatusStore.ts")
-    node_147_s0["📦 TelemetryEvent (interface)"]:::symbol
-    node_147_file --- node_147_s0
-    node_147_s1["📦 EntityData (interface)"]:::symbol
-    node_147_file --- node_147_s1
-    node_147_s2["📦 NetworkStatusState (interface)"]:::symbol
-    node_147_file --- node_147_s2
+  class node_137_sub ts
+  subgraph node_138_sub ["src/modules/design/features/map/network/fiberValidation.ts"]
+    node_138_file("📄 src/modules/design/features/map/network/fiberValidation.ts")
+    node_138_s0["📋 FiberDiagnosticSummary (type)"]:::symbol
+    node_138_file --- node_138_s0
   end
-  class node_147_sub ts
-  node_178["📄 src/modules/design/features/map/stores/designActionSlice.ts"]:::ts
-  node_179["📄 src/modules/design/features/map/stores/drawingSlice.ts"]:::ts
-  node_180["📄 src/modules/design/features/map/stores/initializationSlice.ts"]:::ts
-  node_181["📄 src/modules/design/features/map/stores/mapStateSlice.ts"]:::ts
-  node_182["📄 src/modules/design/features/map/stores/selectionSlice.ts"]:::ts
-  subgraph node_183_sub ["src/modules/design/features/map/stores/types.ts"]
-    node_183_file("📄 src/modules/design/features/map/stores/types.ts")
-    node_183_s0["📋 MapRenderEngine (type)"]:::symbol
-    node_183_file --- node_183_s0
-    node_183_s1["📦 MapRenderMetrics (interface)"]:::symbol
-    node_183_file --- node_183_s1
-    node_183_s2["📋 MapStateSlice (type)"]:::symbol
-    node_183_file --- node_183_s2
-    node_183_s3["📋 SelectionSlice (type)"]:::symbol
-    node_183_file --- node_183_s3
-    node_183_s4["📋 DrawingSlice (type)"]:::symbol
-    node_183_file --- node_183_s4
-    node_183_s5["📋 UIControlSlice (type)"]:::symbol
-    node_183_file --- node_183_s5
-    node_183_s6["📋 InitializationSlice (type)"]:::symbol
-    node_183_file --- node_183_s6
-    node_183_s7["📋 UISyncSlice (type)"]:::symbol
-    node_183_file --- node_183_s7
-    node_183_s8["📋 DesignActionSlice (type)"]:::symbol
-    node_183_file --- node_183_s8
-    node_183_s9["📋 DesignSyncStore (type)"]:::symbol
-    node_183_file --- node_183_s9
+  class node_138_sub ts
+  node_149["📄 src/modules/design/features/map/network/networkTopology.test.ts"]:::ts
+  subgraph node_150_sub ["src/modules/design/features/map/network/networkTopology.ts"]
+    node_150_file("📄 src/modules/design/features/map/network/networkTopology.ts")
+    node_150_s0["📋 NetworkRole (type)"]:::symbol
+    node_150_file --- node_150_s0
+    node_150_s1["📋 StoredDirectionMode (type)"]:::symbol
+    node_150_file --- node_150_s1
+    node_150_s2["📦 NetworkNodeDescriptor (interface)"]:::symbol
+    node_150_file --- node_150_s2
+    node_150_s3["📦 NetworkEdgeDescriptor (interface)"]:::symbol
+    node_150_file --- node_150_s3
+    node_150_s4["📦 NetworkComponentDescriptor (interface)"]:::symbol
+    node_150_file --- node_150_s4
+    node_150_s5["📦 OrientedEdgeDescriptor (interface)"]:::symbol
+    node_150_file --- node_150_s5
   end
-  class node_183_sub ts
-  node_184["📄 src/modules/design/features/map/stores/uiControlSlice.ts"]:::ts
-  node_185["📄 src/modules/design/features/map/stores/uiSyncSlice.ts"]:::ts
-  subgraph node_186_sub ["src/modules/design/features/map/styles/dataColors.ts"]
-    node_186_file("📄 src/modules/design/features/map/styles/dataColors.ts")
-    node_186_s0["📦 FiberColor (interface)"]:::symbol
-    node_186_file --- node_186_s0
+  class node_150_sub ts
+  node_151["📄 src/modules/design/features/map/network/useNetworkStatusStore.test.ts"]:::ts
+  subgraph node_152_sub ["src/modules/design/features/map/network/useNetworkStatusStore.ts"]
+    node_152_file("📄 src/modules/design/features/map/network/useNetworkStatusStore.ts")
+    node_152_s0["📦 TelemetryEvent (interface)"]:::symbol
+    node_152_file --- node_152_s0
+    node_152_s1["📦 EntityData (interface)"]:::symbol
+    node_152_file --- node_152_s1
+    node_152_s2["📦 NetworkStatusState (interface)"]:::symbol
+    node_152_file --- node_152_s2
   end
-  class node_186_sub ts
-  subgraph node_85_sub ["src/modules/design/features/map/useMapStyles.ts"]
-    node_85_file("📄 src/modules/design/features/map/useMapStyles.ts")
-    node_85_s0["📦 MapFeatures (interface)"]:::symbol
-    node_85_file --- node_85_s0
-    node_85_s1["🔧 useMapStyles (function)"]:::symbol
-    node_85_file --- node_85_s1
+  class node_152_sub ts
+  node_85["📄 src/modules/design/features/map/polylineSnapMarkers.test.ts"]:::ts
+  subgraph node_86_sub ["src/modules/design/features/map/polylineSnapMarkers.ts"]
+    node_86_file("📄 src/modules/design/features/map/polylineSnapMarkers.ts")
+    node_86_s0["📦 PolylineSnapMarker (interface)"]:::symbol
+    node_86_file --- node_86_s0
   end
-  class node_85_sub ts
-  subgraph node_188_sub ["src/modules/design/features/print/PrintDialog.tsx"]
-    node_188_file("📄 src/modules/design/features/print/PrintDialog.tsx")
-    node_188_s0["🔧 cn (function)"]:::symbol
-    node_188_file --- node_188_s0
-    node_188_s1["📦 PrintDialogProps (interface)"]:::symbol
-    node_188_file --- node_188_s1
-    node_188_s2["🔧 PrintDialog (function)"]:::symbol
-    node_188_file --- node_188_s2
-  end
-  class node_188_sub ts
-  node_189["📄 src/modules/design/features/print/PrintWindow.tsx"]:::ts
-  node_187["📄 src/modules/design/features/print/printColors.ts"]:::ts
-  node_190["📄 src/modules/design/features/reports/ReportDashboard.tsx"]:::ts
-  subgraph node_191_sub ["src/modules/design/features/reports/components/GisMetricsCard.tsx"]
-    node_191_file("📄 src/modules/design/features/reports/components/GisMetricsCard.tsx")
-    node_191_s0["📦 GisMetricsCardProps (interface)"]:::symbol
+  class node_86_sub ts
+  node_185["📄 src/modules/design/features/map/stores/designActionSlice.ts"]:::ts
+  node_186["📄 src/modules/design/features/map/stores/drawingSlice.ts"]:::ts
+  node_187["📄 src/modules/design/features/map/stores/initializationSlice.test.ts"]:::ts
+  node_188["📄 src/modules/design/features/map/stores/initializationSlice.ts"]:::ts
+  node_189["📄 src/modules/design/features/map/stores/mapStateSlice.ts"]:::ts
+  node_190["📄 src/modules/design/features/map/stores/selectionSlice.ts"]:::ts
+  subgraph node_191_sub ["src/modules/design/features/map/stores/types.ts"]
+    node_191_file("📄 src/modules/design/features/map/stores/types.ts")
+    node_191_s0["📋 MapRenderEngine (type)"]:::symbol
     node_191_file --- node_191_s0
+    node_191_s1["📦 MapRenderMetrics (interface)"]:::symbol
+    node_191_file --- node_191_s1
+    node_191_s2["📋 MapStateSlice (type)"]:::symbol
+    node_191_file --- node_191_s2
+    node_191_s3["📋 SelectionSlice (type)"]:::symbol
+    node_191_file --- node_191_s3
+    node_191_s4["📋 DrawingSlice (type)"]:::symbol
+    node_191_file --- node_191_s4
+    node_191_s5["📋 UIControlSlice (type)"]:::symbol
+    node_191_file --- node_191_s5
+    node_191_s6["📋 InitializationSlice (type)"]:::symbol
+    node_191_file --- node_191_s6
+    node_191_s7["📋 UISyncSlice (type)"]:::symbol
+    node_191_file --- node_191_s7
+    node_191_s8["📋 DesignActionSlice (type)"]:::symbol
+    node_191_file --- node_191_s8
+    node_191_s9["📋 DesignSyncStore (type)"]:::symbol
+    node_191_file --- node_191_s9
   end
   class node_191_sub ts
-  subgraph node_192_sub ["src/modules/design/features/reports/components/LandCategoryTable.tsx"]
-    node_192_file("📄 src/modules/design/features/reports/components/LandCategoryTable.tsx")
-    node_192_s0["📦 LandCategoryTableProps (interface)"]:::symbol
-    node_192_file --- node_192_s0
+  node_192["📄 src/modules/design/features/map/stores/uiControlSlice.ts"]:::ts
+  node_193["📄 src/modules/design/features/map/stores/uiSyncSlice.ts"]:::ts
+  subgraph node_194_sub ["src/modules/design/features/map/styles/dataColors.ts"]
+    node_194_file("📄 src/modules/design/features/map/styles/dataColors.ts")
+    node_194_s0["📦 FiberColor (interface)"]:::symbol
+    node_194_file --- node_194_s0
   end
-  class node_192_sub ts
-  subgraph node_193_sub ["src/modules/design/features/reports/hooks/useGisReport.ts"]
-    node_193_file("📄 src/modules/design/features/reports/hooks/useGisReport.ts")
-    node_193_s0["📦 GisCategoryStat (interface)"]:::symbol
-    node_193_file --- node_193_s0
-    node_193_s1["📦 GisReport (interface)"]:::symbol
-    node_193_file --- node_193_s1
-    node_193_s2["🔧 useGisReport (function)"]:::symbol
-    node_193_file --- node_193_s2
+  class node_194_sub ts
+  subgraph node_90_sub ["src/modules/design/features/map/useMapStyles.ts"]
+    node_90_file("📄 src/modules/design/features/map/useMapStyles.ts")
+    node_90_s0["📦 MapFeatures (interface)"]:::symbol
+    node_90_file --- node_90_s0
+    node_90_s1["🔧 useMapStyles (function)"]:::symbol
+    node_90_file --- node_90_s1
   end
-  class node_193_sub ts
-  subgraph node_196_sub ["src/modules/design/features/reports/word/ReportExportDialog.tsx"]
-    node_196_file("📄 src/modules/design/features/reports/word/ReportExportDialog.tsx")
-    node_196_s0["📦 ReportExportDialogProps (interface)"]:::symbol
+  class node_90_sub ts
+  subgraph node_196_sub ["src/modules/design/features/print/PrintDialog.tsx"]
+    node_196_file("📄 src/modules/design/features/print/PrintDialog.tsx")
+    node_196_s0["🔧 cn (function)"]:::symbol
     node_196_file --- node_196_s0
-    node_196_s1["📋 CaptureResult (type)"]:::symbol
+    node_196_s1["📦 PrintDialogProps (interface)"]:::symbol
     node_196_file --- node_196_s1
-    node_196_s2["📋 CaptureError (type)"]:::symbol
+    node_196_s2["🔧 PrintDialog (function)"]:::symbol
     node_196_file --- node_196_s2
-    node_196_s3["📋 SelectableReportItem (type)"]:::symbol
-    node_196_file --- node_196_s3
-    node_196_s4["🔧 ReportExportDialog (function)"]:::symbol
-    node_196_file --- node_196_s4
-    node_196_s5["🔧 ReportPreview (function)"]:::symbol
-    node_196_file --- node_196_s5
   end
   class node_196_sub ts
-  node_194["📄 src/modules/design/features/reports/word/reportDocx.test.ts"]:::ts
-  subgraph node_195_sub ["src/modules/design/features/reports/word/reportDocx.ts"]
-    node_195_file("📄 src/modules/design/features/reports/word/reportDocx.ts")
-    node_195_s0["📋 ReportImageMap (type)"]:::symbol
-    node_195_file --- node_195_s0
-    node_195_s1["📋 NormalizedImageData (type)"]:::symbol
-    node_195_file --- node_195_s1
+  node_197["📄 src/modules/design/features/print/PrintWindow.tsx"]:::ts
+  node_195["📄 src/modules/design/features/print/printColors.ts"]:::ts
+  node_198["📄 src/modules/design/features/reports/ReportDashboard.tsx"]:::ts
+  subgraph node_199_sub ["src/modules/design/features/reports/components/GisMetricsCard.tsx"]
+    node_199_file("📄 src/modules/design/features/reports/components/GisMetricsCard.tsx")
+    node_199_s0["📦 GisMetricsCardProps (interface)"]:::symbol
+    node_199_file --- node_199_s0
   end
-  class node_195_sub ts
-  node_197["📄 src/modules/design/features/reports/word/reportModel.test.ts"]:::ts
-  subgraph node_198_sub ["src/modules/design/features/reports/word/reportModel.ts"]
-    node_198_file("📄 src/modules/design/features/reports/word/reportModel.ts")
-    node_198_s0["📋 ReportSelection (type)"]:::symbol
-    node_198_file --- node_198_s0
-    node_198_s1["📋 ReportBounds (type)"]:::symbol
-    node_198_file --- node_198_s1
-    node_198_s2["📦 ReportPhoto (interface)"]:::symbol
-    node_198_file --- node_198_s2
-    node_198_s3["📦 ReportFeatureDetail (interface)"]:::symbol
-    node_198_file --- node_198_s3
-    node_198_s4["📦 ReportSection (interface)"]:::symbol
-    node_198_file --- node_198_s4
-    node_198_s5["📦 ReportModel (interface)"]:::symbol
-    node_198_file --- node_198_s5
-  end
-  class node_198_sub ts
-  node_199["📄 src/modules/design/hooks/useDrawingInteraction.test.tsx"]:::ts
-  subgraph node_200_sub ["src/modules/design/hooks/useDrawingInteraction.ts"]
-    node_200_file("📄 src/modules/design/hooks/useDrawingInteraction.ts")
-    node_200_s0["📋 OneClickDrawingMode (type)"]:::symbol
+  class node_199_sub ts
+  subgraph node_200_sub ["src/modules/design/features/reports/components/LandCategoryTable.tsx"]
+    node_200_file("📄 src/modules/design/features/reports/components/LandCategoryTable.tsx")
+    node_200_s0["📦 LandCategoryTableProps (interface)"]:::symbol
     node_200_file --- node_200_s0
-    node_200_s1["🔧 useDrawingInteraction (function)"]:::symbol
-    node_200_file --- node_200_s1
   end
   class node_200_sub ts
-  subgraph node_201_sub ["src/modules/design/hooks/useSyncV2.ts"]
-    node_201_file("📄 src/modules/design/hooks/useSyncV2.ts")
-    node_201_s0["📦 SyncResult (interface)"]:::symbol
+  subgraph node_201_sub ["src/modules/design/features/reports/hooks/useGisReport.ts"]
+    node_201_file("📄 src/modules/design/features/reports/hooks/useGisReport.ts")
+    node_201_s0["📦 GisCategoryStat (interface)"]:::symbol
     node_201_file --- node_201_s0
-    node_201_s1["🔧 useSyncV2 (function)"]:::symbol
+    node_201_s1["📦 GisReport (interface)"]:::symbol
     node_201_file --- node_201_s1
+    node_201_s2["🔧 useGisReport (function)"]:::symbol
+    node_201_file --- node_201_s2
   end
   class node_201_sub ts
-  subgraph node_202_sub ["src/modules/design/stores/themeStore.ts"]
-    node_202_file("📄 src/modules/design/stores/themeStore.ts")
-    node_202_s0["📋 ThemeMode (type)"]:::symbol
-    node_202_file --- node_202_s0
-    node_202_s1["📦 ThemeState (interface)"]:::symbol
-    node_202_file --- node_202_s1
+  subgraph node_204_sub ["src/modules/design/features/reports/word/ReportExportDialog.tsx"]
+    node_204_file("📄 src/modules/design/features/reports/word/ReportExportDialog.tsx")
+    node_204_s0["📦 ReportExportDialogProps (interface)"]:::symbol
+    node_204_file --- node_204_s0
+    node_204_s1["📋 CaptureResult (type)"]:::symbol
+    node_204_file --- node_204_s1
+    node_204_s2["📋 CaptureError (type)"]:::symbol
+    node_204_file --- node_204_s2
+    node_204_s3["📋 SelectableReportItem (type)"]:::symbol
+    node_204_file --- node_204_s3
+    node_204_s4["🔧 ReportExportDialog (function)"]:::symbol
+    node_204_file --- node_204_s4
+    node_204_s5["🔧 ReportPreview (function)"]:::symbol
+    node_204_file --- node_204_s5
   end
-  class node_202_sub ts
-  node_203["📄 src/modules/home/App.tsx"]:::ts
-  node_204["📄 src/modules/home/App.workspace.test.tsx"]:::ts
-  subgraph node_205_sub ["src/modules/home/AppBootstrap.tsx"]
-    node_205_file("📄 src/modules/home/AppBootstrap.tsx")
-    node_205_s0["📦 AppBootstrapProps (interface)"]:::symbol
-    node_205_file --- node_205_s0
+  class node_204_sub ts
+  node_202["📄 src/modules/design/features/reports/word/reportDocx.test.ts"]:::ts
+  subgraph node_203_sub ["src/modules/design/features/reports/word/reportDocx.ts"]
+    node_203_file("📄 src/modules/design/features/reports/word/reportDocx.ts")
+    node_203_s0["📋 ReportImageMap (type)"]:::symbol
+    node_203_file --- node_203_s0
+    node_203_s1["📋 NormalizedImageData (type)"]:::symbol
+    node_203_file --- node_203_s1
   end
-  class node_205_sub ts
-  node_206["📄 src/modules/home/AppLoader.tsx"]:::ts
-  subgraph node_207_sub ["src/modules/home/AuthGuard.tsx"]
-    node_207_file("📄 src/modules/home/AuthGuard.tsx")
-    node_207_s0["📦 AuthGuardProps (interface)"]:::symbol
-    node_207_file --- node_207_s0
+  class node_203_sub ts
+  node_205["📄 src/modules/design/features/reports/word/reportModel.test.ts"]:::ts
+  subgraph node_206_sub ["src/modules/design/features/reports/word/reportModel.ts"]
+    node_206_file("📄 src/modules/design/features/reports/word/reportModel.ts")
+    node_206_s0["📋 ReportSelection (type)"]:::symbol
+    node_206_file --- node_206_s0
+    node_206_s1["📋 ReportBounds (type)"]:::symbol
+    node_206_file --- node_206_s1
+    node_206_s2["📦 ReportPhoto (interface)"]:::symbol
+    node_206_file --- node_206_s2
+    node_206_s3["📦 ReportFeatureDetail (interface)"]:::symbol
+    node_206_file --- node_206_s3
+    node_206_s4["📦 ReportSection (interface)"]:::symbol
+    node_206_file --- node_206_s4
+    node_206_s5["📦 ReportModel (interface)"]:::symbol
+    node_206_file --- node_206_s5
   end
-  class node_207_sub ts
-  subgraph node_208_sub ["src/modules/home/GlobalModals.tsx"]
-    node_208_file("📄 src/modules/home/GlobalModals.tsx")
-    node_208_s0["📦 GlobalModalsProps (interface)"]:::symbol
+  class node_206_sub ts
+  node_207["📄 src/modules/design/hooks/useDrawingInteraction.test.tsx"]:::ts
+  subgraph node_208_sub ["src/modules/design/hooks/useDrawingInteraction.ts"]
+    node_208_file("📄 src/modules/design/hooks/useDrawingInteraction.ts")
+    node_208_s0["📋 OneClickDrawingMode (type)"]:::symbol
     node_208_file --- node_208_s0
+    node_208_s1["🔧 useDrawingInteraction (function)"]:::symbol
+    node_208_file --- node_208_s1
   end
   class node_208_sub ts
-  node_209["📄 src/modules/home/main.tsx"]:::ts
-  subgraph node_210_sub ["src/modules/i18n/index.ts"]
-    node_210_file("📄 src/modules/i18n/index.ts")
-    node_210_s0["📋 TranslationKeys (type)"]:::symbol
+  node_209["📄 src/modules/design/hooks/useSyncV2.test.tsx"]:::ts
+  subgraph node_210_sub ["src/modules/design/hooks/useSyncV2.ts"]
+    node_210_file("📄 src/modules/design/hooks/useSyncV2.ts")
+    node_210_s0["📦 SyncResult (interface)"]:::symbol
     node_210_file --- node_210_s0
+    node_210_s1["🔧 useSyncV2 (function)"]:::symbol
+    node_210_file --- node_210_s1
   end
   class node_210_sub ts
-  node_211["📄 src/modules/implement/ImplementApp.tsx"]:::ts
-  subgraph node_296_sub ["src/modules/implement/TabInProgram/TabContainer.tsx"]
-    node_296_file("📄 src/modules/implement/TabInProgram/TabContainer.tsx")
-    node_296_s0["📦 TabContainerProps (interface)"]:::symbol
-    node_296_file --- node_296_s0
+  subgraph node_211_sub ["src/modules/design/stores/themeStore.ts"]
+    node_211_file("📄 src/modules/design/stores/themeStore.ts")
+    node_211_s0["📋 ThemeMode (type)"]:::symbol
+    node_211_file --- node_211_s0
+    node_211_s1["📦 ThemeState (interface)"]:::symbol
+    node_211_file --- node_211_s1
   end
-  class node_296_sub ts
-  subgraph node_297_sub ["src/modules/implement/TabInProgram/useTabStore.ts"]
-    node_297_file("📄 src/modules/implement/TabInProgram/useTabStore.ts")
-    node_297_s0["📦 TabItem (interface)"]:::symbol
-    node_297_file --- node_297_s0
-    node_297_s1["📦 TabState (interface)"]:::symbol
-    node_297_file --- node_297_s1
-  end
-  class node_297_sub ts
-  subgraph node_298_sub ["src/modules/implement/__tests__/comprehensive.test.tsx"]
-    node_298_file("📄 src/modules/implement/__tests__/comprehensive.test.tsx")
-    node_298_s0["📦 MockProject (interface)"]:::symbol
-    node_298_file --- node_298_s0
-    node_298_s1["📦 MockTask (interface)"]:::symbol
-    node_298_file --- node_298_s1
-    node_298_s2["📦 MockFile (interface)"]:::symbol
-    node_298_file --- node_298_s2
-    node_298_s3["📦 MockContract (interface)"]:::symbol
-    node_298_file --- node_298_s3
-    node_298_s4["📦 MockMaterial (interface)"]:::symbol
-    node_298_file --- node_298_s4
-  end
-  class node_298_sub ts
-  subgraph node_212_sub ["src/modules/implement/components/import/ImportReviewDialog.tsx"]
-    node_212_file("📄 src/modules/implement/components/import/ImportReviewDialog.tsx")
-    node_212_s0["📦 ImportReviewDialogProps (interface)"]:::symbol
-    node_212_file --- node_212_s0
-    node_212_s1["🔧 ImportReviewDialog (function)"]:::symbol
-    node_212_file --- node_212_s1
-  end
-  class node_212_sub ts
-  subgraph node_213_sub ["src/modules/implement/features/admin/AdminPanel.tsx"]
-    node_213_file("📄 src/modules/implement/features/admin/AdminPanel.tsx")
-    node_213_s0["📦 AppConfig (interface)"]:::symbol
-    node_213_file --- node_213_s0
-  end
-  class node_213_sub ts
-  subgraph node_214_sub ["src/modules/implement/features/analysis/AnalysisCells.tsx"]
-    node_214_file("📄 src/modules/implement/features/analysis/AnalysisCells.tsx")
-    node_214_s0["🔧 cn (function)"]:::symbol
+  class node_211_sub ts
+  node_212["📄 src/modules/home/App.tsx"]:::ts
+  node_213["📄 src/modules/home/App.workspace.test.tsx"]:::ts
+  subgraph node_214_sub ["src/modules/home/AppBootstrap.tsx"]
+    node_214_file("📄 src/modules/home/AppBootstrap.tsx")
+    node_214_s0["📦 AppBootstrapProps (interface)"]:::symbol
     node_214_file --- node_214_s0
   end
   class node_214_sub ts
-  subgraph node_217_sub ["src/modules/implement/features/analysis/AnalysisDialog.tsx"]
-    node_217_file("📄 src/modules/implement/features/analysis/AnalysisDialog.tsx")
-    node_217_s0["📦 AnalysisDialogProps (interface)"]:::symbol
-    node_217_file --- node_217_s0
-    node_217_s1["📦 FlatFeature (interface)"]:::symbol
-    node_217_file --- node_217_s1
-    node_217_s2["📋 ViewMode (type)"]:::symbol
-    node_217_file --- node_217_s2
-  end
-  class node_217_sub ts
-  subgraph node_220_sub ["src/modules/implement/features/analysis/AnalysisSyncPreviewModal.tsx"]
-    node_220_file("📄 src/modules/implement/features/analysis/AnalysisSyncPreviewModal.tsx")
-    node_220_s0["📦 AnalysisSyncPreviewModalProps (interface)"]:::symbol
-    node_220_file --- node_220_s0
-  end
-  class node_220_sub ts
-  node_221["📄 src/modules/implement/features/analysis/AnalysisWindow.tsx"]:::ts
-  node_215["📄 src/modules/implement/features/analysis/analysisColumns.test.ts"]:::ts
-  subgraph node_216_sub ["src/modules/implement/features/analysis/analysisColumns.ts"]
-    node_216_file("📄 src/modules/implement/features/analysis/analysisColumns.ts")
-    node_216_s0["📋 AnalysisScalarValue (type)"]:::symbol
+  node_215["📄 src/modules/home/AppLoader.tsx"]:::ts
+  subgraph node_216_sub ["src/modules/home/AuthGuard.tsx"]
+    node_216_file("📄 src/modules/home/AuthGuard.tsx")
+    node_216_s0["📦 AuthGuardProps (interface)"]:::symbol
     node_216_file --- node_216_s0
-    node_216_s1["📋 AnalysisFeatureLike (type)"]:::symbol
-    node_216_file --- node_216_s1
   end
   class node_216_sub ts
-  node_218["📄 src/modules/implement/features/analysis/analysisHierarchy.test.ts"]:::ts
-  subgraph node_219_sub ["src/modules/implement/features/analysis/analysisHierarchy.ts"]
-    node_219_file("📄 src/modules/implement/features/analysis/analysisHierarchy.ts")
-    node_219_s0["📋 ComparableValue (type)"]:::symbol
+  subgraph node_217_sub ["src/modules/home/GlobalModals.tsx"]
+    node_217_file("📄 src/modules/home/GlobalModals.tsx")
+    node_217_s0["📦 GlobalModalsProps (interface)"]:::symbol
+    node_217_file --- node_217_s0
+  end
+  class node_217_sub ts
+  node_218["📄 src/modules/home/main.tsx"]:::ts
+  subgraph node_219_sub ["src/modules/i18n/index.ts"]
+    node_219_file("📄 src/modules/i18n/index.ts")
+    node_219_s0["📋 TranslationKeys (type)"]:::symbol
     node_219_file --- node_219_s0
-    node_219_s1["📋 ProcessedFeature (type)"]:::symbol
-    node_219_file --- node_219_s1
-    node_219_s2["📋 AnalysisHierarchyRow (type)"]:::symbol
-    node_219_file --- node_219_s2
   end
   class node_219_sub ts
-  node_222["📄 src/modules/implement/features/auth/AuthOverlay.tsx"]:::ts
-  subgraph node_223_sub ["src/modules/implement/features/contract/ContractAnalysisView.tsx"]
-    node_223_file("📄 src/modules/implement/features/contract/ContractAnalysisView.tsx")
-    node_223_s0["📦 ContractExecutionGroup (interface)"]:::symbol
+  node_220["📄 src/modules/implement/ImplementApp.tsx"]:::ts
+  subgraph node_305_sub ["src/modules/implement/TabInProgram/TabContainer.tsx"]
+    node_305_file("📄 src/modules/implement/TabInProgram/TabContainer.tsx")
+    node_305_s0["📦 TabContainerProps (interface)"]:::symbol
+    node_305_file --- node_305_s0
+  end
+  class node_305_sub ts
+  subgraph node_306_sub ["src/modules/implement/TabInProgram/useTabStore.ts"]
+    node_306_file("📄 src/modules/implement/TabInProgram/useTabStore.ts")
+    node_306_s0["📦 TabItem (interface)"]:::symbol
+    node_306_file --- node_306_s0
+    node_306_s1["📦 TabState (interface)"]:::symbol
+    node_306_file --- node_306_s1
+  end
+  class node_306_sub ts
+  subgraph node_307_sub ["src/modules/implement/__tests__/comprehensive.test.tsx"]
+    node_307_file("📄 src/modules/implement/__tests__/comprehensive.test.tsx")
+    node_307_s0["📦 MockProject (interface)"]:::symbol
+    node_307_file --- node_307_s0
+    node_307_s1["📦 MockTask (interface)"]:::symbol
+    node_307_file --- node_307_s1
+    node_307_s2["📦 MockFile (interface)"]:::symbol
+    node_307_file --- node_307_s2
+    node_307_s3["📦 MockContract (interface)"]:::symbol
+    node_307_file --- node_307_s3
+    node_307_s4["📦 MockMaterial (interface)"]:::symbol
+    node_307_file --- node_307_s4
+  end
+  class node_307_sub ts
+  subgraph node_221_sub ["src/modules/implement/components/import/ImportReviewDialog.tsx"]
+    node_221_file("📄 src/modules/implement/components/import/ImportReviewDialog.tsx")
+    node_221_s0["📦 ImportReviewDialogProps (interface)"]:::symbol
+    node_221_file --- node_221_s0
+    node_221_s1["🔧 ImportReviewDialog (function)"]:::symbol
+    node_221_file --- node_221_s1
+  end
+  class node_221_sub ts
+  subgraph node_222_sub ["src/modules/implement/features/admin/AdminPanel.tsx"]
+    node_222_file("📄 src/modules/implement/features/admin/AdminPanel.tsx")
+    node_222_s0["📦 AppConfig (interface)"]:::symbol
+    node_222_file --- node_222_s0
+  end
+  class node_222_sub ts
+  subgraph node_223_sub ["src/modules/implement/features/analysis/AnalysisCells.tsx"]
+    node_223_file("📄 src/modules/implement/features/analysis/AnalysisCells.tsx")
+    node_223_s0["🔧 cn (function)"]:::symbol
     node_223_file --- node_223_s0
-    node_223_s1["📦 Props (interface)"]:::symbol
-    node_223_file --- node_223_s1
-    node_223_s2["🔧 ContractAnalysisView (function)"]:::symbol
-    node_223_file --- node_223_s2
-    node_223_s3["🔧 ProjectInfoBar (function)"]:::symbol
-    node_223_file --- node_223_s3
-    node_223_s4["🔧 InfoItem (function)"]:::symbol
-    node_223_file --- node_223_s4
-    node_223_s5["🔧 StatCard (function)"]:::symbol
-    node_223_file --- node_223_s5
-    node_223_s6["🔧 TaskCard (function)"]:::symbol
-    node_223_file --- node_223_s6
   end
   class node_223_sub ts
-  subgraph node_224_sub ["src/modules/implement/features/contract/ContractManager.tsx"]
-    node_224_file("📄 src/modules/implement/features/contract/ContractManager.tsx")
-    node_224_s0["📦 Props (interface)"]:::symbol
-    node_224_file --- node_224_s0
-    node_224_s1["🔧 ContractManager (function)"]:::symbol
-    node_224_file --- node_224_s1
+  subgraph node_226_sub ["src/modules/implement/features/analysis/AnalysisDialog.tsx"]
+    node_226_file("📄 src/modules/implement/features/analysis/AnalysisDialog.tsx")
+    node_226_s0["📦 AnalysisDialogProps (interface)"]:::symbol
+    node_226_file --- node_226_s0
+    node_226_s1["📦 FlatFeature (interface)"]:::symbol
+    node_226_file --- node_226_s1
+    node_226_s2["📋 ViewMode (type)"]:::symbol
+    node_226_file --- node_226_s2
   end
-  class node_224_sub ts
-  subgraph node_225_sub ["src/modules/implement/features/contract/ContractSidebar.tsx"]
-    node_225_file("📄 src/modules/implement/features/contract/ContractSidebar.tsx")
-    node_225_s0["📦 ContractSidebarProps (interface)"]:::symbol
+  class node_226_sub ts
+  subgraph node_229_sub ["src/modules/implement/features/analysis/AnalysisSyncPreviewModal.tsx"]
+    node_229_file("📄 src/modules/implement/features/analysis/AnalysisSyncPreviewModal.tsx")
+    node_229_s0["📦 AnalysisSyncPreviewModalProps (interface)"]:::symbol
+    node_229_file --- node_229_s0
+  end
+  class node_229_sub ts
+  node_230["📄 src/modules/implement/features/analysis/AnalysisWindow.tsx"]:::ts
+  node_224["📄 src/modules/implement/features/analysis/analysisColumns.test.ts"]:::ts
+  subgraph node_225_sub ["src/modules/implement/features/analysis/analysisColumns.ts"]
+    node_225_file("📄 src/modules/implement/features/analysis/analysisColumns.ts")
+    node_225_s0["📋 AnalysisScalarValue (type)"]:::symbol
     node_225_file --- node_225_s0
-    node_225_s1["🔧 ContractSidebar (function)"]:::symbol
+    node_225_s1["📋 AnalysisFeatureLike (type)"]:::symbol
     node_225_file --- node_225_s1
   end
   class node_225_sub ts
-  subgraph node_226_sub ["src/modules/implement/features/files/DynamicContentManager.tsx"]
-    node_226_file("📄 src/modules/implement/features/files/DynamicContentManager.tsx")
-    node_226_s0["📦 Props (interface)"]:::symbol
-    node_226_file --- node_226_s0
-    node_226_s1["🔧 DynamicContentManager (function)"]:::symbol
-    node_226_file --- node_226_s1
+  node_227["📄 src/modules/implement/features/analysis/analysisHierarchy.test.ts"]:::ts
+  subgraph node_228_sub ["src/modules/implement/features/analysis/analysisHierarchy.ts"]
+    node_228_file("📄 src/modules/implement/features/analysis/analysisHierarchy.ts")
+    node_228_s0["📋 ComparableValue (type)"]:::symbol
+    node_228_file --- node_228_s0
+    node_228_s1["📋 ProcessedFeature (type)"]:::symbol
+    node_228_file --- node_228_s1
+    node_228_s2["📋 AnalysisHierarchyRow (type)"]:::symbol
+    node_228_file --- node_228_s2
   end
-  class node_226_sub ts
-  subgraph node_227_sub ["src/modules/implement/features/files/FilePreview.tsx"]
-    node_227_file("📄 src/modules/implement/features/files/FilePreview.tsx")
-    node_227_s0["📦 Props (interface)"]:::symbol
-    node_227_file --- node_227_s0
-    node_227_s1["🔧 FilePreview (function)"]:::symbol
-    node_227_file --- node_227_s1
+  class node_228_sub ts
+  node_231["📄 src/modules/implement/features/auth/AuthOverlay.tsx"]:::ts
+  subgraph node_232_sub ["src/modules/implement/features/contract/ContractAnalysisView.tsx"]
+    node_232_file("📄 src/modules/implement/features/contract/ContractAnalysisView.tsx")
+    node_232_s0["📦 ContractExecutionGroup (interface)"]:::symbol
+    node_232_file --- node_232_s0
+    node_232_s1["📦 Props (interface)"]:::symbol
+    node_232_file --- node_232_s1
+    node_232_s2["🔧 ContractAnalysisView (function)"]:::symbol
+    node_232_file --- node_232_s2
+    node_232_s3["🔧 ProjectInfoBar (function)"]:::symbol
+    node_232_file --- node_232_s3
+    node_232_s4["🔧 InfoItem (function)"]:::symbol
+    node_232_file --- node_232_s4
+    node_232_s5["🔧 StatCard (function)"]:::symbol
+    node_232_file --- node_232_s5
+    node_232_s6["🔧 TaskCard (function)"]:::symbol
+    node_232_file --- node_232_s6
   end
-  class node_227_sub ts
-  node_228["📄 src/modules/implement/features/files/ImportDialog.test.tsx"]:::ts
-  subgraph node_229_sub ["src/modules/implement/features/files/ImportDialog.tsx"]
-    node_229_file("📄 src/modules/implement/features/files/ImportDialog.tsx")
-    node_229_s0["📦 Props (interface)"]:::symbol
-    node_229_file --- node_229_s0
-    node_229_s1["📋 Step (type)"]:::symbol
-    node_229_file --- node_229_s1
-    node_229_s2["📋 ImportMode (type)"]:::symbol
-    node_229_file --- node_229_s2
-    node_229_s3["🔧 ImportDialog (function)"]:::symbol
-    node_229_file --- node_229_s3
-    node_229_s4["🔧 Metric (function)"]:::symbol
-    node_229_file --- node_229_s4
-  end
-  class node_229_sub ts
-  subgraph node_230_sub ["src/modules/implement/features/graph/GraphManagement.tsx"]
-    node_230_file("📄 src/modules/implement/features/graph/GraphManagement.tsx")
-    node_230_s0["📦 GraphManagementProps (interface)"]:::symbol
-    node_230_file --- node_230_s0
-    node_230_s1["🔧 GraphManagement (function)"]:::symbol
-    node_230_file --- node_230_s1
-  end
-  class node_230_sub ts
-  subgraph node_231_sub ["src/modules/implement/features/inventory/MaterialManager.tsx"]
-    node_231_file("📄 src/modules/implement/features/inventory/MaterialManager.tsx")
-    node_231_s0["📦 Props (interface)"]:::symbol
-    node_231_file --- node_231_s0
-    node_231_s1["🔧 MaterialManager (function)"]:::symbol
-    node_231_file --- node_231_s1
-  end
-  class node_231_sub ts
-  node_232["📄 src/modules/implement/features/project-management/CreateProjectModal.test.tsx"]:::ts
-  subgraph node_233_sub ["src/modules/implement/features/project-management/CreateProjectModal.tsx"]
-    node_233_file("📄 src/modules/implement/features/project-management/CreateProjectModal.tsx")
+  class node_232_sub ts
+  subgraph node_233_sub ["src/modules/implement/features/contract/ContractManager.tsx"]
+    node_233_file("📄 src/modules/implement/features/contract/ContractManager.tsx")
     node_233_s0["📦 Props (interface)"]:::symbol
     node_233_file --- node_233_s0
-    node_233_s1["🔧 CreateProjectModal (function)"]:::symbol
+    node_233_s1["🔧 ContractManager (function)"]:::symbol
     node_233_file --- node_233_s1
   end
   class node_233_sub ts
-  subgraph node_234_sub ["src/modules/implement/features/project-management/GlobalSearchV2.tsx"]
-    node_234_file("📄 src/modules/implement/features/project-management/GlobalSearchV2.tsx")
-    node_234_s0["📦 PmpV2SearchFile (interface)"]:::symbol
+  subgraph node_234_sub ["src/modules/implement/features/contract/ContractSidebar.tsx"]
+    node_234_file("📄 src/modules/implement/features/contract/ContractSidebar.tsx")
+    node_234_s0["📦 ContractSidebarProps (interface)"]:::symbol
     node_234_file --- node_234_s0
-    node_234_s1["🔧 GlobalSearchV2 (function)"]:::symbol
+    node_234_s1["🔧 ContractSidebar (function)"]:::symbol
     node_234_file --- node_234_s1
   end
   class node_234_sub ts
-  subgraph node_235_sub ["src/modules/implement/features/project-management/HomeDashboard.tsx"]
-    node_235_file("📄 src/modules/implement/features/project-management/HomeDashboard.tsx")
-    node_235_s0["📦 HomeDashboardProps (interface)"]:::symbol
+  subgraph node_235_sub ["src/modules/implement/features/files/DynamicContentManager.tsx"]
+    node_235_file("📄 src/modules/implement/features/files/DynamicContentManager.tsx")
+    node_235_s0["📦 Props (interface)"]:::symbol
     node_235_file --- node_235_s0
+    node_235_s1["🔧 DynamicContentManager (function)"]:::symbol
+    node_235_file --- node_235_s1
   end
   class node_235_sub ts
-  subgraph node_236_sub ["src/modules/implement/features/project-management/ProjectDetail.tsx"]
-    node_236_file("📄 src/modules/implement/features/project-management/ProjectDetail.tsx")
-    node_236_s0["📦 ProjectDetailProps (interface)"]:::symbol
+  subgraph node_236_sub ["src/modules/implement/features/files/FilePreview.tsx"]
+    node_236_file("📄 src/modules/implement/features/files/FilePreview.tsx")
+    node_236_s0["📦 Props (interface)"]:::symbol
     node_236_file --- node_236_s0
-    node_236_s1["📋 ProjectDetailViewMode (type)"]:::symbol
+    node_236_s1["🔧 FilePreview (function)"]:::symbol
     node_236_file --- node_236_s1
-    node_236_s2["🔧 ProjectDetail (function)"]:::symbol
-    node_236_file --- node_236_s2
   end
   class node_236_sub ts
-  subgraph node_242_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/CADInput.tsx"]
-    node_242_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/CADInput.tsx")
-    node_242_s0["🔧 CADInput (function)"]:::symbol
-    node_242_file --- node_242_s0
-  end
-  class node_242_sub ts
-  subgraph node_243_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/CalendarView.tsx"]
-    node_243_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/CalendarView.tsx")
-    node_243_s0["📦 CalendarViewProps (interface)"]:::symbol
-    node_243_file --- node_243_s0
-    node_243_s1["🔧 CalendarView (function)"]:::symbol
-    node_243_file --- node_243_s1
-  end
-  class node_243_sub ts
-  subgraph node_244_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/FileItem.tsx"]
-    node_244_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/FileItem.tsx")
-    node_244_s0["🔧 FileItem (function)"]:::symbol
-    node_244_file --- node_244_s0
-  end
-  class node_244_sub ts
-  subgraph node_245_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/FolderTree.tsx"]
-    node_245_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/FolderTree.tsx")
-    node_245_s0["🔧 FolderTree (function)"]:::symbol
-    node_245_file --- node_245_s0
-  end
-  class node_245_sub ts
-  subgraph node_246_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/GanttTimeline.tsx"]
-    node_246_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/GanttTimeline.tsx")
-    node_246_s0["📦 GanttTimelineProps (interface)"]:::symbol
-    node_246_file --- node_246_s0
-    node_246_s1["🔧 GanttTimeline (function)"]:::symbol
-    node_246_file --- node_246_s1
-  end
-  class node_246_sub ts
-  subgraph node_248_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/KanbanView.tsx"]
-    node_248_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/KanbanView.tsx")
-    node_248_s0["📦 KanbanViewProps (interface)"]:::symbol
-    node_248_file --- node_248_s0
-    node_248_s1["🔧 KanbanView (function)"]:::symbol
-    node_248_file --- node_248_s1
-  end
-  class node_248_sub ts
-  subgraph node_249_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/ProjectNotesSidebar.tsx"]
-    node_249_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/ProjectNotesSidebar.tsx")
-    node_249_s0["🔧 ProjectNotesSidebar (function)"]:::symbol
-    node_249_file --- node_249_s0
-  end
-  class node_249_sub ts
-  subgraph node_250_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/ProjectTasksSidebar.tsx"]
-    node_250_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/ProjectTasksSidebar.tsx")
-    node_250_s0["📦 TaskItem (interface)"]:::symbol
-    node_250_file --- node_250_s0
-    node_250_s1["📦 ProjectTasksSidebarProps (interface)"]:::symbol
-    node_250_file --- node_250_s1
-    node_250_s2["🔧 ProjectTasksSidebar (function)"]:::symbol
-    node_250_file --- node_250_s2
-  end
-  class node_250_sub ts
-  subgraph node_251_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/TaskRow.tsx"]
-    node_251_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/TaskRow.tsx")
-    node_251_s0["📦 TaskRowProps (interface)"]:::symbol
-    node_251_file --- node_251_s0
-    node_251_s1["🔧 TaskRow (function)"]:::symbol
-    node_251_file --- node_251_s1
-  end
-  class node_251_sub ts
-  node_247["📄 src/modules/implement/features/project-management/ProjectDetailPanels/index.ts"]:::ts
-  subgraph node_237_sub ["src/modules/implement/features/project-management/ProjectMainView.tsx"]
-    node_237_file("📄 src/modules/implement/features/project-management/ProjectMainView.tsx")
-    node_237_s0["📋 ViewMode (type)"]:::symbol
-    node_237_file --- node_237_s0
-    node_237_s1["📦 ProjectMainViewProps (interface)"]:::symbol
-    node_237_file --- node_237_s1
-  end
-  class node_237_sub ts
-  subgraph node_238_sub ["src/modules/implement/features/project-management/ProjectOverlayLayer.tsx"]
-    node_238_file("📄 src/modules/implement/features/project-management/ProjectOverlayLayer.tsx")
-    node_238_s0["📦 ProjectOverlayLayerProps (interface)"]:::symbol
+  node_237["📄 src/modules/implement/features/files/ImportDialog.test.tsx"]:::ts
+  subgraph node_238_sub ["src/modules/implement/features/files/ImportDialog.tsx"]
+    node_238_file("📄 src/modules/implement/features/files/ImportDialog.tsx")
+    node_238_s0["📦 Props (interface)"]:::symbol
     node_238_file --- node_238_s0
-    node_238_s1["🔧 ProjectOverlayLayer (function)"]:::symbol
+    node_238_s1["📋 Step (type)"]:::symbol
     node_238_file --- node_238_s1
+    node_238_s2["📋 ImportMode (type)"]:::symbol
+    node_238_file --- node_238_s2
+    node_238_s3["🔧 ImportDialog (function)"]:::symbol
+    node_238_file --- node_238_s3
+    node_238_s4["🔧 Metric (function)"]:::symbol
+    node_238_file --- node_238_s4
   end
   class node_238_sub ts
-  subgraph node_239_sub ["src/modules/implement/features/project-management/ProjectSidebar.tsx"]
-    node_239_file("📄 src/modules/implement/features/project-management/ProjectSidebar.tsx")
-    node_239_s0["📦 ProjectSidebarProps (interface)"]:::symbol
+  subgraph node_239_sub ["src/modules/implement/features/graph/GraphManagement.tsx"]
+    node_239_file("📄 src/modules/implement/features/graph/GraphManagement.tsx")
+    node_239_s0["📦 GraphManagementProps (interface)"]:::symbol
     node_239_file --- node_239_s0
-    node_239_s1["🔧 ProjectSidebar (function)"]:::symbol
+    node_239_s1["🔧 GraphManagement (function)"]:::symbol
     node_239_file --- node_239_s1
   end
   class node_239_sub ts
-  subgraph node_240_sub ["src/modules/implement/features/project-management/RecentWorkspaces.tsx"]
-    node_240_file("📄 src/modules/implement/features/project-management/RecentWorkspaces.tsx")
-    node_240_s0["📦 RecentWorkspacesProps (interface)"]:::symbol
+  subgraph node_240_sub ["src/modules/implement/features/inventory/MaterialManager.tsx"]
+    node_240_file("📄 src/modules/implement/features/inventory/MaterialManager.tsx")
+    node_240_s0["📦 Props (interface)"]:::symbol
     node_240_file --- node_240_s0
+    node_240_s1["🔧 MaterialManager (function)"]:::symbol
+    node_240_file --- node_240_s1
   end
   class node_240_sub ts
-  subgraph node_241_sub ["src/modules/implement/features/project-management/StatsCard.tsx"]
-    node_241_file("📄 src/modules/implement/features/project-management/StatsCard.tsx")
-    node_241_s0["📦 StatsCardProps (interface)"]:::symbol
-    node_241_file --- node_241_s0
+  node_241["📄 src/modules/implement/features/project-management/CreateProjectModal.test.tsx"]:::ts
+  subgraph node_242_sub ["src/modules/implement/features/project-management/CreateProjectModal.tsx"]
+    node_242_file("📄 src/modules/implement/features/project-management/CreateProjectModal.tsx")
+    node_242_s0["📦 Props (interface)"]:::symbol
+    node_242_file --- node_242_s0
+    node_242_s1["🔧 CreateProjectModal (function)"]:::symbol
+    node_242_file --- node_242_s1
   end
-  class node_241_sub ts
-  node_252["📄 src/modules/implement/hooks/index.ts"]:::ts
-  node_253["📄 src/modules/implement/hooks/projectPathUtils.test.ts"]:::ts
-  node_254["📄 src/modules/implement/hooks/projectPathUtils.ts"]:::ts
-  subgraph node_255_sub ["src/modules/implement/hooks/useAppBootstrap.ts"]
-    node_255_file("📄 src/modules/implement/hooks/useAppBootstrap.ts")
-    node_255_s0["🔧 useAppBootstrap (function)"]:::symbol
+  class node_242_sub ts
+  subgraph node_243_sub ["src/modules/implement/features/project-management/GlobalSearchV2.tsx"]
+    node_243_file("📄 src/modules/implement/features/project-management/GlobalSearchV2.tsx")
+    node_243_s0["📦 PmpV2SearchFile (interface)"]:::symbol
+    node_243_file --- node_243_s0
+    node_243_s1["🔧 GlobalSearchV2 (function)"]:::symbol
+    node_243_file --- node_243_s1
+  end
+  class node_243_sub ts
+  subgraph node_244_sub ["src/modules/implement/features/project-management/HomeDashboard.tsx"]
+    node_244_file("📄 src/modules/implement/features/project-management/HomeDashboard.tsx")
+    node_244_s0["📦 HomeDashboardProps (interface)"]:::symbol
+    node_244_file --- node_244_s0
+  end
+  class node_244_sub ts
+  subgraph node_245_sub ["src/modules/implement/features/project-management/ProjectDetail.tsx"]
+    node_245_file("📄 src/modules/implement/features/project-management/ProjectDetail.tsx")
+    node_245_s0["📦 ProjectDetailProps (interface)"]:::symbol
+    node_245_file --- node_245_s0
+    node_245_s1["📋 ProjectDetailViewMode (type)"]:::symbol
+    node_245_file --- node_245_s1
+    node_245_s2["🔧 ProjectDetail (function)"]:::symbol
+    node_245_file --- node_245_s2
+  end
+  class node_245_sub ts
+  subgraph node_251_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/CADInput.tsx"]
+    node_251_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/CADInput.tsx")
+    node_251_s0["🔧 CADInput (function)"]:::symbol
+    node_251_file --- node_251_s0
+  end
+  class node_251_sub ts
+  subgraph node_252_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/CalendarView.tsx"]
+    node_252_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/CalendarView.tsx")
+    node_252_s0["📦 CalendarViewProps (interface)"]:::symbol
+    node_252_file --- node_252_s0
+    node_252_s1["🔧 CalendarView (function)"]:::symbol
+    node_252_file --- node_252_s1
+  end
+  class node_252_sub ts
+  subgraph node_253_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/FileItem.tsx"]
+    node_253_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/FileItem.tsx")
+    node_253_s0["🔧 FileItem (function)"]:::symbol
+    node_253_file --- node_253_s0
+  end
+  class node_253_sub ts
+  subgraph node_254_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/FolderTree.tsx"]
+    node_254_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/FolderTree.tsx")
+    node_254_s0["🔧 FolderTree (function)"]:::symbol
+    node_254_file --- node_254_s0
+  end
+  class node_254_sub ts
+  subgraph node_255_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/GanttTimeline.tsx"]
+    node_255_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/GanttTimeline.tsx")
+    node_255_s0["📦 GanttTimelineProps (interface)"]:::symbol
     node_255_file --- node_255_s0
+    node_255_s1["🔧 GanttTimeline (function)"]:::symbol
+    node_255_file --- node_255_s1
   end
   class node_255_sub ts
-  subgraph node_256_sub ["src/modules/implement/hooks/useCamera.ts"]
-    node_256_file("📄 src/modules/implement/hooks/useCamera.ts")
-    node_256_s0["📦 UseCameraProps (interface)"]:::symbol
-    node_256_file --- node_256_s0
-  end
-  class node_256_sub ts
-  subgraph node_257_sub ["src/modules/implement/hooks/useCanvasInteraction.ts"]
-    node_257_file("📄 src/modules/implement/hooks/useCanvasInteraction.ts")
-    node_257_s0["🔧 useCanvasInteraction (function)"]:::symbol
+  subgraph node_257_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/KanbanView.tsx"]
+    node_257_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/KanbanView.tsx")
+    node_257_s0["📦 KanbanViewProps (interface)"]:::symbol
     node_257_file --- node_257_s0
+    node_257_s1["🔧 KanbanView (function)"]:::symbol
+    node_257_file --- node_257_s1
   end
   class node_257_sub ts
-  subgraph node_258_sub ["src/modules/implement/hooks/useClickOutside.ts"]
-    node_258_file("📄 src/modules/implement/hooks/useClickOutside.ts")
-    node_258_s0["🔧 useClickOutside (function)"]:::symbol
+  subgraph node_258_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/ProjectNotesSidebar.tsx"]
+    node_258_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/ProjectNotesSidebar.tsx")
+    node_258_s0["🔧 ProjectNotesSidebar (function)"]:::symbol
     node_258_file --- node_258_s0
   end
   class node_258_sub ts
-  subgraph node_259_sub ["src/modules/implement/hooks/useDesignFeatures.ts"]
-    node_259_file("📄 src/modules/implement/hooks/useDesignFeatures.ts")
-    node_259_s0["📦 GridIndex (class)"]:::symbol
+  subgraph node_259_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/ProjectTasksSidebar.tsx"]
+    node_259_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/ProjectTasksSidebar.tsx")
+    node_259_s0["📦 TaskItem (interface)"]:::symbol
     node_259_file --- node_259_s0
+    node_259_s1["📦 ProjectTasksSidebarProps (interface)"]:::symbol
+    node_259_file --- node_259_s1
+    node_259_s2["🔧 ProjectTasksSidebar (function)"]:::symbol
+    node_259_file --- node_259_s2
   end
   class node_259_sub ts
-  subgraph node_260_sub ["src/modules/implement/hooks/useMapSearch.ts"]
-    node_260_file("📄 src/modules/implement/hooks/useMapSearch.ts")
-    node_260_s0["📦 SearchResult (interface)"]:::symbol
+  subgraph node_260_sub ["src/modules/implement/features/project-management/ProjectDetailPanels/TaskRow.tsx"]
+    node_260_file("📄 src/modules/implement/features/project-management/ProjectDetailPanels/TaskRow.tsx")
+    node_260_s0["📦 TaskRowProps (interface)"]:::symbol
     node_260_file --- node_260_s0
+    node_260_s1["🔧 TaskRow (function)"]:::symbol
+    node_260_file --- node_260_s1
   end
   class node_260_sub ts
-  subgraph node_261_sub ["src/modules/implement/hooks/useProjectData.ts"]
-    node_261_file("📄 src/modules/implement/hooks/useProjectData.ts")
-    node_261_s0["🔧 useProjectData (function)"]:::symbol
-    node_261_file --- node_261_s0
+  node_256["📄 src/modules/implement/features/project-management/ProjectDetailPanels/index.ts"]:::ts
+  subgraph node_246_sub ["src/modules/implement/features/project-management/ProjectMainView.tsx"]
+    node_246_file("📄 src/modules/implement/features/project-management/ProjectMainView.tsx")
+    node_246_s0["📋 ViewMode (type)"]:::symbol
+    node_246_file --- node_246_s0
+    node_246_s1["📦 ProjectMainViewProps (interface)"]:::symbol
+    node_246_file --- node_246_s1
   end
-  class node_261_sub ts
-  subgraph node_262_sub ["src/modules/implement/hooks/useProjectDetailLogic.ts"]
-    node_262_file("📄 src/modules/implement/hooks/useProjectDetailLogic.ts")
-    node_262_s0["🔧 useProjectDetailLogic (function)"]:::symbol
-    node_262_file --- node_262_s0
+  class node_246_sub ts
+  subgraph node_247_sub ["src/modules/implement/features/project-management/ProjectOverlayLayer.tsx"]
+    node_247_file("📄 src/modules/implement/features/project-management/ProjectOverlayLayer.tsx")
+    node_247_s0["📦 ProjectOverlayLayerProps (interface)"]:::symbol
+    node_247_file --- node_247_s0
+    node_247_s1["🔧 ProjectOverlayLayer (function)"]:::symbol
+    node_247_file --- node_247_s1
   end
-  class node_262_sub ts
-  node_263["📄 src/modules/implement/hooks/useProjectManager.test.tsx"]:::ts
-  subgraph node_264_sub ["src/modules/implement/hooks/useProjectManager.ts"]
-    node_264_file("📄 src/modules/implement/hooks/useProjectManager.ts")
-    node_264_s0["🔧 useProjectManager (function)"]:::symbol
+  class node_247_sub ts
+  subgraph node_248_sub ["src/modules/implement/features/project-management/ProjectSidebar.tsx"]
+    node_248_file("📄 src/modules/implement/features/project-management/ProjectSidebar.tsx")
+    node_248_s0["📦 ProjectSidebarProps (interface)"]:::symbol
+    node_248_file --- node_248_s0
+    node_248_s1["🔧 ProjectSidebar (function)"]:::symbol
+    node_248_file --- node_248_s1
+  end
+  class node_248_sub ts
+  subgraph node_249_sub ["src/modules/implement/features/project-management/RecentWorkspaces.tsx"]
+    node_249_file("📄 src/modules/implement/features/project-management/RecentWorkspaces.tsx")
+    node_249_s0["📦 RecentWorkspacesProps (interface)"]:::symbol
+    node_249_file --- node_249_s0
+  end
+  class node_249_sub ts
+  subgraph node_250_sub ["src/modules/implement/features/project-management/StatsCard.tsx"]
+    node_250_file("📄 src/modules/implement/features/project-management/StatsCard.tsx")
+    node_250_s0["📦 StatsCardProps (interface)"]:::symbol
+    node_250_file --- node_250_s0
+  end
+  class node_250_sub ts
+  node_261["📄 src/modules/implement/hooks/index.ts"]:::ts
+  node_262["📄 src/modules/implement/hooks/projectPathUtils.test.ts"]:::ts
+  node_263["📄 src/modules/implement/hooks/projectPathUtils.ts"]:::ts
+  subgraph node_264_sub ["src/modules/implement/hooks/useAppBootstrap.ts"]
+    node_264_file("📄 src/modules/implement/hooks/useAppBootstrap.ts")
+    node_264_s0["🔧 useAppBootstrap (function)"]:::symbol
     node_264_file --- node_264_s0
   end
   class node_264_sub ts
-  subgraph node_265_sub ["src/modules/implement/hooks/useResizablePanels.ts"]
-    node_265_file("📄 src/modules/implement/hooks/useResizablePanels.ts")
-    node_265_s0["📦 ResizablePanelsOptions (interface)"]:::symbol
+  subgraph node_265_sub ["src/modules/implement/hooks/useCamera.ts"]
+    node_265_file("📄 src/modules/implement/hooks/useCamera.ts")
+    node_265_s0["📦 UseCameraProps (interface)"]:::symbol
     node_265_file --- node_265_s0
-    node_265_s1["🔧 useResizablePanels (function)"]:::symbol
-    node_265_file --- node_265_s1
   end
   class node_265_sub ts
-  subgraph node_266_sub ["src/modules/implement/hooks/useRibbonActions.ts"]
-    node_266_file("📄 src/modules/implement/hooks/useRibbonActions.ts")
-    node_266_s0["🔧 useRibbonActions (function)"]:::symbol
+  subgraph node_266_sub ["src/modules/implement/hooks/useCanvasInteraction.ts"]
+    node_266_file("📄 src/modules/implement/hooks/useCanvasInteraction.ts")
+    node_266_s0["🔧 useCanvasInteraction (function)"]:::symbol
     node_266_file --- node_266_s0
   end
   class node_266_sub ts
-  node_267["📄 src/modules/implement/hooks/useSnap.test.ts"]:::ts
-  subgraph node_268_sub ["src/modules/implement/hooks/useSnap.ts"]
-    node_268_file("📄 src/modules/implement/hooks/useSnap.ts")
-    node_268_s0["🔧 throttle (function)"]:::symbol
+  subgraph node_267_sub ["src/modules/implement/hooks/useClickOutside.ts"]
+    node_267_file("📄 src/modules/implement/hooks/useClickOutside.ts")
+    node_267_s0["🔧 useClickOutside (function)"]:::symbol
+    node_267_file --- node_267_s0
+  end
+  class node_267_sub ts
+  subgraph node_268_sub ["src/modules/implement/hooks/useDesignFeatures.ts"]
+    node_268_file("📄 src/modules/implement/hooks/useDesignFeatures.ts")
+    node_268_s0["📦 GridIndex (class)"]:::symbol
     node_268_file --- node_268_s0
   end
   class node_268_sub ts
-  subgraph node_269_sub ["src/modules/implement/hooks/useTopology.ts"]
-    node_269_file("📄 src/modules/implement/hooks/useTopology.ts")
-    node_269_s0["📦 TopologyError (interface)"]:::symbol
+  subgraph node_269_sub ["src/modules/implement/hooks/useMapSearch.ts"]
+    node_269_file("📄 src/modules/implement/hooks/useMapSearch.ts")
+    node_269_s0["📦 SearchResult (interface)"]:::symbol
     node_269_file --- node_269_s0
   end
   class node_269_sub ts
-  node_270["📄 src/modules/implement/lib/firebase.ts"]:::ts
-  node_271["📄 src/modules/implement/lib/firestoreSync.ts"]:::ts
-  node_272["📄 src/modules/implement/lib/i18n.ts"]:::ts
-  node_273["📄 src/modules/implement/lib/tauri.ts"]:::ts
-  node_274["📄 src/modules/implement/services/analysisService.test.ts"]:::ts
-  subgraph node_275_sub ["src/modules/implement/services/analysisService.ts"]
-    node_275_file("📄 src/modules/implement/services/analysisService.ts")
-    node_275_s0["📦 WorkbookLink (interface)"]:::symbol
+  subgraph node_270_sub ["src/modules/implement/hooks/useProjectData.ts"]
+    node_270_file("📄 src/modules/implement/hooks/useProjectData.ts")
+    node_270_s0["🔧 useProjectData (function)"]:::symbol
+    node_270_file --- node_270_s0
+  end
+  class node_270_sub ts
+  subgraph node_271_sub ["src/modules/implement/hooks/useProjectDetailLogic.ts"]
+    node_271_file("📄 src/modules/implement/hooks/useProjectDetailLogic.ts")
+    node_271_s0["🔧 useProjectDetailLogic (function)"]:::symbol
+    node_271_file --- node_271_s0
+  end
+  class node_271_sub ts
+  node_272["📄 src/modules/implement/hooks/useProjectManager.test.tsx"]:::ts
+  subgraph node_273_sub ["src/modules/implement/hooks/useProjectManager.ts"]
+    node_273_file("📄 src/modules/implement/hooks/useProjectManager.ts")
+    node_273_s0["🔧 useProjectManager (function)"]:::symbol
+    node_273_file --- node_273_s0
+  end
+  class node_273_sub ts
+  subgraph node_274_sub ["src/modules/implement/hooks/useResizablePanels.ts"]
+    node_274_file("📄 src/modules/implement/hooks/useResizablePanels.ts")
+    node_274_s0["📦 ResizablePanelsOptions (interface)"]:::symbol
+    node_274_file --- node_274_s0
+    node_274_s1["🔧 useResizablePanels (function)"]:::symbol
+    node_274_file --- node_274_s1
+  end
+  class node_274_sub ts
+  subgraph node_275_sub ["src/modules/implement/hooks/useRibbonActions.ts"]
+    node_275_file("📄 src/modules/implement/hooks/useRibbonActions.ts")
+    node_275_s0["🔧 useRibbonActions (function)"]:::symbol
     node_275_file --- node_275_s0
-    node_275_s1["📦 WorkbookMetadata (interface)"]:::symbol
-    node_275_file --- node_275_s1
-    node_275_s2["📋 SyncChangeType (type)"]:::symbol
-    node_275_file --- node_275_s2
-    node_275_s3["📦 SyncChange (interface)"]:::symbol
-    node_275_file --- node_275_s3
-    node_275_s4["📋 ConflictResolution (type)"]:::symbol
-    node_275_file --- node_275_s4
-    node_275_s5["📦 SyncPreview (interface)"]:::symbol
-    node_275_file --- node_275_s5
-    node_275_s6["📋 DataSourceStatus (type)"]:::symbol
-    node_275_file --- node_275_s6
-    node_275_s7["📋 AnalysisRow (type)"]:::symbol
-    node_275_file --- node_275_s7
-    node_275_s8["📋 ParsedAnalysisRow (type)"]:::symbol
-    node_275_file --- node_275_s8
-    node_275_s9["📋 PendingParentLink (type)"]:::symbol
-    node_275_file --- node_275_s9
   end
   class node_275_sub ts
-  subgraph node_276_sub ["src/modules/implement/services/bomService.ts"]
-    node_276_file("📄 src/modules/implement/services/bomService.ts")
-    node_276_s0["📦 BOMItem (interface)"]:::symbol
-    node_276_file --- node_276_s0
-    node_276_s1["📦 BOMSummary (interface)"]:::symbol
-    node_276_file --- node_276_s1
-  end
-  class node_276_sub ts
-  subgraph node_277_sub ["src/modules/implement/services/designSyncService.ts"]
-    node_277_file("📄 src/modules/implement/services/designSyncService.ts")
-    node_277_s0["📦 DesignSyncService (class)"]:::symbol
+  node_276["📄 src/modules/implement/hooks/useSnap.test.ts"]:::ts
+  subgraph node_277_sub ["src/modules/implement/hooks/useSnap.ts"]
+    node_277_file("📄 src/modules/implement/hooks/useSnap.ts")
+    node_277_s0["🔧 throttle (function)"]:::symbol
     node_277_file --- node_277_s0
   end
   class node_277_sub ts
-  subgraph node_278_sub ["src/modules/implement/services/exportService.ts"]
-    node_278_file("📄 src/modules/implement/services/exportService.ts")
-    node_278_s0["📋 MediaExportMetadata (type)"]:::symbol
+  subgraph node_278_sub ["src/modules/implement/hooks/useTopology.ts"]
+    node_278_file("📄 src/modules/implement/hooks/useTopology.ts")
+    node_278_s0["📦 TopologyError (interface)"]:::symbol
     node_278_file --- node_278_s0
   end
   class node_278_sub ts
-  node_279["📄 src/modules/implement/services/importService.test.ts"]:::ts
-  subgraph node_280_sub ["src/modules/implement/services/importService.ts"]
-    node_280_file("📄 src/modules/implement/services/importService.ts")
-    node_280_s0["📦 FieldMeta (interface)"]:::symbol
-    node_280_file --- node_280_s0
-    node_280_s1["📦 DatasetMeta (interface)"]:::symbol
-    node_280_file --- node_280_s1
-    node_280_s2["📦 FeatureRecord (interface)"]:::symbol
-    node_280_file --- node_280_s2
-    node_280_s3["📦 ImportMapping (interface)"]:::symbol
-    node_280_file --- node_280_s3
-    node_280_s4["📦 PmpImportPreview (interface)"]:::symbol
-    node_280_file --- node_280_s4
-    node_280_s5["📦 PmpImportResult (interface)"]:::symbol
-    node_280_file --- node_280_s5
-    node_280_s6["📦 BuildFeatureCreatedEventsOptions (interface)"]:::symbol
-    node_280_file --- node_280_s6
-    node_280_s7["📋 PointLikeCoordinate (type)"]:::symbol
-    node_280_file --- node_280_s7
+  node_279["📄 src/modules/implement/lib/firebase.ts"]:::ts
+  node_280["📄 src/modules/implement/lib/firestoreSync.ts"]:::ts
+  node_281["📄 src/modules/implement/lib/i18n.ts"]:::ts
+  node_282["📄 src/modules/implement/lib/tauri.ts"]:::ts
+  node_283["📄 src/modules/implement/services/analysisService.test.ts"]:::ts
+  subgraph node_284_sub ["src/modules/implement/services/analysisService.ts"]
+    node_284_file("📄 src/modules/implement/services/analysisService.ts")
+    node_284_s0["📦 WorkbookLink (interface)"]:::symbol
+    node_284_file --- node_284_s0
+    node_284_s1["📦 WorkbookMetadata (interface)"]:::symbol
+    node_284_file --- node_284_s1
+    node_284_s2["📋 SyncChangeType (type)"]:::symbol
+    node_284_file --- node_284_s2
+    node_284_s3["📦 SyncChange (interface)"]:::symbol
+    node_284_file --- node_284_s3
+    node_284_s4["📋 ConflictResolution (type)"]:::symbol
+    node_284_file --- node_284_s4
+    node_284_s5["📦 SyncPreview (interface)"]:::symbol
+    node_284_file --- node_284_s5
+    node_284_s6["📋 DataSourceStatus (type)"]:::symbol
+    node_284_file --- node_284_s6
+    node_284_s7["📋 AnalysisRow (type)"]:::symbol
+    node_284_file --- node_284_s7
+    node_284_s8["📋 ParsedAnalysisRow (type)"]:::symbol
+    node_284_file --- node_284_s8
+    node_284_s9["📋 PendingParentLink (type)"]:::symbol
+    node_284_file --- node_284_s9
   end
-  class node_280_sub ts
-  subgraph node_281_sub ["src/modules/implement/services/mediaAssetService.ts"]
-    node_281_file("📄 src/modules/implement/services/mediaAssetService.ts")
-    node_281_s0["📦 MediaAsset (interface)"]:::symbol
-    node_281_file --- node_281_s0
-    node_281_s1["📦 MediaFeaturePatch (interface)"]:::symbol
-    node_281_file --- node_281_s1
-    node_281_s2["📦 MediaAssetMutationResult (interface)"]:::symbol
-    node_281_file --- node_281_s2
-  end
-  class node_281_sub ts
-  node_282["📄 src/modules/implement/services/projectStorageService.test.ts"]:::ts
-  subgraph node_283_sub ["src/modules/implement/services/projectStorageService.ts"]
-    node_283_file("📄 src/modules/implement/services/projectStorageService.ts")
-    node_283_s0["📦 ProjectStorageTableSize (interface)"]:::symbol
-    node_283_file --- node_283_s0
-    node_283_s1["📦 ProjectStorageHealth (interface)"]:::symbol
-    node_283_file --- node_283_s1
-    node_283_s2["📦 ProjectMediaRecoveryField (interface)"]:::symbol
-    node_283_file --- node_283_s2
-    node_283_s3["📦 ProjectMediaRecoveryCandidate (interface)"]:::symbol
-    node_283_file --- node_283_s3
-    node_283_s4["📦 ProjectMediaRecoveryAnalysis (interface)"]:::symbol
-    node_283_file --- node_283_s4
-    node_283_s5["📦 ProjectMediaRecoveryApplyResult (interface)"]:::symbol
-    node_283_file --- node_283_s5
-    node_283_s6["📦 ProjectStorageOptimizationResult (interface)"]:::symbol
-    node_283_file --- node_283_s6
-  end
-  class node_283_sub ts
-  node_284["📄 src/modules/implement/stores/goog_maps_polyline.test.ts"]:::ts
-  subgraph node_285_sub ["src/modules/implement/stores/useAuthStore.ts"]
-    node_285_file("📄 src/modules/implement/stores/useAuthStore.ts")
-    node_285_s0["📦 AuthState (interface)"]:::symbol
+  class node_284_sub ts
+  subgraph node_285_sub ["src/modules/implement/services/bomService.ts"]
+    node_285_file("📄 src/modules/implement/services/bomService.ts")
+    node_285_s0["📦 BOMItem (interface)"]:::symbol
     node_285_file --- node_285_s0
+    node_285_s1["📦 BOMSummary (interface)"]:::symbol
+    node_285_file --- node_285_s1
   end
   class node_285_sub ts
-  node_286["📄 src/modules/implement/stores/useDesignSync.test.ts"]:::ts
-  node_287["📄 src/modules/implement/stores/useDesignSync.ts"]:::ts
-  subgraph node_288_sub ["src/modules/implement/stores/useExportStore.ts"]
-    node_288_file("📄 src/modules/implement/stores/useExportStore.ts")
-    node_288_s0["📦 ExportState (interface)"]:::symbol
-    node_288_file --- node_288_s0
+  subgraph node_286_sub ["src/modules/implement/services/designSyncService.ts"]
+    node_286_file("📄 src/modules/implement/services/designSyncService.ts")
+    node_286_s0["📦 DesignSyncService (class)"]:::symbol
+    node_286_file --- node_286_s0
   end
-  class node_288_sub ts
-  node_289["📄 src/modules/implement/stores/useFeatureStore.ts"]:::ts
-  node_290["📄 src/modules/implement/stores/useLayerStore.ts"]:::ts
-  node_291["📄 src/modules/implement/stores/useLayoutStore.test.ts"]:::ts
-  subgraph node_292_sub ["src/modules/implement/stores/useLayoutStore.ts"]
-    node_292_file("📄 src/modules/implement/stores/useLayoutStore.ts")
-    node_292_s0["📦 PaletteConfig (interface)"]:::symbol
+  class node_286_sub ts
+  subgraph node_287_sub ["src/modules/implement/services/exportService.ts"]
+    node_287_file("📄 src/modules/implement/services/exportService.ts")
+    node_287_s0["📋 MediaExportMetadata (type)"]:::symbol
+    node_287_file --- node_287_s0
+  end
+  class node_287_sub ts
+  node_288["📄 src/modules/implement/services/importService.test.ts"]:::ts
+  subgraph node_289_sub ["src/modules/implement/services/importService.ts"]
+    node_289_file("📄 src/modules/implement/services/importService.ts")
+    node_289_s0["📦 FieldMeta (interface)"]:::symbol
+    node_289_file --- node_289_s0
+    node_289_s1["📦 DatasetMeta (interface)"]:::symbol
+    node_289_file --- node_289_s1
+    node_289_s2["📦 FeatureRecord (interface)"]:::symbol
+    node_289_file --- node_289_s2
+    node_289_s3["📦 ImportMapping (interface)"]:::symbol
+    node_289_file --- node_289_s3
+    node_289_s4["📦 PmpImportPreview (interface)"]:::symbol
+    node_289_file --- node_289_s4
+    node_289_s5["📦 PmpImportResult (interface)"]:::symbol
+    node_289_file --- node_289_s5
+    node_289_s6["📦 BuildFeatureCreatedEventsOptions (interface)"]:::symbol
+    node_289_file --- node_289_s6
+    node_289_s7["📋 PointLikeCoordinate (type)"]:::symbol
+    node_289_file --- node_289_s7
+    node_289_s8["📋 NetworkLineStyle (type)"]:::symbol
+    node_289_file --- node_289_s8
+  end
+  class node_289_sub ts
+  subgraph node_290_sub ["src/modules/implement/services/mediaAssetService.ts"]
+    node_290_file("📄 src/modules/implement/services/mediaAssetService.ts")
+    node_290_s0["📦 MediaAsset (interface)"]:::symbol
+    node_290_file --- node_290_s0
+    node_290_s1["📦 MediaFeaturePatch (interface)"]:::symbol
+    node_290_file --- node_290_s1
+    node_290_s2["📦 MediaAssetMutationResult (interface)"]:::symbol
+    node_290_file --- node_290_s2
+  end
+  class node_290_sub ts
+  node_291["📄 src/modules/implement/services/projectStorageService.test.ts"]:::ts
+  subgraph node_292_sub ["src/modules/implement/services/projectStorageService.ts"]
+    node_292_file("📄 src/modules/implement/services/projectStorageService.ts")
+    node_292_s0["📦 ProjectStorageTableSize (interface)"]:::symbol
     node_292_file --- node_292_s0
-    node_292_s1["📦 LayoutState (interface)"]:::symbol
+    node_292_s1["📦 ProjectStorageHealth (interface)"]:::symbol
     node_292_file --- node_292_s1
+    node_292_s2["📦 ProjectMediaRecoveryField (interface)"]:::symbol
+    node_292_file --- node_292_s2
+    node_292_s3["📦 ProjectMediaRecoveryCandidate (interface)"]:::symbol
+    node_292_file --- node_292_s3
+    node_292_s4["📦 ProjectMediaRecoveryAnalysis (interface)"]:::symbol
+    node_292_file --- node_292_s4
+    node_292_s5["📦 ProjectMediaRecoveryApplyResult (interface)"]:::symbol
+    node_292_file --- node_292_s5
+    node_292_s6["📦 ProjectStorageOptimizationResult (interface)"]:::symbol
+    node_292_file --- node_292_s6
   end
   class node_292_sub ts
-  node_293["📄 src/modules/implement/stores/useRegionStore.ts"]:::ts
-  subgraph node_294_sub ["src/modules/implement/stores/useSettingsStore.ts"]
-    node_294_file("📄 src/modules/implement/stores/useSettingsStore.ts")
-    node_294_s0["📦 SettingsState (interface)"]:::symbol
+  node_293["📄 src/modules/implement/stores/goog_maps_polyline.test.ts"]:::ts
+  subgraph node_294_sub ["src/modules/implement/stores/useAuthStore.ts"]
+    node_294_file("📄 src/modules/implement/stores/useAuthStore.ts")
+    node_294_s0["📦 AuthState (interface)"]:::symbol
     node_294_file --- node_294_s0
   end
   class node_294_sub ts
-  node_295["📄 src/modules/implement/stores/vertex_fix.test.ts"]:::ts
-  subgraph node_299_sub ["src/modules/tool/components/GlobalSearch.tsx"]
-    node_299_file("📄 src/modules/tool/components/GlobalSearch.tsx")
-    node_299_s0["📦 SearchResult (interface)"]:::symbol
-    node_299_file --- node_299_s0
+  node_295["📄 src/modules/implement/stores/useDesignSync.test.ts"]:::ts
+  node_296["📄 src/modules/implement/stores/useDesignSync.ts"]:::ts
+  subgraph node_297_sub ["src/modules/implement/stores/useExportStore.ts"]
+    node_297_file("📄 src/modules/implement/stores/useExportStore.ts")
+    node_297_s0["📦 ExportState (interface)"]:::symbol
+    node_297_file --- node_297_s0
   end
-  class node_299_sub ts
-  subgraph node_300_sub ["src/modules/tool/utils/accessibility.ts"]
-    node_300_file("📄 src/modules/tool/utils/accessibility.ts")
-    node_300_s0["📋 ARIAAttribute (type)"]:::symbol
-    node_300_file --- node_300_s0
-    node_300_s1["📦 ARIAProps (interface)"]:::symbol
-    node_300_file --- node_300_s1
-    node_300_s2["📋 FocusDirection (type)"]:::symbol
-    node_300_file --- node_300_s2
-    node_300_s3["📦 FocusTrapOptions (interface)"]:::symbol
-    node_300_file --- node_300_s3
-    node_300_s4["📦 KeyboardHandlerOptions (interface)"]:::symbol
-    node_300_file --- node_300_s4
-    node_300_s5["🔧 parseColor (function)"]:::symbol
-    node_300_file --- node_300_s5
-    node_300_s6["🔧 relativeLuminance (function)"]:::symbol
-    node_300_file --- node_300_s6
-    node_300_s7["🔧 contrastRatio (function)"]:::symbol
-    node_300_file --- node_300_s7
-    node_300_s8["🔧 meetsWCAGAA (function)"]:::symbol
-    node_300_file --- node_300_s8
-    node_300_s9["🔧 meetsWCAGAAA (function)"]:::symbol
-    node_300_file --- node_300_s9
-    node_300_s10["🔧 suggestTextColor (function)"]:::symbol
-    node_300_file --- node_300_s10
-    node_300_s11["🔧 buildAriaProps (function)"]:::symbol
-    node_300_file --- node_300_s11
-    node_300_s12["🔧 setAriaAttribute (function)"]:::symbol
-    node_300_file --- node_300_s12
-    node_300_s13["🔧 removeAriaAttribute (function)"]:::symbol
-    node_300_file --- node_300_s13
-    node_300_s14["🔧 announce (function)"]:::symbol
-    node_300_file --- node_300_s14
-    node_300_more["... and 10 more symbols"]:::symbol
-    node_300_file --- node_300_more
-  end
-  class node_300_sub ts
-  subgraph node_301_sub ["src/modules/tool/utils/bincodeDecoder.ts"]
-    node_301_file("📄 src/modules/tool/utils/bincodeDecoder.ts")
-    node_301_s0["📦 BincodeDecoder (class)"]:::symbol
+  class node_297_sub ts
+  node_298["📄 src/modules/implement/stores/useFeatureStore.ts"]:::ts
+  node_299["📄 src/modules/implement/stores/useLayerStore.ts"]:::ts
+  node_300["📄 src/modules/implement/stores/useLayoutStore.test.ts"]:::ts
+  subgraph node_301_sub ["src/modules/implement/stores/useLayoutStore.ts"]
+    node_301_file("📄 src/modules/implement/stores/useLayoutStore.ts")
+    node_301_s0["📦 PaletteConfig (interface)"]:::symbol
     node_301_file --- node_301_s0
+    node_301_s1["📦 LayoutState (interface)"]:::symbol
+    node_301_file --- node_301_s1
   end
   class node_301_sub ts
-  node_302["📄 src/modules/tool/utils/cameraMath.test.ts"]:::ts
-  subgraph node_303_sub ["src/modules/tool/utils/cameraMath.ts"]
-    node_303_file("📄 src/modules/tool/utils/cameraMath.ts")
-    node_303_s0["📦 CameraSpecs (interface)"]:::symbol
+  node_302["📄 src/modules/implement/stores/useRegionStore.ts"]:::ts
+  subgraph node_303_sub ["src/modules/implement/stores/useSettingsStore.ts"]
+    node_303_file("📄 src/modules/implement/stores/useSettingsStore.ts")
+    node_303_s0["📦 SettingsState (interface)"]:::symbol
     node_303_file --- node_303_s0
-    node_303_s1["🔧 calculateSlantRange (function)"]:::symbol
-    node_303_file --- node_303_s1
-    node_303_s2["🔧 calculateHFOV (function)"]:::symbol
-    node_303_file --- node_303_s2
-    node_303_s3["🔧 calculatePPM (function)"]:::symbol
-    node_303_file --- node_303_s3
-    node_303_s4["🔧 calculateDORIDistance (function)"]:::symbol
-    node_303_file --- node_303_s4
-    node_303_s5["🔧 getDORICategory (function)"]:::symbol
-    node_303_file --- node_303_s5
-    node_303_s6["🔧 mapRotationToHeading (function)"]:::symbol
-    node_303_file --- node_303_s6
-    node_303_s7["🔧 mapHeadingToRotation (function)"]:::symbol
-    node_303_file --- node_303_s7
-    node_303_s8["🔧 getStreetViewUrl (function)"]:::symbol
-    node_303_file --- node_303_s8
-    node_303_s9["🔧 getStreetViewEmbedUrl (function)"]:::symbol
-    node_303_file --- node_303_s9
-    node_303_s10["🔧 get3DFallbackUrl (function)"]:::symbol
-    node_303_file --- node_303_s10
-    node_303_s11["🔧 calculateDORIRanges (function)"]:::symbol
-    node_303_file --- node_303_s11
-    node_303_s12["🔧 getDistance (function)"]:::symbol
-    node_303_file --- node_303_s12
-    node_303_s13["🔧 calculatePPMAtPoint (function)"]:::symbol
-    node_303_file --- node_303_s13
-    node_303_s14["🔧 getDestination (function)"]:::symbol
-    node_303_file --- node_303_s14
-    node_303_more["... and 1 more symbols"]:::symbol
-    node_303_file --- node_303_more
   end
   class node_303_sub ts
-  subgraph node_304_sub ["src/modules/tool/utils/cn.ts"]
-    node_304_file("📄 src/modules/tool/utils/cn.ts")
-    node_304_s0["🔧 cn (function)"]:::symbol
-    node_304_file --- node_304_s0
-  end
-  class node_304_sub ts
-  node_305["📄 src/modules/tool/utils/coordinates.ts"]:::ts
-  subgraph node_306_sub ["src/modules/tool/utils/csv.ts"]
-    node_306_file("📄 src/modules/tool/utils/csv.ts")
-    node_306_s0["📋 CsvRow (type)"]:::symbol
-    node_306_file --- node_306_s0
-  end
-  class node_306_sub ts
-  node_307["📄 src/modules/tool/utils/dataFlattening.test.ts"]:::ts
-  subgraph node_308_sub ["src/modules/tool/utils/dataFlattening.ts"]
-    node_308_file("📄 src/modules/tool/utils/dataFlattening.ts")
-    node_308_s0["📋 FlattenFeatureOptions (type)"]:::symbol
+  node_304["📄 src/modules/implement/stores/vertex_fix.test.ts"]:::ts
+  subgraph node_308_sub ["src/modules/tool/components/GlobalSearch.tsx"]
+    node_308_file("📄 src/modules/tool/components/GlobalSearch.tsx")
+    node_308_s0["📦 SearchResult (interface)"]:::symbol
     node_308_file --- node_308_s0
   end
   class node_308_sub ts
-  node_309["📄 src/modules/tool/utils/designEvents.ts"]:::ts
-  subgraph node_310_sub ["src/modules/tool/utils/designIpc.ts"]
-    node_310_file("📄 src/modules/tool/utils/designIpc.ts")
-    node_310_s0["📦 ProjectBootstrap (interface)"]:::symbol
+  subgraph node_309_sub ["src/modules/tool/utils/accessibility.ts"]
+    node_309_file("📄 src/modules/tool/utils/accessibility.ts")
+    node_309_s0["📋 ARIAAttribute (type)"]:::symbol
+    node_309_file --- node_309_s0
+    node_309_s1["📦 ARIAProps (interface)"]:::symbol
+    node_309_file --- node_309_s1
+    node_309_s2["📋 FocusDirection (type)"]:::symbol
+    node_309_file --- node_309_s2
+    node_309_s3["📦 FocusTrapOptions (interface)"]:::symbol
+    node_309_file --- node_309_s3
+    node_309_s4["📦 KeyboardHandlerOptions (interface)"]:::symbol
+    node_309_file --- node_309_s4
+    node_309_s5["🔧 parseColor (function)"]:::symbol
+    node_309_file --- node_309_s5
+    node_309_s6["🔧 relativeLuminance (function)"]:::symbol
+    node_309_file --- node_309_s6
+    node_309_s7["🔧 contrastRatio (function)"]:::symbol
+    node_309_file --- node_309_s7
+    node_309_s8["🔧 meetsWCAGAA (function)"]:::symbol
+    node_309_file --- node_309_s8
+    node_309_s9["🔧 meetsWCAGAAA (function)"]:::symbol
+    node_309_file --- node_309_s9
+    node_309_s10["🔧 suggestTextColor (function)"]:::symbol
+    node_309_file --- node_309_s10
+    node_309_s11["🔧 buildAriaProps (function)"]:::symbol
+    node_309_file --- node_309_s11
+    node_309_s12["🔧 setAriaAttribute (function)"]:::symbol
+    node_309_file --- node_309_s12
+    node_309_s13["🔧 removeAriaAttribute (function)"]:::symbol
+    node_309_file --- node_309_s13
+    node_309_s14["🔧 announce (function)"]:::symbol
+    node_309_file --- node_309_s14
+    node_309_more["... and 10 more symbols"]:::symbol
+    node_309_file --- node_309_more
+  end
+  class node_309_sub ts
+  subgraph node_310_sub ["src/modules/tool/utils/bincodeDecoder.ts"]
+    node_310_file("📄 src/modules/tool/utils/bincodeDecoder.ts")
+    node_310_s0["📦 BincodeDecoder (class)"]:::symbol
     node_310_file --- node_310_s0
-    node_310_s1["📦 VisibleFeatureBounds (interface)"]:::symbol
-    node_310_file --- node_310_s1
-    node_310_s2["📦 VisibleFeaturesResponse (interface)"]:::symbol
-    node_310_file --- node_310_s2
   end
   class node_310_sub ts
-  node_311["📄 src/modules/tool/utils/designLogic.ts"]:::ts
-  node_312["📄 src/modules/tool/utils/errorHandling.test.ts"]:::ts
-  subgraph node_313_sub ["src/modules/tool/utils/errorHandling.ts"]
-    node_313_file("📄 src/modules/tool/utils/errorHandling.ts")
-    node_313_s0["🔧 handleError (function)"]:::symbol
+  node_311["📄 src/modules/tool/utils/cameraMath.test.ts"]:::ts
+  subgraph node_312_sub ["src/modules/tool/utils/cameraMath.ts"]
+    node_312_file("📄 src/modules/tool/utils/cameraMath.ts")
+    node_312_s0["📦 CameraSpecs (interface)"]:::symbol
+    node_312_file --- node_312_s0
+    node_312_s1["🔧 calculateSlantRange (function)"]:::symbol
+    node_312_file --- node_312_s1
+    node_312_s2["🔧 calculateHFOV (function)"]:::symbol
+    node_312_file --- node_312_s2
+    node_312_s3["🔧 calculatePPM (function)"]:::symbol
+    node_312_file --- node_312_s3
+    node_312_s4["🔧 calculateDORIDistance (function)"]:::symbol
+    node_312_file --- node_312_s4
+    node_312_s5["🔧 getDORICategory (function)"]:::symbol
+    node_312_file --- node_312_s5
+    node_312_s6["🔧 mapRotationToHeading (function)"]:::symbol
+    node_312_file --- node_312_s6
+    node_312_s7["🔧 mapHeadingToRotation (function)"]:::symbol
+    node_312_file --- node_312_s7
+    node_312_s8["🔧 getStreetViewUrl (function)"]:::symbol
+    node_312_file --- node_312_s8
+    node_312_s9["🔧 getStreetViewEmbedUrl (function)"]:::symbol
+    node_312_file --- node_312_s9
+    node_312_s10["🔧 get3DFallbackUrl (function)"]:::symbol
+    node_312_file --- node_312_s10
+    node_312_s11["🔧 calculateDORIRanges (function)"]:::symbol
+    node_312_file --- node_312_s11
+    node_312_s12["🔧 getDistance (function)"]:::symbol
+    node_312_file --- node_312_s12
+    node_312_s13["🔧 calculatePPMAtPoint (function)"]:::symbol
+    node_312_file --- node_312_s13
+    node_312_s14["🔧 getDestination (function)"]:::symbol
+    node_312_file --- node_312_s14
+    node_312_more["... and 1 more symbols"]:::symbol
+    node_312_file --- node_312_more
+  end
+  class node_312_sub ts
+  subgraph node_313_sub ["src/modules/tool/utils/cn.ts"]
+    node_313_file("📄 src/modules/tool/utils/cn.ts")
+    node_313_s0["🔧 cn (function)"]:::symbol
     node_313_file --- node_313_s0
-    node_313_s1["🔧 safeJsonParse (function)"]:::symbol
-    node_313_file --- node_313_s1
-    node_313_s2["🔧 safeParseCoordinates (function)"]:::symbol
-    node_313_file --- node_313_s2
-    node_313_s3["🔧 getUserFriendlyMessage (function)"]:::symbol
-    node_313_file --- node_313_s3
   end
   class node_313_sub ts
-  node_314["📄 src/modules/tool/utils/featureDisplay.test.ts"]:::ts
-  subgraph node_315_sub ["src/modules/tool/utils/featureDisplay.ts"]
-    node_315_file("📄 src/modules/tool/utils/featureDisplay.ts")
-    node_315_s0["📋 FeatureSymbolData (type)"]:::symbol
+  node_314["📄 src/modules/tool/utils/coordinates.ts"]:::ts
+  subgraph node_315_sub ["src/modules/tool/utils/csv.ts"]
+    node_315_file("📄 src/modules/tool/utils/csv.ts")
+    node_315_s0["📋 CsvRow (type)"]:::symbol
     node_315_file --- node_315_s0
   end
   class node_315_sub ts
-  node_316["📄 src/modules/tool/utils/featureMapping.test.ts"]:::ts
-  subgraph node_317_sub ["src/modules/tool/utils/featureMapping.ts"]
-    node_317_file("📄 src/modules/tool/utils/featureMapping.ts")
-    node_317_s0["📋 FeaturesMapType (type)"]:::symbol
+  node_316["📄 src/modules/tool/utils/dataFlattening.test.ts"]:::ts
+  subgraph node_317_sub ["src/modules/tool/utils/dataFlattening.ts"]
+    node_317_file("📄 src/modules/tool/utils/dataFlattening.ts")
+    node_317_s0["📋 FlattenFeatureOptions (type)"]:::symbol
     node_317_file --- node_317_s0
-    node_317_s1["📋 OrderMetadata (type)"]:::symbol
-    node_317_file --- node_317_s1
   end
   class node_317_sub ts
-  node_318["📄 src/modules/tool/utils/featureMetadata.test.ts"]:::ts
-  subgraph node_319_sub ["src/modules/tool/utils/featureMetadata.ts"]
-    node_319_file("📄 src/modules/tool/utils/featureMetadata.ts")
-    node_319_s0["📋 ParsedMetadata (type)"]:::symbol
-    node_319_file --- node_319_s0
-    node_319_s1["📋 MetadataCarrier (type)"]:::symbol
-    node_319_file --- node_319_s1
-    node_319_s2["📋 ProjectSettings (type)"]:::symbol
-    node_319_file --- node_319_s2
-    node_319_s3["📋 CameraPresets (type)"]:::symbol
-    node_319_file --- node_319_s3
+  node_318["📄 src/modules/tool/utils/designEvents.ts"]:::ts
+  node_319["📄 src/modules/tool/utils/designIpc.test.ts"]:::ts
+  subgraph node_320_sub ["src/modules/tool/utils/designIpc.ts"]
+    node_320_file("📄 src/modules/tool/utils/designIpc.ts")
+    node_320_s0["📦 ProjectBootstrap (interface)"]:::symbol
+    node_320_file --- node_320_s0
+    node_320_s1["📦 VisibleFeatureBounds (interface)"]:::symbol
+    node_320_file --- node_320_s1
+    node_320_s2["📦 VisibleFeaturesResponse (interface)"]:::symbol
+    node_320_file --- node_320_s2
   end
-  class node_319_sub ts
-  node_320["📄 src/modules/tool/utils/featurePersistence.test.ts"]:::ts
-  subgraph node_321_sub ["src/modules/tool/utils/featurePersistence.ts"]
-    node_321_file("📄 src/modules/tool/utils/featurePersistence.ts")
-    node_321_s0["📋 FeaturePayloadBase (type)"]:::symbol
-    node_321_file --- node_321_s0
-    node_321_s1["📋 FeatureCreatePayloadInput (type)"]:::symbol
-    node_321_file --- node_321_s1
+  class node_320_sub ts
+  node_321["📄 src/modules/tool/utils/designLogic.ts"]:::ts
+  node_322["📄 src/modules/tool/utils/errorHandling.test.ts"]:::ts
+  subgraph node_323_sub ["src/modules/tool/utils/errorHandling.ts"]
+    node_323_file("📄 src/modules/tool/utils/errorHandling.ts")
+    node_323_s0["🔧 handleError (function)"]:::symbol
+    node_323_file --- node_323_s0
+    node_323_s1["🔧 safeJsonParse (function)"]:::symbol
+    node_323_file --- node_323_s1
+    node_323_s2["🔧 safeParseCoordinates (function)"]:::symbol
+    node_323_file --- node_323_s2
+    node_323_s3["🔧 getUserFriendlyMessage (function)"]:::symbol
+    node_323_file --- node_323_s3
   end
-  class node_321_sub ts
-  node_322["📄 src/modules/tool/utils/featureUtils.ts"]:::ts
-  node_323["📄 src/modules/tool/utils/geoUtils.ts"]:::ts
-  node_324["📄 src/modules/tool/utils/googleMapsLoader.ts"]:::ts
-  subgraph node_325_sub ["src/modules/tool/utils/googleMapsRuntime.ts"]
-    node_325_file("📄 src/modules/tool/utils/googleMapsRuntime.ts")
-    node_325_s0["📦 GoogleMapsRuntimeDetails (interface)"]:::symbol
+  class node_323_sub ts
+  node_324["📄 src/modules/tool/utils/featureDisplay.test.ts"]:::ts
+  subgraph node_325_sub ["src/modules/tool/utils/featureDisplay.ts"]
+    node_325_file("📄 src/modules/tool/utils/featureDisplay.ts")
+    node_325_s0["📋 FeatureSymbolData (type)"]:::symbol
     node_325_file --- node_325_s0
   end
   class node_325_sub ts
-  node_326["📄 src/modules/tool/utils/lazyWithRetry.test.ts"]:::ts
-  subgraph node_327_sub ["src/modules/tool/utils/lazyWithRetry.ts"]
-    node_327_file("📄 src/modules/tool/utils/lazyWithRetry.ts")
-    node_327_s0["📦 LazyWithRetryOptions (interface)"]:::symbol
+  node_326["📄 src/modules/tool/utils/featureMapping.test.ts"]:::ts
+  subgraph node_327_sub ["src/modules/tool/utils/featureMapping.ts"]
+    node_327_file("📄 src/modules/tool/utils/featureMapping.ts")
+    node_327_s0["📋 FeaturesMapType (type)"]:::symbol
     node_327_file --- node_327_s0
+    node_327_s1["📋 OrderMetadata (type)"]:::symbol
+    node_327_file --- node_327_s1
   end
   class node_327_sub ts
-  node_328["📄 src/modules/tool/utils/logger.ts"]:::ts
-  node_329["📄 src/modules/tool/utils/metadataNormalization.test.ts"]:::ts
-  subgraph node_330_sub ["src/modules/tool/utils/metadataNormalization.ts"]
-    node_330_file("📄 src/modules/tool/utils/metadataNormalization.ts")
-    node_330_s0["📋 AnyMeta (type)"]:::symbol
-    node_330_file --- node_330_s0
-    node_330_s1["📋 AiNormalizeResponse (type)"]:::symbol
-    node_330_file --- node_330_s1
+  node_328["📄 src/modules/tool/utils/featureMetadata.test.ts"]:::ts
+  subgraph node_329_sub ["src/modules/tool/utils/featureMetadata.ts"]
+    node_329_file("📄 src/modules/tool/utils/featureMetadata.ts")
+    node_329_s0["📋 ParsedMetadata (type)"]:::symbol
+    node_329_file --- node_329_s0
+    node_329_s1["📋 MetadataCarrier (type)"]:::symbol
+    node_329_file --- node_329_s1
+    node_329_s2["📋 ProjectSettings (type)"]:::symbol
+    node_329_file --- node_329_s2
+    node_329_s3["📋 CameraPresets (type)"]:::symbol
+    node_329_file --- node_329_s3
   end
-  class node_330_sub ts
-  node_331["📄 src/modules/tool/utils/normalizeDisplay.test.ts"]:::ts
-  node_332["📄 src/modules/tool/utils/normalizeDisplay.ts"]:::ts
-  subgraph node_333_sub ["src/modules/tool/utils/objectDataTemplates.ts"]
-    node_333_file("📄 src/modules/tool/utils/objectDataTemplates.ts")
-    node_333_s0["📋 ObjectDataTemplateTypeId (type)"]:::symbol
-    node_333_file --- node_333_s0
-    node_333_s1["📋 ObjectDataFieldType (type)"]:::symbol
-    node_333_file --- node_333_s1
-    node_333_s2["📦 ObjectDataTemplateField (interface)"]:::symbol
-    node_333_file --- node_333_s2
-    node_333_s3["📦 ObjectDataTemplateGroup (interface)"]:::symbol
-    node_333_file --- node_333_s3
-    node_333_s4["📦 ObjectDataTemplateType (interface)"]:::symbol
-    node_333_file --- node_333_s4
-    node_333_s5["📦 ObjectDataTemplateSettings (interface)"]:::symbol
-    node_333_file --- node_333_s5
-    node_333_s6["📦 CameraPreset (interface)"]:::symbol
-    node_333_file --- node_333_s6
-    node_333_s7["📦 ProjectSettingsSchema (interface)"]:::symbol
-    node_333_file --- node_333_s7
+  class node_329_sub ts
+  node_330["📄 src/modules/tool/utils/featurePersistence.test.ts"]:::ts
+  subgraph node_331_sub ["src/modules/tool/utils/featurePersistence.ts"]
+    node_331_file("📄 src/modules/tool/utils/featurePersistence.ts")
+    node_331_s0["📋 FeaturePayloadBase (type)"]:::symbol
+    node_331_file --- node_331_s0
+    node_331_s1["📋 FeatureCreatePayloadInput (type)"]:::symbol
+    node_331_file --- node_331_s1
   end
-  class node_333_sub ts
-  node_334["📄 src/modules/tool/utils/polylineCompleteFix.ts"]:::ts
-  node_335["📄 src/modules/tool/utils/polylineDiagnostic.ts"]:::ts
-  node_336["📄 src/modules/tool/utils/polylineFix.ts"]:::ts
-  subgraph node_337_sub ["src/modules/tool/utils/selectionUtils.ts"]
-    node_337_file("📄 src/modules/tool/utils/selectionUtils.ts")
-    node_337_s0["📋 FeatureBounds (type)"]:::symbol
+  class node_331_sub ts
+  node_332["📄 src/modules/tool/utils/featureUtils.ts"]:::ts
+  node_333["📄 src/modules/tool/utils/geoUtils.ts"]:::ts
+  node_334["📄 src/modules/tool/utils/googleMapsLoader.ts"]:::ts
+  subgraph node_335_sub ["src/modules/tool/utils/googleMapsRuntime.ts"]
+    node_335_file("📄 src/modules/tool/utils/googleMapsRuntime.ts")
+    node_335_s0["📦 GoogleMapsRuntimeDetails (interface)"]:::symbol
+    node_335_file --- node_335_s0
+  end
+  class node_335_sub ts
+  node_336["📄 src/modules/tool/utils/lazyWithRetry.test.ts"]:::ts
+  subgraph node_337_sub ["src/modules/tool/utils/lazyWithRetry.ts"]
+    node_337_file("📄 src/modules/tool/utils/lazyWithRetry.ts")
+    node_337_s0["📦 LazyWithRetryOptions (interface)"]:::symbol
     node_337_file --- node_337_s0
-    node_337_s1["📋 NormalizedSelectionItem (type)"]:::symbol
-    node_337_file --- node_337_s1
-    node_337_s2["🔧 parseCoordinates (function)"]:::symbol
-    node_337_file --- node_337_s2
-    node_337_s3["🔧 getFeatureBounds (function)"]:::symbol
-    node_337_file --- node_337_s3
-    node_337_s4["🔧 intersectsBounds (function)"]:::symbol
-    node_337_file --- node_337_s4
-    node_337_s5["🔧 normalizeFeatureForSummary (function)"]:::symbol
-    node_337_file --- node_337_s5
   end
   class node_337_sub ts
-  node_338["📄 src/modules/tool/utils/userConfirmation.ts"]:::ts
-  node_339["📄 src/modules/tool/utils/vietnameseSearch.ts"]:::ts
+  node_338["📄 src/modules/tool/utils/logger.ts"]:::ts
+  node_339["📄 src/modules/tool/utils/metadataNormalization.test.ts"]:::ts
+  subgraph node_340_sub ["src/modules/tool/utils/metadataNormalization.ts"]
+    node_340_file("📄 src/modules/tool/utils/metadataNormalization.ts")
+    node_340_s0["📋 AnyMeta (type)"]:::symbol
+    node_340_file --- node_340_s0
+    node_340_s1["📋 AiNormalizeResponse (type)"]:::symbol
+    node_340_file --- node_340_s1
+  end
+  class node_340_sub ts
+  node_341["📄 src/modules/tool/utils/normalizeDisplay.test.ts"]:::ts
+  node_342["📄 src/modules/tool/utils/normalizeDisplay.ts"]:::ts
+  subgraph node_343_sub ["src/modules/tool/utils/objectDataTemplates.ts"]
+    node_343_file("📄 src/modules/tool/utils/objectDataTemplates.ts")
+    node_343_s0["📋 ObjectDataTemplateTypeId (type)"]:::symbol
+    node_343_file --- node_343_s0
+    node_343_s1["📋 ObjectDataFieldType (type)"]:::symbol
+    node_343_file --- node_343_s1
+    node_343_s2["📦 ObjectDataTemplateField (interface)"]:::symbol
+    node_343_file --- node_343_s2
+    node_343_s3["📦 ObjectDataTemplateGroup (interface)"]:::symbol
+    node_343_file --- node_343_s3
+    node_343_s4["📦 ObjectDataTemplateType (interface)"]:::symbol
+    node_343_file --- node_343_s4
+    node_343_s5["📦 ObjectDataTemplateSettings (interface)"]:::symbol
+    node_343_file --- node_343_s5
+    node_343_s6["📦 CameraPreset (interface)"]:::symbol
+    node_343_file --- node_343_s6
+    node_343_s7["📦 ProjectSettingsSchema (interface)"]:::symbol
+    node_343_file --- node_343_s7
+  end
+  class node_343_sub ts
+  subgraph node_344_sub ["src/modules/tool/utils/selectionUtils.ts"]
+    node_344_file("📄 src/modules/tool/utils/selectionUtils.ts")
+    node_344_s0["📋 FeatureBounds (type)"]:::symbol
+    node_344_file --- node_344_s0
+    node_344_s1["📋 NormalizedSelectionItem (type)"]:::symbol
+    node_344_file --- node_344_s1
+    node_344_s2["🔧 parseCoordinates (function)"]:::symbol
+    node_344_file --- node_344_s2
+    node_344_s3["🔧 getFeatureBounds (function)"]:::symbol
+    node_344_file --- node_344_s3
+    node_344_s4["🔧 intersectsBounds (function)"]:::symbol
+    node_344_file --- node_344_s4
+    node_344_s5["🔧 normalizeFeatureForSummary (function)"]:::symbol
+    node_344_file --- node_344_s5
+  end
+  class node_344_sub ts
+  node_345["📄 src/modules/tool/utils/userConfirmation.ts"]:::ts
+  node_346["📄 src/modules/tool/utils/vietnameseSearch.ts"]:::ts
   node_0["📄 src/test-setup.ts"]:::ts
   node_1["📄 src/vite-env.d.ts"]:::ts
   node_2_file --> node_3_file
   node_3_file --> node_6_file
   node_3_file --> node_5_file
   node_3_file --> node_7_file
-  node_10_file --> node_190_file
+  node_10_file --> node_198_file
   node_16_file --> node_17_file
   node_17_file --> node_37_file
   node_19_file --> node_23_file
   node_19_file --> node_20_file
   node_32_file --> node_33_file
   node_34_file --> node_35_file
-  node_49_file --> node_50_file
-  node_56_file --> node_57_file
-  node_57_file --> node_59_file
-  node_59_file --> node_58_file
-  node_59_file --> node_54_file
-  node_60_file --> node_62_file
-  node_62_file --> node_201_file
-  node_65_file --> node_51_file
-  node_67_file --> node_61_file
-  node_67_file --> node_51_file
-  node_72_file --> node_80_file
-  node_72_file --> node_85_file
-  node_72_file --> node_122_file
-  node_72_file --> node_77_file
-  node_72_file --> node_75_file
-  node_73_file --> node_74_file
-  node_75_file --> node_85_file
-  node_75_file --> node_74_file
-  node_75_file --> node_79_file
+  node_40_file --> node_41_file
+  node_50_file --> node_51_file
+  node_57_file --> node_58_file
+  node_58_file --> node_60_file
+  node_60_file --> node_59_file
+  node_60_file --> node_55_file
+  node_61_file --> node_63_file
+  node_63_file --> node_210_file
+  node_65_file --> node_66_file
+  node_67_file --> node_52_file
+  node_69_file --> node_62_file
+  node_69_file --> node_52_file
+  node_74_file --> node_83_file
+  node_74_file --> node_90_file
+  node_74_file --> node_127_file
+  node_74_file --> node_80_file
+  node_74_file --> node_78_file
   node_75_file --> node_76_file
+  node_77_file --> node_78_file
+  node_78_file --> node_90_file
+  node_78_file --> node_76_file
+  node_78_file --> node_82_file
+  node_78_file --> node_86_file
   node_78_file --> node_79_file
-  node_79_file --> node_183_file
-  node_79_file --> node_76_file
-  node_82_file --> node_83_file
-  node_91_file --> node_92_file
-  node_94_file --> node_95_file
-  node_95_file --> node_111_file
-  node_97_file --> node_98_file
+  node_81_file --> node_82_file
+  node_82_file --> node_191_file
+  node_82_file --> node_79_file
+  node_85_file --> node_86_file
+  node_87_file --> node_88_file
+  node_96_file --> node_97_file
   node_99_file --> node_100_file
-  node_101_file --> node_103_file
+  node_100_file --> node_116_file
   node_102_file --> node_103_file
-  node_106_file --> node_107_file
-  node_108_file --> node_109_file
-  node_109_file --> node_77_file
-  node_112_file --> node_113_file
-  node_114_file --> node_174_file
-  node_115_file --> node_116_file
+  node_104_file --> node_105_file
+  node_106_file --> node_108_file
+  node_107_file --> node_108_file
+  node_111_file --> node_112_file
+  node_113_file --> node_114_file
+  node_114_file --> node_80_file
   node_117_file --> node_118_file
-  node_118_file --> node_179_file
-  node_123_file --> node_124_file
-  node_126_file --> node_127_file
+  node_119_file --> node_181_file
+  node_120_file --> node_121_file
+  node_121_file --> node_86_file
+  node_122_file --> node_123_file
+  node_123_file --> node_186_file
   node_128_file --> node_129_file
-  node_130_file --> node_127_file
-  node_130_file --> node_124_file
-  node_131_file --> node_141_file
-  node_132_file --> node_141_file
-  node_134_file --> node_139_file
-  node_134_file --> node_137_file
-  node_134_file --> node_145_file
-  node_134_file --> node_137_file
-  node_135_file --> node_139_file
-  node_135_file --> node_141_file
-  node_135_file --> node_136_file
-  node_135_file --> node_137_file
-  node_136_file --> node_139_file
-  node_136_file --> node_137_file
-  node_138_file --> node_141_file
-  node_138_file --> node_139_file
-  node_138_file --> node_137_file
-  node_139_file --> node_141_file
+  node_131_file --> node_132_file
+  node_133_file --> node_134_file
+  node_135_file --> node_132_file
+  node_135_file --> node_129_file
+  node_136_file --> node_146_file
+  node_137_file --> node_146_file
+  node_139_file --> node_144_file
+  node_139_file --> node_142_file
+  node_139_file --> node_150_file
+  node_139_file --> node_142_file
+  node_140_file --> node_144_file
+  node_140_file --> node_146_file
   node_140_file --> node_141_file
-  node_140_file --> node_137_file
-  node_142_file --> node_143_file
-  node_143_file --> node_141_file
-  node_144_file --> node_145_file
-  node_146_file --> node_147_file
-  node_147_file --> node_141_file
-  node_148_file --> node_137_file
-  node_148_file --> node_134_file
-  node_149_file --> node_141_file
-  node_150_file --> node_151_file
-  node_153_file --> node_164_file
-  node_153_file --> node_152_file
-  node_155_file --> node_176_file
-  node_155_file --> node_177_file
-  node_159_file --> node_157_file
-  node_159_file --> node_158_file
-  node_159_file --> node_155_file
-  node_160_file --> node_161_file
-  node_163_file --> node_164_file
+  node_140_file --> node_142_file
+  node_141_file --> node_144_file
+  node_141_file --> node_142_file
+  node_143_file --> node_146_file
+  node_143_file --> node_144_file
+  node_143_file --> node_142_file
+  node_144_file --> node_146_file
+  node_145_file --> node_146_file
+  node_145_file --> node_142_file
+  node_147_file --> node_148_file
+  node_148_file --> node_146_file
+  node_149_file --> node_150_file
+  node_151_file --> node_152_file
+  node_152_file --> node_146_file
+  node_153_file --> node_142_file
+  node_153_file --> node_139_file
+  node_154_file --> node_146_file
+  node_155_file --> node_156_file
+  node_158_file --> node_171_file
+  node_158_file --> node_157_file
+  node_160_file --> node_183_file
+  node_160_file --> node_184_file
+  node_164_file --> node_162_file
+  node_164_file --> node_163_file
+  node_164_file --> node_160_file
   node_165_file --> node_166_file
-  node_165_file --> node_159_file
-  node_165_file --> node_161_file
-  node_166_file --> node_141_file
-  node_172_file --> node_152_file
+  node_167_file --> node_168_file
+  node_170_file --> node_171_file
   node_172_file --> node_173_file
-  node_178_file --> node_183_file
-  node_178_file --> node_328_file
-  node_178_file --> node_310_file
-  node_178_file --> node_309_file
-  node_179_file --> node_183_file
-  node_179_file --> node_322_file
-  node_179_file --> node_145_file
-  node_180_file --> node_183_file
-  node_180_file --> node_273_file
-  node_180_file --> node_328_file
-  node_180_file --> node_310_file
-  node_180_file --> node_332_file
-  node_181_file --> node_183_file
-  node_181_file --> node_332_file
-  node_182_file --> node_183_file
-  node_183_file --> node_137_file
-  node_184_file --> node_183_file
-  node_185_file --> node_183_file
-  node_190_file --> node_193_file
+  node_172_file --> node_164_file
+  node_172_file --> node_166_file
+  node_173_file --> node_146_file
+  node_179_file --> node_157_file
+  node_179_file --> node_180_file
+  node_185_file --> node_191_file
+  node_185_file --> node_338_file
+  node_185_file --> node_320_file
+  node_185_file --> node_318_file
+  node_186_file --> node_191_file
+  node_186_file --> node_332_file
+  node_186_file --> node_150_file
+  node_187_file --> node_188_file
+  node_187_file --> node_191_file
+  node_187_file --> node_320_file
+  node_188_file --> node_191_file
+  node_188_file --> node_282_file
+  node_188_file --> node_338_file
+  node_188_file --> node_320_file
+  node_188_file --> node_342_file
+  node_189_file --> node_191_file
+  node_189_file --> node_342_file
   node_190_file --> node_191_file
-  node_190_file --> node_192_file
-  node_192_file --> node_193_file
-  node_194_file --> node_198_file
-  node_194_file --> node_195_file
-  node_195_file --> node_198_file
-  node_195_file --> node_198_file
-  node_196_file --> node_195_file
-  node_199_file --> node_200_file
-  node_203_file --> node_205_file
-  node_203_file --> node_208_file
+  node_191_file --> node_142_file
+  node_192_file --> node_191_file
+  node_193_file --> node_191_file
+  node_198_file --> node_201_file
+  node_198_file --> node_199_file
+  node_198_file --> node_200_file
+  node_200_file --> node_201_file
+  node_202_file --> node_206_file
+  node_202_file --> node_203_file
+  node_203_file --> node_206_file
+  node_203_file --> node_206_file
   node_204_file --> node_203_file
-  node_205_file --> node_206_file
-  node_205_file --> node_207_file
-  node_218_file --> node_219_file
-  node_228_file --> node_229_file
-  node_232_file --> node_233_file
-  node_235_file --> node_241_file
-  node_235_file --> node_240_file
-  node_236_file --> node_239_file
-  node_236_file --> node_237_file
-  node_236_file --> node_238_file
-  node_239_file --> node_247_file
-  node_253_file --> node_254_file
-  node_263_file --> node_264_file
-  node_264_file --> node_254_file
-  node_267_file --> node_268_file
-  node_274_file --> node_275_file
-  node_279_file --> node_280_file
-  node_284_file --> node_287_file
-  node_286_file --> node_273_file
-  node_286_file --> node_287_file
-  node_287_file --> node_183_file
-  node_287_file --> node_181_file
-  node_287_file --> node_182_file
-  node_287_file --> node_179_file
-  node_287_file --> node_184_file
-  node_287_file --> node_180_file
-  node_287_file --> node_178_file
-  node_287_file --> node_185_file
-  node_289_file --> node_287_file
-  node_290_file --> node_287_file
-  node_291_file --> node_292_file
-  node_293_file --> node_287_file
-  node_295_file --> node_322_file
-  node_296_file --> node_297_file
-  node_307_file --> node_308_file
-  node_309_file --> node_311_file
-  node_310_file --> node_273_file
-  node_310_file --> node_301_file
-  node_313_file --> node_328_file
-  node_314_file --> node_315_file
-  node_315_file --> node_40_file
-  node_315_file --> node_319_file
-  node_317_file --> node_319_file
-  node_317_file --> node_9_file
-  node_318_file --> node_319_file
-  node_321_file --> node_317_file
-  node_321_file --> node_315_file
+  node_207_file --> node_208_file
+  node_209_file --> node_210_file
+  node_212_file --> node_214_file
+  node_212_file --> node_217_file
+  node_213_file --> node_212_file
+  node_214_file --> node_215_file
+  node_214_file --> node_216_file
+  node_227_file --> node_228_file
+  node_237_file --> node_238_file
+  node_241_file --> node_242_file
+  node_244_file --> node_250_file
+  node_244_file --> node_249_file
+  node_245_file --> node_248_file
+  node_245_file --> node_246_file
+  node_245_file --> node_247_file
+  node_248_file --> node_256_file
+  node_262_file --> node_263_file
+  node_272_file --> node_273_file
+  node_273_file --> node_263_file
+  node_276_file --> node_277_file
+  node_283_file --> node_284_file
+  node_288_file --> node_289_file
+  node_293_file --> node_296_file
+  node_295_file --> node_282_file
+  node_295_file --> node_296_file
+  node_296_file --> node_191_file
+  node_296_file --> node_189_file
+  node_296_file --> node_190_file
+  node_296_file --> node_186_file
+  node_296_file --> node_192_file
+  node_296_file --> node_188_file
+  node_296_file --> node_185_file
+  node_296_file --> node_193_file
+  node_298_file --> node_296_file
+  node_299_file --> node_296_file
+  node_300_file --> node_301_file
+  node_302_file --> node_296_file
+  node_304_file --> node_332_file
+  node_305_file --> node_306_file
+  node_316_file --> node_317_file
+  node_318_file --> node_321_file
+  node_319_file --> node_282_file
+  node_319_file --> node_320_file
+  node_320_file --> node_282_file
+  node_320_file --> node_310_file
+  node_323_file --> node_338_file
   node_324_file --> node_325_file
-  node_326_file --> node_327_file
-  node_329_file --> node_330_file
-  node_331_file --> node_332_file
-  node_332_file --> node_317_file
-  node_332_file --> node_330_file
-  node_332_file --> node_315_file
+  node_325_file --> node_41_file
+  node_325_file --> node_329_file
+  node_327_file --> node_329_file
+  node_327_file --> node_9_file
+  node_328_file --> node_329_file
+  node_331_file --> node_327_file
+  node_331_file --> node_325_file
+  node_334_file --> node_335_file
+  node_336_file --> node_337_file
+  node_339_file --> node_340_file
+  node_341_file --> node_342_file
+  node_342_file --> node_327_file
+  node_342_file --> node_340_file
+  node_342_file --> node_325_file
 ```

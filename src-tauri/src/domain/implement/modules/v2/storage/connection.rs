@@ -3,7 +3,7 @@ use crate::domain::implement::modules::v2::storage::schema::{
     apply_base_schema, apply_v9_schema, ensure_runtime_schema_compatibility,
     ensure_v8_compatibility, stamp_schema_version, CURRENT_SCHEMA_VERSION,
 };
-use rusqlite::{backup::Backup, Connection, DatabaseName, OpenFlags, TransactionBehavior};
+use rusqlite::{backup::Backup, params, Connection, DatabaseName, OpenFlags, TransactionBehavior};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
@@ -31,7 +31,7 @@ impl PmpDatabase {
                 | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )?;
 
-        conn.pragma_update(None, "journal_mode", "WAL")?;
+        conn.pragma_update(None, "journal_mode", "DELETE")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.pragma_update(None, "cache_size", "-64000")?;
         conn.pragma_update(None, "busy_timeout", "5000")?;
@@ -50,6 +50,7 @@ impl PmpDatabase {
 
         if version < CURRENT_SCHEMA_VERSION {
             if version >= 8 {
+                repair_legacy_design_relations(&mut conn, &pmp_path)?;
                 let report = audit_database(&conn)?;
                 reject_blocking_audit(&report, false)?;
             }
@@ -87,6 +88,7 @@ impl PmpDatabase {
         }
 
         ensure_runtime_schema_compatibility(&conn)?;
+        repair_legacy_design_relations(&mut conn, &pmp_path)?;
 
         log::info!(
             "[Storage] Database opened successfully with runtime schema compatibility ensured (path: {})",
@@ -252,6 +254,245 @@ impl PmpDatabase {
         items.sort_by(|a, b| b["backupId"].as_str().cmp(&a["backupId"].as_str()));
         Ok(serde_json::Value::Array(items))
     }
+}
+
+fn repair_legacy_design_relations(
+    conn: &mut Connection,
+    pmp_path: &Path,
+) -> Result<(), rusqlite::Error> {
+    let issue_count: i64 = conn.query_row(
+        r#"
+        SELECT
+            (SELECT COUNT(*) FROM regions child
+             LEFT JOIN regions parent
+               ON parent.id = child.parent_id
+              AND parent.project_id = child.project_id
+             WHERE child.parent_id IS NOT NULL AND parent.id IS NULL)
+          + (SELECT COUNT(*) FROM layers child
+             LEFT JOIN regions parent
+               ON parent.id = child.region_id
+              AND parent.project_id = child.project_id
+             WHERE child.region_id IS NOT NULL AND parent.id IS NULL)
+          + (SELECT COUNT(*) FROM feature_groups child
+             LEFT JOIN layers parent
+               ON parent.id = child.layer_id
+              AND parent.project_id = child.project_id
+             WHERE parent.id IS NULL)
+          + (SELECT COUNT(*) FROM feature_groups child
+             LEFT JOIN feature_groups parent
+               ON parent.id = child.parent_id
+              AND parent.project_id = child.project_id
+             WHERE child.parent_id IS NOT NULL AND parent.id IS NULL)
+          + (SELECT COUNT(*) FROM features child
+             LEFT JOIN layers parent
+               ON parent.id = child.layer_id
+              AND parent.project_id = child.project_id
+             WHERE parent.id IS NULL)
+          + (SELECT COUNT(*) FROM features child
+             LEFT JOIN feature_groups parent
+               ON parent.id = child.group_id
+              AND parent.project_id = child.project_id
+             WHERE child.group_id IS NOT NULL AND parent.id IS NULL)
+        "#,
+        [],
+        |row| row.get(0),
+    )?;
+
+    if issue_count == 0 {
+        return Ok(());
+    }
+
+    create_open_repair_backup(conn, pmp_path)?;
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+
+    let repaired_region_parents = tx.execute(
+        r#"
+        UPDATE regions
+           SET parent_id = NULL
+         WHERE parent_id IS NOT NULL
+           AND NOT EXISTS (
+                SELECT 1 FROM regions parent
+                 WHERE parent.id = regions.parent_id
+                   AND parent.project_id = regions.project_id
+           )
+        "#,
+        [],
+    )?;
+
+    let repaired_layer_regions = tx.execute(
+        r#"
+        UPDATE layers
+           SET region_id = NULL
+         WHERE region_id IS NOT NULL
+           AND NOT EXISTS (
+                SELECT 1 FROM regions parent
+                 WHERE parent.id = layers.region_id
+                   AND parent.project_id = layers.project_id
+           )
+        "#,
+        [],
+    )?;
+
+    tx.execute(
+        r#"
+        INSERT OR IGNORE INTO layers(id, project_id, name, metadata_json)
+        SELECT '__recovered_layer:' || p.id,
+               p.id,
+               'Recovered Layer',
+               '{"recovered":true,"reason":"legacy_relation_repair"}'
+          FROM projects p
+         WHERE EXISTS (
+                SELECT 1 FROM feature_groups child
+                 LEFT JOIN layers parent
+                   ON parent.id = child.layer_id
+                  AND parent.project_id = child.project_id
+                WHERE child.project_id = p.id
+                  AND parent.id IS NULL
+           )
+            OR EXISTS (
+                SELECT 1 FROM features child
+                 LEFT JOIN layers parent
+                   ON parent.id = child.layer_id
+                  AND parent.project_id = child.project_id
+                WHERE child.project_id = p.id
+                  AND parent.id IS NULL
+           )
+        "#,
+        [],
+    )?;
+
+    let repaired_feature_groups = tx.execute(
+        r#"
+        UPDATE feature_groups
+           SET layer_id = CASE
+                WHEN NOT EXISTS (
+                    SELECT 1 FROM layers parent
+                     WHERE parent.id = feature_groups.layer_id
+                       AND parent.project_id = feature_groups.project_id
+                )
+                THEN '__recovered_layer:' || project_id
+                ELSE layer_id
+           END,
+               parent_id = CASE
+                WHEN parent_id IS NOT NULL
+                 AND NOT EXISTS (
+                    SELECT 1 FROM feature_groups parent
+                     WHERE parent.id = feature_groups.parent_id
+                       AND parent.project_id = feature_groups.project_id
+                 )
+                THEN NULL
+                ELSE parent_id
+           END
+         WHERE NOT EXISTS (
+                SELECT 1 FROM layers parent
+                 WHERE parent.id = feature_groups.layer_id
+                   AND parent.project_id = feature_groups.project_id
+           )
+            OR (
+                parent_id IS NOT NULL
+                AND NOT EXISTS (
+                    SELECT 1 FROM feature_groups parent
+                     WHERE parent.id = feature_groups.parent_id
+                       AND parent.project_id = feature_groups.project_id
+                )
+           )
+        "#,
+        [],
+    )?;
+
+    let repaired_features = tx.execute(
+        r#"
+        UPDATE features
+           SET layer_id = CASE
+                WHEN NOT EXISTS (
+                    SELECT 1 FROM layers parent
+                     WHERE parent.id = features.layer_id
+                       AND parent.project_id = features.project_id
+                )
+                THEN '__recovered_layer:' || project_id
+                ELSE layer_id
+           END,
+               group_id = CASE
+                WHEN group_id IS NOT NULL
+                 AND NOT EXISTS (
+                    SELECT 1 FROM feature_groups parent
+                     WHERE parent.id = features.group_id
+                       AND parent.project_id = features.project_id
+                 )
+                THEN NULL
+                ELSE group_id
+           END
+         WHERE NOT EXISTS (
+                SELECT 1 FROM layers parent
+                 WHERE parent.id = features.layer_id
+                   AND parent.project_id = features.project_id
+           )
+            OR (
+                group_id IS NOT NULL
+                AND NOT EXISTS (
+                    SELECT 1 FROM feature_groups parent
+                     WHERE parent.id = features.group_id
+                       AND parent.project_id = features.project_id
+                )
+           )
+        "#,
+        [],
+    )?;
+
+    tx.execute(
+        "INSERT OR REPLACE INTO sys_config(key, value) VALUES(?1, ?2)",
+        params![
+            "legacy_design_relation_repair",
+            json!({
+                "repairedAt": chrono::Local::now().to_rfc3339(),
+                "initialIssueCount": issue_count,
+                "regionsParentCleared": repaired_region_parents,
+                "layersRegionCleared": repaired_layer_regions,
+                "featureGroupsRepaired": repaired_feature_groups,
+                "featuresRepaired": repaired_features,
+            })
+            .to_string()
+        ],
+    )?;
+    tx.commit()?;
+
+    Ok(())
+}
+
+fn create_open_repair_backup(
+    source: &Connection,
+    source_path: &Path,
+) -> Result<(), rusqlite::Error> {
+    let backup_path = next_open_repair_backup_path(source_path);
+    let mut destination = Connection::open_with_flags(
+        &backup_path,
+        OpenFlags::SQLITE_OPEN_READ_WRITE
+            | OpenFlags::SQLITE_OPEN_CREATE
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+    {
+        let backup = Backup::new_with_names(
+            source,
+            DatabaseName::Main,
+            &mut destination,
+            DatabaseName::Main,
+        )?;
+        backup.run_to_completion(64, Duration::from_millis(10), None)?;
+    }
+    destination.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
+    Ok(())
+}
+
+fn next_open_repair_backup_path(source_path: &Path) -> PathBuf {
+    let preferred = PathBuf::from(format!("{}.bak", source_path.to_string_lossy()));
+    if !preferred.exists() {
+        return preferred;
+    }
+    PathBuf::from(format!(
+        "{}.bak.{}",
+        source_path.to_string_lossy(),
+        chrono::Local::now().format("%Y%m%d_%H%M%S")
+    ))
 }
 
 fn reject_blocking_audit(
@@ -697,7 +938,7 @@ mod tests {
     }
 
     #[test]
-    fn invalid_v8_database_is_blocked_without_version_change() {
+    fn invalid_v8_design_relations_are_backed_up_and_repaired() {
         let directory = tempdir().expect("tempdir");
         let path = directory.path().join("invalid.pmp");
         {
@@ -709,33 +950,102 @@ mod tests {
                 r#"
                 INSERT INTO projects(id, name, title) VALUES('p1', 'P1', 'P1');
                 INSERT INTO projects(id, name, title) VALUES('p2', 'P2', 'P2');
+                INSERT INTO regions(id, project_id, name) VALUES('r1', 'p1', 'Region');
                 INSERT INTO layers(id, project_id, name) VALUES('l1', 'p1', 'Layer');
+                INSERT INTO feature_groups(id, project_id, layer_id, name) VALUES('g1', 'p1', 'l1', 'Group');
                 DROP TRIGGER trg_features_project_insert;
+                DROP TRIGGER trg_features_project_update;
+                DROP TRIGGER trg_feature_groups_project_insert;
+                DROP TRIGGER trg_feature_groups_project_update;
+                DROP TRIGGER trg_regions_parent_project_insert;
+                DROP TRIGGER trg_regions_parent_project_update;
+                DROP TRIGGER trg_layers_region_project_insert;
+                DROP TRIGGER trg_layers_region_project_update;
                 PRAGMA foreign_keys=OFF;
+                INSERT INTO regions(id, project_id, parent_id, name) VALUES('r2', 'p2', 'r1', 'Invalid Region');
+                INSERT INTO layers(id, project_id, region_id, name) VALUES('l2', 'p2', 'r1', 'Invalid Layer Region');
+                INSERT INTO feature_groups(id, project_id, layer_id, parent_id, name)
+                VALUES('g2', 'p2', 'l1', 'g1', 'Invalid Group');
                 INSERT INTO features(
-                    id, project_id, layer_id, name, geom_type, properties_json, metadata_json
-                ) VALUES('f1', 'p2', 'l1', 'Invalid', 'Point', '{}', '{}');
+                    id, project_id, layer_id, group_id, name, geom_type, properties_json, metadata_json
+                ) VALUES('f1', 'p2', 'l1', 'g1', 'Invalid', 'Point', '{}', '{}');
                 "#,
             )
             .expect("invalid fixture");
             mark_as_v8(&conn);
         }
 
-        let error = PmpDatabase::open_or_create(path.clone()).expect_err("migration blocked");
-        assert!(error.to_string().contains("migration blocked by audit"));
+        let database = PmpDatabase::open_or_create(path.clone()).expect("migration repairs");
+        let report = database.audit_database().expect("post-repair audit");
+        assert!(!report.has_blocking_errors(), "{report:#?}");
 
-        let conn = Connection::open(&path).expect("reopen original");
-        let user_version: i32 = conn
+        let user_version: i32 = database
+            .conn
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .expect("user version");
-        assert_eq!(user_version, 8);
+        assert_eq!(user_version, 9);
+
+        let fallback_layer = "__recovered_layer:p2";
+        let feature_relation: (String, Option<String>) = database
+            .conn
+            .query_row(
+                "SELECT layer_id, group_id FROM features WHERE id='f1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("feature repaired");
+        assert_eq!(feature_relation, (fallback_layer.to_string(), None));
+
+        let group_relation: (String, Option<String>) = database
+            .conn
+            .query_row(
+                "SELECT layer_id, parent_id FROM feature_groups WHERE id='g2'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("feature group repaired");
+        assert_eq!(group_relation, (fallback_layer.to_string(), None));
+
+        let region_parent: Option<String> = database
+            .conn
+            .query_row("SELECT parent_id FROM regions WHERE id='r2'", [], |row| {
+                row.get(0)
+            })
+            .expect("region repaired");
+        assert_eq!(region_parent, None);
+
+        let layer_region: Option<String> = database
+            .conn
+            .query_row("SELECT region_id FROM layers WHERE id='l2'", [], |row| {
+                row.get(0)
+            })
+            .expect("layer repaired");
+        assert_eq!(layer_region, None);
+
+        let marker: String = database
+            .conn
+            .query_row(
+                "SELECT value FROM sys_config WHERE key='legacy_design_relation_repair'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("repair marker");
+        assert!(marker.contains("\"featuresRepaired\":1"));
 
         let backup_count = std::fs::read_dir(directory.path())
             .expect("directory")
             .filter_map(Result::ok)
-            .filter(|entry| entry.file_name().to_string_lossy().contains("pre-v8-to-v9"))
+            .filter(|entry| entry.file_name().to_string_lossy().ends_with(".pmp.bak"))
             .count();
-        assert_eq!(backup_count, 0);
+        assert_eq!(backup_count, 1);
+
+        let invalid_insert = database.conn.execute(
+            "INSERT INTO features(
+                id, project_id, layer_id, name, geom_type, properties_json, metadata_json
+             ) VALUES('f-new-invalid', 'p2', 'l1', 'Invalid New', 'Point', '{}', '{}')",
+            [],
+        );
+        assert!(invalid_insert.is_err());
     }
 
     #[test]

@@ -151,7 +151,7 @@ export const SelectedFeaturePopupManager = ({
 // -------------------------------------------------------------------
 // Helper: create a native Leaflet icon for a feature
 // -------------------------------------------------------------------
-const createNativeIcon = (
+export const createNativeIcon = (
     feature: any,
     group: any,
     metadata: any,
@@ -160,7 +160,7 @@ const createNativeIcon = (
     isClickThrough: boolean,
     lowGpuRendering = true
 ) => {
-    const { color, iconKey, isIntersection, isCamera } = getFeatureDisplayInfo(feature, group.type, group.name, metadata);
+    const { color, iconKey, isIntersection, isCamera } = getFeatureDisplayInfo(feature, group?.type, group?.name, metadata);
 
     const rawSize = metadata.gis?.size ?? metadata.size ?? feature?.properties?.size ?? 32;
     const baseSize = typeof rawSize === 'number' ? rawSize : parseInt(String(rawSize), 10) || 32;
@@ -175,13 +175,15 @@ const createNativeIcon = (
     const highlightStyle = isSelected
         ? `outline: 2px solid rgba(34, 211, 238, 0.82); outline-offset: 1px; border-color: rgba(186, 230, 253, 0.92) !important; z-index: 1000;`
         : '';
+    const badgeStyle = `width: ${size}px; height: ${size}px; background-color: ${markerColor}; border: 1.5px solid rgba(255,255,255,0.86); border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; ${baseVisualFilter} ${highlightStyle}`;
+    const glyphSize = Math.max(14, Math.floor(size * 0.68));
 
     let iconHtml = '';
     if (isIntersection) {
-        iconHtml = `<div style="position: relative; ${highlightStyle}">${getIntersectionSvgString(color, size, indexInGroup)}</div>`;
-    } else if (isCamera) {
-        const rawIconType = isCameraIcon(iconKey) ? iconKey : 'cctv';
-        iconHtml = `<div style="width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center; ${baseVisualFilter} ${highlightStyle}">${getIconSvgString(rawIconType, color, size, indexInGroup, rotation)}</div>`;
+        iconHtml = `<div style="${badgeStyle}">${getIntersectionSvgString('#ffffff', glyphSize, indexInGroup)}</div>`;
+    } else if (isCamera || (iconKey && iconKey !== 'default' && iconKey !== 'point_circle')) {
+        const rawIconType = isCameraIcon(iconKey) ? iconKey : (iconKey || 'cctv');
+        iconHtml = `<div style="${badgeStyle}">${getIconSvgString(rawIconType, '#ffffff', glyphSize, indexInGroup, rotation)}</div>`;
     } else {
         const pointShadow = lowGpuRendering ? '' : 'box-shadow: 0 1px 2px rgba(0,0,0,0.16); text-shadow: 0 1px 1px rgba(0,0,0,0.35);';
         iconHtml = `<div style="width: ${size}px; height: ${size}px; background-color: ${markerColor}; border: 1px solid rgba(255,255,255,0.72); border-radius: 50%; ${pointShadow} display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.98); font-weight: 900; font-size: ${Math.max(9, size / 2.8)}px; overflow: hidden; ${baseVisualFilter} ${highlightStyle}">${indexInGroup}</div>`;
@@ -239,6 +241,23 @@ export const createIconCacheKey = (
 // effect run (any selection / preview / zoom churn re-ran it for every marker).
 const iconArgsUnchanged = (marker: L.Marker, nextKey: string) => {
     return (marker as any)._iconKey === nextKey;
+};
+
+export const getPointMarkerPlacement = ({
+    isMoveMode,
+    isSelected,
+    showFeatureGroups,
+}: {
+    isMoveMode: boolean;
+    isSelected: boolean;
+    showFeatureGroups: boolean;
+}) => {
+    const shouldUseOverlay = isSelected || !showFeatureGroups;
+    return {
+        isSelectedForMove: isMoveMode && isSelected,
+        useOverlayGroup: shouldUseOverlay,
+        pane: shouldUseOverlay ? 'move-tool-pane' : 'markerPane',
+    };
 };
 
 // -------------------------------------------------------------------
@@ -372,12 +391,13 @@ export const PointLayer = React.memo(({
 
             const metadata = getParsedMetadata(f, previewMetadata, groupThemePreview);
             const isSelected = f.id === selectedFeatureId;
-            const isSelectedForMove = isMoveMode && isSelected;
+            const placement = getPointMarkerPlacement({ isMoveMode, isSelected, showFeatureGroups });
+            const isSelectedForMove = placement.isSelectedForMove;
             const indexInGroup = featureNumberMap[f.id] || "1";
             const isClickThrough = drawingMode !== 'none' && drawingMode !== 'move';
 
-            const targetGroup = (isSelectedForMove || isClusteringDisabled) ? moveGroup : clusterGroup;
-            const targetPane = (isSelectedForMove || isClusteringDisabled) ? 'move-tool-pane' : 'markerPane';
+            const targetGroup = (placement.useOverlayGroup || isClusteringDisabled) ? moveGroup : clusterGroup;
+            const targetPane = placement.pane;
 
             let marker = markersMap.get(f.id);
             const iconKey = createIconCacheKey(f, grp, metadata, indexInGroup, isSelected, isClickThrough, lowGpuRendering);
@@ -390,7 +410,8 @@ export const PointLayer = React.memo(({
                     draggable: isSelectedForMove,
                     featureId: f.id,
                     featureGroupId: f.group_id,
-                    pane: targetPane
+                    pane: targetPane,
+                    zIndexOffset: isSelected ? 1000 : 0
                 } as any);
 
                 if (isSelectedForMove) {
@@ -437,6 +458,10 @@ export const PointLayer = React.memo(({
                     (marker as any)._iconKey = iconKey;
                 }
                 (marker.options as any).interactive = !isClickThrough;
+                (marker.options as any).zIndexOffset = isSelected ? 1000 : 0;
+                if (typeof (marker as any).setZIndexOffset === 'function') {
+                    (marker as any).setZIndexOffset(isSelected ? 1000 : 0);
+                }
 
                 if (marker.dragging) {
                     if (isSelectedForMove) {

@@ -25,11 +25,17 @@ export const createSelectionSlice: StateCreator<DesignSyncStore, [], [], Selecti
             return;
         }
 
+        const visibleFeatureMatch = id
+            ? (Array.isArray(currentState.visibleFeatures)
+                ? currentState.visibleFeatures.find((f: any) => f?.id === id)
+                : currentState.visibleFeatures?.[id])
+            : null;
+
         const feature =
             id
                 ? currentState.state?.features?.[id] ||
                     currentState.featureDetailsCache[id] ||
-                    currentState.visibleFeatures[id]
+                    visibleFeatureMatch
                 : null;
 
         if (id && feature) {

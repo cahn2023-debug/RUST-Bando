@@ -117,7 +117,16 @@ export function MapLayer({
         : 'leaflet';
 
     if (effectiveEngine === 'maplibre-fast') {
-        return <MapLibreFastRenderer center={center} zoom={zoom} />;
+        return (
+            <MapLibreFastRenderer
+                center={center}
+                zoom={zoom}
+                onLocationChange={(lat, lng, snapId) => onLocationChange?.(lat, lng, 0, snapId as any)}
+                onFinishDrawing={onFinishDrawing}
+                onFinishDrawingSession={onFinishDrawingSession}
+                isMeasureActive={isMeasureActive}
+            />
+        );
     }
 
     return (

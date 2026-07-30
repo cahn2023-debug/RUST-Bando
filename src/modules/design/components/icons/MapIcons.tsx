@@ -167,6 +167,7 @@ export const getIntersectionSvgString = (color: string, size: number = 40, index
 }
 
 export const getIconSvgString = (type: string, color: string, size: number, index?: number | string, rotation: number = 0) => {
+  const normalizedType = String(type || 'default').toLowerCase();
   const isWhite = ['#ffffff', 'white', '#fff', 'rgb(255, 255, 255)', 'rgba(255, 255, 255, 1)'].includes(color.toLowerCase().trim());
   const textColor = isWhite ? '#111827' : '#ffffff';
   const textStrokeColor = isWhite ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)';
@@ -180,8 +181,8 @@ export const getIconSvgString = (type: string, color: string, size: number, inde
   let textContent = '';
 
   const textX = 12;
-  const textY = type === 'speed' ? 14.5 : (type === 'ptz' ? 18.5 : (type === 'lpr' ? 16.5 : 14.5));
-  const fontSize = type === 'cctv' || type === 'camera' ? 8 : 9;
+  const textY = normalizedType === 'speed' ? 14.5 : (normalizedType === 'ptz' ? 18.5 : (normalizedType === 'lpr' ? 16.5 : 14.5));
+  const fontSize = normalizedType === 'cctv' || normalizedType === 'camera' ? 8 : 9;
 
   const brightenFilter = `filter: saturate(0.98) drop-shadow(0 1px 1px rgba(0,0,0,0.18));`;
 
@@ -189,7 +190,7 @@ export const getIconSvgString = (type: string, color: string, size: number, inde
     textContent = `<text x="${textX}" y="${textY}" font-size="${fontSize}" ${textStyle}>${index}</text>`;
   }
 
-  switch (type) {
+  switch (normalizedType) {
     case 'speed':
       iconContent = `
         <g transform="scale(1, -1) translate(0, -24)">
@@ -232,11 +233,19 @@ export const getIconSvgString = (type: string, color: string, size: number, inde
         </g>
       `;
       break;
-    default: return '';
+    case 'default':
+    case 'point':
+    case 'point_circle':
+    case 'circle':
+    default:
+      iconContent = `
+        <circle cx="12" cy="12" r="8.5" fill="${color}" stroke="white" stroke-width="1.5" />
+      `;
+      break;
   }
 
   let iconBaseRotation = 0;
-  if (['cctv', 'camera', 'ptz', 'speed', 'lpr'].includes(type)) {
+  if (['cctv', 'camera', 'ptz', 'speed', 'lpr'].includes(normalizedType)) {
     iconBaseRotation = 0; // All cameras now match Treeview orientation
   }
 

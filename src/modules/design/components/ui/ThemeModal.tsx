@@ -4,6 +4,8 @@ import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getParsedMetadata, normalizeFeatureSymbolData, getObjectTypeForIcon } from '@TOOL/utils/featureUtils';
 import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 import { Button } from '@DESIGN/components/ui/Button';
+import type { DesignEventType } from '@CONTRACT/designTypes';
+import type { FeatureGroupState, FeatureProperties, FeatureState } from '@CONTRACT/types';
 
 interface ThemeModalProps {
   groupId: string;
@@ -32,14 +34,182 @@ const PRESET_COLORS = [
   '#FFFFFF', // White
 ] as const;
 
+type FeatureUpdatedEvent = Extract<DesignEventType, { type: 'FeatureUpdated' }>;
+type NetworkLineStyle = 'solid' | 'dashed' | 'dotted';
+
+interface FiberThemeSettings {
+  declareFiber?: boolean;
+  lineStyle?: NetworkLineStyle;
+  cableType?: string;
+  coreCount?: number | null;
+  owner?: string;
+  status?: string;
+}
+
+interface BuildFeatureThemeUpdateEventArgs {
+  feature: FeatureState;
+  group?: FeatureGroupState | null;
+  groupName: string;
+  iconType: string;
+  color: string;
+  size: number;
+  fiberTheme?: FiberThemeSettings;
+}
+
+const isPlainProperties = (value: unknown): value is FeatureProperties => (
+  !!value && typeof value === 'object' && !Array.isArray(value)
+);
+
+const lineStyleDashArray: Record<NetworkLineStyle, string | undefined> = {
+  solid: undefined,
+  dashed: '6 4',
+  dotted: '2 4',
+};
+
+const isNetworkLineStyle = (value: unknown): value is NetworkLineStyle =>
+  value === 'solid' || value === 'dashed' || value === 'dotted';
+
+const isLineFeature = (feature: FeatureState) => {
+  const geomType = `${feature.geom_type || feature.geometry_type || ''}`.toLowerCase();
+  return geomType.includes('line') || geomType.includes('polyline');
+};
+
+const toPositiveInteger = (value: unknown): number | null => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
+};
+
+export const buildFeatureThemeUpdateEvent = ({
+  feature,
+  group,
+  groupName,
+  iconType,
+  color,
+  size,
+  fiberTheme,
+}: BuildFeatureThemeUpdateEventArgs): FeatureUpdatedEvent => {
+  const metadata = getParsedMetadata(feature);
+  const isExplicitIcon = !!iconType && iconType !== 'default';
+  const existingProps = isPlainProperties(feature.properties) ? feature.properties : {};
+  const existingIcon = typeof metadata.icon === 'string'
+    ? metadata.icon
+    : typeof existingProps.iconKey === 'string'
+      ? existingProps.iconKey
+      : typeof existingProps.icon === 'string'
+        ? existingProps.icon
+        : undefined;
+  const targetIcon = isExplicitIcon ? iconType : existingIcon;
+  const activeColor = color || (metadata.gis as any)?.color || (metadata as Record<string, any>).color;
+  const activeSize = size;
+
+  const draftMetadata = {
+    ...metadata,
+    icon: targetIcon,
+    color: activeColor,
+    size: activeSize,
+    weight: activeSize,
+    stroke: activeSize,
+    gis: {
+      ...(metadata.gis || {}),
+      color: activeColor,
+      size: activeSize,
+      weight: activeSize,
+      stroke: activeSize,
+    },
+  };
+
+  const symbolInputProps = isExplicitIcon
+    ? { ...existingProps, icon: iconType, iconKey: iconType, type: getObjectTypeForIcon(iconType as any) }
+    : existingProps;
+
+  const symbol = normalizeFeatureSymbolData(
+    { ...feature, properties: symbolInputProps, metadata: draftMetadata },
+    group?.type,
+    group?.name || groupName,
+    draftMetadata
+  );
+
+  const finalIconKey = isExplicitIcon ? iconType : (targetIcon || symbol.iconKey);
+  const finalObjectType = isExplicitIcon ? getObjectTypeForIcon(iconType as any) : symbol.objectType;
+  const lineFeature = isLineFeature(feature);
+  const lineStyle = isNetworkLineStyle(fiberTheme?.lineStyle) ? fiberTheme.lineStyle : undefined;
+  const dashArray = lineStyle ? lineStyleDashArray[lineStyle] : undefined;
+  const shouldApplyFiber = lineFeature && fiberTheme?.declareFiber === true;
+  const infrastructure = metadata.infrastructure && typeof metadata.infrastructure === 'object'
+    ? metadata.infrastructure as Record<string, unknown>
+    : {};
+  const fiber = metadata.fiber && typeof metadata.fiber === 'object'
+    ? metadata.fiber as Record<string, unknown>
+    : {};
+  const lineMetadata = lineFeature
+    ? {
+        gis: {
+          ...draftMetadata.gis,
+          ...(dashArray ? { dashArray } : { dashArray: undefined }),
+        },
+        ...(dashArray ? { dashArray } : { dashArray: undefined }),
+        infrastructure: {
+          ...infrastructure,
+          ...(lineStyle ? { line_style: lineStyle } : {}),
+          ...(shouldApplyFiber ? {
+            type: 'SignalLine',
+            icon_type: 'fiber',
+            ...(fiberTheme?.cableType?.trim() ? { cable_type: fiberTheme.cableType.trim() } : {}),
+            ...(toPositiveInteger(fiberTheme?.coreCount) ? { core_count: toPositiveInteger(fiberTheme?.coreCount) } : {}),
+            ...(fiberTheme?.owner?.trim() ? { owner: fiberTheme.owner.trim() } : {}),
+            ...(fiberTheme?.status ? { status: fiberTheme.status } : {}),
+          } : {}),
+        },
+        ...(shouldApplyFiber ? { fiber: { ...fiber, role: 'cable' } } : {}),
+      }
+    : {};
+  const newMetadata = {
+    ...draftMetadata,
+    ...lineMetadata,
+    icon: finalIconKey,
+    type: finalObjectType,
+  };
+
+  return {
+    type: 'FeatureUpdated',
+    payload: {
+      id: feature.id,
+      layer_id: feature.layer_id,
+      group_id: feature.group_id,
+      geom_type: feature.geom_type,
+      name: feature.name || '',
+      metadata: JSON.stringify(newMetadata),
+      properties: {
+        ...existingProps,
+        icon: finalIconKey,
+        iconKey: finalIconKey,
+        type: finalObjectType,
+        color: activeColor,
+        size: activeSize,
+        weight: activeSize,
+        stroke: activeSize,
+        ...(lineFeature && dashArray ? { dashArray } : {}),
+      },
+    },
+  };
+};
+
 export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: ThemeModalProps) {
   const state = useDesignSync(s => s.state);
+  const visibleFeatures = useDesignSync(s => s.visibleFeatures);
+  const featureDetailsCache = useDesignSync(s => s.featureDetailsCache);
   const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
   const dispatchEvents = useDesignSync(s => s.dispatchEvents);
   const setGroupThemePreview = useDesignSync(s => s.setGroupThemePreview);
   const [iconType, setIconType] = useState('default');
   const [color, setColor] = useState('#3B82F6');
   const [size, setSize] = useState<number>(32);
+  const [lineStyle, setLineStyle] = useState<NetworkLineStyle>('solid');
+  const [declareFiber, setDeclareFiber] = useState(true);
+  const [cableType, setCableType] = useState('');
+  const [coreCount, setCoreCount] = useState<number | ''>('');
+  const [owner, setOwner] = useState('');
+  const [fiberStatus, setFiberStatus] = useState('planned');
   const [isApplying, setIsApplying] = useState(false);
   const loadedRef = useRef(false);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -48,6 +218,22 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
   const asString = (value: unknown) => (typeof value === 'string' ? value : '');
   const asNumber = (value: unknown, fallback: number) =>
     typeof value === 'number' ? value : typeof value === 'string' ? Number(value) || fallback : fallback;
+  const applyFiberThemeState = (metadata: Record<string, any>) => {
+    const infrastructure = metadata.infrastructure && typeof metadata.infrastructure === 'object'
+      ? metadata.infrastructure as Record<string, any>
+      : {};
+    if (isNetworkLineStyle(infrastructure.line_style)) {
+      setLineStyle(infrastructure.line_style);
+    }
+    if (infrastructure.type === 'SignalLine' || metadata.fiber?.role === 'cable') {
+      setDeclareFiber(true);
+    }
+    setCableType(asString(infrastructure.cable_type));
+    const nextCoreCount = toPositiveInteger(infrastructure.core_count);
+    setCoreCount(nextCoreCount ?? '');
+    setOwner(asString(infrastructure.owner));
+    setFiberStatus(asString(infrastructure.status) || 'planned');
+  };
 
   // Initial load: Only load once per groupId
   useEffect(() => {
@@ -74,6 +260,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
           // eslint-disable-next-line react-hooks/set-state-in-effect
           setSize(asNumber(meta.size, size));
         }
+        applyFiberThemeState(meta as Record<string, any>);
         loadedRef.current = true;
         return;
       }
@@ -100,6 +287,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setSize(asNumber(themeConfig.size, size));
           }
+          applyFiberThemeState(themeConfig);
           loadedRef.current = true;
         }
       } catch (e) {
@@ -113,14 +301,35 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
     setGroupThemePreview(groupId, {
       icon: iconType,
       color: color,
-      size: size
+      size: size,
+      weight: size,
+      stroke: size,
+      gis: {
+        color,
+        size,
+        weight: size,
+        stroke: size,
+        ...(lineStyleDashArray[lineStyle] ? { dashArray: lineStyleDashArray[lineStyle] } : {}),
+      },
+      infrastructure: {
+        line_style: lineStyle,
+        ...(declareFiber ? {
+          type: 'SignalLine',
+          icon_type: 'fiber',
+          ...(cableType.trim() ? { cable_type: cableType.trim() } : {}),
+          ...(toPositiveInteger(coreCount) ? { core_count: toPositiveInteger(coreCount) } : {}),
+          ...(owner.trim() ? { owner: owner.trim() } : {}),
+          status: fiberStatus,
+        } : {}),
+      },
+      ...(declareFiber ? { fiber: { role: 'cable' } } : {}),
     });
 
     // Cleanup preview on unmount
     return () => {
       setGroupThemePreview(null, null);
     };
-  }, [groupId, iconType, color, size, setGroupThemePreview]);
+  }, [cableType, color, coreCount, declareFiber, fiberStatus, groupId, iconType, lineStyle, owner, setGroupThemePreview, size]);
 
   const handleCancel = useCallback(() => {
     setGroupThemePreview(null, null); // Immediate clear
@@ -167,7 +376,28 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
           theme_config: {
             icon: iconType,
             color: color,
-            size: size
+            size: size,
+            weight: size,
+            stroke: size,
+            gis: {
+              color,
+              size,
+              weight: size,
+              stroke: size,
+              ...(lineStyleDashArray[lineStyle] ? { dashArray: lineStyleDashArray[lineStyle] } : {}),
+            },
+            infrastructure: {
+              line_style: lineStyle,
+              ...(declareFiber ? {
+                type: 'SignalLine',
+                icon_type: 'fiber',
+                ...(cableType.trim() ? { cable_type: cableType.trim() } : {}),
+                ...(toPositiveInteger(coreCount) ? { core_count: toPositiveInteger(coreCount) } : {}),
+                ...(owner.trim() ? { owner: owner.trim() } : {}),
+                status: fiberStatus,
+              } : {}),
+            },
+            ...(declareFiber ? { fiber: { role: 'cable' } } : {}),
           }
         };
 
@@ -186,9 +416,15 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
 
       // 2. Filter features: Only apply to direct features of this group,
       // AND skip any features that belong to a subgroup of type INTERSECTION
+      const featureLookup = {
+        ...visibleFeatures,
+        ...featureDetailsCache,
+        ...state.features,
+      };
+      const allKnownFeatures = Object.values(featureLookup);
       const featuresInGroup = hasExplicitTargets ? targetFeatureIds!
-        .map(id => state.features[id])
-        .filter(Boolean) : Object.values(state.features).filter(f => {
+        .map(id => featureLookup[id])
+        .filter(Boolean) : allKnownFeatures.filter(f => {
         // Must be in the current group
         if (f.group_id !== groupId) return false;
 
@@ -199,7 +435,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
         return true;
       });
 
-      const featureEvents: any[] = featuresInGroup
+      const featureEvents: FeatureUpdatedEvent[] = featuresInGroup
         .filter(f => {
           // Ensure feature has required fields
           if (!f.id || !f.geom_type) {
@@ -208,74 +444,22 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
           }
           return true;
         })
-        .map(f => {
-          const metadata = getParsedMetadata(f);
-
-          // Use iconType if provided, otherwise preserve existing
-          const isExplicitIcon = iconType && iconType !== 'default';
-          const targetIcon = isExplicitIcon ? iconType : metadata.icon;
-
-          const metaAny = metadata as Record<string, any>;
-          const activeColor = color || (metadata.gis as any)?.color || metaAny.color;
-          const activeSize = size; // Always use current modal slider size
-
-          const draftMetadata = {
-            ...metadata,
-            icon: targetIcon,
-            color: activeColor,
-            size: activeSize,
-            gis: {
-              ...(metadata.gis || {}),
-              color: activeColor,
-              size: activeSize,
-            }
-          };
-
-          // Override properties.icon and properties.iconKey if an explicit icon was picked in the modal
-          const existingProps = f.properties && typeof f.properties === 'object' && !Array.isArray(f.properties)
-            ? f.properties
-            : {};
-          
-          const symbolInputProps = isExplicitIcon
-            ? { ...existingProps, icon: iconType, iconKey: iconType, type: getObjectTypeForIcon(iconType as any) }
-            : existingProps;
-
-          const symbol = normalizeFeatureSymbolData(
-            { ...f, properties: symbolInputProps, metadata: draftMetadata },
-            group?.type,
-            group?.name || groupName,
-            draftMetadata
-          );
-
-          const finalIconKey = isExplicitIcon ? iconType : symbol.iconKey;
-          const finalObjectType = isExplicitIcon ? getObjectTypeForIcon(iconType as any) : symbol.objectType;
-
-          const newMetadata = {
-            ...draftMetadata,
-            icon: finalIconKey,
-            type: finalObjectType,
-          };
-
-          return {
-            type: 'FeatureUpdated',
-            payload: {
-              id: f.id,
-              layer_id: f.layer_id,
-              group_id: f.group_id,
-              geom_type: f.geom_type,
-              name: f.name || '',
-              metadata: JSON.stringify(newMetadata),
-              properties: {
-                ...existingProps,
-                icon: finalIconKey,
-                iconKey: finalIconKey,
-                type: finalObjectType,
-                color: activeColor,
-                size: activeSize,
-              },
-            }
-          };
-        });
+        .map(f => buildFeatureThemeUpdateEvent({
+          feature: f,
+          group,
+          groupName,
+          iconType,
+          color,
+          size,
+          fiberTheme: {
+            declareFiber,
+            lineStyle,
+            cableType,
+            coreCount: toPositiveInteger(coreCount),
+            owner,
+            status: fiberStatus,
+          },
+        }));
 
       const allEvents = groupUpdateEvent ? [groupUpdateEvent, ...featureEvents] : featureEvents;
 
@@ -309,7 +493,7 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
         role="dialog"
         aria-modal="true"
         aria-labelledby="group-theme-title"
-        className="bg-cad-surface border border-cad-border rounded-lg shadow-2xl w-full max-w-sm overflow-hidden flex flex-col font-sans"
+        className="bg-cad-surface border border-cad-border rounded-lg shadow-2xl w-full max-w-md overflow-hidden flex flex-col font-sans"
       >
 
         {/* Header */}
@@ -410,6 +594,77 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
             <p className="text-[10px] text-cad-text-muted italic opacity-70">
               * Kích thước 1-10px phù hợp cho độ dày đường Polyline/Line.
             </p>
+          </div>
+
+          <div className="space-y-3 rounded border border-cad-border bg-cad-bg/40 p-3">
+            <div className="grid grid-cols-2 gap-2">
+              <label className="space-y-1">
+                <span className="block text-[10px] font-semibold uppercase tracking-wider text-cad-text-muted">Nét line/polyline</span>
+                <select
+                  value={lineStyle}
+                  onChange={e => setLineStyle(e.target.value as NetworkLineStyle)}
+                  className="w-full rounded border border-cad-border bg-cad-bg px-2 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent"
+                >
+                  <option value="solid">Liền</option>
+                  <option value="dashed">Đứt đoạn</option>
+                  <option value="dotted">Chấm</option>
+                </select>
+              </label>
+              <label className="flex items-end gap-2 rounded border border-cad-border bg-cad-surface px-2 py-1.5 text-xs text-cad-text-primary">
+                <input
+                  type="checkbox"
+                  checked={declareFiber}
+                  onChange={e => setDeclareFiber(e.target.checked)}
+                  className="accent-cad-accent"
+                />
+                Cáp quang
+              </label>
+            </div>
+
+            {declareFiber && (
+              <div className="grid grid-cols-2 gap-2">
+                <label className="space-y-1">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-cad-text-muted">Loại cáp</span>
+                  <input
+                    value={cableType}
+                    onChange={e => setCableType(e.target.value)}
+                    className="w-full rounded border border-cad-border bg-cad-bg px-2 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent"
+                    placeholder="ADSS-24F"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-cad-text-muted">Số core</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={coreCount}
+                    onChange={e => setCoreCount(e.target.value ? Number(e.target.value) : '')}
+                    className="w-full rounded border border-cad-border bg-cad-bg px-2 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-cad-text-muted">Chủ sở hữu</span>
+                  <input
+                    value={owner}
+                    onChange={e => setOwner(e.target.value)}
+                    className="w-full rounded border border-cad-border bg-cad-bg px-2 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-cad-text-muted">Trạng thái</span>
+                  <select
+                    value={fiberStatus}
+                    onChange={e => setFiberStatus(e.target.value)}
+                    className="w-full rounded border border-cad-border bg-cad-bg px-2 py-1.5 text-xs text-cad-text-primary outline-none focus:border-cad-accent"
+                  >
+                    <option value="planned">planned</option>
+                    <option value="active">active</option>
+                    <option value="retired">retired</option>
+                    <option value="damaged">damaged</option>
+                  </select>
+                </label>
+              </div>
+            )}
           </div>
 
         </div>

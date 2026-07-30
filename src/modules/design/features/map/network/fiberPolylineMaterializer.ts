@@ -90,7 +90,7 @@ const toFiniteNumber = (value: unknown): number | undefined => {
 
 const getLineStyleMetadata = (metadata: ParsedMetadata): Record<string, any> => {
   const gis = metadata.gis && typeof metadata.gis === 'object' ? { ...metadata.gis } : {};
-  const width = toFiniteNumber(gis.weight ?? gis.size ?? gis.stroke ?? metadata.weight ?? metadata.size ?? metadata.stroke) ?? 6;
+  const width = toFiniteNumber(gis.size ?? gis.weight ?? gis.stroke ?? metadata.size ?? metadata.weight ?? metadata.stroke) ?? 6;
   return {
     ...gis,
     color: gis.color || metadata.color || '#0088ff',

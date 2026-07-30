@@ -22,7 +22,21 @@ export const getParsedMetadata = (
                 icon: config.icon === 'default' ? meta.icon : config.icon,
                 color: config.color,
                 size: config.size !== undefined ? config.size : meta.size,
-                gis: config.size !== undefined ? { ...(meta.gis || {}), color: config.color, size: config.size } : (meta.gis || {})
+                weight: config.weight !== undefined ? config.weight : meta.weight,
+                stroke: config.stroke !== undefined ? config.stroke : meta.stroke,
+                gis: {
+                    ...(meta.gis || {}),
+                    ...(config.gis || {}),
+                    ...(config.size !== undefined ? { color: config.color, size: config.size } : {}),
+                },
+                infrastructure: {
+                    ...(meta.infrastructure || {}),
+                    ...(config.infrastructure || {}),
+                },
+                fiber: {
+                    ...(meta.fiber || {}),
+                    ...(config.fiber || {}),
+                },
             };
         }
     }

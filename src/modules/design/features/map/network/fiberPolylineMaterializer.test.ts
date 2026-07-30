@@ -171,4 +171,28 @@ describe('fiberPolylineMaterializer', () => {
       expect(metadata.weight).toBe(10);
     }
   });
+
+  it('prioritizes GIS size over stale GIS weight when materializing line style', () => {
+    const result = buildFiberPolylineMaterializationEvents('project-1', {
+      'line-1': {
+        ...lineFeature('line-1', [[106.1, 10.1], [106.2, 10.2]]),
+        metadata: JSON.stringify({
+          gis: { color: '#123456', size: 12, weight: 4 },
+          infrastructure: { type: 'SignalLine', core_count: 12, cable_type: 'ADSS-12F' },
+        }),
+      },
+    });
+
+    const updateEvent = result.events.find(event => event.type === 'FeatureUpdated');
+    expect(updateEvent?.type).toBe('FeatureUpdated');
+    if (updateEvent?.type === 'FeatureUpdated') {
+      const metadata = JSON.parse(updateEvent.payload.metadata as string);
+      expect(metadata.gis).toEqual(expect.objectContaining({
+        size: 12,
+        weight: 12,
+        stroke: 12,
+      }));
+      expect(metadata.weight).toBe(12);
+    }
+  });
 });

@@ -9,8 +9,8 @@ pub fn run() {
     env_logger::init();
     let (tx, rx) = tokio::sync::mpsc::channel(1024);
 
-    // Khởi tạo DB & Worker ngay khi app start
-    let pmp_path = std::path::PathBuf::from("./default_project.pmp");
+    // Khởi tạo DB & Worker ngay khi app start (sử dụng in-memory database để tránh tự sinh file default_project.pmp)
+    let pmp_path = std::path::PathBuf::from(":memory:");
     let db =
         crate::domain::implement::modules::v2::storage::connection::PmpDatabase::open_or_create(
             pmp_path,
@@ -77,6 +77,11 @@ pub fn run() {
             crate::domain::implement::commands::v2::start_import_task,
             crate::domain::implement::commands::v2::sync_v2_get_status,
             crate::domain::implement::commands::v2::sync_v2_is_online,
+            crate::domain::implement::commands::v2::sync_v2_go_online,
+            crate::domain::implement::commands::v2::sync_v2_go_offline,
+            crate::domain::implement::commands::v2::sync_v2_start,
+            crate::domain::implement::commands::v2::get_pending_sync_outbox,
+            crate::domain::implement::commands::v2::mark_outbox_synced,
             crate::domain::implement::commands::v2::load_pmp_file,
             crate::domain::implement::commands::v2::open_project_bootstrap,
             crate::domain::implement::commands::v2::get_project_bootstrap_v2,

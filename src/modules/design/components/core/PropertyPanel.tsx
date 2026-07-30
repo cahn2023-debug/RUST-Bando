@@ -137,7 +137,7 @@ const getFiniteNumber = (value: unknown): number | undefined => {
 
 const normalizeFiberLineMetadata = (metadata: FeatureMetadata): FeatureMetadata => {
   const gis = metadata.gis || {};
-  const width = getFiniteNumber(gis.weight ?? gis.size ?? gis.stroke ?? metadata.weight ?? metadata.size ?? metadata.stroke) ?? 6;
+  const width = getFiniteNumber(gis.size ?? gis.weight ?? gis.stroke ?? metadata.size ?? metadata.weight ?? metadata.stroke) ?? 6;
   const lineType = asStringValue(metadata.infrastructure?.type).trim() || 'SignalLine';
   const color = asStringValue(gis.color || metadata.color, '#0088ff');
 
@@ -258,7 +258,9 @@ export const PropertyPanel: React.FC = () => {
     editingFeatureId,
     setEditingFeatureId,
     projectId,
-    selectionSet
+    selectionSet,
+    featureDetailsCache,
+    visibleFeatures
   } = useDesignSync();
 
   // Load contracts for the project
@@ -279,7 +281,9 @@ export const PropertyPanel: React.FC = () => {
     updated_at: '',
   });
 
-  const feature = selectedFeatureId && state?.features ? state.features[selectedFeatureId] : null;
+  const feature = selectedFeatureId
+    ? state?.features?.[selectedFeatureId] || featureDetailsCache[selectedFeatureId] || visibleFeatures[selectedFeatureId] || null
+    : null;
   const group = feature?.group_id ? state?.feature_groups?.[feature.group_id] : null;
   const [localName, setLocalName] = useState('');
   const [localMeta, setLocalMeta] = useState<FeatureMetadata>({});

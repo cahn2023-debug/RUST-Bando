@@ -272,6 +272,9 @@ export function useProjectManager() {
 
             console.info(`[useProjectManager] Attempting to bootstrap PMP file: ${selectedPath}`);
             const bootstrap = await openProjectBootstrap(selectedPath, requestId);
+            if (!bootstrap) {
+                throw new Error("open_project_bootstrap returned no bootstrap data");
+            }
             if (bootstrap.openRequestId && bootstrap.openRequestId !== requestId) {
                 console.warn("Open request ID mismatch (Stale bootstrap), aborting.");
                 console.groupEnd();
@@ -315,10 +318,11 @@ export function useProjectManager() {
         } catch (e) {
             console.error("Error opening PMP:", e);
             const isTauri = IS_REAL_TAURI;
+            const errorDetail = e instanceof Error ? e.message : typeof e === 'string' ? e : String(e || "");
             if (isTauri) {
-                alert("Lỗi hệ thống khi nạp tệp PMP. Vui lòng kiểm tra lại đường dẫn.");
+                alert(`Lỗi hệ thống khi nạp tệp PMP:\n${errorDetail || "Vui lòng kiểm tra lại đường dẫn."}`);
             } else {
-                console.warn("[useProjectManager] Suppression of alert in browser environment.");
+                console.warn("[useProjectManager] Suppression of alert in browser environment:", errorDetail);
             }
         } finally {
             if (selectedPathForCleanup && openingPathRef.current === selectedPathForCleanup) {

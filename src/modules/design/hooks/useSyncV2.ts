@@ -5,7 +5,16 @@ export interface SyncResult {
     pushed: number;
     pulled: number;
     conflicts: number;
+    status?: string;
+    reason?: string;
 }
+
+const syncConfigArgs = () => ({
+    coordinatorUrl: import.meta.env.VITE_COLLAB_COORDINATOR_URL?.trim() || undefined,
+    coordinator_url: import.meta.env.VITE_COLLAB_COORDINATOR_URL?.trim() || undefined,
+    sharedSecret: import.meta.env.VITE_COLLAB_SHARED_SECRET?.trim() || undefined,
+    shared_secret: import.meta.env.VITE_COLLAB_SHARED_SECRET?.trim() || undefined,
+});
 
 export function useSyncV2() {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -25,7 +34,7 @@ export function useSyncV2() {
             }
 
             const online = await invoke<boolean>('sync_v2_is_online');
-            setIsOnline(online);
+            setIsOnline(Boolean(online));
         } catch (e) {
             console.error('Failed to fetch sync status:', e);
         }
@@ -38,8 +47,12 @@ export function useSyncV2() {
         setLastError(null);
 
         try {
-            const result = await invoke<SyncResult>('sync_v2_start');
-            setLastResult(result);
+            const result = await invoke<SyncResult>('sync_v2_start', syncConfigArgs());
+            const normalized = result ?? { pushed: 0, pulled: 0, conflicts: 0, status: 'offline' };
+            setLastResult(normalized);
+            if (normalized.status === 'offline' && normalized.reason) {
+                setLastError(normalized.reason);
+            }
         } catch (e: any) {
             setLastError(String(e));
         } finally {
@@ -52,7 +65,7 @@ export function useSyncV2() {
             if (isOnline) {
                 await invoke('sync_v2_go_offline');
             } else {
-                await invoke('sync_v2_go_online');
+                await invoke('sync_v2_go_online', syncConfigArgs());
             }
             setIsOnline(!isOnline);
         } catch (e) {

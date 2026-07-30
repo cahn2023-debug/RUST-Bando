@@ -185,20 +185,24 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             isViewportTruncated: false
         });
 
+        let keepHydratingAfterReturn = false;
         try {
             if (options?.bootstrap) {
                 const tStart = performance.now();
-                const normalizedState = normalizeMapStateForDisplay(mapStateFromBootstrap(options.bootstrap));
+                const initialShell = mapStateFromBootstrap(options.bootstrap);
+                const normalizedState = normalizeMapStateForDisplay(initialShell);
                 set({
                     state: normalizedState,
                     projectId,
                     projectKey: normalizedProjectKey,
                     projectPath,
-                    lastSync: Date.now()
+                    lastSync: Date.now(),
+                    isLoading: false,
+                    isHydrating: true
                 });
                 lastInitializedKey = currentInitKey;
                 lastInitializedAt = Date.now();
-                logger.info(`[Store] Bootstrap map-ready in ${(performance.now() - tStart).toFixed(1)}ms for project ${projectId}`);
+                logger.info(`[Store] Bootstrap shell ready in ${(performance.now() - tStart).toFixed(1)}ms for project ${projectId}`);
 
                 const handleOnline = () => set({ isOnline: true });
                 const handleOffline = () => set({ isOnline: false });
@@ -217,6 +221,33 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                         unlistenSync();
                     }
                 });
+                keepHydratingAfterReturn = true;
+                void (async () => {
+                    try {
+                        const fullState = await withTimeout(loadDesignState(projectId), 15000, 'loadDesignState');
+                        if (initializeRequestId !== getLatestInitializeRequestId()) return;
+                        const fullFeatures = fullState?.features || {};
+                        const fullStateWithBootstrap = {
+                            ...initialShell,
+                            ...(fullState || {}),
+                            features: fullFeatures
+                        };
+                        set({
+                            state: normalizeMapStateForDisplay(fullStateWithBootstrap),
+                            projectId,
+                            projectKey: normalizedProjectKey,
+                            projectPath,
+                            lastSync: Date.now(),
+                            isHydrating: false,
+                            error: null
+                        });
+                        logger.info(`[Store] Background hydration loaded ${Object.keys(fullFeatures).length} features in ${(performance.now() - tStart).toFixed(1)}ms for project ${projectId}`);
+                    } catch (err) {
+                        if (initializeRequestId !== getLatestInitializeRequestId()) return;
+                        logger.warn(`[Sync] Failed to load features for bootstrap project ${projectId}:`, err);
+                        set({ isHydrating: false });
+                    }
+                })();
                 return;
             }
 
@@ -343,7 +374,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             }
             loadingSinceTs = null;
             if (initializeRequestId === getLatestInitializeRequestId()) {
-                set({ isLoading: false, isHydrating: false });
+                set(keepHydratingAfterReturn ? { isLoading: false } : { isLoading: false, isHydrating: false });
             }
         }
     },

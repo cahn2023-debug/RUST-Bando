@@ -431,6 +431,111 @@ describe('useDesignSync Store', () => {
         expect(cachedFeature.properties).toEqual({ icon: 'ptz', iconKey: 'ptz', type: 'ptz' });
     });
 
+    it('should apply feature updates using a visible-only feature as the canonical source', () => {
+        const feature: any = {
+            id: 'visible-only-1',
+            layer_id: 'layer-a',
+            group_id: 'group-a',
+            name: 'Visible Only',
+            geom_type: 'POINT',
+            coordinates: [105.62984, 21.00289],
+            properties: { icon: 'intersection', iconKey: 'intersection', type: 'intersection' },
+            metadata: JSON.stringify({ icon: 'intersection', display_order: '23', source_parent_feature_id: 'root-1' }),
+            is_visible: true,
+        };
+
+        useDesignSync.setState({
+            state: {
+                regions: {},
+                layers: {},
+                feature_groups: {},
+                settings: {},
+                features: {},
+            },
+            visibleFeatures: { 'visible-only-1': feature },
+            visibleFeatureIds: ['visible-only-1'],
+            featureDetailsCache: {},
+        });
+
+        useDesignSync.getState().applyEventsOptimistically([{
+            type: 'FeatureUpdated',
+            payload: {
+                id: 'visible-only-1',
+                name: 'Saved From Panel',
+                metadata: JSON.stringify({ description: 'panel edit', icon: 'ptz' }),
+                properties: { icon: 'ptz', iconKey: 'ptz', type: 'ptz' },
+            },
+        }]);
+
+        const store = useDesignSync.getState();
+        const stateFeature = store.state!.features['visible-only-1'];
+        const visibleFeature = store.visibleFeatures['visible-only-1'];
+        const cachedFeature = store.featureDetailsCache['visible-only-1'];
+
+        expect(stateFeature.id).toBe('visible-only-1');
+        expect(stateFeature.layer_id).toBe('layer-a');
+        expect(stateFeature.coordinates).toEqual([105.62984, 21.00289]);
+        expect(parseMetadata(stateFeature.metadata)).toMatchObject({
+            description: 'panel edit',
+            source_parent_feature_id: 'root-1',
+        });
+        expect(visibleFeature).toEqual(stateFeature);
+        expect(cachedFeature).toEqual(stateFeature);
+    });
+
+    it('should apply queued ack updates from feature detail cache without creating a partial feature', () => {
+        const feature: any = {
+            id: 'cached-only-1',
+            layer_id: 'layer-a',
+            group_id: 'group-a',
+            name: 'Cached Only',
+            geom_type: 'POINT',
+            coordinates: [105.7, 21.1],
+            properties: { icon: 'cctv', iconKey: 'cctv', type: 'camera' },
+            metadata: JSON.stringify({ icon: 'cctv', network: { role: 'device' } }),
+            is_visible: true,
+        };
+
+        useDesignSync.setState({
+            state: {
+                regions: {},
+                layers: {},
+                feature_groups: {},
+                settings: {},
+                features: {},
+            },
+            visibleFeatures: {},
+            visibleFeatureIds: [],
+            featureDetailsCache: { 'cached-only-1': feature },
+        });
+
+        useDesignSync.getState().applyQueuedAckToState({
+            success: true,
+            event_id: 'ack-cached',
+            applied_event: {
+                type: 'FeatureUpdated',
+                payload: {
+                    id: 'cached-only-1',
+                    metadata: JSON.stringify({ description: 'ack edit' }),
+                },
+            },
+            side_effects: [],
+        });
+
+        const store = useDesignSync.getState();
+        const stateFeature = store.state!.features['cached-only-1'];
+        const cachedFeature = store.featureDetailsCache['cached-only-1'];
+
+        expect(stateFeature.id).toBe('cached-only-1');
+        expect(stateFeature.layer_id).toBe('layer-a');
+        expect(stateFeature.properties).toEqual({ icon: 'cctv', iconKey: 'cctv', type: 'camera' });
+        expect(parseMetadata(stateFeature.metadata)).toMatchObject({
+            description: 'ack edit',
+            network: { role: 'device' },
+        });
+        expect(cachedFeature).toEqual(stateFeature);
+    });
+
     it('should remove deleted features from viewport caches and selection state', () => {
         const feature: any = {
             id: 'feature-1',

@@ -37,6 +37,9 @@ describe('mapLibreFastAdapter', () => {
             id: 'p1',
             color: '#ef4444',
             size: 10,
+            displaySize: 10,
+            labelIndex: '1',
+            iconImageId: expect.stringContaining('design-point-default'),
             selected: false,
         }));
     });
@@ -128,5 +131,99 @@ describe('mapLibreFastAdapter', () => {
         });
 
         expect(collection.features.map(feature => feature.properties.id)).toEqual(['visible']);
+    });
+
+    it('adds display properties for camera point icons', () => {
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [pointFeature('camera-1', [105.8, 21.02], {
+                group_id: 'camera-group',
+                metadata: JSON.stringify({ icon: 'ptz', gis: { color: '#2563eb', size: 32, rotation: 45 } }),
+            })],
+            featureGroups: { 'camera-group': { type: 'CAMERA', name: 'Camera' } },
+            featureNumberMap: { 'camera-1': 12 },
+            zoom: 20,
+        });
+
+        expect(collection.features[0].properties).toEqual(expect.objectContaining({
+            iconKey: 'ptz',
+            isCamera: true,
+            isIntersection: false,
+            color: '#2563eb',
+            rotation: 45,
+            displaySize: 48,
+            labelIndex: '12',
+        }));
+        expect(collection.features[0].properties.iconImageId).toContain('design-point-ptz');
+    });
+
+    it('adds display properties for intersection point icons', () => {
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [pointFeature('intersection-1', [105.8, 21.02], {
+                metadata: JSON.stringify({ icon: 'intersection', gis: { color: '#8b5cf6', size: 30 } }),
+            })],
+            featureNumberMap: { 'intersection-1': 'N1' },
+            zoom: 20,
+        });
+
+        expect(collection.features[0].properties).toEqual(expect.objectContaining({
+            iconKey: 'intersection',
+            isCamera: false,
+            isIntersection: true,
+            displaySize: 45,
+            labelIndex: 'N1',
+        }));
+    });
+
+    it('keeps selected point display properties', () => {
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [pointFeature('selected-camera', [105.8, 21.02], {
+                metadata: JSON.stringify({ icon: 'cctv', size: 24 }),
+            })],
+            selectedFeatureId: 'selected-camera',
+            featureNumberMap: { 'selected-camera': 3 },
+            zoom: 20,
+        });
+
+        expect(collection.features[0].properties).toEqual(expect.objectContaining({
+            id: 'selected-camera',
+            selected: true,
+            iconKey: 'cctv',
+            isCamera: true,
+            displaySize: 36,
+            labelIndex: '3',
+        }));
+    });
+
+    it('keeps line selection and hit-test properties for MapLibre layers', () => {
+        const lineFeature: FeatureState = {
+            id: 'line-1',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Line 1',
+            geom_type: 'LineString',
+            coordinates: [[105.8, 21.02], [105.81, 21.03]],
+            properties: {},
+            metadata: JSON.stringify({ color: '#06b6d4', size: 4, gis: { dashArray: '8, 4' } }),
+        };
+
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [lineFeature],
+            selectedFeatureId: 'line-1',
+            zoom: 20,
+        });
+
+        expect(collection.features[0].geometry).toEqual({
+            type: 'LineString',
+            coordinates: [[105.8, 21.02], [105.81, 21.03]],
+        });
+        expect(collection.features[0].properties).toEqual(expect.objectContaining({
+            id: 'line-1',
+            groupId: 'group-1',
+            layerId: 'layer-1',
+            geomType: 'line',
+            selected: true,
+            size: 12,
+            dashArray: [8, 4],
+        }));
     });
 });

@@ -43,6 +43,15 @@ export interface MapLibreRenderFeatureProperties {
     color: string;
     size: number;
     selected: boolean;
+    iconKey?: string;
+    objectType?: string;
+    isCamera?: boolean;
+    isIntersection?: boolean;
+    rotation?: number;
+    displaySize?: number;
+    labelIndex?: string;
+    iconImageId?: string;
+    dashArray?: number[];
 }
 
 export type MapLibreRenderFeature = MapLibreFastFeature<MapLibreFastGeometry, MapLibreRenderFeatureProperties>;
@@ -53,4 +62,7 @@ export interface BuildMapLibreFeatureCollectionInput {
     selectedFeatureId?: string | null;
     hiddenIds?: Set<string>;
     zoom: number;
+    featureGroups?: Record<string, any>;
+    featureNumberMap?: Record<string, string | number>;
+    groupThemePreview?: Record<string, any> | null;
 }

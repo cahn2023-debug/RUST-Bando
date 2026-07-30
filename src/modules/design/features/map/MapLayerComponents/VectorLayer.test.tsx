@@ -4,6 +4,7 @@ import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { VectorLayer } from './VectorLayer';
 
 const polylineProps: any[] = [];
+const markerProps: any[] = [];
 
 vi.mock('react-leaflet', () => ({
     Polyline: (props: any) => {
@@ -12,10 +13,31 @@ vi.mock('react-leaflet', () => ({
     },
     Polygon: () => <div data-testid="polygon" />,
     CircleMarker: () => <div data-testid="circle-marker" />,
+    Marker: (props: any) => {
+        markerProps.push(props);
+        return <div data-testid="snap-marker" />;
+    },
 }));
 
 vi.mock('@DESIGN/features/map/MapLayerComponents/SharedMapComponents', () => ({
-    getParsedMetadata: (feature: any) => typeof feature.metadata === 'string' ? JSON.parse(feature.metadata) : (feature.metadata || {}),
+    getParsedMetadata: (feature: any, _previewMetadata: any, groupThemePreview: any) => {
+        let metadata = typeof feature.metadata === 'string' ? JSON.parse(feature.metadata) : (feature.metadata || {});
+        if (groupThemePreview?.groupId === feature.group_id) {
+            const config = groupThemePreview.config;
+            metadata = {
+                ...metadata,
+                icon: config.icon === 'default' ? metadata.icon : config.icon,
+                color: config.color,
+                size: config.size,
+                gis: {
+                    ...(metadata.gis || {}),
+                    color: config.color,
+                    size: config.size,
+                },
+            };
+        }
+        return metadata;
+    },
 }));
 
 vi.mock('@DESIGN/features/map', () => ({
@@ -26,6 +48,7 @@ vi.mock('@DESIGN/features/map', () => ({
 describe('VectorLayer', () => {
     beforeEach(() => {
         polylineProps.length = 0;
+        markerProps.length = 0;
         vi.clearAllMocks();
         useDesignSync.setState({
             drawingMode: 'none',
@@ -213,6 +236,47 @@ describe('VectorLayer', () => {
         }));
     });
 
+    it('uses group theme preview size before an existing GIS weight', () => {
+        useDesignSync.setState({
+            groupThemePreview: {
+                groupId: 'group-1',
+                config: { icon: 'default', color: '#3B82F6', size: 11 },
+            },
+        } as any);
+
+        render(
+            <VectorLayer
+                features={[{
+                    id: 'line-1',
+                    layer_id: 'layer-1',
+                    group_id: 'group-1',
+                    name: 'Line 1',
+                    geom_type: 'LineString',
+                    coordinates: [[106, 10], [106.001, 10.001]],
+                    metadata: JSON.stringify({
+                        color: '#111111',
+                        gis: {
+                            color: '#0088ff',
+                            weight: 4,
+                        },
+                    }),
+                    properties: {},
+                }]}
+                allFeatures={{}}
+                parentChildMap={new Map()}
+                feature_groups={{ 'group-1': { id: 'group-1', type: 'LINE', name: 'Lines' } }}
+                selectedFeatureId={null}
+                previewMetadata={null}
+                zoomTo={vi.fn()}
+            />
+        );
+
+        expect(polylineProps[1].pathOptions).toEqual(expect.objectContaining({
+            color: '#3B82F6',
+            weight: 11,
+        }));
+    });
+
     it('falls back to legacy line style metadata', () => {
         render(
             <VectorLayer
@@ -239,5 +303,96 @@ describe('VectorLayer', () => {
             color: '#EF4444',
             weight: 7,
         }));
+    });
+
+    it('renders stored snap markers for the selected polyline using target point coordinates', () => {
+        render(
+            <VectorLayer
+                features={[{
+                    id: 'line-1',
+                    layer_id: 'layer-1',
+                    group_id: 'group-1',
+                    name: 'Line 1',
+                    geom_type: 'LineString',
+                    coordinates: [[106, 10], [106.001, 10.001]],
+                    metadata: JSON.stringify({ snap_links: { v0: 'point-a' } }),
+                    properties: {},
+                }]}
+                allFeatures={{
+                    'point-a': {
+                        id: 'point-a',
+                        layer_id: 'layer-1',
+                        group_id: 'group-1',
+                        name: 'Point A',
+                        geom_type: 'Point',
+                        coordinates: [106.2, 10.2],
+                        metadata: '{}',
+                        properties: {},
+                    },
+                }}
+                parentChildMap={new Map()}
+                feature_groups={{ 'group-1': { id: 'group-1', type: 'LINE', name: 'Lines' } }}
+                selectedFeatureId="line-1"
+                previewMetadata={null}
+                zoomTo={vi.fn()}
+            />
+        );
+
+        expect(markerProps).toHaveLength(1);
+        expect(markerProps[0].position).toEqual([10.2, 106.2]);
+        expect(markerProps[0].interactive).toBe(false);
+    });
+
+    it('falls back to endpoint metadata and line vertex coordinates for missing targets', () => {
+        render(
+            <VectorLayer
+                features={[{
+                    id: 'line-1',
+                    layer_id: 'layer-1',
+                    group_id: 'group-1',
+                    name: 'Line 1',
+                    geom_type: 'LineString',
+                    coordinates: [[106, 10], [106.001, 10.001]],
+                    metadata: JSON.stringify({ start_node_id: 'missing-start', end_node_id: 'missing-end' }),
+                    properties: {},
+                }]}
+                allFeatures={{}}
+                parentChildMap={new Map()}
+                feature_groups={{ 'group-1': { id: 'group-1', type: 'LINE', name: 'Lines' } }}
+                selectedFeatureId="line-1"
+                previewMetadata={null}
+                zoomTo={vi.fn()}
+            />
+        );
+
+        expect(markerProps.map(props => props.position)).toEqual([
+            [10, 106],
+            [10.001, 106.001],
+        ]);
+    });
+
+    it('does not render stored snap markers for unselected polylines', () => {
+        render(
+            <VectorLayer
+                features={[{
+                    id: 'line-1',
+                    layer_id: 'layer-1',
+                    group_id: 'group-1',
+                    name: 'Line 1',
+                    geom_type: 'LineString',
+                    coordinates: [[106, 10], [106.001, 10.001]],
+                    metadata: JSON.stringify({ snap_links: { v0: 'point-a' } }),
+                    properties: {},
+                }]}
+                allFeatures={{}}
+                parentChildMap={new Map()}
+                feature_groups={{ 'group-1': { id: 'group-1', type: 'LINE', name: 'Lines' } }}
+                selectedFeatureId={null}
+                previewMetadata={null}
+                zoomTo={vi.fn()}
+            />
+        );
+
+        expect(markerProps).toHaveLength(0);
     });
 });

@@ -9,6 +9,7 @@ const mockAddTab = vi.fn();
 const mockRemoveTab = vi.fn();
 const mockResetDesign = vi.fn();
 const mockInitializeDesign = vi.fn();
+const mockAlert = vi.fn();
 
 const createDeferred = <T,>() => {
   let resolve!: (value: T) => void;
@@ -67,6 +68,20 @@ describe("useProjectManager", () => {
     updated_at: "2026-07-10T00:00:00Z",
   };
 
+  const bootstrapFor = (project = backendProject, openRequestId = 1) => ({
+    project,
+    featureCount: 0,
+    mapRevision: 0,
+    initialBounds: null,
+    settings: {},
+    regions: {},
+    layers: {},
+    featureGroups: {},
+    streamingMode: false,
+    cacheStatus: { cachedTiles: 0, state: "missing" },
+    openRequestId,
+  });
+
   beforeEach(() => {
     mockInvoke.mockReset();
     mockOpenDialog.mockReset();
@@ -75,6 +90,8 @@ describe("useProjectManager", () => {
     mockRemoveTab.mockReset();
     mockResetDesign.mockReset();
     mockInitializeDesign.mockReset();
+    mockAlert.mockReset();
+    vi.stubGlobal("alert", mockAlert);
     localStorage.clear();
   });
 
@@ -110,9 +127,13 @@ describe("useProjectManager", () => {
           return [];
         case "get_app_config":
           return { recent_pmps: [] };
-        case "load_pmp_file":
-          expect(args).toEqual({ path: backendProject.path });
-          return backendProject;
+        case "open_project_bootstrap":
+          expect(args).toMatchObject({
+            path: backendProject.path,
+            openRequestId: expect.any(Number),
+            open_request_id: expect.any(Number),
+          });
+          return bootstrapFor(backendProject, args?.openRequestId as number);
         case "save_recent_projects":
           return null;
         case "save_last_opened_project":
@@ -142,10 +163,20 @@ describe("useProjectManager", () => {
       name: backendProject.name,
       path: backendProject.path,
     });
-    expect(mockInvoke).toHaveBeenCalledWith("load_pmp_file", { path: backendProject.path });
+    expect(mockInvoke).toHaveBeenCalledWith(
+      "open_project_bootstrap",
+      expect.objectContaining({ path: backendProject.path })
+    );
     expect(mockInvoke).toHaveBeenCalledWith("save_recent_projects", { projects: [backendProject] });
     expect(mockInvoke).toHaveBeenCalledWith("save_last_opened_project", { project: backendProject });
-    expect(mockInitializeDesign).toHaveBeenCalledWith(backendProject.id, backendProject.path, { forceReload: true });
+    expect(mockInitializeDesign).toHaveBeenCalledWith(
+      backendProject.id,
+      backendProject.path,
+      expect.objectContaining({
+        forceReload: true,
+        bootstrap: expect.objectContaining({ project: backendProject }),
+      })
+    );
   });
 
   it("waits for backend attach before opening a recent project", async () => {
@@ -154,7 +185,7 @@ describe("useProjectManager", () => {
       name: "Existing Project Refreshed",
       updated_at: "2026-07-11T00:00:00Z",
     };
-    const loadDeferred = createDeferred<typeof attachedProject>();
+    const loadDeferred = createDeferred<ReturnType<typeof bootstrapFor>>();
 
     mockInvoke.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
       switch (command) {
@@ -162,8 +193,12 @@ describe("useProjectManager", () => {
           return null;
         case "get_recent_projects":
           return [backendProject];
-        case "load_pmp_file":
-          expect(args).toEqual({ path: backendProject.path });
+        case "open_project_bootstrap":
+          expect(args).toMatchObject({
+            path: backendProject.path,
+            openRequestId: expect.any(Number),
+            open_request_id: expect.any(Number),
+          });
           return loadDeferred.promise;
         case "save_recent_projects":
         case "save_last_opened_project":
@@ -185,7 +220,7 @@ describe("useProjectManager", () => {
       const openPromise = result.current.handleOpenProject(backendProject.path);
       await Promise.resolve();
       expect(result.current.selectedProject).toBeNull();
-      loadDeferred.resolve(attachedProject);
+      loadDeferred.resolve(bootstrapFor(attachedProject, 2));
       success = await openPromise;
     });
 
@@ -197,11 +232,18 @@ describe("useProjectManager", () => {
       path: attachedProject.path,
     });
     expect(mockInvoke).toHaveBeenCalledWith("save_last_opened_project", { project: attachedProject });
-    expect(mockInitializeDesign).toHaveBeenCalledWith(attachedProject.id, attachedProject.path, { forceReload: true });
+    expect(mockInitializeDesign).toHaveBeenCalledWith(
+      attachedProject.id,
+      attachedProject.path,
+      expect.objectContaining({
+        forceReload: true,
+        bootstrap: expect.objectContaining({ project: attachedProject }),
+      })
+    );
   });
 
   it("does not open a recent project if backend attach fails", async () => {
-    const loadDeferred = createDeferred<typeof backendProject>();
+    const loadDeferred = createDeferred<ReturnType<typeof bootstrapFor>>();
 
     mockInvoke.mockImplementation(async (command: string) => {
       switch (command) {
@@ -209,7 +251,7 @@ describe("useProjectManager", () => {
           return null;
         case "get_recent_projects":
           return [backendProject];
-        case "load_pmp_file":
+        case "open_project_bootstrap":
           return loadDeferred.promise;
         case "save_recent_projects":
         case "save_last_opened_project":
@@ -234,5 +276,39 @@ describe("useProjectManager", () => {
     });
 
     expect(result.current.selectedProject).toBeNull();
+  });
+
+  it("does not read openRequestId when bootstrap returns null", async () => {
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "get_active_project":
+          return null;
+        case "get_recent_projects":
+          return [backendProject];
+        case "open_project_bootstrap":
+          return null;
+        case "save_recent_projects":
+        case "save_last_opened_project":
+          return null;
+        default:
+          return null;
+      }
+    });
+
+    const { result } = renderHook(() => useProjectManager());
+
+    await waitFor(() => {
+      expect(result.current.loadingProjects).toBe(false);
+    });
+
+    let success = true;
+    await act(async () => {
+      success = await result.current.handleOpenProject(backendProject.path);
+    });
+
+    expect(success).toBe(false);
+    expect(result.current.selectedProject).toBeNull();
+    expect(mockInitializeDesign).not.toHaveBeenCalled();
+    expect(mockAlert).toHaveBeenCalledWith(expect.stringContaining("PMP"));
   });
 });
