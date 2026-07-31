@@ -7,7 +7,7 @@ import { useSnap } from '@IMPLEMENT/hooks/useSnap';
 import { queryVisibleFeaturesV2 } from '@TOOL/utils/designIpc';
 import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 import { getParsedCoordinates, getParsedMetadata } from '@TOOL/utils/featureUtils';
-import { useMapStyles } from './useMapStyles';
+import { useMapStyles, type MapBasemapPreset } from './useMapStyles';
 import { buildMapLibreFeatureCollection } from './mapLibreFastAdapter';
 import { buildRenderMetrics } from './mapRenderMetrics';
 import { getIconSvgString } from '@DESIGN/components/icons/MapIcons';
@@ -18,6 +18,7 @@ import { useMapContext } from './MapContext';
 
 const SOURCE_ID = 'design-fast-features';
 const BASEMAP_SOURCE_ID = 'basemap';
+const BASEMAP_HEAT_LAYER_ID = 'basemap-heat-overlay';
 const POINT_LAYER_ID = 'design-fast-points';
 const POINT_ICON_LAYER_ID = 'design-fast-point-icons';
 const POINT_LABEL_LAYER_ID = 'design-fast-point-labels';
@@ -93,9 +94,11 @@ type MapLibreImageData = {
 
 const MAX_IMAGE_CACHE_SIZE = 256;
 const imageCache = new Map<string, Promise<MapLibreImageData>>();
+const imageLoadInFlight = new Set<string>();
 
 export const clearMapImageCache = () => {
     imageCache.clear();
+    imageLoadInFlight.clear();
 };
 
 const escapeSvgText = (value: unknown) => String(value ?? '')
@@ -212,21 +215,57 @@ const parseIconImageId = (imageId: string): Record<string, any> | null => {
     };
 };
 
-const ensurePointImages = (map: maplibregl.Map, collection: MapLibreRenderFeatureCollection) => {
+const preparePointImages = (
+    map: maplibregl.Map,
+    collection: MapLibreRenderFeatureCollection,
+    onImageReady: (preloadMs: number) => void
+): MapLibreRenderFeatureCollection => {
+    let nextCollection: MapLibreRenderFeatureCollection | null = null;
+    const ensureMutableCollection = () => {
+        if (!nextCollection) {
+            nextCollection = {
+                ...collection,
+                features: collection.features.map(feature => ({
+                    ...feature,
+                    properties: { ...feature.properties },
+                })),
+            };
+        }
+        return nextCollection;
+    };
+
     for (const feature of collection.features) {
         const properties = feature.properties as Record<string, any>;
         const imageId = properties.iconImageId;
         if (!imageId || map.hasImage(imageId)) continue;
+        const mutable = ensureMutableCollection();
+        const targetFeature = mutable.features.find(item => item.properties.id === properties.id);
+        if (targetFeature) {
+            targetFeature.properties = {
+                ...targetFeature.properties,
+                iconImageId: '',
+            };
+        }
+        if (imageLoadInFlight.has(imageId)) continue;
+        imageLoadInFlight.add(imageId);
         const svg = iconSvgForFeature(properties);
+        const preloadStart = now();
         void loadSvgImage(imageId, svg)
             .then(image => {
+                imageLoadInFlight.delete(imageId);
                 if (!map.hasImage(imageId)) {
                     map.addImage(imageId, image);
                     map.triggerRepaint();
                 }
+                onImageReady(now() - preloadStart);
             })
-            .catch(error => console.warn('[MapLibreFastRenderer] Failed to load point icon:', imageId, error));
+            .catch(error => {
+                imageLoadInFlight.delete(imageId);
+                console.warn('[MapLibreFastRenderer] Failed to load point icon:', imageId, error);
+            });
     }
+
+    return nextCollection || collection;
 };
 
 const setGeoJsonData = (
@@ -314,6 +353,56 @@ const buildEditOverlay = (
 const moveLayerToTop = (map: maplibregl.Map, layerId: string) => {
     if (!map.getLayer(layerId) || typeof (map as any).moveLayer !== 'function') return;
     (map as any).moveLayer(layerId);
+};
+
+const ensureBasemapOverlayLayers = (map: maplibregl.Map, preset?: MapBasemapPreset | null) => {
+    if (!map.getSource(SOURCE_ID)) return;
+
+    if (!map.getLayer(BASEMAP_HEAT_LAYER_ID)) {
+        map.addLayer({
+            id: BASEMAP_HEAT_LAYER_ID,
+            type: 'heatmap',
+            source: SOURCE_ID,
+            filter: ['all', ['==', ['geometry-type'], 'Point'], ['!', ['has', 'point_count']]],
+            layout: {
+                visibility: preset?.kind === 'heat' ? 'visible' : 'none',
+            },
+            paint: {
+                'heatmap-weight': [
+                    'interpolate',
+                    ['linear'],
+                    ['coalesce', ['get', 'size'], 10],
+                    6,
+                    0.35,
+                    24,
+                    1,
+                ],
+                'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 8, 0.75, 18, 1.8],
+                'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 8, 10, 18, 34],
+                'heatmap-opacity': preset?.kind === 'heat' ? 0.72 : 0,
+                'heatmap-color': [
+                    'interpolate',
+                    ['linear'],
+                    ['heatmap-density'],
+                    0,
+                    'rgba(15, 23, 42, 0)',
+                    0.2,
+                    '#22d3ee',
+                    0.45,
+                    '#84cc16',
+                    0.7,
+                    '#facc15',
+                    1,
+                    '#ef4444',
+                ],
+            },
+        }, map.getLayer(POLYGON_LAYER_ID) ? POLYGON_LAYER_ID : undefined);
+    }
+
+    map.setLayoutProperty(BASEMAP_HEAT_LAYER_ID, 'visibility', preset?.kind === 'heat' ? 'visible' : 'none');
+    if (typeof (map as any).setPaintProperty === 'function') {
+        (map as any).setPaintProperty(BASEMAP_HEAT_LAYER_ID, 'heatmap-opacity', preset?.kind === 'heat' ? 0.72 : 0);
+    }
 };
 
 const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLabels: boolean) => {
@@ -497,6 +586,17 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
 
     map.setLayoutProperty(POINT_CLUSTER_LAYER_ID, 'visibility', clusterPoints ? 'visible' : 'none');
     map.setLayoutProperty(LABEL_LAYER_ID, 'visibility', showLabels ? 'visible' : 'none');
+    [
+        POLYGON_LAYER_ID,
+        POLYGON_STROKE_LAYER_ID,
+        LINE_HIT_LAYER_ID,
+        LINE_LAYER_ID,
+        POINT_CLUSTER_LAYER_ID,
+        POINT_LAYER_ID,
+        POINT_ICON_LAYER_ID,
+        POINT_LABEL_LAYER_ID,
+        LABEL_LAYER_ID,
+    ].forEach(layerId => moveLayerToTop(map, layerId));
 };
 
 const ensureOverlayLayers = (map: maplibregl.Map) => {
@@ -613,6 +713,7 @@ export function MapLibreFastRenderer({
     isMeasureActive = false,
     basemapTiles: basemapTilesProp,
     basemapKey,
+    basemapPreset: basemapPresetProp,
 }: {
     center: [number, number];
     zoom: number;
@@ -622,6 +723,7 @@ export function MapLibreFastRenderer({
     isMeasureActive?: boolean;
     basemapTiles?: string[];
     basemapKey?: string;
+    basemapPreset?: MapBasemapPreset;
 }) {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const mapRef = React.useRef<maplibregl.Map | null>(null);
@@ -657,15 +759,21 @@ export function MapLibreFastRenderer({
     const setViewportFeatures = useDesignSync(s => s.setViewportFeatures);
     const setViewportLoading = useDesignSync(s => s.setViewportLoading);
     const setRenderMetrics = useDesignSync(s => s.setRenderMetrics);
+    const updateOpenMetrics = useDesignSync(s => s.updateOpenMetrics);
     const { performSnap, snapNow, clearSnap, snappedPointRef } = useSnap();
-    const { getStyledTiles: getFallbackStyledTiles, mapKey: fallbackMapKey } = useMapStyles();
+    const { getStyledTiles: getFallbackStyledTiles, mapKey: fallbackMapKey, activeBasemapPreset: fallbackBasemapPreset } = useMapStyles();
     const basemapTiles = React.useMemo(
         () => basemapTilesProp || getFallbackStyledTiles(),
         [basemapKey, basemapTilesProp, fallbackMapKey, getFallbackStyledTiles]
     );
     const basemapTilesKey = React.useMemo(() => basemapKey || basemapTiles.join('|'), [basemapKey, basemapTiles]);
+    const activeBasemapPreset = basemapPresetProp || fallbackBasemapPreset;
     const [currentZoom, setCurrentZoom] = React.useState(zoom);
     const [viewportTick, setViewportTick] = React.useState(0);
+    const [iconRevision, setIconRevision] = React.useState(0);
+    const firstViewportQueryReportedRef = React.useRef(false);
+    const firstSetDataReportedRef = React.useRef(false);
+    const firstPaintReportedRef = React.useRef(false);
     const renderFeatureValues = React.useMemo(
         () => Object.values(isLargeProject ? features : rawFeatures),
         [features, isLargeProject, rawFeatures]
@@ -916,12 +1024,24 @@ export function MapLibreFastRenderer({
             .then(response => {
                 if (requestId !== requestRef.current) return;
                 if (typeof response.revision === 'number' && response.revision !== mapRevision) return;
+                const viewportQueryMs = now() - queryStart;
+                if (!firstViewportQueryReportedRef.current) {
+                    firstViewportQueryReportedRef.current = true;
+                    updateOpenMetrics({ firstViewportQueryMs: viewportQueryMs });
+                    console.info('[OpenPerf] First viewport query complete', {
+                        projectId,
+                        firstViewportQueryMs: viewportQueryMs,
+                        returned: response.returned ?? response.features?.length ?? 0,
+                        total: response.total ?? 0,
+                        truncated: Boolean(response.truncated),
+                    });
+                }
                 setViewportFeatures(response.features || [], response.total || 0, Boolean(response.truncated));
                 const previousMetrics = useDesignSync.getState().renderMetrics;
                 if (previousMetrics) {
                     setRenderMetrics({
                         ...previousMetrics,
-                        viewportQueryMs: now() - queryStart,
+                        viewportQueryMs,
                     });
                 }
             })
@@ -933,7 +1053,7 @@ export function MapLibreFastRenderer({
             .finally(() => {
                 if (requestId === requestRef.current) setViewportLoading(false);
             });
-    }, [isLargeProject, mapHiddenIds, mapRevision, projectId, setRenderMetrics, setViewportFeatures, setViewportLoading, viewportFeatureLimit, viewportTick]);
+    }, [isLargeProject, mapHiddenIds, mapRevision, projectId, setRenderMetrics, setViewportFeatures, setViewportLoading, updateOpenMetrics, viewportFeatureLimit, viewportTick]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -943,7 +1063,8 @@ export function MapLibreFastRenderer({
         if (!updateRasterSourceTiles(map, BASEMAP_SOURCE_ID, basemapTiles)) {
             console.warn('[MapLibreFastRenderer] Basemap source does not support tile updates.');
         }
-    }, [basemapTiles, basemapTilesKey]);
+        ensureBasemapOverlayLayers(map, activeBasemapPreset);
+    }, [activeBasemapPreset, basemapTiles, basemapTilesKey]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -978,20 +1099,41 @@ export function MapLibreFastRenderer({
 
             const applyData = () => {
                 ensureDesignLayers(map, lodPolicy.clusterPoints, lodPolicy.showLabels);
+                ensureBasemapOverlayLayers(map, activeBasemapPreset);
                 ensureOverlayLayers(map);
-                ensurePointImages(map, collection);
+                const displayCollection = preparePointImages(map, collection, (iconPreloadMs) => {
+                    updateOpenMetrics({ iconPreloadMs });
+                    setIconRevision(revision => revision + 1);
+                });
                 const setDataStart = now();
                 const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
-                source?.setData(collection as any);
+                source?.setData(displayCollection as any);
                 if (selectedFeatureId && source) {
                     map.setFeatureState({ source: SOURCE_ID, id: selectedFeatureId }, { selected: true });
                     selectedFeatureRef.current = selectedFeatureId;
                 }
                 const mapLibreSetDataMs = now() - setDataStart;
+                if (!firstSetDataReportedRef.current) {
+                    firstSetDataReportedRef.current = true;
+                    updateOpenMetrics({ firstSetDataMs: mapLibreSetDataMs });
+                    requestAnimationFrame(() => {
+                        if (!firstPaintReportedRef.current) {
+                            firstPaintReportedRef.current = true;
+                            const firstMapPaintMs = now() - frameStart;
+                            updateOpenMetrics({ firstMapPaintMs });
+                            console.info('[OpenPerf] First map paint complete', {
+                                ...(useDesignSync.getState().openMetrics || {}),
+                                firstSetDataMs: mapLibreSetDataMs,
+                                firstMapPaintMs,
+                                featureCount: displayCollection.features.length,
+                            });
+                        }
+                    });
+                }
                 const newMetrics = buildRenderMetrics({
                     engine: 'maplibre-fast',
                     lodLevel: lodPolicy.level,
-                    featureCount: collection.features.length,
+                    featureCount: displayCollection.features.length,
                     sourceBuildMs,
                     mapLibreSetDataMs,
                     frameMs: now() - frameStart,
@@ -1012,7 +1154,7 @@ export function MapLibreFastRenderer({
         };
 
         render();
-    }, [currentZoom, featureGroups, featureNumberMap, groupThemePreview, mapHiddenIds, renderFeatureValues, selectedFeatureId, setRenderMetrics, viewportRevision]);
+    }, [activeBasemapPreset, currentZoom, featureGroups, featureNumberMap, groupThemePreview, iconRevision, mapHiddenIds, renderFeatureValues, selectedFeatureId, setRenderMetrics, updateOpenMetrics, viewportRevision]);
 
     React.useEffect(() => {
         const map = mapRef.current;

@@ -207,6 +207,8 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
 
   const snapshotRef = useRef<ImageData | null>(null);
   const dragStartRef = useRef<DragPoint | null>(null);
+  const pendingTextPointRef = useRef<DragPoint | null>(null);
+  const lastCanvasPointRef = useRef<DragPoint | null>(null);
   const lastPencilPointRef = useRef<DragPoint | null>(null);
   const cropRectRef = useRef<CropRect | null>(null);
   const rotationPreviewSourceRef = useRef<RotationPreviewSource | null>(null);
@@ -587,6 +589,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     if (!annCanvas || !ctx) return;
 
     const point = getCanvasPoint(event, annCanvas);
+    lastCanvasPointRef.current = point;
     dragStartRef.current = point;
     lastPencilPointRef.current = point;
 
@@ -594,6 +597,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     snapshotRef.current = ctx.getImageData(0, 0, annCanvas.width, annCanvas.height);
 
     if (tool === 'text') {
+      pendingTextPointRef.current = point;
       setPendingTextPoint(point);
       dragStartRef.current = null;
       snapshotRef.current = null;
@@ -807,7 +811,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   const applyPendingText = () => {
     const annCanvas = annotationCanvasRef.current;
     const ctx = annCanvas?.getContext('2d');
-    if (!annCanvas || !ctx || !pendingTextPoint) return;
+    const point = pendingTextPointRef.current || pendingTextPoint || lastCanvasPointRef.current || (
+      annCanvas ? { x: annCanvas.width / 2, y: annCanvas.height / 2 } : null
+    );
+    if (!annCanvas || !ctx || !point) return;
 
     pushUndoSnapshot();
     const renderedText = textValue.trim() || 'Text';
@@ -815,10 +822,11 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     ctx.save();
     ctx.fillStyle = strokeColor;
     ctx.font = `bold ${textSize}px sans-serif`;
-    ctx.fillText(renderedText, pendingTextPoint.x, pendingTextPoint.y);
+    ctx.fillText(renderedText, point.x, point.y);
     ctx.restore();
 
     setTextAnnotations(prev => [...prev, renderedText]);
+    pendingTextPointRef.current = null;
     setPendingTextPoint(null);
   };
 
@@ -866,6 +874,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       resetCropSelection();
     }
     setTool(nextTool);
+    pendingTextPointRef.current = null;
     setPendingTextPoint(null);
   };
 
@@ -899,22 +908,22 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           <button type="button" aria-label="Tẩy xóa (E)" aria-pressed={tool === 'eraser'} title="Eraser tool - Tẩy xóa (E)" onClick={() => selectTool('eraser')} className={toolButtonClass('eraser')}>
             <Eraser className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Đường thẳng (L)" aria-pressed={tool === 'line'} title="Line tool - Đường thẳng (L)" onClick={() => selectTool('line')} className={toolButtonClass('line')}>
+          <button type="button" aria-label="Line tool (L)" aria-pressed={tool === 'line'} title="Line tool - Đường thẳng (L)" onClick={() => selectTool('line')} className={toolButtonClass('line')}>
             <Minus className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Mũi tên" aria-pressed={tool === 'arrow'} title="Arrow tool - Mũi tên" onClick={() => selectTool('arrow')} className={toolButtonClass('arrow')}>
+          <button type="button" aria-label="Arrow tool" aria-pressed={tool === 'arrow'} title="Arrow tool - Mũi tên" onClick={() => selectTool('arrow')} className={toolButtonClass('arrow')}>
             <MoveUpRight className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Hình tròn (C)" aria-pressed={tool === 'circle'} title="Circle tool - Hình tròn (C)" onClick={() => selectTool('circle')} className={toolButtonClass('circle')}>
+          <button type="button" aria-label="Circle tool (C)" aria-pressed={tool === 'circle'} title="Circle tool - Hình tròn (C)" onClick={() => selectTool('circle')} className={toolButtonClass('circle')}>
             <Circle className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Hình vuông/chữ nhật (R)" aria-pressed={tool === 'square'} title="Square tool - Hình vuông/chữ nhật (R)" onClick={() => selectTool('square')} className={toolButtonClass('square')}>
+          <button type="button" aria-label="Square tool (R)" aria-pressed={tool === 'square'} title="Square tool - Hình vuông/chữ nhật (R)" onClick={() => selectTool('square')} className={toolButtonClass('square')}>
             <Square className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Chữ ghi chú (T)" aria-pressed={tool === 'text'} title="Text tool - Chữ ghi chú (T)" onClick={() => selectTool('text')} className={toolButtonClass('text')}>
+          <button type="button" aria-label="Text tool (T)" aria-pressed={tool === 'text'} title="Text tool - Chữ ghi chú (T)" onClick={() => selectTool('text')} className={toolButtonClass('text')}>
             <TypeIcon className="w-4 h-4" aria-hidden="true" />
           </button>
-          <button type="button" aria-label="Dán tem CAD" aria-pressed={tool === 'stamp'} title="Stamp tool - Dán tem CAD" onClick={() => selectTool('stamp')} className={toolButtonClass('stamp')}>
+          <button type="button" aria-label="Stamp tool" aria-pressed={tool === 'stamp'} title="Stamp tool - Dán tem CAD" onClick={() => selectTool('stamp')} className={toolButtonClass('stamp')}>
             <Radio className="w-4 h-4" aria-hidden="true" />
           </button>
 
@@ -923,7 +932,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             variant="secondary"
             size="md"
             icon={Undo2}
-            ariaLabel="Hoàn tác"
+            ariaLabel="Undo"
             title="Undo (Ctrl+Z)"
             onClick={undoLastEdit}
             disabled={undoStack.length === 0}
@@ -1086,7 +1095,6 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
               variant="primary"
               size="md"
               onClick={applyPendingText}
-              disabled={!pendingTextPoint}
               className="uppercase"
             >
               OK text

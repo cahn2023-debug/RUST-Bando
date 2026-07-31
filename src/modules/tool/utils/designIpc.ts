@@ -305,16 +305,21 @@ export const pull_collaboration_events = async (
   return response;
 };
 
-export const loadDesignState = async (projectId: string): Promise<any | null> => {
+export const loadDesignState = async (
+  projectId: string,
+  options: { includeFeatures?: boolean } = {}
+): Promise<any | null> => {
   try {
     const result = await invoke<any>(
       'load_design_state_v2',
       withCompatArgs(
         {
           project_id: projectId,
+          include_features: options.includeFeatures,
         },
         {
           projectId,
+          includeFeatures: options.includeFeatures,
         }
       )
     );
@@ -340,10 +345,13 @@ export interface ProjectBootstrap {
   layers: Record<string, unknown>;
   featureGroups: Record<string, unknown>;
   streamingMode: boolean;
+  viewportFirst?: boolean;
   cacheStatus: {
     cachedTiles: number;
     state: 'ready' | 'missing' | 'building' | string;
+    lastViewportReady?: boolean;
   };
+  openPerformanceHint?: Record<string, number>;
   openRequestId?: number | null;
 }
 

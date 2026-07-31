@@ -32,6 +32,20 @@ export interface MapRenderMetrics {
     p95FrameMs: number;
 }
 
+export interface MapOpenMetrics {
+    openClickMs?: number;
+    bootstrapMs?: number;
+    openProjectBootstrapMs?: number;
+    open_project_bootstrapMs?: number;
+    shellCommitMs?: number;
+    firstViewportQueryMs?: number;
+    firstSetDataMs?: number;
+    firstMapPaintMs?: number;
+    fullHydrationMs?: number;
+    tileBuildQueuedMs?: number;
+    iconPreloadMs?: number;
+}
+
 export type MapStateSlice = {
     state: MapState | null;
     projectId: string | null;
@@ -56,6 +70,7 @@ export type MapStateSlice = {
     isViewportTruncated: boolean;
     mapRenderEngine: MapRenderEngine;
     renderMetrics: MapRenderMetrics | null;
+    openMetrics: MapOpenMetrics | null;
 
     applyPatchToState: (response: DesignActionResponse | DesignBulkActionResponse) => void;
     applyQueuedAckToState: (response: DesignActionResponse | DesignBulkActionResponse) => void;
@@ -67,6 +82,7 @@ export type MapStateSlice = {
     setViewportLoading: (isLoading: boolean) => void;
     setMapRenderEngine: (engine: MapRenderEngine) => void;
     setRenderMetrics: (metrics: MapRenderMetrics) => void;
+    updateOpenMetrics: (metrics: Partial<MapOpenMetrics>) => void;
     cacheFeatureDetail: (feature: MapState['features'][string]) => void;
     
     // Giai đoạn 5: Optimistic UI

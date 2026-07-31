@@ -374,6 +374,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
     isViewportTruncated: false,
     mapRenderEngine: 'maplibre-fast',
     renderMetrics: null,
+    openMetrics: null,
 
     // Giai đoạn 5: Optimistic UI state
     pendingSyncEvents: [],
@@ -397,6 +398,13 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
     setMapRenderEngine: (mapRenderEngine) => set({ mapRenderEngine }),
 
     setRenderMetrics: (renderMetrics) => set({ renderMetrics }),
+
+    updateOpenMetrics: (metrics) => set((s) => ({
+        openMetrics: {
+            ...(s.openMetrics || {}),
+            ...metrics
+        }
+    })),
 
     cacheFeatureDetail: (feature) => set((s) => ({
         featureDetailsCache: {

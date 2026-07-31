@@ -519,19 +519,19 @@ describe('PropertyPanel clipboard images', () => {
     expect(await screen.findByText('Edit Photo')).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: 'l' });
-    expect(screen.getByRole('button', { name: 'Line tool (L)' })).toHaveClass('bg-indigo-500');
+    expect(screen.getByRole('button', { name: 'Line tool (L)' })).toHaveClass('bg-cad-accent');
 
     fireEvent.keyDown(window, { key: 'C' });
-    expect(screen.getByRole('button', { name: 'Circle tool (C)' })).toHaveClass('bg-indigo-500');
+    expect(screen.getByRole('button', { name: 'Circle tool (C)' })).toHaveClass('bg-cad-accent');
 
     fireEvent.keyDown(window, { key: 'r' });
-    expect(screen.getByRole('button', { name: 'Square tool (R)' })).toHaveClass('bg-indigo-500');
+    expect(screen.getByRole('button', { name: 'Square tool (R)' })).toHaveClass('bg-cad-accent');
 
     fireEvent.keyDown(window, { key: 'T' });
-    expect(screen.getByRole('button', { name: 'Text tool (T)' })).toHaveClass('bg-indigo-500');
+    expect(screen.getByRole('button', { name: 'Text tool (T)' })).toHaveClass('bg-cad-accent');
 
     fireEvent.keyDown(screen.getByLabelText('Text value'), { key: 'l' });
-    expect(screen.getByRole('button', { name: 'Text tool (T)' })).toHaveClass('bg-indigo-500');
+    expect(screen.getByRole('button', { name: 'Text tool (T)' })).toHaveClass('bg-cad-accent');
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     fireEvent.keyDown(window, { key: 'l' });

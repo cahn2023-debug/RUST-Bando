@@ -30,7 +30,7 @@ const mapStateFromBootstrap = (bootstrap: ProjectBootstrap): any => ({
     settings: bootstrap.settings || {},
     featureCount: bootstrap.featureCount || 0,
     mapRevision: bootstrap.mapRevision || 0,
-    isLargeProject: Boolean(bootstrap.streamingMode),
+    isLargeProject: Boolean(bootstrap.streamingMode || bootstrap.viewportFirst),
     viewportFeatureLimit: 10000
 });
 
@@ -182,7 +182,8 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             featureDetailsCache: {},
             isViewportLoading: false,
             viewportFeatureTotal: 0,
-            isViewportTruncated: false
+            isViewportTruncated: false,
+            openMetrics: options?.bootstrap?.openPerformanceHint || null
         });
 
         let keepHydratingAfterReturn = false;
@@ -190,7 +191,9 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             if (options?.bootstrap) {
                 const tStart = performance.now();
                 const initialShell = mapStateFromBootstrap(options.bootstrap);
+                const shouldKeepViewportFirst = Boolean(initialShell.isLargeProject);
                 const normalizedState = normalizeMapStateForDisplay(initialShell);
+                const shellCommitMs = performance.now() - tStart;
                 set({
                     state: normalizedState,
                     projectId,
@@ -198,11 +201,20 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                     projectPath,
                     lastSync: Date.now(),
                     isLoading: false,
-                    isHydrating: true
+                    isHydrating: true,
+                    openMetrics: {
+                        ...(get().openMetrics || {}),
+                        shellCommitMs
+                    }
                 });
                 lastInitializedKey = currentInitKey;
                 lastInitializedAt = Date.now();
-                logger.info(`[Store] Bootstrap shell ready in ${(performance.now() - tStart).toFixed(1)}ms for project ${projectId}`);
+                logger.info(`[Store] Bootstrap shell ready in ${shellCommitMs.toFixed(1)}ms for project ${projectId}`);
+                logger.info('[OpenPerf] Project shell ready', {
+                    projectId,
+                    ...(get().openMetrics || {}),
+                    shellCommitMs,
+                });
 
                 const handleOnline = () => set({ isOnline: true });
                 const handleOffline = () => set({ isOnline: false });
@@ -221,37 +233,23 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                         unlistenSync();
                     }
                 });
-                if (!options.bootstrap.streamingMode) {
-                    const fullState = await withTimeout(loadDesignState(projectId), 15000, 'loadDesignState');
-                    if (initializeRequestId !== getLatestInitializeRequestId()) return;
-                    const fullFeatures = fullState?.features || {};
-                    const fullStateWithBootstrap = {
-                        ...initialShell,
-                        ...(fullState || {}),
-                        features: fullFeatures
-                    };
-                    set({
-                        state: normalizeMapStateForDisplay(fullStateWithBootstrap),
-                        projectId,
-                        projectKey: normalizedProjectKey,
-                        projectPath,
-                        lastSync: Date.now(),
-                        isHydrating: false,
-                        error: null
-                    });
-                    logger.info(`[Store] Bootstrap hydration loaded ${Object.keys(fullFeatures).length} features in ${(performance.now() - tStart).toFixed(1)}ms for project ${projectId}`);
-                    return;
-                }
                 keepHydratingAfterReturn = true;
                 void (async () => {
                     try {
-                        const fullState = await withTimeout(loadDesignState(projectId), 15000, 'loadDesignState');
+                        const fullState = await withTimeout(
+                            loadDesignState(projectId, shouldKeepViewportFirst ? { includeFeatures: false } : {}),
+                            15000,
+                            'loadDesignState'
+                        );
                         if (initializeRequestId !== getLatestInitializeRequestId()) return;
-                        const fullFeatures = fullState?.features || {};
+                        const fullHydrationMs = performance.now() - tStart;
+                        const fullFeatures = shouldKeepViewportFirst ? {} : (fullState?.features || {});
                         const fullStateWithBootstrap = {
                             ...initialShell,
                             ...(fullState || {}),
-                            features: fullFeatures
+                            features: fullFeatures,
+                            isLargeProject: shouldKeepViewportFirst || Boolean(fullState?.isLargeProject),
+                            viewportFeatureLimit: initialShell.viewportFeatureLimit || fullState?.viewportFeatureLimit
                         };
                         set({
                             state: normalizeMapStateForDisplay(fullStateWithBootstrap),
@@ -260,9 +258,18 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                             projectPath,
                             lastSync: Date.now(),
                             isHydrating: false,
-                            error: null
+                            error: null,
+                            openMetrics: {
+                                ...(get().openMetrics || {}),
+                                fullHydrationMs
+                            }
                         });
-                        logger.info(`[Store] Background hydration loaded ${Object.keys(fullFeatures).length} features in ${(performance.now() - tStart).toFixed(1)}ms for project ${projectId}`);
+                        logger.info(`[Store] Background hydration loaded ${Object.keys(fullFeatures).length} features in ${fullHydrationMs.toFixed(1)}ms for project ${projectId}`);
+                        logger.info('[OpenPerf] Background hydration complete', {
+                            projectId,
+                            ...(get().openMetrics || {}),
+                            fullHydrationMs,
+                        });
                     } catch (err) {
                         if (initializeRequestId !== getLatestInitializeRequestId()) return;
                         logger.warn(`[Sync] Failed to load features for bootstrap project ${projectId}:`, err);
@@ -430,7 +437,8 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             featureDetailsCache: {},
             isViewportLoading: false,
             viewportFeatureTotal: 0,
-            isViewportTruncated: false
+            isViewportTruncated: false,
+            openMetrics: null
         });
     },
 

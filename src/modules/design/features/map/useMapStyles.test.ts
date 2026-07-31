@@ -9,15 +9,16 @@ describe('useMapStyles', () => {
         window.localStorage.clear();
     });
 
-    it('defaults to the Google Vietnam hybrid basemap with four tile subdomains', () => {
+    it('defaults to the street basemap with four tile subdomains', () => {
         const { result } = renderHook(() => useMapStyles());
 
-        expect(result.current.basemapId).toBe('google-vietnam-hybrid');
+        expect(result.current.basemapId).toBe('street');
+        expect(result.current.activeBasemapPreset.kind).toBe('raster');
         expect(result.current.getStyledTiles()).toEqual([
-            'https://mt0.google.com/vt/lyrs=y&hl=vi&gl=vn&x={x}&y={y}&z={z}',
-            'https://mt1.google.com/vt/lyrs=y&hl=vi&gl=vn&x={x}&y={y}&z={z}',
-            'https://mt2.google.com/vt/lyrs=y&hl=vi&gl=vn&x={x}&y={y}&z={z}',
-            'https://mt3.google.com/vt/lyrs=y&hl=vi&gl=vn&x={x}&y={y}&z={z}',
+            'https://mt0.google.com/vt/lyrs=m&hl=vi&gl=vn&x={x}&y={y}&z={z}',
+            'https://mt1.google.com/vt/lyrs=m&hl=vi&gl=vn&x={x}&y={y}&z={z}',
+            'https://mt2.google.com/vt/lyrs=m&hl=vi&gl=vn&x={x}&y={y}&z={z}',
+            'https://mt3.google.com/vt/lyrs=m&hl=vi&gl=vn&x={x}&y={y}&z={z}',
         ]);
     });
 
@@ -32,7 +33,7 @@ describe('useMapStyles', () => {
 
         const { result } = renderHook(() => useMapStyles());
 
-        expect(result.current.basemapId).toBe('google-vietnam-hybrid');
+        expect(result.current.basemapId).toBe('street');
         expect(result.current.mapFeatures).toEqual({
             roads: false,
             roadNames: true,
@@ -42,7 +43,22 @@ describe('useMapStyles', () => {
         });
     });
 
-    it('adds apistyle to roadmap and hybrid tiles but not satellite tiles', () => {
+    it('migrates legacy basemap ids from localStorage', () => {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            basemapId: 'google-vietnam-satellite',
+        }));
+
+        const { result } = renderHook(() => useMapStyles());
+        expect(result.current.basemapId).toBe('satellite');
+
+        act(() => {
+            result.current.setBasemapId('dark');
+        });
+
+        expect(result.current.activeBasemapPreset.id).toBe('dark');
+    });
+
+    it('adds feature apistyle to street and dark tiles but not satellite tiles', () => {
         const { result } = renderHook(() => useMapStyles());
 
         act(() => {
@@ -54,15 +70,31 @@ describe('useMapStyles', () => {
             }));
         });
 
-        const roadTile = result.current.getStyledTiles('google-vietnam-road')[0];
-        const hybridTile = result.current.getStyledTiles('google-vietnam-hybrid')[0];
-        const satelliteTile = result.current.getStyledTiles('google-vietnam-satellite')[0];
+        const streetTile = result.current.getStyledTiles('street')[0];
+        const darkTile = result.current.getStyledTiles('dark')[0];
+        const satelliteTile = result.current.getStyledTiles('satellite')[0];
 
-        expect(roadTile).toContain('https://mt0.google.com/vt/lyrs=m&hl=vi&gl=vn');
-        expect(roadTile).toContain('&apistyle=');
-        expect(decodeURIComponent(roadTile)).toContain('s.t:3|s.e:g|p.v:off');
-        expect(decodeURIComponent(roadTile)).toContain('s.t:8|p.v:off');
-        expect(hybridTile).toContain('&apistyle=');
+        expect(streetTile).toContain('https://mt0.google.com/vt/lyrs=m&hl=vi&gl=vn');
+        expect(streetTile).toContain('&apistyle=');
+        expect(decodeURIComponent(streetTile)).toContain('s.t:3|s.e:g|p.v:off');
+        expect(decodeURIComponent(streetTile)).toContain('s.t:8|p.v:off');
+        expect(darkTile).toContain('&apistyle=');
+        expect(decodeURIComponent(darkTile)).toContain('p.c:#101318');
+        expect(decodeURIComponent(darkTile)).toContain('s.t:3|s.e:g|p.v:off');
         expect(satelliteTile).toBe('https://mt0.google.com/vt/lyrs=s&hl=vi&gl=vn&x={x}&y={y}&z={z}');
+    });
+
+    it('builds heat basemap tiles and exposes the heat preset kind', () => {
+        const { result } = renderHook(() => useMapStyles());
+
+        act(() => {
+            result.current.setBasemapId('heat');
+        });
+
+        const heatTile = result.current.getStyledTiles()[0];
+        expect(result.current.activeBasemapPreset.kind).toBe('heat');
+        expect(heatTile).toContain('https://mt0.google.com/vt/lyrs=m&hl=vi&gl=vn');
+        expect(decodeURIComponent(heatTile)).toContain('s.t:3|s.e:l|p.v:off');
+        expect(decodeURIComponent(heatTile)).toContain('s.t:8|p.v:off');
     });
 });

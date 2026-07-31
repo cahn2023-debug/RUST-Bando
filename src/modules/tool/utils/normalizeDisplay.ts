@@ -99,7 +99,7 @@ export const normalizeFeatureForDisplay = (
         type: isDefaultSymbolValue(existingType) ? symbol.objectType : existingType,
     } as FeatureState['properties'];
 
-    // 3. Parse coordinates (Leaflet expects [lng, lat] for GeoJSON/MapLibre)
+    // 3. Parse coordinates (GeoJSON/MapLibre use [lng, lat])
     let coordinates = feature.coordinates;
     while (typeof coordinates === 'string') {
         try {

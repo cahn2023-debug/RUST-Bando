@@ -104,12 +104,12 @@ describe('ImageEditorModal', () => {
     expect(screen.getByRole('button', { name: 'Công cụ cắt ảnh' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Bút vẽ tự do (B)' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tẩy xóa (E)' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Đường thẳng (L)' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Mũi tên' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Hình tròn (C)' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Hình vuông/chữ nhật (R)' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Chữ ghi chú (T)' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dán tem CAD' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Line tool (L)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Arrow tool' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Circle tool (C)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Square tool (R)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Text tool (T)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Stamp tool' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Xoay 90 độ theo chiều kim đồng hồ' })).toBeInTheDocument();
     expect(document.querySelectorAll('canvas')).toHaveLength(3);
   });
@@ -121,7 +121,7 @@ describe('ImageEditorModal', () => {
     fireEvent.click(eraserBtn);
     expect(eraserBtn).toHaveClass('bg-cad-accent');
 
-    const lineBtn = screen.getByRole('button', { name: 'Đường thẳng (L)' });
+    const lineBtn = screen.getByRole('button', { name: 'Line tool (L)' });
     fireEvent.click(lineBtn);
     expect(lineBtn).toHaveClass('bg-cad-accent');
   });
@@ -130,13 +130,13 @@ describe('ImageEditorModal', () => {
     renderEditor();
 
     fireEvent.keyDown(window, { key: 'l' });
-    expect(screen.getByRole('button', { name: 'Đường thẳng (L)' })).toHaveClass('bg-cad-accent');
+    expect(screen.getByRole('button', { name: 'Line tool (L)' })).toHaveClass('bg-cad-accent');
 
     fireEvent.keyDown(window, { key: 'c' });
-    expect(screen.getByRole('button', { name: 'Hình tròn (C)' })).toHaveClass('bg-cad-accent');
+    expect(screen.getByRole('button', { name: 'Circle tool (C)' })).toHaveClass('bg-cad-accent');
 
     fireEvent.keyDown(window, { key: 'r' });
-    expect(screen.getByRole('button', { name: 'Hình vuông/chữ nhật (R)' })).toHaveClass('bg-cad-accent');
+    expect(screen.getByRole('button', { name: 'Square tool (R)' })).toHaveClass('bg-cad-accent');
 
     fireEvent.keyDown(window, { key: 'e' });
     expect(screen.getByRole('button', { name: 'Tẩy xóa (E)' })).toHaveClass('bg-cad-accent');

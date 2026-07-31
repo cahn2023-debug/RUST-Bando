@@ -1537,14 +1537,16 @@ graph TD
     node_87_file("📄 src/modules/design/features/map/useMapStyles.ts")
     node_87_s0["📋 MapBasemapId (type)"]:::symbol
     node_87_file --- node_87_s0
-    node_87_s1["📦 MapFeatures (interface)"]:::symbol
+    node_87_s1["📋 MapBasemapKind (type)"]:::symbol
     node_87_file --- node_87_s1
-    node_87_s2["📦 MapStyleSettings (interface)"]:::symbol
+    node_87_s2["📦 MapFeatures (interface)"]:::symbol
     node_87_file --- node_87_s2
-    node_87_s3["📦 MapBasemapPreset (interface)"]:::symbol
+    node_87_s3["📦 MapStyleSettings (interface)"]:::symbol
     node_87_file --- node_87_s3
-    node_87_s4["🔧 useMapStyles (function)"]:::symbol
+    node_87_s4["📦 MapBasemapPreset (interface)"]:::symbol
     node_87_file --- node_87_s4
+    node_87_s5["🔧 useMapStyles (function)"]:::symbol
+    node_87_file --- node_87_s5
   end
   class node_87_sub ts
   subgraph node_175_sub ["src/modules/design/features/print/PrintDialog.tsx"]

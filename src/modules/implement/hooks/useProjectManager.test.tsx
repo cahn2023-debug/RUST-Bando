@@ -179,6 +179,44 @@ describe("useProjectManager", () => {
     );
   });
 
+  it("does not queue map tile build when bootstrap reports ready cache", async () => {
+    const cachedBootstrap = {
+      ...bootstrapFor(backendProject, 1),
+      mapRevision: 9,
+      cacheStatus: { cachedTiles: 12, state: "ready" },
+    };
+    mockInvoke.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
+      switch (command) {
+        case "get_active_project":
+          return null;
+        case "get_recent_projects":
+          return [];
+        case "open_project_bootstrap":
+          return { ...cachedBootstrap, openRequestId: args?.openRequestId };
+        case "save_recent_projects":
+        case "save_last_opened_project":
+          return null;
+        default:
+          return null;
+      }
+    });
+
+    const { result } = renderHook(() => useProjectManager());
+
+    await waitFor(() => {
+      expect(result.current.loadingProjects).toBe(false);
+    });
+
+    await act(async () => {
+      expect(await result.current.handleOpenProject(backendProject.path)).toBe(true);
+    });
+
+    expect(mockInvoke).not.toHaveBeenCalledWith(
+      "build_map_tiles_v2",
+      expect.anything()
+    );
+  });
+
   it("waits for backend attach before opening a recent project", async () => {
     const attachedProject = {
       ...backendProject,

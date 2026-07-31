@@ -1,17 +1,30 @@
 import { render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+import { queryVisibleFeaturesV2 } from '@TOOL/utils/designIpc';
 import { MapLibreFastRenderer, clearMapImageCache } from './MapLibreFastRenderer';
 
 const mockMapStyles = vi.hoisted(() => ({
     tiles: ['https://tiles.example/one/{z}/{x}/{y}.png'],
     mapKey: 'test-map',
+    preset: { id: 'street', label: 'Duong pho', tileLyr: 'm', kind: 'raster', supportsApiStyle: true },
 }));
+
+const createDeferred = <T,>() => {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+};
 
 vi.mock('./useMapStyles', () => ({
     useMapStyles: () => ({
         getStyledTiles: () => mockMapStyles.tiles,
         mapKey: mockMapStyles.mapKey,
+        activeBasemapPreset: mockMapStyles.preset,
     }),
 }));
 
@@ -47,6 +60,18 @@ const mockMapState = vi.hoisted(() => {
         canvas = { style: { cursor: '' } };
         dragPan = { disable: vi.fn(), enable: vi.fn() };
         triggerRepaint = vi.fn();
+        setLayoutProperty = vi.fn((id: string, key: string, value: any) => {
+            const layer = this.layers.get(id);
+            if (layer) {
+                layer.layout = { ...(layer.layout || {}), [key]: value };
+            }
+        });
+        setPaintProperty = vi.fn((id: string, key: string, value: any) => {
+            const layer = this.layers.get(id);
+            if (layer) {
+                layer.paint = { ...(layer.paint || {}), [key]: value };
+            }
+        });
         style: any;
 
         constructor(options: any = {}) {
@@ -75,7 +100,16 @@ const mockMapState = vi.hoisted(() => {
             return this.sources.get(id);
         }
 
-        addLayer(layer: any) {
+        addLayer(layer: any, beforeId?: string) {
+            if (beforeId && this.layers.has(beforeId)) {
+                const entries = Array.from(this.layers.entries());
+                this.layers.clear();
+                for (const [id, existingLayer] of entries) {
+                    if (id === beforeId) this.layers.set(layer.id, layer);
+                    this.layers.set(id, existingLayer);
+                }
+                return;
+            }
             this.layers.set(layer.id, layer);
         }
 
@@ -83,7 +117,6 @@ const mockMapState = vi.hoisted(() => {
             return this.layers.get(id);
         }
 
-        setLayoutProperty() {}
         setFeatureState() {}
         hasImage(id: string) { return this.images.has(id); }
         addImage(id: string, image: any) {
@@ -161,7 +194,18 @@ describe('MapLibreFastRenderer', () => {
         clearMapImageCache();
         mockMapStyles.tiles = ['https://tiles.example/one/{z}/{x}/{y}.png'];
         mockMapStyles.mapKey = 'test-map';
+        mockMapStyles.preset = { id: 'street', label: 'Duong pho', tileLyr: 'm', kind: 'raster', supportsApiStyle: true };
         mockMapState.clearLastMap();
+        vi.mocked(queryVisibleFeaturesV2).mockReset();
+        vi.mocked(queryVisibleFeaturesV2).mockResolvedValue({
+            features: [],
+            total: 0,
+            returned: 0,
+            truncated: false,
+            limit: 10000,
+            revision: 0,
+            requestId: 1,
+        });
         vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 36, height: 36, close: () => {} })));
         vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:mock'), revokeObjectURL: vi.fn() });
         const originalCreateElement = document.createElement.bind(document);
@@ -296,6 +340,36 @@ describe('MapLibreFastRenderer', () => {
                 iconImageId: '',
                 labelIndex: '1',
             }));
+        });
+    });
+
+    it('uses a circle fallback until point icon images finish loading', async () => {
+        const bitmap = { width: 36, height: 36, close: () => {} };
+        const deferredBitmap = createDeferred<typeof bitmap>();
+        vi.stubGlobal('createImageBitmap', vi.fn(() => deferredBitmap.promise));
+        useDesignSync.setState({
+            state: {
+                features: {
+                    'camera-1': pointFeature('camera-1', { icon: 'cctv', size: 24 }),
+                },
+                feature_groups: { 'group-1': { type: 'CAMERA', name: 'Camera' } },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            const data = mockMapState.getLastMap()?.sources.get('design-fast-features')?.data;
+            expect(data.features[0].properties.iconImageId).toBe('');
+        });
+
+        deferredBitmap.resolve(bitmap);
+
+        await waitFor(() => {
+            const data = mockMapState.getLastMap()?.sources.get('design-fast-features')?.data;
+            expect(data.features[0].properties.iconImageId).toContain('design-point-cctv');
+            expect(mockMapState.getLastMap()?.images.has(data.features[0].properties.iconImageId)).toBe(true);
         });
     });
 
@@ -443,6 +517,45 @@ describe('MapLibreFastRenderer', () => {
         });
     });
 
+    it('queries viewport features with fast payload for viewport-first projects', async () => {
+        const visibleFeature = pointFeature('visible-1', { color: '#ef4444', size: 14 });
+        vi.mocked(queryVisibleFeaturesV2).mockResolvedValue({
+            features: [visibleFeature as any],
+            total: 1,
+            returned: 1,
+            truncated: false,
+            limit: 10000,
+            revision: 9,
+            requestId: 1,
+        });
+        useDesignSync.setState({
+            projectId: 'project-1',
+            state: {
+                features: {},
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: true,
+                viewportFeatureLimit: 10000,
+                mapRevision: 9,
+            } as any,
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            expect(queryVisibleFeaturesV2).toHaveBeenCalledWith(
+                'project-1',
+                { s: 0, n: 1, w: 0, e: 1 },
+                20,
+                [],
+                10000,
+                true,
+                9,
+                expect.any(Number)
+            );
+            expect(useDesignSync.getState().visibleFeatures['visible-1']).toBeTruthy();
+        });
+    });
+
     it('updates basemap raster tiles without resetting design layers', async () => {
         const { rerender } = render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
 
@@ -472,6 +585,68 @@ describe('MapLibreFastRenderer', () => {
             expect(lastMap?.sources.get('design-fast-drawing')).toBeTruthy();
             expect(lastMap?.sources.get('design-fast-edit-handles')).toBeTruthy();
             expect(lastMap?.triggerRepaint).toHaveBeenCalled();
+        });
+    });
+
+    it('enables the heat basemap overlay without resetting design layers', async () => {
+        useDesignSync.setState({
+            state: {
+                features: {
+                    'point-1': pointFeature('point-1', { color: '#ef4444', size: 14 }),
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        mockMapStyles.preset = { id: 'heat', label: 'Ban do nhiet', tileLyr: 'm', kind: 'heat', supportsApiStyle: true };
+        mockMapStyles.mapKey = 'heat';
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            const lastMap = mockMapState.getLastMap();
+            const heatLayer = lastMap?.layers.get('basemap-heat-overlay');
+            const layerOrder = Array.from(lastMap?.layers.keys() || []);
+
+            expect(lastMap?.setStyle).not.toHaveBeenCalled();
+            expect(heatLayer).toEqual(expect.objectContaining({
+                id: 'basemap-heat-overlay',
+                type: 'heatmap',
+                source: 'design-fast-features',
+            }));
+            expect(heatLayer?.layout?.visibility).toBe('visible');
+            expect(heatLayer?.paint?.['heatmap-opacity']).toBe(0.72);
+            expect(lastMap?.sources.get('design-fast-features')).toBeTruthy();
+            expect(lastMap?.sources.get('design-fast-drawing')).toBeTruthy();
+            expect(lastMap?.sources.get('design-fast-edit-handles')).toBeTruthy();
+            expect(layerOrder.indexOf('basemap-heat-overlay')).toBeLessThan(layerOrder.indexOf('design-fast-polygons'));
+        });
+    });
+
+    it('hides the heat overlay when switching back to a raster basemap', async () => {
+        mockMapStyles.preset = { id: 'heat', label: 'Ban do nhiet', tileLyr: 'm', kind: 'heat', supportsApiStyle: true };
+        mockMapStyles.mapKey = 'heat';
+        const { rerender } = render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            expect(mockMapState.getLastMap()?.layers.get('basemap-heat-overlay')?.layout?.visibility).toBe('visible');
+        });
+
+        const lastMap = mockMapState.getLastMap();
+        mockMapStyles.tiles = ['https://tiles.example/street/{z}/{x}/{y}.png'];
+        mockMapStyles.preset = { id: 'street', label: 'Duong pho', tileLyr: 'm', kind: 'raster', supportsApiStyle: true };
+        mockMapStyles.mapKey = 'street';
+
+        rerender(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            const heatLayer = lastMap?.layers.get('basemap-heat-overlay');
+
+            expect(lastMap?.setStyle).not.toHaveBeenCalled();
+            expect(lastMap?.sources.get('basemap')?.tiles).toEqual(mockMapStyles.tiles);
+            expect(heatLayer?.layout?.visibility).toBe('none');
+            expect(heatLayer?.paint?.['heatmap-opacity']).toBe(0);
+            expect(lastMap?.sources.get('design-fast-features')).toBeTruthy();
         });
     });
 });

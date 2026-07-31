@@ -32,6 +32,22 @@ const normalizeProject = (project: Project | null | undefined): Project | null =
 const isProjectLoadable = (project: Project | null | undefined): project is Project =>
     !!project && !!project.id && !!project.path;
 
+const tileBuildInFlight = new Set<string>();
+
+const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    try {
+        return await Promise.race([
+            promise,
+            new Promise<T>((_, reject) => {
+                timeoutId = setTimeout(() => reject(new Error(`${label} timeout after ${timeoutMs}ms`)), timeoutMs);
+            }),
+        ]);
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+    }
+};
+
 export function useProjectManager() {
     const [projects, setProjects] = useState<Project[]>([]);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -167,12 +183,24 @@ export function useProjectManager() {
         }, 3000);
     };
 
-    const scheduleMapTileBuild = (projectId: string, mapRevision: number, initialBounds?: {
+    const scheduleMapTileBuild = (projectId: string, mapRevision: number, cacheStatus?: {
+        cachedTiles?: number;
+        state?: string;
+        lastViewportReady?: boolean;
+    } | null, initialBounds?: {
         west?: number | null;
         south?: number | null;
         east?: number | null;
         north?: number | null;
     } | null) => {
+        if (cacheStatus?.state === "ready" || (cacheStatus?.cachedTiles ?? 0) > 0) {
+            console.info("[useProjectManager] Map tile cache is ready; skipping background tile build.");
+            return;
+        }
+        const buildKey = `${projectId}:${mapRevision}`;
+        if (tileBuildInFlight.has(buildKey)) return;
+        tileBuildInFlight.add(buildKey);
+        const queuedAt = performance.now();
         setTimeout(() => {
             const bounds = initialBounds
                 && Number.isFinite(initialBounds.west)
@@ -186,15 +214,25 @@ export function useProjectManager() {
                     Number(initialBounds.north),
                 ] as [number, number, number, number]
                 : undefined;
-            buildMapTilesV2(projectId, mapRevision, {
+            withTimeout(buildMapTilesV2(projectId, mapRevision, {
                 minZoom: 8,
                 maxZoom: 16,
                 bounds,
                 tileLimit: 512,
-            }).catch((err) => {
-                console.warn("[useProjectManager] Background map tile build failed:", err);
+            }), 12000, "build_map_tiles_v2").catch((err) => {
+                const detail = err instanceof Error ? err.message : String(err || "");
+                if (detail.includes("channel closed")) {
+                    console.info("[useProjectManager] Background map tile build was cancelled before completion.");
+                } else {
+                    console.warn("[useProjectManager] Background map tile build failed:", err);
+                }
+            }).finally(() => {
+                tileBuildInFlight.delete(buildKey);
             });
         }, 750);
+        void import("@IMPLEMENT/stores/useDesignSync").then(({ useDesignSync }) => {
+            useDesignSync.getState().updateOpenMetrics({ tileBuildQueuedMs: performance.now() - queuedAt });
+        }).catch(() => {});
     };
 
     const applyOpenedProject = (project: Project, persistLastOpened: boolean) => {
@@ -234,6 +272,7 @@ export function useProjectManager() {
 
     const handleOpenProject = async (pathToOpen?: string) => {
         const requestId = ++requestIdRef.current;
+        const openStart = performance.now();
         let selectedPathForCleanup: string | null = null;
         console.group(`[useProjectManager] handleOpenProject Process #${requestId}`);
         console.info("Path to open:", pathToOpen || "Manual selection");
@@ -269,10 +308,18 @@ export function useProjectManager() {
             const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
 
             console.info(`[useProjectManager] Attempting to bootstrap PMP file: ${selectedPath}`);
+            const bootstrapStart = performance.now();
             const bootstrap = await openProjectBootstrap(selectedPath, requestId);
             if (!bootstrap) {
                 throw new Error("open_project_bootstrap returned no bootstrap data");
             }
+            bootstrap.openPerformanceHint = {
+                ...(bootstrap.openPerformanceHint || {}),
+                openClickMs: performance.now() - openStart,
+                bootstrapMs: performance.now() - bootstrapStart,
+                openProjectBootstrapMs: performance.now() - bootstrapStart,
+                open_project_bootstrapMs: performance.now() - bootstrapStart,
+            };
             if (bootstrap.openRequestId && bootstrap.openRequestId !== requestId) {
                 console.warn("Open request ID mismatch (Stale bootstrap), aborting.");
                 console.groupEnd();
@@ -305,7 +352,7 @@ export function useProjectManager() {
                     forceReload: true,
                     bootstrap
                 });
-                scheduleMapTileBuild(project.id, bootstrap.mapRevision || 0, bootstrap.initialBounds);
+                scheduleMapTileBuild(project.id, bootstrap.mapRevision || 0, bootstrap.cacheStatus, bootstrap.initialBounds);
                 scheduleProjectIndexing(project.id);
 
                 return true;

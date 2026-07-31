@@ -153,7 +153,6 @@ const getFiniteNumber = (value: unknown): number | undefined => {
 const normalizeFiberLineMetadata = (metadata: FeatureMetadata): FeatureMetadata => {
   const gis = metadata.gis || {};
   const width = getFiniteNumber(gis.size ?? gis.weight ?? gis.stroke ?? metadata.size ?? metadata.weight ?? metadata.stroke) ?? 6;
-  const lineType = asStringValue(metadata.infrastructure?.type).trim() || 'SignalLine';
   const color = asStringValue(gis.color || metadata.color, '#0088ff');
 
   return {
@@ -173,7 +172,7 @@ const normalizeFiberLineMetadata = (metadata: FeatureMetadata): FeatureMetadata 
     },
     infrastructure: {
       ...(metadata.infrastructure || {}),
-      type: lineType,
+      type: 'SignalLine',
       cable_type: asStringValue(metadata.infrastructure?.cable_type).trim(),
       core_count: getPositiveInteger(metadata.infrastructure?.core_count) || undefined,
     },
@@ -839,14 +838,18 @@ export const PropertyPanel: React.FC = () => {
         const isNewFeature = lastFeatureIdRef.current !== feature.id;
         lastFeatureIdRef.current = feature.id;
 
+        const nextMeta = isLineGeometry(feature.geom_type)
+          ? normalizeFiberLineMetadata(normalized)
+          : normalized;
+
         if (isNewFeature) {
           setLocalName(cleanName);
-          setLocalMeta(normalized);
+          setLocalMeta(nextMeta);
         } else {
           setLocalMeta((prevMeta) => {
-            const incomingMedia = asRecord(normalized.media);
+            const incomingMedia = asRecord(nextMeta.media);
             return {
-              ...normalized,
+              ...nextMeta,
               ...prevMeta,
               ...(incomingMedia ? { media: incomingMedia } : {}),
             };
@@ -1415,19 +1418,7 @@ export const PropertyPanel: React.FC = () => {
           <div className="bg-cad-bg p-3 rounded border border-cad-accent/10 space-y-4">
             {isPolyline && (
               <>
-                <div className="space-y-1">
-                  <label htmlFor={`${uid}-line-infra-type`} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">Loại tuyến</label>
-                  <select
-                    id={`${uid}-line-infra-type`}
-                    className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary outline-none active:border-cad-accent"
-                    value={asStringValue(getMetaValue('infrastructure.type'), 'SignalLine')}
-                    onChange={e => updateNestedMeta('infrastructure.type', e.target.value)}
-                  >
-                    <option value="SignalLine">Signal / Fiber (Thông tin)</option>
-                    <option value="PowerLine">Power Line (Lưới điện)</option>
-                    <option value="TrenchLine">Trench / Pipe (Mương cáp)</option>
-                  </select>
-                </div>
+                <ReadOnlyField label="Loại tuyến" value="Cáp quang" />
                 <div className="grid grid-cols-2 gap-2">
                   <DesignField
                     label="Loại cáp"
@@ -1673,10 +1664,7 @@ export const PropertyPanel: React.FC = () => {
             <div className="bg-cad-bg p-3 rounded border border-cad-accent/10 space-y-3">
               <ReadOnlyField label="Đối tượng đi qua" value={routeDisplay || 'Chưa liên kết'} />
               <div className="grid grid-cols-2 gap-2">
-                <ReadOnlyField label="Endpoint A" value={asStringValue(getMetaValue('network.from_feature_id')) || asStringValue((getMetaValue('network.from_endpoint') as { id?: string } | undefined)?.id) || 'Chưa liên kết'} />
-                <ReadOnlyField label="Endpoint Z" value={asStringValue(getMetaValue('network.to_feature_id')) || asStringValue((getMetaValue('network.to_endpoint') as { id?: string } | undefined)?.id) || 'Chưa liên kết'} />
                 <ReadOnlyField label="Fiber role" value={asStringValue(getMetaValue('fiber.role'), 'cable')} />
-                <ReadOnlyField label="Direction" value={asStringValue(getMetaValue('network.direction_mode'), 'auto')} />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <DesignField label="Stroke" icon={<Route className="w-3 h-3" />} value={getMetaValue('gis.weight', 'weight')} onChange={getFieldHandler('gis.weight', true)} />

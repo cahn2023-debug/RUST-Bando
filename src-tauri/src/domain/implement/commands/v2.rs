@@ -1575,6 +1575,7 @@ async fn build_project_bootstrap(
     project: Value,
     project_id: &str,
 ) -> Result<Value, String> {
+    let bootstrap_start = std::time::Instant::now();
     let feature_count_rows = exec_query(
         state,
         "SELECT COUNT(*) AS feature_count FROM features WHERE project_id = ?1",
@@ -1659,9 +1660,14 @@ async fn build_project_bootstrap(
         "layers": layers,
         "featureGroups": feature_groups,
         "streamingMode": feature_count > 10_000,
+        "viewportFirst": true,
         "cacheStatus": {
             "cachedTiles": cached_tiles,
-            "state": if cached_tiles > 0 { "ready" } else { "missing" }
+            "state": if cached_tiles > 0 { "ready" } else { "missing" },
+            "lastViewportReady": cached_tiles > 0
+        },
+        "openPerformanceHint": {
+            "bootstrapMs": bootstrap_start.elapsed().as_secs_f64() * 1000.0
         }
     }))
 }

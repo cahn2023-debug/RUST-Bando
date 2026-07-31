@@ -8,6 +8,10 @@ use url::Url;
 const FULL_FEATURE_HYDRATION_LIMIT: i64 = 10_000;
 const VIEWPORT_FEATURE_LIMIT: i64 = 10_000;
 
+fn should_include_features(requested: Option<bool>, feature_count: i64) -> bool {
+    requested.unwrap_or(feature_count <= FULL_FEATURE_HYDRATION_LIMIT)
+}
+
 fn extract_project_metadata(rows: &Value) -> Value {
     let metadata = rows
         .as_array()
@@ -1153,6 +1157,8 @@ pub async fn load_design_state_v2(
     state: State<'_, ActorState>,
     project_id: Option<String>,
     projectId: Option<String>,
+    include_features: Option<bool>,
+    includeFeatures: Option<bool>,
 ) -> Result<Value, String> {
     let project_id = project_id
         .or(projectId)
@@ -1168,7 +1174,7 @@ pub async fn load_design_state_v2(
         .and_then(|row| row.get("feature_count"))
         .and_then(Value::as_i64)
         .unwrap_or(0);
-    let include_features = feature_count <= FULL_FEATURE_HYDRATION_LIMIT;
+    let include_features = should_include_features(include_features.or(includeFeatures), feature_count);
     let read_model_state = ensure_design_shape(
         load_design_state_from_tables(&state, &project_id, include_features, feature_count).await?,
     );
@@ -1442,7 +1448,10 @@ pub async fn build_map_tiles_v2(
         })
         .await
         .map_err(|e| e.to_string())?;
-    rx.await.map_err(|e| e.to_string())?
+    tokio::time::timeout(std::time::Duration::from_secs(12), rx)
+        .await
+        .map_err(|_| "build_map_tiles_v2 timeout".to_string())?
+        .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -1876,6 +1885,49 @@ mod tests {
         assert_eq!(out.get("metadata").and_then(Value::as_str), Some("{}"));
         assert!(out.get("coordinates").and_then(Value::as_array).is_some());
         assert!(out.get("bbox").and_then(Value::as_object).is_some());
+    }
+
+    #[test]
+    fn include_features_defaults_to_viewport_mode_above_limit() {
+        assert!(should_include_features(None, FULL_FEATURE_HYDRATION_LIMIT));
+        assert!(!should_include_features(None, FULL_FEATURE_HYDRATION_LIMIT + 1));
+        assert!(!should_include_features(Some(false), 269));
+        assert!(should_include_features(Some(true), FULL_FEATURE_HYDRATION_LIMIT + 1));
+    }
+
+    #[tokio::test]
+    async fn loading_design_state_without_features_skips_full_feature_query() {
+        let (gateway_tx, mut gateway_rx) = tokio::sync::mpsc::channel(8);
+        let state = ActorState { gateway_tx };
+        let responder = tokio::spawn(async move {
+            let mut statements = Vec::new();
+            while statements.len() < 5 {
+                let command = gateway_rx.recv().await.expect("storage query");
+                match command {
+                    StorageCommand::Query { sql, reply, .. } => {
+                        statements.push(sql);
+                        reply.send(Ok(json!([]))).expect("query reply");
+                    }
+                    other => panic!("unexpected storage command: {other:?}"),
+                }
+            }
+            statements
+        });
+
+        let state_value = load_design_state_from_tables(&state, "project-1", false, 269)
+            .await
+            .expect("load state");
+        let statements = responder.await.expect("query responder");
+
+        assert_eq!(state_value.get("features"), Some(&json!({})));
+        assert_eq!(state_value.get("featureCount").and_then(Value::as_i64), Some(269));
+        assert_eq!(
+            state_value.get("isLargeProject").and_then(Value::as_bool),
+            Some(true)
+        );
+        assert!(statements.iter().all(|sql| {
+            !sql.contains("coordinates_json, properties_json, metadata_json, bbox_json FROM features")
+        }));
     }
 
     #[tokio::test]

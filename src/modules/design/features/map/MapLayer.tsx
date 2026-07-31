@@ -37,7 +37,7 @@ export function MapLayer({
     isMeasureActive = false,
     onMeasureDeactivate = () => {}
 }: MapLayerProps) {
-    const { mapFeatures, setMapFeatures, basemapId, setBasemapId, basemapPresets, getStyledTiles, mapKey } = useMapStyles();
+    const { mapFeatures, setMapFeatures, basemapId, setBasemapId, basemapPresets, activeBasemapPreset, getStyledTiles, mapKey } = useMapStyles();
     const showDORILayers = useDesignSync(s => s.showDORILayers);
     const basemapTiles = getStyledTiles();
 
@@ -53,6 +53,7 @@ export function MapLayer({
                     isMeasureActive={isMeasureActive}
                     basemapTiles={basemapTiles}
                     basemapKey={mapKey}
+                    basemapPreset={activeBasemapPreset}
                 />
 
                 <MapSettingsPortal>

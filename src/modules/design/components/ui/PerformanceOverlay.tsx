@@ -9,6 +9,7 @@ export const PerformanceOverlay: React.FC = () => {
     const lastSync = useDesignSync(s => s.lastSync);
     const syncError = useDesignSync(s => s.error);
     const renderMetrics = useDesignSync(s => s.renderMetrics);
+    const openMetrics = useDesignSync(s => s.openMetrics);
     const showPerformanceOverlay = useLayoutStore(s => s.showPerformanceOverlay);
     const setShowPerformanceOverlay = useLayoutStore(s => s.setShowPerformanceOverlay);
 
@@ -114,6 +115,34 @@ export const PerformanceOverlay: React.FC = () => {
                                 </span>
                             </div>
                         )}
+                    </>
+                )}
+                {openMetrics && (
+                    <>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[9px] text-cad-text-secondary uppercase font-mono tracking-widest">
+                                Open / Boot
+                            </span>
+                            <span className="text-xs font-mono text-cad-text-secondary font-bold tabular-nums">
+                                {(openMetrics.openClickMs ?? 0).toFixed(1)}ms / {(openMetrics.bootstrapMs ?? 0).toFixed(1)}ms
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[9px] text-cad-text-secondary uppercase font-mono tracking-widest">
+                                Shell / VP
+                            </span>
+                            <span className="text-xs font-mono text-cad-text-secondary font-bold tabular-nums">
+                                {(openMetrics.shellCommitMs ?? 0).toFixed(1)}ms / {(openMetrics.firstViewportQueryMs ?? 0).toFixed(1)}ms
+                            </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-[9px] text-cad-text-secondary uppercase font-mono tracking-widest">
+                                First Paint
+                            </span>
+                            <span className="text-xs font-mono text-cad-text-secondary font-bold tabular-nums">
+                                {(openMetrics.firstMapPaintMs ?? 0).toFixed(1)}ms
+                            </span>
+                        </div>
                     </>
                 )}
             </div>

@@ -41,12 +41,6 @@ const MAP_FEATURE_ROWS: ReadonlyArray<{
 
 const HEADING_ID = 'map-settings-layers-heading';
 
-const BASEMAP_LABELS: Record<MapBasemapId, string> = {
-    'google-vietnam-road': 'Duong pho',
-    'google-vietnam-satellite': 'Ve tinh',
-    'google-vietnam-hybrid': 'Hybrid',
-};
-
 export function MapSettingsPanel({
     mapFeatures,
     setMapFeatures,
@@ -76,7 +70,7 @@ export function MapSettingsPanel({
                 aria-labelledby={HEADING_ID}
                 className="settings-content p-2 flex flex-col gap-1"
             >
-                <div className="grid grid-cols-3 gap-1 pb-2 border-b border-cad-border/70">
+                <div className="grid grid-cols-2 gap-1 pb-2 border-b border-cad-border/70">
                     {basemapPresets.map((preset) => {
                         const checked = preset.id === basemapId;
                         return (
@@ -87,7 +81,7 @@ export function MapSettingsPanel({
                                         ? 'border-cad-accent bg-cad-accent/15 text-cad-text-primary'
                                         : 'border-cad-border bg-cad-bg/40 text-cad-text-secondary hover:text-cad-accent'
                                 }`}
-                                title={BASEMAP_LABELS[preset.id]}
+                                title={preset.label}
                             >
                                 <input
                                     type="radio"
@@ -96,7 +90,7 @@ export function MapSettingsPanel({
                                     checked={checked}
                                     onChange={() => setBasemapId(preset.id)}
                                 />
-                                {BASEMAP_LABELS[preset.id]}
+                                {preset.label}
                             </label>
                         );
                     })}

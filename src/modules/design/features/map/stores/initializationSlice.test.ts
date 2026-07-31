@@ -33,7 +33,7 @@ const createDeferred = <T,>() => {
     return { promise, resolve, reject };
 };
 
-const bootstrapFor = (projectId: string, streamingMode = false) => ({
+const bootstrapFor = (projectId: string, streamingMode = false, viewportFirst = false) => ({
     project: { id: projectId, name: projectId, path: `${projectId}.pmp` },
     featureCount: 1,
     mapRevision: 7,
@@ -45,6 +45,7 @@ const bootstrapFor = (projectId: string, streamingMode = false) => ({
     },
     featureGroups: {},
     streamingMode,
+    viewportFirst,
     cacheStatus: { cachedTiles: 0, state: 'missing' },
 });
 
@@ -89,6 +90,8 @@ const createTestStore = () =>
         viewportFeatureTotal: 0,
         isViewportLoading: false,
         isViewportTruncated: false,
+        openMetrics: null,
+        updateOpenMetrics: vi.fn(),
         selectionSet: new Set(),
         mapHiddenIds: new Set(),
         ...createInitializationSlice(set, get, store),
@@ -99,8 +102,9 @@ describe('createInitializationSlice bootstrap hydration', () => {
         vi.clearAllMocks();
     });
 
-    it('waits for full feature hydration for non-streaming bootstrap projects', async () => {
-        vi.mocked(loadDesignState).mockResolvedValue(fullStateFor('feature-1') as any);
+    it('commits the bootstrap shell before full feature hydration resolves for non-streaming projects', async () => {
+        const hydration = createDeferred<ReturnType<typeof fullStateFor>>();
+        vi.mocked(loadDesignState).mockReturnValue(hydration.promise as any);
         const store = createTestStore();
 
         await store.getState().initialize('project-1', 'project-1.pmp', {
@@ -108,28 +112,39 @@ describe('createInitializationSlice bootstrap hydration', () => {
             bootstrap: bootstrapFor('project-1'),
         });
 
-        expect(store.getState().state?.features['feature-1']).toBeTruthy();
         expect(store.getState().isLoading).toBe(false);
-        expect(store.getState().isHydrating).toBe(false);
+        expect(store.getState().isHydrating).toBe(true);
+        expect(store.getState().state?.features).toEqual({});
+        expect(store.getState().state?.isLargeProject).toBe(false);
+        expect(loadDesignState).toHaveBeenCalledWith('project-1', {});
+
+        hydration.resolve(fullStateFor('feature-1'));
+        await waitFor(() => {
+            expect(store.getState().state?.features['feature-1']).toBeTruthy();
+            expect(store.getState().isHydrating).toBe(false);
+        });
     });
 
-    it('commits the bootstrap shell before full feature hydration resolves for streaming projects', async () => {
+    it('keeps viewport-first projects on visible feature hydration instead of committing full raw features', async () => {
         const hydration = createDeferred<ReturnType<typeof fullStateFor>>();
         vi.mocked(loadDesignState).mockReturnValue(hydration.promise as any);
         const store = createTestStore();
 
         await store.getState().initialize('project-1', 'project-1.pmp', {
             forceReload: true,
-            bootstrap: bootstrapFor('project-1', true),
+            bootstrap: bootstrapFor('project-1', true, true),
         });
 
         expect(store.getState().state?.features).toEqual({});
         expect(store.getState().isLoading).toBe(false);
         expect(store.getState().isHydrating).toBe(true);
+        expect(store.getState().state?.isLargeProject).toBe(true);
+        expect(loadDesignState).toHaveBeenCalledWith('project-1', { includeFeatures: false });
 
         hydration.resolve(fullStateFor('feature-1'));
         await waitFor(() => {
-            expect(store.getState().state?.features['feature-1']).toBeTruthy();
+            expect(store.getState().state?.features).toEqual({});
+            expect(store.getState().state?.isLargeProject).toBe(true);
             expect(store.getState().isHydrating).toBe(false);
         });
     });
@@ -144,11 +159,11 @@ describe('createInitializationSlice bootstrap hydration', () => {
 
         await store.getState().initialize('project-1', 'project-1.pmp', {
             forceReload: true,
-            bootstrap: bootstrapFor('project-1', true),
+            bootstrap: bootstrapFor('project-1'),
         });
         await store.getState().initialize('project-2', 'project-2.pmp', {
             forceReload: true,
-            bootstrap: bootstrapFor('project-2', true),
+            bootstrap: bootstrapFor('project-2'),
         });
 
         firstHydration.resolve(fullStateFor('stale-feature'));
