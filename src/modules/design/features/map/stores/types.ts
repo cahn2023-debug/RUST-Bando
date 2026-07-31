@@ -65,6 +65,7 @@ export type MapStateSlice = {
     visibleFeatureIds: string[];
     featureDetailsCache: Record<string, MapState['features'][string]>;
     viewportRevision: number;
+    viewportSignature: string;
     isViewportLoading: boolean;
     viewportFeatureTotal: number;
     isViewportTruncated: boolean;

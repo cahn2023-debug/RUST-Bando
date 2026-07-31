@@ -126,8 +126,6 @@ describe('createInitializationSlice bootstrap hydration', () => {
     });
 
     it('keeps viewport-first projects on visible feature hydration instead of committing full raw features', async () => {
-        const hydration = createDeferred<ReturnType<typeof fullStateFor>>();
-        vi.mocked(loadDesignState).mockReturnValue(hydration.promise as any);
         const store = createTestStore();
 
         await store.getState().initialize('project-1', 'project-1.pmp', {
@@ -137,16 +135,9 @@ describe('createInitializationSlice bootstrap hydration', () => {
 
         expect(store.getState().state?.features).toEqual({});
         expect(store.getState().isLoading).toBe(false);
-        expect(store.getState().isHydrating).toBe(true);
+        expect(store.getState().isHydrating).toBe(false);
         expect(store.getState().state?.isLargeProject).toBe(true);
-        expect(loadDesignState).toHaveBeenCalledWith('project-1', { includeFeatures: false });
-
-        hydration.resolve(fullStateFor('feature-1'));
-        await waitFor(() => {
-            expect(store.getState().state?.features).toEqual({});
-            expect(store.getState().state?.isLargeProject).toBe(true);
-            expect(store.getState().isHydrating).toBe(false);
-        });
+        expect(loadDesignState).not.toHaveBeenCalled();
     });
 
     it('does not let stale background hydration overwrite a newer project', async () => {

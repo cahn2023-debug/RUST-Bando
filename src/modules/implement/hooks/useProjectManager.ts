@@ -33,6 +33,7 @@ const isProjectLoadable = (project: Project | null | undefined): project is Proj
     !!project && !!project.id && !!project.path;
 
 const tileBuildInFlight = new Set<string>();
+const startupHydrationInFlight = new Set<string>();
 
 const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -130,9 +131,24 @@ export function useProjectManager() {
                 selectedProjectRef.current = hydratedProject;
                 setSelectedProject(hydratedProject);
                 const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
-                useDesignSync.getState().initialize(hydratedProject.id, hydratedProject.path).catch((err) => {
-                    console.warn("[useProjectManager] Startup design hydration failed:", err);
-                });
+                const currentSyncState = useDesignSync.getState();
+                const isAlreadyLoaded = currentSyncState.projectId === hydratedProject.id
+                    && currentSyncState.state
+                    && !currentSyncState.isLoading;
+                const hydrationKey = `${hydratedProject.id}@${hydratedProject.path}`;
+                if (!isAlreadyLoaded && !startupHydrationInFlight.has(hydrationKey)) {
+                    startupHydrationInFlight.add(hydrationKey);
+                    try {
+                        const bootstrap = await openProjectBootstrap(hydratedProject.path, requestId);
+                        await currentSyncState.initialize(hydratedProject.id, hydratedProject.path, { bootstrap });
+                    } catch {
+                        currentSyncState.initialize(hydratedProject.id, hydratedProject.path).catch((err) => {
+                            console.warn("[useProjectManager] Startup design hydration failed:", err);
+                        });
+                    } finally {
+                        startupHydrationInFlight.delete(hydrationKey);
+                    }
+                }
             }
         } catch (err) {
             console.error("Critical error in loadProjects:", err);
@@ -347,9 +363,12 @@ export function useProjectManager() {
                     : recoveredProject;
                 console.info(`[useProjectManager] Successfully resolved project: ${project.name} (ID: ${project.id})`);
 
+                const currentSyncState = useDesignSync.getState();
+                const isAlreadyLoaded = currentSyncState.projectId === project.id && currentSyncState.state && !currentSyncState.isLoading;
+
                 applyOpenedProject(project, true);
-                await useDesignSync.getState().initialize(project.id, project.path, {
-                    forceReload: true,
+                await currentSyncState.initialize(project.id, project.path, {
+                    forceReload: !isAlreadyLoaded,
                     bootstrap
                 });
                 scheduleMapTileBuild(project.id, bootstrap.mapRevision || 0, bootstrap.cacheStatus, bootstrap.initialBounds);

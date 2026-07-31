@@ -11,7 +11,7 @@ import {
   AuthError
 } from 'firebase/auth';
 import { auth } from '@IMPLEMENT/lib/firebase';
-import { safeInvoke, IS_REAL_TAURI } from '@IMPLEMENT/lib/tauri';
+import { safeInvoke } from '@IMPLEMENT/lib/tauri';
 
 // v48: Safely determine initial standalone state from URL to avoid module load crashes
 // We will refine this in initAuth() using native Tauri APIs if available.
@@ -147,7 +147,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 // Initialization logic
 let initPromise: Promise<void> | null = null;
 let nullStateTimer: any = null;
-const STABILITY_CHECK_DURATION = 10000; // v4.0.3: Increased to 10s for slow Windows environments
+const MAIN_WINDOW_NULL_USER_CONFIRM_MS = 0;
 
 export const initAuth = () => {
   if (initPromise) return initPromise;
@@ -210,15 +210,14 @@ export const initAuth = () => {
           // v72 STABILITY BUFFER: Prevent early kick-out on Main Window
           if (!isStandalone && !user && !useAuthStore.getState().initialized) {
             if (!nullStateTimer) {
-              // v4.0.3: Shorten buffer for browser environments to prevent UI lag/loops
-              const duration = IS_REAL_TAURI ? STABILITY_CHECK_DURATION : 100;
-              console.warn(`[Auth] Main Window (${elapsed}ms): Initial 'null' user. Starting ${duration}ms stability buffer...`);
+              console.warn(`[Auth] Main Window (${elapsed}ms): Initial 'null' user. Confirming No-User state instantly...`);
 
               nullStateTimer = setTimeout(() => {
-                console.warn("[Auth] Main Window: Stability buffer expired. Confirming No-User state.");
+                console.warn("[Auth] Main Window: Confirming No-User state.");
                 useAuthStore.getState().setUser(null);
                 nullStateTimer = null;
-              }, duration);
+                resolve();
+              }, MAIN_WINDOW_NULL_USER_CONFIRM_MS);
             }
             return; // Wait for buffer
           }

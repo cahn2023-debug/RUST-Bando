@@ -10,6 +10,7 @@ const mockRemoveTab = vi.fn();
 const mockResetDesign = vi.fn();
 const mockInitializeDesign = vi.fn();
 const mockAlert = vi.fn();
+let mockDesignState: Record<string, unknown>;
 
 const createDeferred = <T,>() => {
   let resolve!: (value: T) => void;
@@ -47,6 +48,7 @@ vi.mock("@IMPLEMENT/stores/useDesignSync", () => ({
     getState: () => ({
       reset: mockResetDesign,
       initialize: mockInitializeDesign,
+      ...mockDesignState,
     }),
   },
 }));
@@ -90,6 +92,7 @@ describe("useProjectManager", () => {
     mockRemoveTab.mockReset();
     mockResetDesign.mockReset();
     mockInitializeDesign.mockReset();
+    mockDesignState = {};
     mockAlert.mockReset();
     vi.stubGlobal("alert", mockAlert);
     localStorage.clear();
@@ -116,6 +119,37 @@ describe("useProjectManager", () => {
 
     expect(mockLoadSettings).toHaveBeenCalled();
     expect(mockInvoke).not.toHaveBeenCalledWith("get_app_config");
+  });
+
+  it("does not bootstrap or initialize the startup active project when design state is already loaded", async () => {
+    mockDesignState = {
+      projectId: backendProject.id,
+      state: { features: {} },
+      isLoading: false,
+    };
+    mockInvoke.mockImplementation(async (command: string) => {
+      switch (command) {
+        case "get_active_project":
+          return backendProject;
+        case "get_recent_projects":
+          return [backendProject];
+        default:
+          return null;
+      }
+    });
+
+    const { result } = renderHook(() => useProjectManager());
+
+    await waitFor(() => {
+      expect(result.current.loadingProjects).toBe(false);
+      expect(result.current.selectedProject).toEqual(backendProject);
+    });
+
+    expect(mockInvoke).not.toHaveBeenCalledWith(
+      "open_project_bootstrap",
+      expect.anything()
+    );
+    expect(mockInitializeDesign).not.toHaveBeenCalled();
   });
 
   it("opens a direct .pmp path and persists recent projects only after backend success", async () => {

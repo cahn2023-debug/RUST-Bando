@@ -22,6 +22,7 @@ export function ZoomExtendControl() {
     const isViewportLoading = useDesignSync(s => s.isViewportLoading);
     const zoomExtendTrigger = useDesignSync(s => s.zoomExtendTrigger);
     const lastTrigger = useRef(0);
+    const rafRef = useRef(0);
 
     useEffect(() => {
         if (!map || !state || zoomExtendTrigger === 0 || zoomExtendTrigger === lastTrigger.current) return;
@@ -34,62 +35,80 @@ export function ZoomExtendControl() {
             return;
         }
 
+        // Lock trigger immediately to prevent duplicate runs on subsequent re-renders
         lastTrigger.current = zoomExtendTrigger;
 
-        const allLatLngs: [number, number][] = [];
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(() => {
+            rafRef.current = 0;
+            if (!map) return;
+            let count = 0;
+            let minLat = Infinity;
+            let maxLat = -Infinity;
+            let minLng = Infinity;
+            let maxLng = -Infinity;
 
-        featureValues.forEach(f => {
-            if (!f) return;
-            const group = f.group_id ? feature_groups[f.group_id] : null;
-            if (!group || !group.is_visible) return;
-            const layer = layers[group.layer_id];
-            if (!layer || !layer.is_visible) return;
-
-            try {
-                const coords = typeof f.coordinates === 'string' ? JSON.parse(f.coordinates) : f.coordinates;
-                const type = f.geom_type || 'Point';
-
-                if ((type === 'Point' || type === 'POINT' || type === 'INTERSECTION') && coords && coords.length >= 2) {
-                    if (isValidLatLng(coords[1], coords[0])) {
-                        allLatLngs.push([coords[1], coords[0]]);
-                    }
-                } else if ((type === 'LineString' || type === 'POLYLINE') && coords) {
-                    coords.forEach((c: any) => {
-                        if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]);
-                    });
-                } else if (type === 'Polygon' && coords && coords[0]) {
-                    coords[0].forEach((c: any) => {
-                        if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]);
-                    });
+            const processPoint = (lat: number, lng: number) => {
+                if (isValidLatLng(lat, lng)) {
+                    count++;
+                    if (lat < minLat) minLat = lat;
+                    if (lat > maxLat) maxLat = lat;
+                    if (lng < minLng) minLng = lng;
+                    if (lng > maxLng) maxLng = lng;
                 }
-            } catch (e) {
-                console.warn('[ZoomExtendControl] Failed to parse coordinates:', e);
+            };
+
+            for (let i = 0; i < featureValues.length; i++) {
+                const f = featureValues[i];
+                if (!f) continue;
+                const group = f.group_id ? feature_groups[f.group_id] : null;
+                if (group && !group.is_visible) continue;
+                if (group && group.layer_id) {
+                    const layer = layers[group.layer_id];
+                    if (layer && !layer.is_visible) continue;
+                }
+
+                try {
+                    const rawCoords = f.coordinates as any;
+                    const coords = typeof rawCoords === 'string'
+                        ? (rawCoords.trim().startsWith('[') ? JSON.parse(rawCoords) : null)
+                        : rawCoords;
+                    if (!coords) continue;
+                    const type = (f.geom_type || 'Point').toUpperCase();
+
+                    if ((type === 'POINT' || type === 'INTERSECTION') && coords.length >= 2) {
+                        processPoint(Number(coords[1]), Number(coords[0]));
+                    } else if (type === 'LINESTRING' || type === 'POLYLINE') {
+                        for (let j = 0; j < coords.length; j++) {
+                            const c = coords[j];
+                            if (c && c.length >= 2) processPoint(Number(c[1]), Number(c[0]));
+                        }
+                    } else if (type === 'POLYGON' && coords[0]) {
+                        const ring = coords[0];
+                        for (let j = 0; j < ring.length; j++) {
+                            const c = ring[j];
+                            if (c && c.length >= 2) processPoint(Number(c[1]), Number(c[0]));
+                        }
+                    }
+                } catch {
+                    // Ignore malformed coordinates silently for speed
+                }
+            }
+
+            if (count > 0 && Number.isFinite(minLat) && Number.isFinite(minLng)) {
+                console.log(`[ZoomExtend] Single-pass processed ${count} points.`);
+                const bounds = new maplibregl.LngLatBounds([minLng, minLat], [maxLng, maxLat]);
+                map.fitBounds(bounds, { padding: 50, maxZoom: 18 });
+            } else {
+                console.info("[ZoomExtend] No valid points found to zoom to.");
             }
         });
-
-        if (allLatLngs.length > 0) {
-            let filteredPoints = allLatLngs;
-            if (allLatLngs.length >= 3) {
-                const lats = allLatLngs.map(p => p[0]);
-                const lngs = allLatLngs.map(p => p[1]);
-
-                const avgLat = lats.reduce((a, b) => a + b, 0) / lats.length;
-                const avgLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
-
-                filteredPoints = allLatLngs.filter(p => {
-                    return Math.abs(p[0] - avgLat) < 3 && Math.abs(p[1] - avgLng) < 3;
-                });
+        return () => {
+            if (rafRef.current) {
+                cancelAnimationFrame(rafRef.current);
+                rafRef.current = 0;
             }
-
-            if (filteredPoints.length > 0) {
-                const bounds = new maplibregl.LngLatBounds();
-                filteredPoints.forEach(([lat, lng]) => bounds.extend([lng, lat]));
-                console.log("[ZoomExtend] Points collected:", allLatLngs.length, "Filtered:", filteredPoints.length);
-                map.fitBounds(bounds, { padding: 50, maxZoom: 18 });
-            }
-        } else {
-            console.info("[ZoomExtend] No valid points found to zoom to.");
-        }
+        };
     }, [zoomExtendTrigger, state, visibleFeatures, isHydrating, isViewportLoading, map]);
 
     return null;

@@ -8,7 +8,7 @@ import { queryVisibleFeaturesV2 } from '@TOOL/utils/designIpc';
 import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 import { getParsedCoordinates, getParsedMetadata } from '@TOOL/utils/featureUtils';
 import { useMapStyles, type MapBasemapPreset } from './useMapStyles';
-import { buildMapLibreFeatureCollection } from './mapLibreFastAdapter';
+import { buildMapLibreFeatureCollection, getMapLibreLodPolicy } from './mapLibreFastAdapter';
 import { buildRenderMetrics } from './mapRenderMetrics';
 import { getIconSvgString } from '@DESIGN/components/icons/MapIcons';
 import { buildPolylineSnapMarkers, type PolylineSnapMarker } from './polylineSnapMarkers';
@@ -253,11 +253,16 @@ const preparePointImages = (
         void loadSvgImage(imageId, svg)
             .then(image => {
                 imageLoadInFlight.delete(imageId);
-                if (!map.hasImage(imageId)) {
-                    map.addImage(imageId, image);
-                    map.triggerRepaint();
-                }
-                onImageReady(now() - preloadStart);
+                let didAddImage = false;
+                try {
+                    if (!(map as any).style) return;
+                    if (!map.hasImage(imageId)) {
+                        map.addImage(imageId, image);
+                        map.triggerRepaint();
+                        didAddImage = true;
+                    }
+                } catch (e) {}
+                if (didAddImage) onImageReady(now() - preloadStart);
             })
             .catch(error => {
                 imageLoadInFlight.delete(imageId);
@@ -353,6 +358,63 @@ const buildEditOverlay = (
 const moveLayerToTop = (map: maplibregl.Map, layerId: string) => {
     if (!map.getLayer(layerId) || typeof (map as any).moveLayer !== 'function') return;
     (map as any).moveLayer(layerId);
+};
+
+const setMapGesturesEnabled = (map: maplibregl.Map, enabled: boolean) => {
+    const gestureKeys = ['dragPan', 'scrollZoom', 'doubleClickZoom', 'touchZoomRotate'] as const;
+    gestureKeys.forEach(key => {
+        const handler = (map as any)[key];
+        const method = enabled ? handler?.enable : handler?.disable;
+        if (typeof method === 'function') method.call(handler);
+    });
+};
+
+const stableJsonKey = (value: unknown) => {
+    if (!value) return '';
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+};
+
+const setKey = (ids: Set<string> | undefined | null) => {
+    if (!ids || ids.size === 0) return '';
+    return Array.from(ids).sort().join('|');
+};
+
+const featureListKey = (features: FeatureState[], mapRevision: number) => {
+    if (features.length === 0) return `${mapRevision}:0`;
+    return `${mapRevision}:${features.length}:${features.map(feature => feature.id).join('|')}`;
+};
+
+const featureGroupsKey = (featureGroups: Record<string, any>) => Object.keys(featureGroups || {})
+    .sort()
+    .map(id => {
+        const group = featureGroups[id];
+        return `${id}:${group?.is_visible ?? ''}:${group?.layer_id ?? ''}:${group?.type ?? ''}:${group?.name ?? ''}`;
+    })
+    .join('|');
+
+const featureNumberKey = (featureNumberMap: Record<string, string | number>) => Object.keys(featureNumberMap || {})
+    .sort()
+    .map(id => `${id}:${featureNumberMap[id]}`)
+    .join('|');
+
+const renderZoomForLodBucket = (zoom: number, featureCount: number) => {
+    const policy = getMapLibreLodPolicy({ zoom, featureCount });
+    if (policy.level === 'summary') return 14;
+    if (policy.level === 'detail') return policy.showLabels ? 18 : 16;
+    return 20;
+};
+
+const missingPointIconKey = (map: maplibregl.Map, collection: MapLibreRenderFeatureCollection) => {
+    const missing: string[] = [];
+    for (const feature of collection.features) {
+        const imageId = feature.properties.iconImageId;
+        if (imageId && !map.hasImage(imageId)) missing.push(imageId);
+    }
+    return missing.join('|');
 };
 
 const ensureBasemapOverlayLayers = (map: maplibregl.Map, preset?: MapBasemapPreset | null) => {
@@ -736,6 +798,10 @@ export function MapLibreFastRenderer({
     const requestRef = React.useRef(0);
     const lastBasemapTilesKeyRef = React.useRef<string | null>(null);
     const selectedFeatureRef = React.useRef<string | null>(null);
+    const layerSetupKeyRef = React.useRef<string | null>(null);
+    const lastSetDataKeyRef = React.useRef<string | null>(null);
+    const snapRafRef = React.useRef(0);
+    const pendingSnapEventRef = React.useRef<any>(null);
     const features = useDesignSync(s => s.visibleFeatures);
     const rawFeatures = useDesignSync(s => s.state?.features || (EMPTY_OBJ as Record<string, FeatureState>));
     const isLargeProject = useDesignSync(s => Boolean(s.state?.isLargeProject));
@@ -770,10 +836,15 @@ export function MapLibreFastRenderer({
     const activeBasemapPreset = basemapPresetProp || fallbackBasemapPreset;
     const [currentZoom, setCurrentZoom] = React.useState(zoom);
     const [viewportTick, setViewportTick] = React.useState(0);
-    const [iconRevision, setIconRevision] = React.useState(0);
+    const [iconReadyRevision, setIconReadyRevision] = React.useState(0);
     const firstViewportQueryReportedRef = React.useRef(false);
     const firstSetDataReportedRef = React.useRef(false);
     const firstPaintReportedRef = React.useRef(false);
+    const preparedPointImagesRef = React.useRef<{
+        collection: MapLibreRenderFeatureCollection;
+        missingIconKey: string;
+        displayCollection: MapLibreRenderFeatureCollection;
+    } | null>(null);
     const renderFeatureValues = React.useMemo(
         () => Object.values(isLargeProject ? features : rawFeatures),
         [features, isLargeProject, rawFeatures]
@@ -786,6 +857,50 @@ export function MapLibreFastRenderer({
         return record;
     }, [renderFeatureValues]);
     const featureNumberMap = useFeatureNumbering(renderFeatureRecord);
+    const renderZoom = React.useMemo(
+        () => renderZoomForLodBucket(currentZoom, renderFeatureValues.length),
+        [currentZoom, renderFeatureValues.length]
+    );
+    const renderCacheKey = React.useMemo(() => [
+        featureListKey(renderFeatureValues as FeatureState[], mapRevision),
+        setKey(mapHiddenIds),
+        renderZoom,
+        featureGroupsKey(featureGroups),
+        featureNumberKey(featureNumberMap),
+        stableJsonKey(groupThemePreview),
+    ].join('::'), [
+        featureGroups,
+        featureNumberMap,
+        groupThemePreview,
+        mapHiddenIds,
+        mapRevision,
+        renderFeatureValues,
+        renderZoom,
+    ]);
+    const renderCollectionResult = React.useMemo(() => {
+        const sourceStart = now();
+        const result = buildMapLibreFeatureCollection({
+            features: renderFeatureValues as FeatureState[],
+            selectedFeatureId: null,
+            hiddenIds: mapHiddenIds,
+            zoom: renderZoom,
+            featureGroups,
+            featureNumberMap,
+            groupThemePreview,
+        });
+        return {
+            ...result,
+            sourceBuildMs: now() - sourceStart,
+        };
+    }, [
+        featureGroups,
+        featureNumberMap,
+        groupThemePreview,
+        mapHiddenIds,
+        renderCacheKey,
+        renderFeatureValues,
+        renderZoom,
+    ]);
     const editingFeature = React.useMemo(
         () => editingFeatureId ? (rawFeatures as Record<string, FeatureState>)[editingFeatureId] || (features as Record<string, FeatureState>)[editingFeatureId] || null : null,
         [editingFeatureId, features, rawFeatures]
@@ -823,6 +938,8 @@ export function MapLibreFastRenderer({
         onFinishDrawingSession,
         setDrawingPoint,
         insertDrawingPoint,
+        selectFeature,
+        setHoverId,
         isMeasureActive,
     });
 
@@ -840,6 +957,8 @@ export function MapLibreFastRenderer({
             onFinishDrawingSession,
             setDrawingPoint,
             insertDrawingPoint,
+            selectFeature,
+            setHoverId,
             isMeasureActive,
         };
     }, [
@@ -855,6 +974,8 @@ export function MapLibreFastRenderer({
         onFinishDrawingSession,
         setDrawingPoint,
         insertDrawingPoint,
+        selectFeature,
+        setHoverId,
         isMeasureActive,
     ]);
 
@@ -873,8 +994,13 @@ export function MapLibreFastRenderer({
         });
         mapRef.current = map;
         lastBasemapTilesKeyRef.current = basemapTilesKey;
+        setMapGesturesEnabled(map, true);
 
-        map.on('zoomend', () => setCurrentZoom(map.getZoom()));
+        const resizeObserver = new ResizeObserver(() => {
+            map.resize();
+        });
+        resizeObserver.observe(containerRef.current);
+
         map.on('moveend', () => {
             setCurrentZoom(map.getZoom());
             setViewportTick(tick => tick + 1);
@@ -895,20 +1021,21 @@ export function MapLibreFastRenderer({
 
         const interactiveLayers = [POINT_LAYER_ID, POINT_ICON_LAYER_ID, POINT_LABEL_LAYER_ID, LINE_HIT_LAYER_ID, LINE_LAYER_ID, POLYGON_LAYER_ID];
         map.on('click', interactiveLayers, event => {
-            if (latestRef.current.drawingMode !== 'none') return;
+            const latest = latestRef.current;
+            if (latest.drawingMode !== 'none') return;
             const feature = event.features?.[0];
             const id = feature?.properties?.id;
             if (typeof id !== 'string') return;
             const lngLat = event.lngLat;
-            selectFeature(id, false, [lngLat.lat, lngLat.lng]);
+            latest.selectFeature(id, false, [lngLat.lat, lngLat.lng]);
         });
         map.on('mousemove', interactiveLayers, event => {
             const id = event.features?.[0]?.properties?.id;
-            setHoverId(typeof id === 'string' ? id : null);
+            latestRef.current.setHoverId(typeof id === 'string' ? id : null);
             map.getCanvas().style.cursor = id ? 'pointer' : '';
         });
         map.on('mouseleave', interactiveLayers, () => {
-            setHoverId(null);
+            latestRef.current.setHoverId(null);
             map.getCanvas().style.cursor = '';
         });
 
@@ -934,10 +1061,17 @@ export function MapLibreFastRenderer({
             }
         });
         map.on('mousemove', event => {
-            const latest = latestRef.current;
-            if (latest.drawingMode === 'none' && !latest.editingFeatureId) return;
-            const { lat, lng } = toLngLatEvent(event);
-            latest.performSnap(lat, lng);
+            pendingSnapEventRef.current = event;
+            if (snapRafRef.current) return;
+            snapRafRef.current = requestAnimationFrame(() => {
+                snapRafRef.current = 0;
+                const latest = latestRef.current;
+                const pendingEvent = pendingSnapEventRef.current;
+                pendingSnapEventRef.current = null;
+                if (!pendingEvent || (latest.drawingMode === 'none' && !latest.editingFeatureId)) return;
+                const { lat, lng } = toLngLatEvent(pendingEvent);
+                latest.performSnap(lat, lng);
+            });
         });
         map.on('mouseout', () => {
             const latest = latestRef.current;
@@ -981,6 +1115,36 @@ export function MapLibreFastRenderer({
             latest.clearSnap();
         });
 
+        const onGlobalMouseUp = async (event: MouseEvent) => {
+            const drag = dragRef.current;
+            if (!drag) return;
+            dragRef.current = null;
+            map.dragPan.enable();
+            map.getCanvas().style.cursor = '';
+
+            const rect = map.getContainer().getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const lngLat = map.unproject([x, y]);
+
+            const latest = latestRef.current;
+            let snapped = latest.snappedPointRef.current;
+            if (!snapped) snapped = await latest.snapNow(lngLat.lat, lngLat.lng, 0.00003);
+            const finalLat = snapped ? snapped.y : lngLat.lat;
+            const finalLng = snapped ? snapped.x : lngLat.lng;
+            if (!(await confirmUserAction('Xác nhận thay đổi vị trí điểm này?'))) {
+                latest.clearSnap();
+                return;
+            }
+            if (drag.type === 'insert') {
+                await latest.insertDrawingPoint(drag.index, finalLat, finalLng);
+            } else {
+                await latest.setDrawingPoint(drag.index, finalLat, finalLng, snapped?.id || null);
+            }
+            latest.clearSnap();
+        };
+        window.addEventListener('mouseup', onGlobalMouseUp);
+
         try {
             setMap(map);
         } catch {
@@ -988,16 +1152,49 @@ export function MapLibreFastRenderer({
         }
 
         return () => {
+            window.removeEventListener('mouseup', onGlobalMouseUp);
+            if (snapRafRef.current) {
+                cancelAnimationFrame(snapRafRef.current);
+                snapRafRef.current = 0;
+            }
+            pendingSnapEventRef.current = null;
             try {
                 setMap(null);
             } catch {
                 // Optional MapProvider
             }
+            resizeObserver.disconnect();
             clearMapImageCache();
             map.remove();
             mapRef.current = null;
         };
     }, []);
+
+    React.useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        const shouldEnableGestures = (drawingMode === 'none' || drawingMode === 'move') && !editingFeatureId && !isMeasureActive && !dragRef.current;
+        setMapGesturesEnabled(map, shouldEnableGestures);
+    }, [drawingMode, editingFeatureId, isMeasureActive]);
+
+    const prevCenterZoomRef = React.useRef<{ lat: number; lng: number; zoom: number }>({
+        lat: center[0],
+        lng: center[1],
+        zoom,
+    });
+
+    React.useEffect(() => {
+        const map = mapRef.current;
+        if (!map) return;
+        const prev = prevCenterZoomRef.current;
+        const centerChanged = Math.abs(prev.lat - center[0]) > 1e-6 || Math.abs(prev.lng - center[1]) > 1e-6;
+        const zoomChanged = Math.abs(prev.zoom - zoom) > 1e-2;
+
+        if (centerChanged || zoomChanged) {
+            prevCenterZoomRef.current = { lat: center[0], lng: center[1], zoom };
+            map.jumpTo({ center: toLngLat(center), zoom });
+        }
+    }, [center, zoom]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -1060,10 +1257,19 @@ export function MapLibreFastRenderer({
         if (!map) return;
         if (lastBasemapTilesKeyRef.current === basemapTilesKey) return;
         lastBasemapTilesKeyRef.current = basemapTilesKey;
-        if (!updateRasterSourceTiles(map, BASEMAP_SOURCE_ID, basemapTiles)) {
-            console.warn('[MapLibreFastRenderer] Basemap source does not support tile updates.');
+
+        const updateTiles = () => {
+            if (!updateRasterSourceTiles(map, BASEMAP_SOURCE_ID, basemapTiles)) {
+                console.warn('[MapLibreFastRenderer] Basemap source does not support tile updates.');
+            }
+            ensureBasemapOverlayLayers(map, activeBasemapPreset);
+        };
+
+        if (map.isStyleLoaded()) {
+            updateTiles();
+        } else {
+            map.once('styledata', updateTiles);
         }
-        ensureBasemapOverlayLayers(map, activeBasemapPreset);
     }, [activeBasemapPreset, basemapTiles, basemapTilesKey]);
 
     React.useEffect(() => {
@@ -1085,30 +1291,52 @@ export function MapLibreFastRenderer({
 
         const render = () => {
             const frameStart = now();
-            const sourceStart = now();
-            const { collection, lodPolicy } = buildMapLibreFeatureCollection({
-                features: renderFeatureValues,
-                selectedFeatureId,
-                hiddenIds: mapHiddenIds,
-                zoom: currentZoom,
-                featureGroups,
-                featureNumberMap,
-                groupThemePreview,
-            });
-            const sourceBuildMs = now() - sourceStart;
+            const { collection, lodPolicy, sourceBuildMs } = renderCollectionResult;
 
             const applyData = () => {
-                ensureDesignLayers(map, lodPolicy.clusterPoints, lodPolicy.showLabels);
-                ensureBasemapOverlayLayers(map, activeBasemapPreset);
-                ensureOverlayLayers(map);
-                const displayCollection = preparePointImages(map, collection, (iconPreloadMs) => {
-                    updateOpenMetrics({ iconPreloadMs });
-                    setIconRevision(revision => revision + 1);
-                });
-                const setDataStart = now();
+                const layerSetupKey = [
+                    lodPolicy.clusterPoints ? 'cluster' : 'plain',
+                    lodPolicy.showLabels ? 'labels' : 'nolabels',
+                    activeBasemapPreset?.id || activeBasemapPreset?.kind || 'default',
+                ].join(':');
+                if (
+                    layerSetupKeyRef.current !== layerSetupKey ||
+                    !map.getSource(SOURCE_ID) ||
+                    !map.getLayer(POINT_LAYER_ID) ||
+                    !map.getSource(DRAWING_SOURCE_ID) ||
+                    !map.getSource(EDIT_SOURCE_ID)
+                ) {
+                    ensureDesignLayers(map, lodPolicy.clusterPoints, lodPolicy.showLabels);
+                    ensureBasemapOverlayLayers(map, activeBasemapPreset);
+                    ensureOverlayLayers(map);
+                    layerSetupKeyRef.current = layerSetupKey;
+                }
+                const iconKey = missingPointIconKey(map, collection);
+                let displayCollection = preparedPointImagesRef.current?.collection === collection
+                    && preparedPointImagesRef.current.missingIconKey === iconKey
+                    ? preparedPointImagesRef.current.displayCollection
+                    : null;
+                if (!displayCollection) {
+                    displayCollection = preparePointImages(map, collection, (iconPreloadMs) => {
+                        updateOpenMetrics({ iconPreloadMs });
+                        setIconReadyRevision(revision => revision + 1);
+                    });
+                    preparedPointImagesRef.current = {
+                        collection,
+                        missingIconKey: iconKey,
+                        displayCollection,
+                    };
+                }
                 const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
-                source?.setData(displayCollection as any);
-                if (selectedFeatureId && source) {
+                const dataKey = `${renderCacheKey}::icons:${iconKey}`;
+                const setDataStart = now();
+                let didSetData = false;
+                if (source && lastSetDataKeyRef.current !== dataKey) {
+                    source.setData(displayCollection as any);
+                    lastSetDataKeyRef.current = dataKey;
+                    didSetData = true;
+                }
+                if (selectedFeatureId && source && didSetData) {
                     map.setFeatureState({ source: SOURCE_ID, id: selectedFeatureId }, { selected: true });
                     selectedFeatureRef.current = selectedFeatureId;
                 }
@@ -1139,7 +1367,7 @@ export function MapLibreFastRenderer({
                     frameMs: now() - frameStart,
                 });
                 const currentMetrics = useDesignSync.getState().renderMetrics;
-                if (!currentMetrics || currentMetrics.featureCount !== newMetrics.featureCount || currentMetrics.lodLevel !== newMetrics.lodLevel) {
+                if (didSetData && (!currentMetrics || currentMetrics.featureCount !== newMetrics.featureCount || currentMetrics.lodLevel !== newMetrics.lodLevel)) {
                     requestAnimationFrame(() => {
                         setRenderMetrics(newMetrics);
                     });
@@ -1154,7 +1382,7 @@ export function MapLibreFastRenderer({
         };
 
         render();
-    }, [activeBasemapPreset, currentZoom, featureGroups, featureNumberMap, groupThemePreview, iconRevision, mapHiddenIds, renderFeatureValues, selectedFeatureId, setRenderMetrics, updateOpenMetrics, viewportRevision]);
+    }, [activeBasemapPreset, iconReadyRevision, renderCacheKey, renderCollectionResult, setRenderMetrics, updateOpenMetrics]);
 
     React.useEffect(() => {
         const map = mapRef.current;

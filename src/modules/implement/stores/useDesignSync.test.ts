@@ -44,6 +44,7 @@ describe('useDesignSync Store', () => {
             visibleFeatureIds: [],
             featureDetailsCache: {},
             viewportRevision: 0,
+            viewportSignature: '',
             drawingMode: 'none',
             editingFeatureId: null,
             selectedFeatureId: null,
@@ -76,6 +77,47 @@ describe('useDesignSync Store', () => {
 
         useDesignSync.getState().setSnappedPoint(null);
         expect(useDesignSync.getState().snappedPoint).toBeNull();
+    });
+
+    it('updates viewport revision only when viewport feature payload changes', () => {
+        const feature: any = {
+            id: 'feature-1',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Camera 1',
+            geom_type: 'POINT',
+            coordinates: [105.7, 21.1],
+            properties: {},
+            metadata: '{}',
+        };
+
+        useDesignSync.setState({
+            state: {
+                regions: {},
+                layers: { 'layer-1': { id: 'layer-1', region_id: 'region-1', name: 'Layer' } },
+                feature_groups: { 'group-1': { id: 'group-1', layer_id: 'layer-1', name: 'Group' } },
+                settings: {},
+                features: {},
+                mapRevision: 7,
+            } as any,
+            viewportRevision: 0,
+            viewportSignature: '',
+        });
+
+        useDesignSync.getState().setViewportFeatures([feature], 1, false);
+        const afterFirst = useDesignSync.getState();
+        const visibleFeatures = afterFirst.visibleFeatures;
+        const featureDetailsCache = afterFirst.featureDetailsCache;
+
+        expect(afterFirst.viewportRevision).toBe(1);
+        expect(afterFirst.visibleFeatureIds).toEqual(['feature-1']);
+
+        useDesignSync.getState().setViewportFeatures([feature], 1, false);
+        const afterSecond = useDesignSync.getState();
+
+        expect(afterSecond.viewportRevision).toBe(1);
+        expect(afterSecond.visibleFeatures).toBe(visibleFeatures);
+        expect(afterSecond.featureDetailsCache).toBe(featureDetailsCache);
     });
 
     it('should select feature and set editing mode for vectors', () => {

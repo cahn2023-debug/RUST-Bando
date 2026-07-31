@@ -41,47 +41,55 @@ export function MapLayer({
     const showDORILayers = useDesignSync(s => s.showDORILayers);
     const basemapTiles = getStyledTiles();
 
-    return (
-        <MapProvider>
-            <div className="relative w-full h-full overflow-hidden design-map-container">
-                <MapLibreFastRenderer
-                    center={center}
-                    zoom={zoom}
-                    onLocationChange={(lat, lng, snapId) => onLocationChange?.(lat, lng, 0, snapId as any)}
-                    onFinishDrawing={onFinishDrawing}
-                    onFinishDrawingSession={onFinishDrawingSession}
-                    isMeasureActive={isMeasureActive}
-                    basemapTiles={basemapTiles}
-                    basemapKey={mapKey}
-                    basemapPreset={activeBasemapPreset}
+    let hasOuterContext = false;
+    try {
+        hasOuterContext = Boolean(useMapContext());
+    } catch {
+        hasOuterContext = false;
+    }
+
+    const content = (
+        <div className="relative w-full h-full overflow-hidden design-map-container">
+            <MapLibreFastRenderer
+                center={center}
+                zoom={zoom}
+                onLocationChange={(lat, lng, snapId) => onLocationChange?.(lat, lng, 0, snapId as any)}
+                onFinishDrawing={onFinishDrawing}
+                onFinishDrawingSession={onFinishDrawingSession}
+                isMeasureActive={isMeasureActive}
+                basemapTiles={basemapTiles}
+                basemapKey={mapKey}
+                basemapPreset={activeBasemapPreset}
+            />
+
+            <MapSettingsPortal>
+                <MapSettingsPanel
+                    mapFeatures={mapFeatures}
+                    setMapFeatures={setMapFeatures}
+                    basemapId={basemapId}
+                    setBasemapId={setBasemapId}
+                    basemapPresets={basemapPresets}
                 />
+            </MapSettingsPortal>
 
-                <MapSettingsPortal>
-                    <MapSettingsPanel
-                        mapFeatures={mapFeatures}
-                        setMapFeatures={setMapFeatures}
-                        basemapId={basemapId}
-                        setBasemapId={setBasemapId}
-                        basemapPresets={basemapPresets}
-                    />
-                </MapSettingsPortal>
+            {showDORILayers && (
+                <div className="absolute bottom-6 right-16 z-cad-map-control animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <DORILegend />
+                </div>
+            )}
 
-                {showDORILayers && (
-                    <div className="absolute bottom-6 right-16 z-cad-map-control animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <DORILegend />
-                    </div>
-                )}
-
-                <MapLibreBoxSelection />
-                <MapLibreMeasurementTool active={isMeasureActive} onDeactivate={onMeasureDeactivate} />
-                <DORIOverlay />
-                <FOVLayer />
-                <InteractivePPM />
-                <MapCaptureHandler />
-                <StreetViewControl />
-                <ZoomExtendControl />
-                <ZoomToHandler />
-            </div>
-        </MapProvider>
+            <MapLibreBoxSelection />
+            <MapLibreMeasurementTool active={isMeasureActive} onDeactivate={onMeasureDeactivate} />
+            <DORIOverlay />
+            <FOVLayer />
+            <InteractivePPM />
+            <MapCaptureHandler />
+            <StreetViewControl />
+            <ZoomExtendControl />
+            <ZoomToHandler />
+        </div>
     );
+
+    if (hasOuterContext) return content;
+    return <MapProvider>{content}</MapProvider>;
 }

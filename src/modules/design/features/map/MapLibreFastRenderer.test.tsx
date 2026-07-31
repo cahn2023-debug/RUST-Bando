@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { queryVisibleFeaturesV2 } from '@TOOL/utils/designIpc';
@@ -59,6 +59,9 @@ const mockMapState = vi.hoisted(() => {
         setStyle = vi.fn();
         canvas = { style: { cursor: '' } };
         dragPan = { disable: vi.fn(), enable: vi.fn() };
+        scrollZoom = { disable: vi.fn(), enable: vi.fn() };
+        doubleClickZoom = { disable: vi.fn(), enable: vi.fn() };
+        touchZoomRotate = { disable: vi.fn(), enable: vi.fn() };
         triggerRepaint = vi.fn();
         setLayoutProperty = vi.fn((id: string, key: string, value: any) => {
             const layer = this.layers.get(id);
@@ -83,17 +86,18 @@ const mockMapState = vi.hoisted(() => {
         }
 
         addSource(id: string, source: any) {
-            this.sources.set(id, {
+            const record: SourceRecord = {
                 data: source.data,
                 tiles: source.tiles,
-                setData: (data: any) => {
-                    this.sources.get(id)!.data = data;
-                },
-                setTiles: (tiles: string[]) => {
-                    this.sources.get(id)!.tiles = tiles;
-                },
+                setData: vi.fn((data: any) => {
+                    record.data = data;
+                }),
+                setTiles: vi.fn((tiles: string[]) => {
+                    record.tiles = tiles;
+                }),
                 reload: vi.fn(),
-            });
+            };
+            this.sources.set(id, record);
         }
 
         getSource(id: string) {
@@ -125,6 +129,7 @@ const mockMapState = vi.hoisted(() => {
         }
         isStyleLoaded() { return true; }
         getZoom() { return 20; }
+        getCenter() { return { lng: 105.8, lat: 21.02 }; }
         getBounds() {
             return {
                 getSouth: () => 0,
@@ -134,8 +139,12 @@ const mockMapState = vi.hoisted(() => {
             };
         }
         getCanvas() { return this.canvas; }
+        getContainer() { return document.createElement('div'); }
+        unproject() { return { lng: 105.8, lat: 21.02 }; }
+        resize() {}
         fitBounds() {}
         flyTo() {}
+        jumpTo() {}
         moveLayer(id: string) {
             this.movedLayers.push(id);
         }
@@ -208,6 +217,10 @@ describe('MapLibreFastRenderer', () => {
         });
         vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 36, height: 36, close: () => {} })));
         vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:mock'), revokeObjectURL: vi.fn() });
+        vi.stubGlobal('ResizeObserver', class {
+            observe() {}
+            disconnect() {}
+        });
         const originalCreateElement = document.createElement.bind(document);
         const dummyBuffer = new Uint8ClampedArray(36 * 36 * 4);
         vi.spyOn(document, 'createElement').mockImplementation(((tagName: string, options?: ElementCreationOptions) => {
@@ -402,6 +415,67 @@ describe('MapLibreFastRenderer', () => {
         });
     });
 
+    it('uses the latest selection action when a map feature is clicked', async () => {
+        useDesignSync.setState({
+            state: {
+                features: {
+                    'point-1': pointFeature('point-1', { color: '#ef4444', size: 14 }),
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            expect(mockMapState.getLastMap()?.layerHandlers.some((record: any) => record.event === 'click')).toBe(true);
+        });
+
+        const latestSelectFeature = vi.fn();
+        await act(async () => {
+            useDesignSync.setState({ selectFeature: latestSelectFeature } as any);
+        });
+
+        const clickHandler = mockMapState.getLastMap()?.layerHandlers.find((record: any) => (
+            record.event === 'click' && Array.isArray(record.layers) && record.layers.includes('design-fast-points')
+        ))?.handler;
+
+        clickHandler?.({
+            features: [{ properties: { id: 'point-1' } }],
+            lngLat: { lat: 21.02, lng: 105.8 },
+        });
+
+        expect(latestSelectFeature).toHaveBeenCalledWith('point-1', false, [21.02, 105.8]);
+    });
+
+    it('does not set feature GeoJSON data again for selection-only changes', async () => {
+        useDesignSync.setState({
+            state: {
+                features: {
+                    'point-1': pointFeature('point-1', { color: '#ef4444', size: 14 }),
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        let setData: any;
+        await waitFor(() => {
+            setData = mockMapState.getLastMap()?.sources.get('design-fast-features')?.setData;
+            expect(setData).toHaveBeenCalled();
+        });
+        const initialSetDataCalls = setData.mock.calls.length;
+
+        await act(async () => {
+            useDesignSync.setState({ selectedFeatureId: 'point-1' } as any);
+        });
+
+        expect(setData).toHaveBeenCalledTimes(initialSetDataCalls);
+    });
+
     it('publishes snap indicator data to the drawing overlay source', async () => {
         useDesignSync.setState({
             drawingMode: 'polyline',
@@ -552,8 +626,63 @@ describe('MapLibreFastRenderer', () => {
                 9,
                 expect.any(Number)
             );
-            expect(useDesignSync.getState().visibleFeatures['visible-1']).toBeTruthy();
+            expect(useDesignSync.getState().visibleFeatures['visible-1']).toBeDefined();
+            expect(useDesignSync.getState().visibleFeatures['visible-1'].id).toBe('visible-1');
         });
+    });
+
+    it('does not query viewport features for non-large local projects', async () => {
+        useDesignSync.setState({
+            projectId: 'project-1',
+            state: {
+                features: {
+                    'point-1': pointFeature('point-1', { color: '#ef4444', size: 14 }),
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+                viewportFeatureLimit: 10000,
+                mapRevision: 9,
+            } as any,
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            expect(mockMapState.getLastMap()?.sources.get('design-fast-features')?.data.features.length).toBe(1);
+        });
+
+        expect(queryVisibleFeaturesV2).not.toHaveBeenCalled();
+    });
+
+    it('does not reapply identical feature data when viewport bookkeeping changes', async () => {
+        useDesignSync.setState({
+            state: {
+                features: {
+                    'point-1': pointFeature('point-1', { color: '#ef4444', size: 14 }),
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+                mapRevision: 9,
+            } as any,
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            const source = mockMapState.getLastMap()?.sources.get('design-fast-features');
+            expect(source?.data.features.length).toBe(1);
+            expect(source?.setData).toHaveBeenCalled();
+        });
+
+        const source = mockMapState.getLastMap()?.sources.get('design-fast-features');
+        vi.mocked(source!.setData).mockClear();
+
+        await act(async () => {
+            useDesignSync.setState({ viewportRevision: 99 } as any);
+        });
+        await Promise.resolve();
+
+        expect(source?.setData).not.toHaveBeenCalled();
     });
 
     it('updates basemap raster tiles without resetting design layers', async () => {

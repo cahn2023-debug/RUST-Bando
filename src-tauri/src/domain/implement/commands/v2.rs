@@ -24,6 +24,11 @@ const BINARY_SAVE_EXTENSIONS: &[&str] = &[
     "pmp", "xlsx", "docx", "zip", "json", "csv", "png", "jpg", "jpeg",
 ];
 const BINARY_READ_EXTENSIONS: &[&str] = &["pmp", "xlsx", "xls", "csv", "kml", "kmz", "json"];
+const VIEWPORT_FIRST_FEATURE_LIMIT: i64 = 10_000;
+
+fn should_use_viewport_first(feature_count: i64) -> bool {
+    feature_count > VIEWPORT_FIRST_FEATURE_LIMIT
+}
 
 #[derive(Clone)]
 pub struct ActorState {
@@ -1650,6 +1655,8 @@ async fn build_project_bootstrap(
         .and_then(Value::as_i64)
         .unwrap_or(0);
 
+    let use_viewport_first = should_use_viewport_first(feature_count);
+
     Ok(json!({
         "project": project,
         "featureCount": feature_count,
@@ -1659,8 +1666,8 @@ async fn build_project_bootstrap(
         "regions": regions,
         "layers": layers,
         "featureGroups": feature_groups,
-        "streamingMode": feature_count > 10_000,
-        "viewportFirst": true,
+        "streamingMode": use_viewport_first,
+        "viewportFirst": use_viewport_first,
         "cacheStatus": {
             "cachedTiles": cached_tiles,
             "state": if cached_tiles > 0 { "ready" } else { "missing" },
@@ -4014,6 +4021,13 @@ mod tests {
     use tempfile::tempdir;
     use tokio::sync::mpsc;
     use tokio::sync::oneshot;
+
+    #[test]
+    fn viewport_first_is_only_enabled_above_the_large_project_limit() {
+        assert!(!should_use_viewport_first(269));
+        assert!(!should_use_viewport_first(VIEWPORT_FIRST_FEATURE_LIMIT));
+        assert!(should_use_viewport_first(VIEWPORT_FIRST_FEATURE_LIMIT + 1));
+    }
 
     #[tokio::test]
     async fn binary_file_commands_round_trip_bytes() {

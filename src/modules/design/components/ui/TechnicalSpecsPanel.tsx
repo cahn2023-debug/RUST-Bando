@@ -3,9 +3,10 @@
  * Displays detailed technical specifications for selected features
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Wrench, Ruler, Camera, MapPin, Eye, Zap } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+import { getFeatureDetailV2 } from '@TOOL/utils/designIpc';
 import { getParsedMetadata } from '@TOOL/utils/featureMetadata';
 import { getFeatureDisplayInfo } from '@TOOL/utils/featureUtils';
 import { cn } from '@TOOL/utils/cn';
@@ -28,7 +29,7 @@ const toSpecValue = (value: unknown): string | number | undefined => {
 };
 
 export const TechnicalSpecsPanel: React.FC<TechnicalSpecsPanelProps> = ({ className }) => {
-  const { state, selectedFeatureId, featureDetailsCache, visibleFeatures } = useDesignSync();
+  const { state, projectId, selectedFeatureId, featureDetailsCache, visibleFeatures } = useDesignSync();
 
   const selectedFeature = useMemo(() => {
     if (!selectedFeatureId || !state) return null;
@@ -37,6 +38,25 @@ export const TechnicalSpecsPanel: React.FC<TechnicalSpecsPanelProps> = ({ classN
       visibleFeatures[selectedFeatureId] ||
       null;
   }, [selectedFeatureId, state, featureDetailsCache, visibleFeatures]);
+
+  useEffect(() => {
+    if (!selectedFeatureId || !projectId || selectedFeature) return;
+
+    let cancelled = false;
+    getFeatureDetailV2(String(projectId), selectedFeatureId)
+      .then((fetchedFeature) => {
+        if (!cancelled && fetchedFeature) {
+          useDesignSync.getState().cacheFeatureDetail(fetchedFeature);
+        }
+      })
+      .catch((err) => {
+        console.warn('[TechnicalSpecsPanel] Failed to fetch feature detail:', err);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, selectedFeature, selectedFeatureId]);
 
   const selectedGroup = useMemo(() => {
     if (!selectedFeature?.group_id || !state) return null;

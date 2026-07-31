@@ -357,11 +357,12 @@ export function DrawingExplorer() {
       setExpanded(prev => {
         const next = { ...prev };
         filteredRegions.forEach(r => { next[r.id] = true; });
+        Object.keys(groupsMap).forEach(groupId => { next[groupId] = true; });
         return next;
       });
       hasAutoExpanded.current = true;
     }
-  }, [filteredRegions, isLoading, error]);
+  }, [filteredRegions, groupsMap, isLoading, error]);
 
   useEffect(() => {
     if (selectedFeatureId && flattenedItems.length > 0 && virtuosoRef.current) {

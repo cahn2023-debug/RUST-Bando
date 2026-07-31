@@ -23,6 +23,7 @@ import { PropertyImportControls } from './PropertyPanel/PropertyImportControls';
 import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
 
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
+import { getFeatureDetailV2 } from '@TOOL/utils/designIpc';
 import { buildFeaturePropertiesForPersistence, getTypeForIcon, normalizeFeatureMetadataForPersistence } from '@TOOL/utils/featurePersistence';
 import { getDeclaredOrderFieldKey, syncDisplayOrderAliases } from '@TOOL/utils/featureMapping';
 import { buildToggleOriginEvents } from '@DESIGN/features/map/network/networkTopology';
@@ -295,9 +296,24 @@ export const PropertyPanel: React.FC = () => {
     updated_at: '',
   });
 
+
   const feature = selectedFeatureId
     ? state?.features?.[selectedFeatureId] || featureDetailsCache[selectedFeatureId] || visibleFeatures[selectedFeatureId] || null
     : null;
+
+  useEffect(() => {
+    if (selectedFeatureId && projectId && !feature) {
+      getFeatureDetailV2(String(projectId), selectedFeatureId)
+        .then(fetchedFeature => {
+          if (fetchedFeature) {
+             useDesignSync.getState().cacheFeatureDetail(fetchedFeature);
+          }
+        })
+        .catch(err => {
+          console.warn("[PropertyPanel] Failed to fetch feature detail:", err);
+        });
+    }
+  }, [selectedFeatureId, projectId, feature]);
   const group = feature?.group_id ? state?.feature_groups?.[feature.group_id] : null;
   const [localName, setLocalName] = useState('');
   const [localMeta, setLocalMeta] = useState<FeatureMetadata>({});

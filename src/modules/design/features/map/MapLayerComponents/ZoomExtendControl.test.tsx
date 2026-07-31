@@ -11,6 +11,11 @@ const mockMapState = vi.hoisted(() => {
     class LngLatBounds {
         points: [number, number][] = [];
 
+        constructor(sw?: [number, number], ne?: [number, number]) {
+            if (sw) this.points.push(sw);
+            if (ne) this.points.push(ne);
+        }
+
         extend(point: [number, number]) {
             this.points.push(point);
             return this;
@@ -97,6 +102,28 @@ describe('ZoomExtendControl', () => {
         expect(infoSpy).not.toHaveBeenCalledWith('[ZoomExtend] No valid points found to zoom to.');
     });
 
+    it('does not parse coordinates or fit bounds until the zoom trigger increments', async () => {
+        const parseSpy = vi.spyOn(JSON, 'parse');
+        useDesignSync.setState({
+            state: {
+                ...mapStateWithFeatures(),
+                features: {
+                    'feature-1': {
+                        ...mapStateWithFeatures().features['feature-1'],
+                        coordinates: '[105.8,21.02]',
+                    },
+                },
+            },
+            zoomExtendTrigger: 0,
+        } as any);
+
+        render(<ZoomExtendControl />);
+        await Promise.resolve();
+
+        expect(parseSpy).not.toHaveBeenCalled();
+        expect(mockMapState.map.fitBounds).not.toHaveBeenCalled();
+    });
+
     it('keeps a pending zoom trigger until features are available', async () => {
         useDesignSync.setState({
             state: {
@@ -121,7 +148,7 @@ describe('ZoomExtendControl', () => {
 
         await waitFor(() => {
             expect(mockMapState.map.fitBounds).toHaveBeenCalledWith(
-                expect.objectContaining({ points: [[105.8, 21.02]] }),
+                expect.objectContaining({ points: [[105.8, 21.02], [105.8, 21.02]] }),
                 { padding: 50, maxZoom: 18 }
             );
         });

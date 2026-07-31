@@ -35,9 +35,12 @@ const parseMetadata = (value: unknown) => {
 };
 
 const removeDoriLayers = (map: maplibregl.Map) => {
-    if (map.getLayer(DORI_LINE_LAYER_ID)) map.removeLayer(DORI_LINE_LAYER_ID);
-    if (map.getLayer(DORI_FILL_LAYER_ID)) map.removeLayer(DORI_FILL_LAYER_ID);
-    if (map.getSource(DORI_SOURCE_ID)) map.removeSource(DORI_SOURCE_ID);
+    try {
+        if (!(map as any).style) return;
+        if (map.getLayer(DORI_LINE_LAYER_ID)) map.removeLayer(DORI_LINE_LAYER_ID);
+        if (map.getLayer(DORI_FILL_LAYER_ID)) map.removeLayer(DORI_FILL_LAYER_ID);
+        if (map.getSource(DORI_SOURCE_ID)) map.removeSource(DORI_SOURCE_ID);
+    } catch (e) {}
 };
 
 const ensureDoriLayers = (map: maplibregl.Map, data: GeoJSON.FeatureCollection) => {

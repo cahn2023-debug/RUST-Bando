@@ -125,13 +125,25 @@ export const getMapLibreLodPolicy = ({
 };
 
 const normalizePoint = (coordinates: any): [number, number] | null => {
-    if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
-    const lng = Number(coordinates[0]);
-    const lat = Number(coordinates[1]);
-    return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null;
+    if (Array.isArray(coordinates) && coordinates.length >= 2) {
+        const lng = Number(coordinates[0]);
+        const lat = Number(coordinates[1]);
+        return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null;
+    }
+    if (coordinates && typeof coordinates === 'object' && !Array.isArray(coordinates)) {
+        const lng = Number(coordinates.lng ?? coordinates.x ?? coordinates.Longitude ?? coordinates.longitude);
+        const lat = Number(coordinates.lat ?? coordinates.y ?? coordinates.Latitude ?? coordinates.latitude);
+        return Number.isFinite(lng) && Number.isFinite(lat) ? [lng, lat] : null;
+    }
+    return null;
 };
 
 const normalizeLine = (coordinates: any): [number, number][] | null => {
+    if (!Array.isArray(coordinates)) {
+        if (coordinates && typeof coordinates === 'object') {
+            coordinates = coordinates.points || coordinates.coordinates || coordinates.coords || coordinates;
+        }
+    }
     if (!Array.isArray(coordinates)) return null;
     const points = coordinates
         .map(normalizePoint)
@@ -140,8 +152,26 @@ const normalizeLine = (coordinates: any): [number, number][] | null => {
 };
 
 const normalizePolygon = (coordinates: any): [number, number][][] | null => {
+    if (!Array.isArray(coordinates)) {
+        if (coordinates && typeof coordinates === 'object') {
+            coordinates = coordinates.points || coordinates.coordinates || coordinates.coords || coordinates;
+        }
+    }
     if (!Array.isArray(coordinates)) return null;
-    const rings = Array.isArray(coordinates[0]?.[0]) ? coordinates : [coordinates];
+    
+    const first = coordinates[0];
+    if (!first) return null;
+
+    let isSingleRing = false;
+    if (Array.isArray(first)) {
+        if (first.length >= 2 && typeof first[0] === 'number') {
+            isSingleRing = true;
+        }
+    } else if (typeof first === 'object') {
+        isSingleRing = true;
+    }
+
+    const rings = isSingleRing ? [coordinates] : coordinates;
     const normalized = rings
         .map(normalizeLine)
         .filter(Boolean) as [number, number][][];

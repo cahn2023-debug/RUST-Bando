@@ -179,6 +179,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             zoomToTrigger: null,
             visibleFeatures: {},
             visibleFeatureIds: [],
+            viewportSignature: '',
             featureDetailsCache: {},
             isViewportLoading: false,
             viewportFeatureTotal: 0,
@@ -233,6 +234,10 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                         unlistenSync();
                     }
                 });
+                if (shouldKeepViewportFirst) {
+                    logger.info(`[Store] Viewport-first bootstrap ready for project ${projectId}; visible feature queries will hydrate map features.`);
+                    return;
+                }
                 keepHydratingAfterReturn = true;
                 void (async () => {
                     try {
@@ -434,6 +439,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             hoverId: null,
             visibleFeatures: {},
             visibleFeatureIds: [],
+            viewportSignature: '',
             featureDetailsCache: {},
             isViewportLoading: false,
             viewportFeatureTotal: 0,

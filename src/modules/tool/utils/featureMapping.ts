@@ -28,13 +28,17 @@ export const getParsedCoordinates = (feature: FeatureState | { coordinates: unkn
             return data as FeatureCoordinates;
         }
 
-        // Handle Object format from Rust (e.g. { "points": [...] } or { "coordinates": [...] })
+        // Handle Object format from Rust (e.g. { "points": [...] } or { "coordinates": [...] } or { lng, lat })
         if (typeof data === 'object') {
             const obj = data as Record<string, unknown>;
             const inner = obj.points || obj.coordinates || obj.coords;
             if (Array.isArray(inner)) {
                 _coordsCache.set(feature as object, inner as FeatureCoordinates);
                 return inner as FeatureCoordinates;
+            }
+            if (obj && (obj.lng !== undefined || obj.x !== undefined || obj.longitude !== undefined || obj.Longitude !== undefined)) {
+                _coordsCache.set(feature as object, obj as FeatureCoordinates);
+                return obj as FeatureCoordinates;
             }
         }
 

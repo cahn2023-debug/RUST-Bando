@@ -111,27 +111,30 @@ export const normalizeFeatureForDisplay = (
         }
     }
 
-    // Check if coordinates is empty array or empty object and convert to null
+    // Check if coordinates is empty array or empty object or invalid string and convert to null
     if (coordinates && (
         (Array.isArray(coordinates) && coordinates.length === 0) ||
-        (typeof coordinates === 'object' && !Array.isArray(coordinates) && Object.keys(coordinates).length === 0)
+        (typeof coordinates === 'object' && !Array.isArray(coordinates) && Object.keys(coordinates).length === 0) ||
+        typeof coordinates === 'string'
     )) {
         coordinates = null;
     }
 
     // Try fallback to legacy C# coordinates in properties if standard coordinates are missing
-    const rawLat = properties?.Latitude ?? properties?.latitude ?? properties?.Lat ?? properties?.lat ?? properties?.Y ?? properties?.y ?? (properties?.Location as any)?.Latitude;
-    const rawLng = properties?.Longitude ?? properties?.longitude ?? properties?.Lng ?? properties?.lng ?? properties?.X ?? properties?.x ?? (properties?.Location as any)?.Longitude;
+    const rawLat = properties?.Latitude ?? properties?.latitude ?? properties?.Lat ?? properties?.lat ?? properties?.Y ?? properties?.y ?? (properties?.Location as any)?.Latitude ?? (properties?.Location as any)?.lat;
+    const rawLng = properties?.Longitude ?? properties?.longitude ?? properties?.Lng ?? properties?.lng ?? properties?.X ?? properties?.x ?? (properties?.Location as any)?.Longitude ?? (properties?.Location as any)?.lng;
 
-    if (coordinates === null && rawLat !== undefined && rawLng !== undefined) {
+    if (coordinates === null && rawLat !== undefined && rawLng !== undefined && rawLat !== null && rawLng !== null) {
         coordinates = [Number(rawLng), Number(rawLat)];
     } else if (!coordinates) {
         const fallbacks = [
             properties?.coordinates,
             properties?.Coordinates,
             (properties as any)?.geometry?.coordinates,
+            (properties as any)?.geometry?.Coordinates,
             (properties as any)?.location?.coordinates,
-            (properties as any)?.Location?.coordinates
+            (properties as any)?.Location?.coordinates,
+            (properties as any)?.Location?.Coordinates
         ];
         for (const item of fallbacks) {
             if (item) {

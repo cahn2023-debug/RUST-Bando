@@ -24,9 +24,12 @@ const metadataNumber = (value: unknown, fallback: number) => {
 };
 
 const removeFovLayers = (map: maplibregl.Map) => {
-    if (map.getLayer(FOV_LINE_LAYER_ID)) map.removeLayer(FOV_LINE_LAYER_ID);
-    if (map.getLayer(FOV_FILL_LAYER_ID)) map.removeLayer(FOV_FILL_LAYER_ID);
-    if (map.getSource(FOV_SOURCE_ID)) map.removeSource(FOV_SOURCE_ID);
+    try {
+        if (!(map as any).style) return;
+        if (map.getLayer(FOV_LINE_LAYER_ID)) map.removeLayer(FOV_LINE_LAYER_ID);
+        if (map.getLayer(FOV_FILL_LAYER_ID)) map.removeLayer(FOV_FILL_LAYER_ID);
+        if (map.getSource(FOV_SOURCE_ID)) map.removeSource(FOV_SOURCE_ID);
+    } catch (e) {}
 };
 
 const ensureFovLayers = (map: maplibregl.Map, data: GeoJSON.FeatureCollection) => {

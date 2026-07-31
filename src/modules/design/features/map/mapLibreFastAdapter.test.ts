@@ -242,4 +242,49 @@ describe('mapLibreFastAdapter', () => {
             dashArray: [8, 4],
         }));
     });
+
+    it('renders legacy object coordinate shapes for points, lines, and polygons', () => {
+        const legacyPointFeature: FeatureState = {
+            id: 'legacy-point',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Legacy Point',
+            geom_type: 'Point',
+            coordinates: { lng: 105.8, lat: 21.02 } as any,
+            properties: {},
+            metadata: JSON.stringify({}),
+        };
+
+        const legacyLineFeature: FeatureState = {
+            id: 'legacy-line',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Legacy Line',
+            geom_type: 'LineString',
+            coordinates: { points: [{ lng: 105.8, lat: 21.02 }, [105.81, 21.03]] } as any,
+            properties: {},
+            metadata: JSON.stringify({}),
+        };
+
+        const legacyPolygonFeature: FeatureState = {
+            id: 'legacy-poly',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Legacy Poly',
+            geom_type: 'Polygon',
+            coordinates: { coordinates: [[{ x: 105.8, y: 21.02 }, [105.81, 21.03], [105.82, 21.04]]] } as any,
+            properties: {},
+            metadata: JSON.stringify({}),
+        };
+
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [legacyPointFeature, legacyLineFeature, legacyPolygonFeature],
+            zoom: 20,
+        });
+
+        expect(collection.features).toHaveLength(3);
+        expect(collection.features[0].geometry).toEqual({ type: 'Point', coordinates: [105.8, 21.02] });
+        expect(collection.features[1].geometry).toEqual({ type: 'LineString', coordinates: [[105.8, 21.02], [105.81, 21.03]] });
+        expect(collection.features[2].geometry).toEqual({ type: 'Polygon', coordinates: [[[105.8, 21.02], [105.81, 21.03], [105.82, 21.04]]] });
+    });
 });

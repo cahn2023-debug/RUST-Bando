@@ -20,9 +20,7 @@ function formatCoords(location: [number, number] | null) {
 }
 
 function buildStreetViewUrl(lat: number, lng: number, heading: number, fov: number) {
-  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}&heading=${normalizeHeading(
-    heading
-  )}&pitch=0&fov=${clampFov(fov)}`;
+  return `/@${lat.toFixed(6)},${lng.toFixed(6)},${clampFov(fov)}y,${normalizeHeading(heading)}t`;
 }
 
 function PegmanIcon({ heading = 0, fov = DEFAULT_FOV, active = false }) {
@@ -90,7 +88,13 @@ export function StreetViewControl() {
 
   const openStreetViewWindow = useCallback((lat: number, lng: number) => {
     const url = buildStreetViewUrl(lat, lng, heading, fov);
-    window.open(url, 'street-view', 'width=1120,height=760');
+    const win = window.open(url, 'street-view', 'width=1120,height=760');
+    
+    if (!win) {
+      showFeedback('Trình duyệt đã chặn cửa sổ pop-up. Vui lòng cho phép pop-up để xem Street View.');
+      return;
+    }
+
     syncPegmanState({
       active: false,
       location: [lat, lng],

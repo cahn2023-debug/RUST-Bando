@@ -110,6 +110,54 @@ describe('normalizeDisplay tests', () => {
                 max_y: 21.03
             });
         });
+
+        it('should fallback to properties when coordinates is an invalid string or empty object', () => {
+            const f1 = {
+                id: 'f1',
+                name: 'Point 1',
+                geom_type: 'Point',
+                coordinates: 'invalid json string',
+                properties: { latitude: 21.03, longitude: 105.12 },
+                metadata: {}
+            } as any;
+            const res = normalizeFeatureForDisplay(f1);
+            expect(res.coordinates).toEqual([105.12, 21.03]);
+
+            const f2 = {
+                id: 'f2',
+                name: 'Point 2',
+                geom_type: 'Point',
+                coordinates: {},
+                properties: { latitude: 21.04, longitude: 105.13 },
+                metadata: {}
+            } as any;
+            const res2 = normalizeFeatureForDisplay(f2);
+            expect(res2.coordinates).toEqual([105.13, 21.04]);
+        });
+
+        it('should fallback to Location and geometry Coordinates', () => {
+            const f1 = {
+                id: 'f1',
+                name: 'Point 1',
+                geom_type: 'Point',
+                coordinates: null,
+                properties: { Location: { lat: 21.03, lng: 105.12 } },
+                metadata: {}
+            } as any;
+            const res = normalizeFeatureForDisplay(f1);
+            expect(res.coordinates).toEqual([105.12, 21.03]);
+
+            const f2 = {
+                id: 'f2',
+                name: 'Point 2',
+                geom_type: 'Point',
+                coordinates: null,
+                properties: { geometry: { Coordinates: [105.13, 21.04] } },
+                metadata: {}
+            } as any;
+            const res2 = normalizeFeatureForDisplay(f2);
+            expect(res2.coordinates).toEqual([105.13, 21.04]);
+        });
     });
 
     describe('normalizeMapStateForDisplay', () => {

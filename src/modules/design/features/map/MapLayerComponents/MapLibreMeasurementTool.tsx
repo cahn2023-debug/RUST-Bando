@@ -28,10 +28,13 @@ const MEASURE_FILL_LAYER_ID = 'maplibre-measure-fill';
 const MEASURE_VERTEX_LAYER_ID = 'maplibre-measure-vertex';
 
 const removeMeasureLayers = (map: maplibregl.Map) => {
-    if (map.getLayer(MEASURE_VERTEX_LAYER_ID)) map.removeLayer(MEASURE_VERTEX_LAYER_ID);
-    if (map.getLayer(MEASURE_LINE_LAYER_ID)) map.removeLayer(MEASURE_LINE_LAYER_ID);
-    if (map.getLayer(MEASURE_FILL_LAYER_ID)) map.removeLayer(MEASURE_FILL_LAYER_ID);
-    if (map.getSource(MEASURE_SOURCE_ID)) map.removeSource(MEASURE_SOURCE_ID);
+    try {
+        if (!(map as any).style) return;
+        if (map.getLayer(MEASURE_VERTEX_LAYER_ID)) map.removeLayer(MEASURE_VERTEX_LAYER_ID);
+        if (map.getLayer(MEASURE_LINE_LAYER_ID)) map.removeLayer(MEASURE_LINE_LAYER_ID);
+        if (map.getLayer(MEASURE_FILL_LAYER_ID)) map.removeLayer(MEASURE_FILL_LAYER_ID);
+        if (map.getSource(MEASURE_SOURCE_ID)) map.removeSource(MEASURE_SOURCE_ID);
+    } catch (e) {}
 };
 
 export function MapLibreMeasurementTool({ active, mode = 'distance', onDeactivate }: MeasurementToolProps) {
