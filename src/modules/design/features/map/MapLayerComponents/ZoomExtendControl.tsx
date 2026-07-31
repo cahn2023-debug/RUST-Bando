@@ -17,19 +17,28 @@ export function ZoomExtendControl() {
         // Optional
     }
     const state = useDesignSync(s => s.state);
+    const visibleFeatures = useDesignSync(s => s.visibleFeatures);
+    const isHydrating = useDesignSync(s => s.isHydrating);
+    const isViewportLoading = useDesignSync(s => s.isViewportLoading);
     const zoomExtendTrigger = useDesignSync(s => s.zoomExtendTrigger);
     const lastTrigger = useRef(0);
 
     useEffect(() => {
         if (!map || !state || zoomExtendTrigger === 0 || zoomExtendTrigger === lastTrigger.current) return;
-        lastTrigger.current = zoomExtendTrigger;
 
-        const { features, feature_groups, layers } = state;
+        const { feature_groups, layers } = state;
+        const features = state.isLargeProject ? visibleFeatures : state.features;
         if (!features || !feature_groups || !layers) return;
+        const featureValues = Object.values(features);
+        if (featureValues.length === 0 && (isHydrating || isViewportLoading || (state.featureCount ?? 0) > 0)) {
+            return;
+        }
+
+        lastTrigger.current = zoomExtendTrigger;
 
         const allLatLngs: [number, number][] = [];
 
-        Object.values(features).forEach(f => {
+        featureValues.forEach(f => {
             if (!f) return;
             const group = f.group_id ? feature_groups[f.group_id] : null;
             if (!group || !group.is_visible) return;
@@ -79,9 +88,9 @@ export function ZoomExtendControl() {
                 map.fitBounds(bounds, { padding: 50, maxZoom: 18 });
             }
         } else {
-            console.warn("[ZoomExtend] No valid points found to zoom to.");
+            console.info("[ZoomExtend] No valid points found to zoom to.");
         }
-    }, [zoomExtendTrigger, state, map]);
+    }, [zoomExtendTrigger, state, visibleFeatures, isHydrating, isViewportLoading, map]);
 
     return null;
 }
