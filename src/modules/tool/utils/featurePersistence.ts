@@ -24,6 +24,13 @@ const hasMeaningfulValue = (value: unknown): boolean => (
   value !== undefined && value !== null && value !== ''
 );
 
+const getMetadataStyleValue = (metadata: FeatureMetadata, key: 'color' | 'size') => {
+  const gis = metadata.gis && typeof metadata.gis === 'object' ? metadata.gis as Record<string, unknown> : null;
+  const gisValue = gis?.[key];
+  if (hasMeaningfulValue(gisValue)) return gisValue;
+  return (metadata as Record<string, unknown>)[key];
+};
+
 const isLegacyPointType = (value: unknown): boolean => {
   if (typeof value !== 'string') return false;
   const normalized = value.trim().toLowerCase();
@@ -86,12 +93,16 @@ export const buildFeaturePropertiesForPersistence = (
     : hasMetadataIcon
       ? getTypeForIcon(nextIcon)
       : existingType || getTypeForIcon(nextIcon);
+  const nextColor = getMetadataStyleValue(normalizedMetadata, 'color');
+  const nextSize = getMetadataStyleValue(normalizedMetadata, 'size');
 
   return {
     ...(properties || {}),
     icon: nextIcon,
     iconKey: nextIcon,
     type: nextType,
+    ...(hasMeaningfulValue(nextColor) ? { color: nextColor as FeatureProperties[string] } : {}),
+    ...(hasMeaningfulValue(nextSize) ? { size: nextSize as FeatureProperties[string] } : {}),
   };
 };
 

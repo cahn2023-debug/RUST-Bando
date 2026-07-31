@@ -1,37 +1,33 @@
 import { useEffect, useRef } from 'react';
-import { useMap } from 'react-leaflet';
-import L from 'leaflet';
+import maplibregl from 'maplibre-gl';
+import { useMapContext } from '../MapContext';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 
 export const isValidLatLng = (lat: number, lng: number) => {
-    // Only check basic mathematical validity and non-zero (near origin)
     return Math.abs(lat) > 0.0001 && Math.abs(lng) > 0.0001 &&
         lat >= -90 && lat <= 90 &&
         lng >= -180 && lng <= 180;
 };
 
-const canFitBounds = (map: L.Map) => {
-    try {
-        return Boolean((map as any)?._loaded && map.getPane('mapPane'));
-    } catch {
-        return false;
-    }
-};
-
 export function ZoomExtendControl() {
-    const map = useMap();
+    let map: maplibregl.Map | null = null;
+    try {
+        map = useMapContext().map;
+    } catch {
+        // Optional
+    }
     const state = useDesignSync(s => s.state);
     const zoomExtendTrigger = useDesignSync(s => s.zoomExtendTrigger);
     const lastTrigger = useRef(0);
 
     useEffect(() => {
-        if (!state || zoomExtendTrigger === 0 || zoomExtendTrigger === lastTrigger.current) return;
+        if (!map || !state || zoomExtendTrigger === 0 || zoomExtendTrigger === lastTrigger.current) return;
         lastTrigger.current = zoomExtendTrigger;
 
         const { features, feature_groups, layers } = state;
         if (!features || !feature_groups || !layers) return;
 
-        const allLatLngs: L.LatLngExpression[] = [];
+        const allLatLngs: [number, number][] = [];
 
         Object.values(features).forEach(f => {
             if (!f) return;
@@ -65,30 +61,22 @@ export function ZoomExtendControl() {
         if (allLatLngs.length > 0) {
             let filteredPoints = allLatLngs;
             if (allLatLngs.length >= 3) {
-                const lats = allLatLngs.map(p => (Array.isArray(p) ? (p as number[])[0] : (p as any).lat) as number);
-                const lngs = allLatLngs.map(p => (Array.isArray(p) ? (p as number[])[1] : (p as any).lng) as number);
+                const lats = allLatLngs.map(p => p[0]);
+                const lngs = allLatLngs.map(p => p[1]);
 
                 const avgLat = lats.reduce((a, b) => a + b, 0) / lats.length;
                 const avgLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
 
                 filteredPoints = allLatLngs.filter(p => {
-                    const plat = (Array.isArray(p) ? (p as number[])[0] : (p as any).lat) as number;
-                    const plng = (Array.isArray(p) ? (p as number[])[1] : (p as any).lng) as number;
-                    return Math.abs(plat - avgLat) < 3 && Math.abs(plng - avgLng) < 3;
+                    return Math.abs(p[0] - avgLat) < 3 && Math.abs(p[1] - avgLng) < 3;
                 });
             }
 
             if (filteredPoints.length > 0) {
-                const bounds = L.latLngBounds(filteredPoints as L.LatLngExpression[]);
+                const bounds = new maplibregl.LngLatBounds();
+                filteredPoints.forEach(([lat, lng]) => bounds.extend([lng, lat]));
                 console.log("[ZoomExtend] Points collected:", allLatLngs.length, "Filtered:", filteredPoints.length);
-                if (!canFitBounds(map)) {
-                    map.whenReady(() => {
-                        if (!canFitBounds(map)) return;
-                        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
-                    });
-                    return;
-                }
-                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 18 });
+                map.fitBounds(bounds, { padding: 50, maxZoom: 18 });
             }
         } else {
             console.warn("[ZoomExtend] No valid points found to zoom to.");

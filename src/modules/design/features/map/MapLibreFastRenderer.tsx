@@ -1,7 +1,7 @@
 import React from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+import { useDesignSync, EMPTY_OBJ } from '@IMPLEMENT/stores/useDesignSync';
 import { useFeatureNumbering } from '@IMPLEMENT/hooks/useDesignFeatures';
 import { useSnap } from '@IMPLEMENT/hooks/useSnap';
 import { queryVisibleFeaturesV2 } from '@TOOL/utils/designIpc';
@@ -14,8 +14,10 @@ import { getIconSvgString } from '@DESIGN/components/icons/MapIcons';
 import { buildPolylineSnapMarkers, type PolylineSnapMarker } from './polylineSnapMarkers';
 import type { FeatureState } from '@CONTRACT/types';
 import type { MapLibreFastFeatureCollection, MapLibreRenderFeatureCollection } from './mapLibreFastTypes';
+import { useMapContext } from './MapContext';
 
 const SOURCE_ID = 'design-fast-features';
+const BASEMAP_SOURCE_ID = 'basemap';
 const POINT_LAYER_ID = 'design-fast-points';
 const POINT_ICON_LAYER_ID = 'design-fast-point-icons';
 const POINT_LABEL_LAYER_ID = 'design-fast-point-labels';
@@ -51,12 +53,12 @@ const now = () => canUsePerformanceNow() ? performance.now() : Date.now();
 
 const toLngLat = (center: [number, number]): [number, number] => [center[1], center[0]];
 
-const createRasterStyle = (tileUrl: string): maplibregl.StyleSpecification => ({
+const createRasterStyle = (tileUrls: string[]): maplibregl.StyleSpecification => ({
     version: 8,
     sources: {
-        basemap: {
+        [BASEMAP_SOURCE_ID]: {
             type: 'raster',
-            tiles: [tileUrl],
+            tiles: tileUrls,
             tileSize: 256,
             maxzoom: MAP_MAX_NATIVE_ZOOM,
         },
@@ -65,12 +67,36 @@ const createRasterStyle = (tileUrl: string): maplibregl.StyleSpecification => ({
         {
             id: 'basemap',
             type: 'raster',
-            source: 'basemap',
+            source: BASEMAP_SOURCE_ID,
         },
     ],
 });
 
-const imageCache = new Map<string, Promise<HTMLImageElement>>();
+const updateRasterSourceTiles = (map: maplibregl.Map, sourceId: string, tileUrls: string[]) => {
+    const source = map.getSource(sourceId) as {
+        setTiles?: (tiles: string[]) => void;
+        reload?: () => void;
+    } | undefined;
+    if (!source) return false;
+    if (typeof source.setTiles !== 'function') return false;
+    source.setTiles(tileUrls);
+    source.reload?.();
+    map.triggerRepaint();
+    return true;
+};
+
+type MapLibreImageData = {
+    width: number;
+    height: number;
+    data: Uint8ClampedArray;
+};
+
+const MAX_IMAGE_CACHE_SIZE = 256;
+const imageCache = new Map<string, Promise<MapLibreImageData>>();
+
+export const clearMapImageCache = () => {
+    imageCache.clear();
+};
 
 const escapeSvgText = (value: unknown) => String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -78,19 +104,65 @@ const escapeSvgText = (value: unknown) => String(value ?? '')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-const svgDataUrl = (svg: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+const svgBlob = (svg: string) => new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+
+const svgSize = (svg: string) => {
+    const width = Number(svg.match(/\bwidth="(\d+(?:\.\d+)?)"/)?.[1]);
+    const height = Number(svg.match(/\bheight="(\d+(?:\.\d+)?)"/)?.[1]);
+    return {
+        width: Number.isFinite(width) && width > 0 ? Math.ceil(width) : 24,
+        height: Number.isFinite(height) && height > 0 ? Math.ceil(height) : 24,
+    };
+};
+
+const loadSvgBitmap = (blob: Blob) => {
+    const loadWithImageElement = () => new Promise<CanvasImageSource>((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const image = new Image();
+        image.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve(image);
+        };
+        image.onerror = error => {
+            URL.revokeObjectURL(url);
+            reject(error);
+        };
+        image.src = url;
+    });
+
+    if (typeof createImageBitmap === 'function') {
+        return createImageBitmap(blob).catch(loadWithImageElement);
+    }
+
+    return loadWithImageElement();
+};
 
 const loadSvgImage = (id: string, svg: string) => {
     const cached = imageCache.get(id);
-    if (cached) return cached;
+    if (cached) {
+        imageCache.delete(id);
+        imageCache.set(id, cached);
+        return cached;
+    }
 
-    const promise = new Promise<HTMLImageElement>((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = reject;
-        image.src = svgDataUrl(svg);
-    });
+    const promise = (async (): Promise<MapLibreImageData> => {
+        const { width, height } = svgSize(svg);
+        const bitmap = await loadSvgBitmap(svgBlob(svg));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Canvas 2D context is unavailable');
+        context.clearRect(0, 0, width, height);
+        context.drawImage(bitmap, 0, 0, width, height);
+        return context.getImageData(0, 0, width, height);
+    })();
     imageCache.set(id, promise);
+    while (imageCache.size > MAX_IMAGE_CACHE_SIZE) {
+        const oldestKey = imageCache.keys().next().value;
+        if (!oldestKey) break;
+        imageCache.delete(oldestKey);
+    }
     return promise;
 };
 
@@ -117,6 +189,27 @@ const iconSvgForFeature = (properties: Record<string, any>) => {
         labelIndex,
         Number(properties.rotation || 0)
     );
+};
+
+const parseIconImageId = (imageId: string): Record<string, any> | null => {
+    if (!imageId || !imageId.startsWith('design-point-')) return null;
+    const raw = imageId.slice('design-point-'.length);
+    const parts = raw.split('-');
+    if (parts.length < 5) return null;
+    const iconKey = parts[0];
+    const color = parts[1] ? `#${parts[1]}` : '#6366f1';
+    const displaySize = Number(parts[2]) || 24;
+    const labelIndex = parts[3];
+    const rotation = Number(parts[4]) || 0;
+    return {
+        iconKey,
+        color,
+        displaySize,
+        labelIndex,
+        rotation,
+        isIntersection: iconKey === 'intersection',
+        isCamera: iconKey === 'cctv' || iconKey.includes('camera'),
+    };
 };
 
 const ensurePointImages = (map: maplibregl.Map, collection: MapLibreRenderFeatureCollection) => {
@@ -332,11 +425,16 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
                 'circle-opacity': [
                     'case',
                     ['to-boolean', ['get', 'iconImageId']],
-                    ['case', ['boolean', ['feature-state', 'selected'], false], 0.96, 0.86],
+                    0,
                     ['case', ['boolean', ['feature-state', 'selected'], false], 1, 0.82],
                 ],
                 'circle-stroke-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#ecfeff', '#ffffff'],
-                'circle-stroke-width': ['case', ['boolean', ['feature-state', 'selected'], false], 3, 1.5],
+                'circle-stroke-width': [
+                    'case',
+                    ['to-boolean', ['get', 'iconImageId']],
+                    0,
+                    ['case', ['boolean', ['feature-state', 'selected'], false], 3, 1.5],
+                ],
             },
         });
     }
@@ -513,6 +611,8 @@ export function MapLibreFastRenderer({
     onFinishDrawing,
     onFinishDrawingSession,
     isMeasureActive = false,
+    basemapTiles: basemapTilesProp,
+    basemapKey,
 }: {
     center: [number, number];
     zoom: number;
@@ -520,16 +620,24 @@ export function MapLibreFastRenderer({
     onFinishDrawing?: () => void;
     onFinishDrawingSession?: () => void;
     isMeasureActive?: boolean;
+    basemapTiles?: string[];
+    basemapKey?: string;
 }) {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const mapRef = React.useRef<maplibregl.Map | null>(null);
+    let setMap: (map: maplibregl.Map | null) => void = () => {};
+    try {
+        setMap = useMapContext().setMap;
+    } catch {
+        // MapProvider optional
+    }
     const requestRef = React.useRef(0);
-    const lastBasemapUrlRef = React.useRef<string | null>(null);
+    const lastBasemapTilesKeyRef = React.useRef<string | null>(null);
     const selectedFeatureRef = React.useRef<string | null>(null);
     const features = useDesignSync(s => s.visibleFeatures);
-    const rawFeatures = useDesignSync(s => s.state?.features || {});
+    const rawFeatures = useDesignSync(s => s.state?.features || (EMPTY_OBJ as Record<string, FeatureState>));
     const isLargeProject = useDesignSync(s => Boolean(s.state?.isLargeProject));
-    const featureGroups = useDesignSync(s => s.state?.feature_groups || {});
+    const featureGroups = useDesignSync(s => s.state?.feature_groups || (EMPTY_OBJ as Record<string, any>));
     const projectId = useDesignSync(s => s.projectId);
     const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
     const mapHiddenIds = useDesignSync(s => s.mapHiddenIds);
@@ -550,8 +658,12 @@ export function MapLibreFastRenderer({
     const setViewportLoading = useDesignSync(s => s.setViewportLoading);
     const setRenderMetrics = useDesignSync(s => s.setRenderMetrics);
     const { performSnap, snapNow, clearSnap, snappedPointRef } = useSnap();
-    const { getStyledUrl, mapKey } = useMapStyles();
-    const basemapUrl = React.useMemo(() => getStyledUrl('y'), [getStyledUrl, mapKey]);
+    const { getStyledTiles: getFallbackStyledTiles, mapKey: fallbackMapKey } = useMapStyles();
+    const basemapTiles = React.useMemo(
+        () => basemapTilesProp || getFallbackStyledTiles(),
+        [basemapKey, basemapTilesProp, fallbackMapKey, getFallbackStyledTiles]
+    );
+    const basemapTilesKey = React.useMemo(() => basemapKey || basemapTiles.join('|'), [basemapKey, basemapTiles]);
     const [currentZoom, setCurrentZoom] = React.useState(zoom);
     const [viewportTick, setViewportTick] = React.useState(0);
     const renderFeatureValues = React.useMemo(
@@ -642,14 +754,17 @@ export function MapLibreFastRenderer({
         if (!containerRef.current || mapRef.current) return;
         const map = new maplibregl.Map({
             container: containerRef.current,
-            style: createRasterStyle(basemapUrl),
+            style: createRasterStyle(basemapTiles),
             center: toLngLat(center),
             zoom,
             maxZoom: MAP_MAX_ZOOM,
             attributionControl: false,
+            canvasContextAttributes: {
+                preserveDrawingBuffer: true,
+            },
         });
         mapRef.current = map;
-        lastBasemapUrlRef.current = basemapUrl;
+        lastBasemapTilesKeyRef.current = basemapTilesKey;
 
         map.on('zoomend', () => setCurrentZoom(map.getZoom()));
         map.on('moveend', () => {
@@ -657,6 +772,18 @@ export function MapLibreFastRenderer({
             setViewportTick(tick => tick + 1);
         });
         map.once('load', () => setViewportTick(tick => tick + 1));
+        map.on('styleimagemissing', e => {
+            const id = e.id;
+            if (!id || map.hasImage(id)) return;
+            const props = parseIconImageId(id);
+            if (!props) return;
+            const svg = iconSvgForFeature(props);
+            void loadSvgImage(id, svg).then(image => {
+                if (!map.hasImage(id)) {
+                    map.addImage(id, image);
+                }
+            });
+        });
 
         const interactiveLayers = [POINT_LAYER_ID, POINT_ICON_LAYER_ID, POINT_LABEL_LAYER_ID, LINE_HIT_LAYER_ID, LINE_LAYER_ID, POLYGON_LAYER_ID];
         map.on('click', interactiveLayers, event => {
@@ -746,7 +873,19 @@ export function MapLibreFastRenderer({
             latest.clearSnap();
         });
 
+        try {
+            setMap(map);
+        } catch {
+            // Optional MapProvider
+        }
+
         return () => {
+            try {
+                setMap(null);
+            } catch {
+                // Optional MapProvider
+            }
+            clearMapImageCache();
             map.remove();
             mapRef.current = null;
         };
@@ -799,10 +938,12 @@ export function MapLibreFastRenderer({
     React.useEffect(() => {
         const map = mapRef.current;
         if (!map) return;
-        if (lastBasemapUrlRef.current === basemapUrl) return;
-        lastBasemapUrlRef.current = basemapUrl;
-        map.setStyle(createRasterStyle(basemapUrl));
-    }, [basemapUrl]);
+        if (lastBasemapTilesKeyRef.current === basemapTilesKey) return;
+        lastBasemapTilesKeyRef.current = basemapTilesKey;
+        if (!updateRasterSourceTiles(map, BASEMAP_SOURCE_ID, basemapTiles)) {
+            console.warn('[MapLibreFastRenderer] Basemap source does not support tile updates.');
+        }
+    }, [basemapTiles, basemapTilesKey]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -842,17 +983,25 @@ export function MapLibreFastRenderer({
                 const setDataStart = now();
                 const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
                 source?.setData(collection as any);
+                if (selectedFeatureId && source) {
+                    map.setFeatureState({ source: SOURCE_ID, id: selectedFeatureId }, { selected: true });
+                    selectedFeatureRef.current = selectedFeatureId;
+                }
                 const mapLibreSetDataMs = now() - setDataStart;
-                requestAnimationFrame(() => {
-                    setRenderMetrics(buildRenderMetrics({
-                        engine: 'maplibre-fast',
-                        lodLevel: lodPolicy.level,
-                        featureCount: collection.features.length,
-                        sourceBuildMs,
-                        mapLibreSetDataMs,
-                        frameMs: now() - frameStart,
-                    }));
+                const newMetrics = buildRenderMetrics({
+                    engine: 'maplibre-fast',
+                    lodLevel: lodPolicy.level,
+                    featureCount: collection.features.length,
+                    sourceBuildMs,
+                    mapLibreSetDataMs,
+                    frameMs: now() - frameStart,
                 });
+                const currentMetrics = useDesignSync.getState().renderMetrics;
+                if (!currentMetrics || currentMetrics.featureCount !== newMetrics.featureCount || currentMetrics.lodLevel !== newMetrics.lodLevel) {
+                    requestAnimationFrame(() => {
+                        setRenderMetrics(newMetrics);
+                    });
+                }
             };
 
             if (map.isStyleLoaded()) {
@@ -863,7 +1012,7 @@ export function MapLibreFastRenderer({
         };
 
         render();
-    }, [basemapUrl, currentZoom, featureGroups, featureNumberMap, groupThemePreview, mapHiddenIds, renderFeatureValues, selectedFeatureId, setRenderMetrics, viewportRevision]);
+    }, [currentZoom, featureGroups, featureNumberMap, groupThemePreview, mapHiddenIds, renderFeatureValues, selectedFeatureId, setRenderMetrics, viewportRevision]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -880,7 +1029,7 @@ export function MapLibreFastRenderer({
         } else {
             map.once('styledata', applyData);
         }
-    }, [basemapUrl, currentDrawingPoints, editCoords, polylineSnapMarkers, snappedPoint]);
+    }, [currentDrawingPoints, editCoords, polylineSnapMarkers, snappedPoint]);
 
     React.useEffect(() => {
         const map = mapRef.current;

@@ -1,12 +1,17 @@
 import { useEffect, useRef } from 'react';
-import { useMap } from 'react-leaflet';
-import L from 'leaflet';
+import maplibregl from 'maplibre-gl';
+import { useMapContext } from '../MapContext';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { isValidLatLng } from '@DESIGN/features/map/MapLayerComponents/ZoomExtendControl';
 import { getLineCoordinates, getPointCoordinates, getPolygonCoordinates } from '@TOOL/utils/featureUtils';
 
 export function ZoomToHandler() {
-    const map = useMap();
+    let map: maplibregl.Map | null = null;
+    try {
+        map = useMapContext().map;
+    } catch {
+        // Optional
+    }
     const state = useDesignSync(s => s.state);
     const featureDetailsCache = useDesignSync(s => s.featureDetailsCache);
     const visibleFeatures = useDesignSync(s => s.visibleFeatures);
@@ -14,7 +19,7 @@ export function ZoomToHandler() {
     const lastTrigger = useRef(0);
 
     useEffect(() => {
-        if (!zoomToTrigger || !state || zoomToTrigger.timestamp === lastTrigger.current) return;
+        if (!map || !zoomToTrigger || !state || zoomToTrigger.timestamp === lastTrigger.current) return;
         lastTrigger.current = zoomToTrigger.timestamp;
 
         const { id, type } = zoomToTrigger;
@@ -29,24 +34,24 @@ export function ZoomToHandler() {
 
                     if (point && isValidLatLng(point[1], point[0])) {
                         console.log(`[Zoom] Zooming to feature ${id} at zoom level 20`);
-                        map.setView([point[1], point[0]], 20, { animate: true });
+                        map.flyTo({ center: [point[0], point[1]], zoom: 20 });
                     } else if (line && line.length > 0) {
-                        const bounds: L.LatLngExpression[] = [];
+                        const bounds = new maplibregl.LngLatBounds();
                         line.forEach((c) => {
-                            if (isValidLatLng(c[1], c[0])) bounds.push([c[1], c[0]]);
+                            if (isValidLatLng(c[1], c[0])) bounds.extend([c[0], c[1]]);
                         });
-                        if (bounds.length > 0) {
+                        if (!bounds.isEmpty()) {
                             console.log(`[Zoom] Fitting bounds for feature ${id} at max zoom 20`);
-                            map.fitBounds(L.latLngBounds(bounds), { padding: [50, 50], maxZoom: 20, animate: true });
+                            map.fitBounds(bounds, { padding: 50, maxZoom: 20 });
                         }
                     } else if (polygon && polygon.length > 0) {
-                        const bounds: L.LatLngExpression[] = [];
+                        const bounds = new maplibregl.LngLatBounds();
                         polygon.forEach((c) => {
-                            if (isValidLatLng(c[1], c[0])) bounds.push([c[1], c[0]]);
+                            if (isValidLatLng(c[1], c[0])) bounds.extend([c[0], c[1]]);
                         });
-                        if (bounds.length > 0) {
+                        if (!bounds.isEmpty()) {
                             console.log(`[Zoom] Fitting bounds for polygon ${id} at max zoom 20`);
-                            map.fitBounds(L.latLngBounds(bounds), { padding: [50, 50], maxZoom: 20, animate: true });
+                            map.fitBounds(bounds, { padding: 50, maxZoom: 20 });
                         }
                     }
                 } catch (e) {
@@ -54,7 +59,7 @@ export function ZoomToHandler() {
                 }
             }
         } else if (type === 'layer') {
-            const allLatLngs: L.LatLngExpression[] = [];
+            const bounds = new maplibregl.LngLatBounds();
             Object.values(state.features).forEach(f => {
                 const group = f.group_id ? state.feature_groups[f.group_id] : null;
                 if (group && group.layer_id === id) {
@@ -62,20 +67,20 @@ export function ZoomToHandler() {
                         const point = getPointCoordinates(f);
                         const line = getLineCoordinates(f);
                         const polygon = getPolygonCoordinates(f)?.[0];
-                        if (point && isValidLatLng(point[1], point[0])) allLatLngs.push([point[1], point[0]]);
-                        line?.forEach((c) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
-                        polygon?.forEach((c) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
+                        if (point && isValidLatLng(point[1], point[0])) bounds.extend([point[0], point[1]]);
+                        line?.forEach((c) => { if (isValidLatLng(c[1], c[0])) bounds.extend([c[0], c[1]]); });
+                        polygon?.forEach((c) => { if (isValidLatLng(c[1], c[0])) bounds.extend([c[0], c[1]]); });
                     } catch (e) {
                         console.warn('[ZoomToHandler] Failed to parse coordinates for feature:', f.id, e);
                     }
                 }
             });
 
-            if (allLatLngs.length > 0) {
-                map.fitBounds(L.latLngBounds(allLatLngs), { padding: [50, 50], maxZoom: 18 });
+            if (!bounds.isEmpty()) {
+                map.fitBounds(bounds, { padding: 50, maxZoom: 18 });
             }
         } else if (type === 'region') {
-            const allLatLngs: L.LatLngExpression[] = [];
+            const bounds = new maplibregl.LngLatBounds();
             Object.values(state.features).forEach(f => {
                 const group = f.group_id ? state.feature_groups[f.group_id] : null;
                 if (group) {
@@ -85,43 +90,43 @@ export function ZoomToHandler() {
                             const point = getPointCoordinates(f);
                             const line = getLineCoordinates(f);
                             const polygon = getPolygonCoordinates(f)?.[0];
-                            if (point && isValidLatLng(point[1], point[0])) allLatLngs.push([point[1], point[0]]);
-                            polygon?.forEach((c) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
-                            line?.forEach((c) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
+                            if (point && isValidLatLng(point[1], point[0])) bounds.extend([point[0], point[1]]);
+                            polygon?.forEach((c) => { if (isValidLatLng(c[1], c[0])) bounds.extend([c[0], c[1]]); });
+                            line?.forEach((c) => { if (isValidLatLng(c[1], c[0])) bounds.extend([c[0], c[1]]); });
                         } catch (e) {
                             console.warn('[ZoomToHandler] Failed to parse coordinates for region:', id, e);
                         }
                     }
                 }
             });
-            if (allLatLngs.length > 0) {
-                map.fitBounds(L.latLngBounds(allLatLngs), { padding: [50, 50], maxZoom: 18 });
+            if (!bounds.isEmpty()) {
+                map.fitBounds(bounds, { padding: 50, maxZoom: 18 });
             }
         } else if (type === 'group') {
             const featuresInGroup = Object.values(state.features).filter(f => f.group_id === id);
             if (featuresInGroup.length === 0) return;
 
-            const allLatLngs: L.LatLngExpression[] = [];
+            const bounds = new maplibregl.LngLatBounds();
             featuresInGroup.forEach(f => {
                 try {
                     const point = getPointCoordinates(f);
                     const line = getLineCoordinates(f);
                     const polygon = getPolygonCoordinates(f)?.[0];
-                    if (point && isValidLatLng(point[1], point[0])) allLatLngs.push([point[1], point[0]]);
-                    polygon?.forEach((c) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
-                    line?.forEach((c) => { if (isValidLatLng(c[1], c[0])) allLatLngs.push([c[1], c[0]]); });
+                    if (point && isValidLatLng(point[1], point[0])) bounds.extend([point[0], point[1]]);
+                    polygon?.forEach((c) => { if (isValidLatLng(c[1], c[0])) bounds.extend([c[0], c[1]]); });
+                    line?.forEach((c) => { if (isValidLatLng(c[1], c[0])) bounds.extend([c[0], c[1]]); });
                 } catch (e) {
                     console.warn('[ZoomToHandler] Failed to parse coordinates for group:', id, e);
                 }
             });
 
-            if (allLatLngs.length > 0) {
-                map.fitBounds(L.latLngBounds(allLatLngs), { padding: [50, 50], maxZoom: 18 });
+            if (!bounds.isEmpty()) {
+                map.fitBounds(bounds, { padding: 50, maxZoom: 18 });
             }
         } else if (type === 'location' && zoomToTrigger.location) {
             const [lat, lng] = zoomToTrigger.location;
             if (isValidLatLng(lat, lng)) {
-                map.setView([lat, lng], 18);
+                map.flyTo({ center: [lng, lat], zoom: 18 });
             }
         }
     }, [zoomToTrigger, state, map, featureDetailsCache, visibleFeatures]);

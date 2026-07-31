@@ -53,6 +53,21 @@ const asNumberValue = (value: unknown, fallback = 0): number => {
   return fallback;
 };
 
+const POINT_SYMBOL_SIZE_MIN = 4;
+const POINT_SYMBOL_SIZE_MAX = 100;
+const LINE_STROKE_SIZE_MIN = 1;
+const LINE_STROKE_SIZE_MAX = 32;
+
+const clampNumber = (value: number, min: number, max: number): number =>
+  Math.min(max, Math.max(min, value));
+
+const normalizeSymbolSize = (value: unknown, isPolyline: boolean): number => {
+  const fallback = isPolyline ? 4 : 32;
+  const min = isPolyline ? LINE_STROKE_SIZE_MIN : POINT_SYMBOL_SIZE_MIN;
+  const max = isPolyline ? LINE_STROKE_SIZE_MAX : POINT_SYMBOL_SIZE_MAX;
+  return clampNumber(asNumberValue(value, fallback), min, max);
+};
+
 const asStringArray = (value: unknown): string[] =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 
@@ -444,6 +459,32 @@ export const PropertyPanel: React.FC = () => {
       setPreview(selectedFeatureId, next as FeatureMetadata, localName);
     }
   }, [localMeta, localName, selectedFeatureId, setPreview]);
+
+  const updateSymbolSize = useCallback((value: unknown) => {
+    const nextSize = normalizeSymbolSize(value, isPolyline);
+    if (isPolyline) {
+      updateNestedMeta('gis.size', nextSize);
+      return;
+    }
+
+    const currentGis = asRecord(localMeta.gis) || {};
+    const next = {
+      ...localMeta,
+      size: nextSize,
+      weight: nextSize,
+      stroke: nextSize,
+      gis: {
+        ...currentGis,
+        size: nextSize,
+        weight: nextSize,
+        stroke: nextSize,
+      },
+    } as FeatureMetadata;
+    setLocalMeta(next);
+    if (selectedFeatureId) {
+      setPreview(selectedFeatureId, next, localName);
+    }
+  }, [isPolyline, localMeta, localName, selectedFeatureId, setPreview, updateNestedMeta]);
 
   const orderFieldLabel = useMemo(
     () => getOrderFieldLabel(localMeta as Record<string, unknown>, feature?.properties as FeatureProperties | undefined),
@@ -1346,9 +1387,12 @@ export const PropertyPanel: React.FC = () => {
                 <input
                   id={`${uid}-size`}
                   type="number"
+                  min={isPolyline ? LINE_STROKE_SIZE_MIN : POINT_SYMBOL_SIZE_MIN}
+                  max={isPolyline ? LINE_STROKE_SIZE_MAX : POINT_SYMBOL_SIZE_MAX}
+                  step={1}
                   className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary mt-1 focus:border-cad-accent outline-none"
-                  value={asNumberValue(getMetaValue(isPolyline ? 'gis.size' : 'size', 'size'), isPolyline ? 4 : 32)}
-                  onChange={e => updateNestedMeta(isPolyline ? 'gis.size' : 'size', Number(e.target.value))}
+                  value={normalizeSymbolSize(getMetaValue(isPolyline ? 'gis.size' : 'size', 'size'), isPolyline)}
+                  onChange={e => updateSymbolSize(e.target.value)}
                 />
               </div>
             </div>

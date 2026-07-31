@@ -1,69 +1,22 @@
-import { useState } from 'react';
-import { MapContainer, TileLayer, LayersControl, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { MapProvider } from './MapContext';
 import './MapLayer.css';
 import {
-    LocationMarker,
-    DesignFeatures,
-    ZoomToHandler,
-    ZoomExtendControl,
-    BoxSelectionHandler,
-    StreetViewControl,
-    PrintAreaHandler,
+    MapLibreMeasurementTool,
+    MapLibreBoxSelection,
     MapCaptureHandler,
     DORIOverlay,
+    FOVLayer,
     InteractivePPM,
-    MapResizeObserver,
-    MeasurementTool
+    StreetViewControl,
+    ZoomExtendControl,
+    ZoomToHandler,
 } from '@DESIGN/features/map/MapLayerComponents';
 import { DORILegend } from '@DESIGN/features/map/MapLayerComponents/DORILegend';
 import { MapSettingsPortal } from './MapSettingsPortal';
 import { useMapStyles } from './useMapStyles';
 import { MapSettingsPanel } from './MapSettings/MapSettingsPanel';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { isLowGpuRenderingEnabled } from './mapPerformance';
 import { MapLibreFastRenderer } from './MapLibreFastRenderer';
-
-// Fix Leaflet marker icon issue
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-});
-L.Marker.prototype.options.icon = DefaultIcon;
-
-const BASEMAP_STORAGE_KEY = 'design.map.selectedBasemap';
-const BASEMAP_NAMES = [
-    'Google Streets',
-    'Google Satellite (Hybrid)',
-    'Google Satellite (Trắng đen)',
-    'Google Terrain'
-] as const;
-const DEFAULT_BASEMAP_NAME = 'Google Satellite (Hybrid)';
-const MAP_MAX_ZOOM = 23;
-const MAP_MAX_NATIVE_ZOOM = 20;
-
-type BasemapName = typeof BASEMAP_NAMES[number];
-
-const isBasemapName = (value: string | null): value is BasemapName => {
-    return BASEMAP_NAMES.includes(value as BasemapName);
-};
-
-const getSavedBasemapName = (): BasemapName => {
-    if (typeof window === 'undefined') return DEFAULT_BASEMAP_NAME;
-
-    try {
-        const savedBasemapName = window.localStorage.getItem(BASEMAP_STORAGE_KEY);
-        return isBasemapName(savedBasemapName) ? savedBasemapName : DEFAULT_BASEMAP_NAME;
-    } catch {
-        return DEFAULT_BASEMAP_NAME;
-    }
-};
 
 interface MapLayerProps {
     center: [number, number];
@@ -75,23 +28,6 @@ interface MapLayerProps {
     onMeasureDeactivate?: () => void;
 }
 
-function BasemapPersistence({ onBasemapChange }: { onBasemapChange: (name: BasemapName) => void }) {
-    useMapEvents({
-        baselayerchange: (event: L.LayersControlEvent) => {
-            if (!isBasemapName(event.name)) return;
-
-            onBasemapChange(event.name);
-            try {
-                window.localStorage.setItem(BASEMAP_STORAGE_KEY, event.name);
-            } catch {
-                // localStorage can be unavailable in restricted browser contexts.
-            }
-        }
-    });
-
-    return null;
-}
-
 export function MapLayer({
     center,
     zoom,
@@ -99,127 +35,52 @@ export function MapLayer({
     onFinishDrawing,
     onFinishDrawingSession,
     isMeasureActive = false,
-    onMeasureDeactivate = () => { }
+    onMeasureDeactivate = () => {}
 }: MapLayerProps) {
-    const [selectedBasemapName, setSelectedBasemapName] = useState<BasemapName>(getSavedBasemapName);
-    const {
-        mapFeatures,
-        setMapFeatures,
-        getStyledUrl,
-        mapKey
-    } = useMapStyles();
+    const { mapFeatures, setMapFeatures, basemapId, setBasemapId, basemapPresets, getStyledTiles, mapKey } = useMapStyles();
     const showDORILayers = useDesignSync(s => s.showDORILayers);
-    const stateIsLargeProject = useDesignSync(s => Boolean(s.state?.isLargeProject));
-    const configuredEngine = useDesignSync(s => s.mapRenderEngine);
-    const lowGpuRendering = isLowGpuRenderingEnabled();
-    const effectiveEngine = configuredEngine === 'maplibre-fast' || stateIsLargeProject
-        ? 'maplibre-fast'
-        : 'leaflet';
-
-    if (effectiveEngine === 'maplibre-fast') {
-        return (
-            <MapLibreFastRenderer
-                center={center}
-                zoom={zoom}
-                onLocationChange={(lat, lng, snapId) => onLocationChange?.(lat, lng, 0, snapId as any)}
-                onFinishDrawing={onFinishDrawing}
-                onFinishDrawingSession={onFinishDrawingSession}
-                isMeasureActive={isMeasureActive}
-            />
-        );
-    }
+    const basemapTiles = getStyledTiles();
 
     return (
-        <MapContainer
-            center={center}
-            zoom={zoom}
-            maxZoom={MAP_MAX_ZOOM}
-            scrollWheelZoom={true}
-            preferCanvas={true}
-            style={{ height: '100%', width: '100%', background: 'transparent' }}
-            zoomControl={false}
-            attributionControl={false}
-            boxZoom={false}
-            className={`design-map-container ${lowGpuRendering ? 'design-map-low-gpu' : ''}`}
-        >
-            <LayersControl position="topright">
-                <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Streets'} name="Google Streets">
-                    <TileLayer
-                        className="design-basemap-tile"
-                        key={`m-${mapKey}`}
-                        url={getStyledUrl('m')}
-                        maxZoom={MAP_MAX_ZOOM}
-                        maxNativeZoom={MAP_MAX_NATIVE_ZOOM}
-                        referrerPolicy="no-referrer"
-                    />
-                </LayersControl.BaseLayer>
-                <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Satellite (Hybrid)'} name="Google Satellite (Hybrid)">
-                    <TileLayer
-                        className="design-basemap-tile"
-                        key={`y-${mapKey}`}
-                        url={getStyledUrl('y')}
-                        maxZoom={MAP_MAX_ZOOM}
-                        maxNativeZoom={MAP_MAX_NATIVE_ZOOM}
-                        referrerPolicy="no-referrer"
-                    />
-                </LayersControl.BaseLayer>
-                <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Satellite (Trắng đen)'} name="Google Satellite (Trắng đen)">
-                    <TileLayer
-                        className="design-basemap-tile"
-                        key={`sbw-${mapKey}`}
-                        url={getStyledUrl('y')}
-                        maxZoom={MAP_MAX_ZOOM}
-                        maxNativeZoom={MAP_MAX_NATIVE_ZOOM}
-                        referrerPolicy="no-referrer"
-                    />
-                </LayersControl.BaseLayer>
-                <LayersControl.BaseLayer checked={selectedBasemapName === 'Google Terrain'} name="Google Terrain">
-                    <TileLayer
-                        className="design-basemap-tile"
-                        key={`p-${mapKey}`}
-                        url={getStyledUrl('p')}
-                        maxZoom={MAP_MAX_ZOOM}
-                        maxNativeZoom={MAP_MAX_NATIVE_ZOOM}
-                        referrerPolicy="no-referrer"
-                    />
-                </LayersControl.BaseLayer>
-
-            </LayersControl>
-            <BasemapPersistence onBasemapChange={setSelectedBasemapName} />
-
-            <MapSettingsPortal>
-                <MapSettingsPanel
-                    mapFeatures={mapFeatures}
-                    setMapFeatures={setMapFeatures}
+        <MapProvider>
+            <div className="relative w-full h-full overflow-hidden design-map-container">
+                <MapLibreFastRenderer
+                    center={center}
+                    zoom={zoom}
+                    onLocationChange={(lat, lng, snapId) => onLocationChange?.(lat, lng, 0, snapId as any)}
+                    onFinishDrawing={onFinishDrawing}
+                    onFinishDrawingSession={onFinishDrawingSession}
+                    isMeasureActive={isMeasureActive}
+                    basemapTiles={basemapTiles}
+                    basemapKey={mapKey}
                 />
-            </MapSettingsPortal>
 
-            {/* Always visible Design and DORI components */}
-            <DesignFeatures />
-            <DORIOverlay />
-            <InteractivePPM />
+                <MapSettingsPortal>
+                    <MapSettingsPanel
+                        mapFeatures={mapFeatures}
+                        setMapFeatures={setMapFeatures}
+                        basemapId={basemapId}
+                        setBasemapId={setBasemapId}
+                        basemapPresets={basemapPresets}
+                    />
+                </MapSettingsPortal>
 
-            {showDORILayers && (
-                <div className="absolute bottom-6 right-16 z-cad-map-control animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <DORILegend />
-                </div>
-            )}
+                {showDORILayers && (
+                    <div className="absolute bottom-6 right-16 z-cad-map-control animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <DORILegend />
+                    </div>
+                )}
 
-            <LocationMarker
-                onLocationChange={(lat, lng, snapId) => onLocationChange?.(lat, lng, 0, snapId as any)}
-                onFinishDrawing={onFinishDrawing}
-                onFinishDrawingSession={onFinishDrawingSession}
-                isMeasureActive={isMeasureActive}
-            />
-
-            <ZoomToHandler />
-            <ZoomExtendControl />
-            <BoxSelectionHandler />
-            <StreetViewControl />
-            <PrintAreaHandler />
-            <MapCaptureHandler />
-            <MapResizeObserver />
-            <MeasurementTool active={isMeasureActive} onDeactivate={onMeasureDeactivate} />
-        </MapContainer>
+                <MapLibreBoxSelection />
+                <MapLibreMeasurementTool active={isMeasureActive} onDeactivate={onMeasureDeactivate} />
+                <DORIOverlay />
+                <FOVLayer />
+                <InteractivePPM />
+                <MapCaptureHandler />
+                <StreetViewControl />
+                <ZoomExtendControl />
+                <ZoomToHandler />
+            </div>
+        </MapProvider>
     );
 }

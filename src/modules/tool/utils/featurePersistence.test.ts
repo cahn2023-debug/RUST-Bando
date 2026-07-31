@@ -30,6 +30,7 @@ describe('featurePersistence', () => {
       icon: 'cctv',
       iconKey: 'cctv',
       type: 'cctv',
+      color: '#3b82f6',
     });
   });
 
@@ -48,6 +49,7 @@ describe('featurePersistence', () => {
       icon: 'default',
       iconKey: 'default',
       type: 'point',
+      color: '#10b981',
     });
   });
 
@@ -125,6 +127,33 @@ describe('featurePersistence', () => {
       icon: 'ptz',
       iconKey: 'ptz',
       type: 'ptz',
+    });
+  });
+
+  it('persists GIS style aliases into feature properties', () => {
+    const properties: FeatureProperties = {
+      icon: 'default',
+      iconKey: 'default',
+      type: 'point',
+      color: '#111111',
+      size: 16,
+    };
+    const metadata: FeatureMetadata = {
+      icon: 'point_circle',
+      color: '#222222',
+      size: 18,
+      gis: {
+        color: '#3b82f6',
+        size: 42,
+      },
+    };
+
+    expect(buildFeaturePropertiesForPersistence(properties, metadata)).toMatchObject({
+      icon: 'point_circle',
+      iconKey: 'point_circle',
+      type: 'point',
+      color: '#3b82f6',
+      size: 42,
     });
   });
 

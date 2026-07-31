@@ -39,7 +39,7 @@ describe('mapLibreFastAdapter', () => {
             size: 10,
             displaySize: 10,
             labelIndex: '1',
-            iconImageId: expect.stringContaining('design-point-default'),
+            iconImageId: '',
             selected: false,
         }));
     });
@@ -154,6 +154,22 @@ describe('mapLibreFastAdapter', () => {
             labelIndex: '12',
         }));
         expect(collection.features[0].properties.iconImageId).toContain('design-point-ptz');
+    });
+
+    it('uses native MapLibre labels for ordinary points without a custom icon', () => {
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [pointFeature('ordinary-point', [105.8, 21.02], {
+                metadata: JSON.stringify({ icon: 'point_circle', color: '#f59e0b', size: 14 }),
+            })],
+            featureNumberMap: { 'ordinary-point': 20 },
+            zoom: 20,
+        });
+
+        expect(collection.features[0].properties).toEqual(expect.objectContaining({
+            iconKey: 'point_circle',
+            iconImageId: '',
+            labelIndex: '20',
+        }));
     });
 
     it('adds display properties for intersection point icons', () => {

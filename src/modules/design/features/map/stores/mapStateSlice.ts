@@ -372,7 +372,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
     isViewportLoading: false,
     viewportFeatureTotal: 0,
     isViewportTruncated: false,
-    mapRenderEngine: 'leaflet',
+    mapRenderEngine: 'maplibre-fast',
     renderMetrics: null,
 
     // Giai đoạn 5: Optimistic UI state

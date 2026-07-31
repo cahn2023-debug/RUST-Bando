@@ -1,12 +1,17 @@
 import { render, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { MapLibreFastRenderer } from './MapLibreFastRenderer';
+import { MapLibreFastRenderer, clearMapImageCache } from './MapLibreFastRenderer';
+
+const mockMapStyles = vi.hoisted(() => ({
+    tiles: ['https://tiles.example/one/{z}/{x}/{y}.png'],
+    mapKey: 'test-map',
+}));
 
 vi.mock('./useMapStyles', () => ({
     useMapStyles: () => ({
-        getStyledUrl: () => 'https://tiles.example/{z}/{x}/{y}.png',
-        mapKey: 'test-map',
+        getStyledTiles: () => mockMapStyles.tiles,
+        mapKey: mockMapStyles.mapKey,
     }),
 }));
 
@@ -17,7 +22,10 @@ vi.mock('@TOOL/utils/designIpc', () => ({
 const mockMapState = vi.hoisted(() => {
     type SourceRecord = {
         data: any;
+        tiles?: string[];
         setData: (data: any) => void;
+        setTiles: (tiles: string[]) => void;
+        reload: () => void;
     };
     type HandlerRecord = {
         event: string;
@@ -31,22 +39,35 @@ const mockMapState = vi.hoisted(() => {
         sources = new Map<string, SourceRecord>();
         layers = new Map<string, any>();
         images = new Set<string>();
+        imageData = new Map<string, any>();
         handlers = new Map<string, any[]>();
         layerHandlers: HandlerRecord[] = [];
         movedLayers: string[] = [];
+        setStyle = vi.fn();
         canvas = { style: { cursor: '' } };
         dragPan = { disable: vi.fn(), enable: vi.fn() };
+        triggerRepaint = vi.fn();
+        style: any;
 
-        constructor() {
+        constructor(options: any = {}) {
+            this.style = options.style;
+            Object.entries(options.style?.sources || {}).forEach(([id, source]) => {
+                this.addSource(id, source);
+            });
             lastMap = this;
         }
 
         addSource(id: string, source: any) {
             this.sources.set(id, {
                 data: source.data,
+                tiles: source.tiles,
                 setData: (data: any) => {
                     this.sources.get(id)!.data = data;
                 },
+                setTiles: (tiles: string[]) => {
+                    this.sources.get(id)!.tiles = tiles;
+                },
+                reload: vi.fn(),
             });
         }
 
@@ -65,7 +86,10 @@ const mockMapState = vi.hoisted(() => {
         setLayoutProperty() {}
         setFeatureState() {}
         hasImage(id: string) { return this.images.has(id); }
-        addImage(id: string) { this.images.add(id); }
+        addImage(id: string, image: any) {
+            this.images.add(id);
+            this.imageData.set(id, image);
+        }
         isStyleLoaded() { return true; }
         getZoom() { return 20; }
         getBounds() {
@@ -79,7 +103,6 @@ const mockMapState = vi.hoisted(() => {
         getCanvas() { return this.canvas; }
         fitBounds() {}
         flyTo() {}
-        setStyle() {}
         moveLayer(id: string) {
             this.movedLayers.push(id);
         }
@@ -135,7 +158,42 @@ const lineFeature = {
 
 describe('MapLibreFastRenderer', () => {
     beforeEach(() => {
+        clearMapImageCache();
+        mockMapStyles.tiles = ['https://tiles.example/one/{z}/{x}/{y}.png'];
+        mockMapStyles.mapKey = 'test-map';
         mockMapState.clearLastMap();
+        vi.stubGlobal('createImageBitmap', vi.fn(async () => ({ width: 36, height: 36, close: () => {} })));
+        vi.stubGlobal('URL', { createObjectURL: vi.fn(() => 'blob:mock'), revokeObjectURL: vi.fn() });
+        const originalCreateElement = document.createElement.bind(document);
+        const dummyBuffer = new Uint8ClampedArray(36 * 36 * 4);
+        vi.spyOn(document, 'createElement').mockImplementation(((tagName: string, options?: ElementCreationOptions) => {
+            if (tagName.toLowerCase() === 'canvas') {
+                const canvas = originalCreateElement('canvas') as HTMLCanvasElement;
+                let width = 0;
+                let height = 0;
+                Object.defineProperty(canvas, 'width', {
+                    get: () => width,
+                    set: value => { width = Number(value); },
+                    configurable: true,
+                });
+                Object.defineProperty(canvas, 'height', {
+                    get: () => height,
+                    set: value => { height = Number(value); },
+                    configurable: true,
+                });
+                canvas.getContext = vi.fn(() => ({
+                    clearRect: vi.fn(),
+                    drawImage: vi.fn(),
+                    getImageData: vi.fn(() => ({
+                        width: width || 36,
+                        height: height || 36,
+                        data: dummyBuffer,
+                    })),
+                })) as any;
+                return canvas;
+            }
+            return originalCreateElement(tagName, options);
+        }) as any);
         useDesignSync.setState({
             visibleFeatures: {},
             state: {
@@ -152,6 +210,11 @@ describe('MapLibreFastRenderer', () => {
             viewportRevision: 0,
             mapRenderEngine: 'maplibre-fast',
         } as any);
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
     });
 
     it('creates icon-backed point data and layers for camera features', async () => {
@@ -184,7 +247,15 @@ describe('MapLibreFastRenderer', () => {
                 displaySize: 36,
                 labelIndex: '1',
             }));
-            expect(data.features[0].properties.iconImageId).toContain('design-point-cctv');
+            const iconImageId = data.features[0].properties.iconImageId;
+            expect(iconImageId).toContain('design-point-cctv');
+            expect(lastMap?.images.has(iconImageId)).toBe(true);
+            expect(lastMap?.imageData.get(iconImageId)).toEqual(expect.objectContaining({
+                width: 36,
+                height: 36,
+                data: expect.any(Uint8ClampedArray),
+            }));
+            expect(lastMap?.triggerRepaint).toHaveBeenCalled();
         });
     });
 
@@ -204,15 +275,26 @@ describe('MapLibreFastRenderer', () => {
         await waitFor(() => {
             const lastMap = mockMapState.getLastMap();
             const pointLayer = lastMap?.layers.get('design-fast-points');
+            const labelLayer = lastMap?.layers.get('design-fast-point-labels');
             const data = lastMap?.sources.get('design-fast-features')?.data;
 
             expect(pointLayer?.type).toBe('circle');
             expect(pointLayer?.paint['circle-radius']).toEqual(expect.arrayContaining(['case']));
+            expect(pointLayer?.paint['circle-opacity']).toEqual(expect.arrayContaining([
+                ['to-boolean', ['get', 'iconImageId']],
+                0,
+            ]));
+            expect(pointLayer?.paint['circle-stroke-width']).toEqual(expect.arrayContaining([
+                ['to-boolean', ['get', 'iconImageId']],
+                0,
+            ]));
+            expect(labelLayer?.layout['text-field']).toEqual(['get', 'labelIndex']);
             expect(data.features[0].properties).toEqual(expect.objectContaining({
                 id: 'point-1',
                 color: '#ef4444',
                 displaySize: 14,
-                iconImageId: expect.stringContaining('design-point'),
+                iconImageId: '',
+                labelIndex: '1',
             }));
         });
     });
@@ -358,6 +440,38 @@ describe('MapLibreFastRenderer', () => {
                     properties: { kind: 'snap-link', index: 0, targetId: 'point-a' },
                 }),
             ]));
+        });
+    });
+
+    it('updates basemap raster tiles without resetting design layers', async () => {
+        const { rerender } = render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            const lastMap = mockMapState.getLastMap();
+            expect(lastMap?.sources.get('basemap')?.tiles).toEqual(['https://tiles.example/one/{z}/{x}/{y}.png']);
+            expect(lastMap?.sources.get('design-fast-features')).toBeTruthy();
+            expect(lastMap?.sources.get('design-fast-drawing')).toBeTruthy();
+            expect(lastMap?.sources.get('design-fast-edit-handles')).toBeTruthy();
+        });
+
+        const lastMap = mockMapState.getLastMap();
+        mockMapStyles.tiles = [
+            'https://mt0.google.com/vt/lyrs=y&hl=vi&gl=vn&x={x}&y={y}&z={z}',
+            'https://mt1.google.com/vt/lyrs=y&hl=vi&gl=vn&x={x}&y={y}&z={z}',
+            'https://mt2.google.com/vt/lyrs=y&hl=vi&gl=vn&x={x}&y={y}&z={z}',
+            'https://mt3.google.com/vt/lyrs=y&hl=vi&gl=vn&x={x}&y={y}&z={z}',
+        ];
+        mockMapStyles.mapKey = 'google-vietnam-hybrid';
+
+        rerender(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            expect(lastMap?.setStyle).not.toHaveBeenCalled();
+            expect(lastMap?.sources.get('basemap')?.tiles).toEqual(mockMapStyles.tiles);
+            expect(lastMap?.sources.get('design-fast-features')).toBeTruthy();
+            expect(lastMap?.sources.get('design-fast-drawing')).toBeTruthy();
+            expect(lastMap?.sources.get('design-fast-edit-handles')).toBeTruthy();
+            expect(lastMap?.triggerRepaint).toHaveBeenCalled();
         });
     });
 });

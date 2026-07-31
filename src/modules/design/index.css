@@ -187,9 +187,9 @@
     background: #ffffff !important;
   }
 
-  /* Prevent browser extensions (e.g. Dark Reader) from inverting Leaflet maps */
-  .leaflet-tile,
-  .leaflet-tile-pane img {
+  /* Prevent browser extensions (e.g. Dark Reader) from inverting web maps */
+  .maplibregl-canvas,
+  .design-maplibre-fast canvas {
     filter: none !important;
     -webkit-filter: none !important;
   }
@@ -509,11 +509,6 @@
 .snap-indicator-marker,
 .drawing-point-marker,
 .pointer-events-none {
-  pointer-events: none !important;
-}
-
-/* V3.1: Enable interaction for GIS handles in custom panes */
-.leaflet-editing-handles-pane {
   pointer-events: none !important;
 }
 

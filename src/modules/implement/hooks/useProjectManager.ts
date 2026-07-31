@@ -266,9 +266,7 @@ export function useProjectManager() {
             openingPathRef.current = selectedPath;
             selectedPathForCleanup = selectedPath;
 
-            // OPTIMISTIC RESET: Clear UI state immediately before backend starts heavy load
             const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
-            useDesignSync.getState().reset();
 
             console.info(`[useProjectManager] Attempting to bootstrap PMP file: ${selectedPath}`);
             const bootstrap = await openProjectBootstrap(selectedPath, requestId);

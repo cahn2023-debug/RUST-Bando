@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { MapBasemapId, MapBasemapPreset } from '../useMapStyles';
 
 interface MapFeatureFlags {
     roads: boolean;
@@ -14,6 +15,9 @@ type MapFeatureKey = keyof MapFeatureFlags;
 interface MapSettingsPanelProps {
     mapFeatures: MapFeatureFlags;
     setMapFeatures: React.Dispatch<React.SetStateAction<MapFeatureFlags>>;
+    basemapId: MapBasemapId;
+    setBasemapId: (basemapId: MapBasemapId) => void;
+    basemapPresets: ReadonlyArray<MapBasemapPreset>;
 }
 
 /** Translate function shape we rely on — kept local so we do not depend on i18next types. */
@@ -37,7 +41,19 @@ const MAP_FEATURE_ROWS: ReadonlyArray<{
 
 const HEADING_ID = 'map-settings-layers-heading';
 
-export function MapSettingsPanel({ mapFeatures, setMapFeatures }: MapSettingsPanelProps) {
+const BASEMAP_LABELS: Record<MapBasemapId, string> = {
+    'google-vietnam-road': 'Duong pho',
+    'google-vietnam-satellite': 'Ve tinh',
+    'google-vietnam-hybrid': 'Hybrid',
+};
+
+export function MapSettingsPanel({
+    mapFeatures,
+    setMapFeatures,
+    basemapId,
+    setBasemapId,
+    basemapPresets,
+}: MapSettingsPanelProps) {
     const { t } = useTranslation();
 
     const handleToggle = useCallback(
@@ -60,6 +76,31 @@ export function MapSettingsPanel({ mapFeatures, setMapFeatures }: MapSettingsPan
                 aria-labelledby={HEADING_ID}
                 className="settings-content p-2 flex flex-col gap-1"
             >
+                <div className="grid grid-cols-3 gap-1 pb-2 border-b border-cad-border/70">
+                    {basemapPresets.map((preset) => {
+                        const checked = preset.id === basemapId;
+                        return (
+                            <label
+                                key={preset.id}
+                                className={`flex min-h-6 items-center justify-center cursor-pointer border px-1 text-[9px] font-semibold transition-colors ${
+                                    checked
+                                        ? 'border-cad-accent bg-cad-accent/15 text-cad-text-primary'
+                                        : 'border-cad-border bg-cad-bg/40 text-cad-text-secondary hover:text-cad-accent'
+                                }`}
+                                title={BASEMAP_LABELS[preset.id]}
+                            >
+                                <input
+                                    type="radio"
+                                    name="map-basemap"
+                                    className="sr-only"
+                                    checked={checked}
+                                    onChange={() => setBasemapId(preset.id)}
+                                />
+                                {BASEMAP_LABELS[preset.id]}
+                            </label>
+                        );
+                    })}
+                </div>
                 {MAP_FEATURE_ROWS.map((row) => {
                     const inputId = `map-settings-${row.key}`;
                     return (

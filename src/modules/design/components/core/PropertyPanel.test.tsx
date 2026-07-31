@@ -315,6 +315,59 @@ describe('PropertyPanel clipboard images', () => {
     expect(screen.getByRole('button', { name: /save specs/i })).not.toBeDisabled();
   });
 
+  it('clamps and persists point size changes into metadata and properties', async () => {
+    const originalMetadata = selectedFeature.metadata;
+    const originalProperties = selectedFeature.properties;
+    try {
+      selectedFeature.properties = {
+        icon: 'point_circle',
+        iconKey: 'point_circle',
+        type: 'point',
+        color: '#3b82f6',
+        size: 32,
+      };
+      selectedFeature.metadata = JSON.stringify({
+        icon: 'point_circle',
+        type: 'point',
+        color: '#3b82f6',
+        size: 32,
+      });
+
+      render(<PropertyPanel />);
+      const sizeInput = await screen.findByLabelText('Size');
+      await waitFor(() => expect(sizeInput).toHaveValue(32));
+
+      fireEvent.change(sizeInput, { target: { value: '255252' } });
+      await waitFor(() => expect(sizeInput).toHaveValue(100));
+      const saveButton = screen.getByRole('button', { name: /save specs/i });
+      await waitFor(() => expect(saveButton).not.toBeDisabled());
+      fireEvent.click(saveButton);
+
+      await waitFor(() => expect(mocks.queueEvent).toHaveBeenCalledTimes(1));
+      const payload = mocks.queueEvent.mock.calls[0][0].payload;
+      const savedMetadata = JSON.parse(payload.metadata);
+      expect(savedMetadata).toMatchObject({
+        icon: 'point_circle',
+        type: 'point',
+        color: '#3b82f6',
+        size: 100,
+        gis: expect.objectContaining({
+          size: 100,
+        }),
+      });
+      expect(payload.properties).toMatchObject({
+        icon: 'point_circle',
+        iconKey: 'point_circle',
+        type: 'point',
+        color: '#3b82f6',
+        size: 100,
+      });
+    } finally {
+      selectedFeature.metadata = originalMetadata;
+      selectedFeature.properties = originalProperties;
+    }
+  });
+
   it('pastes an image without changing a nested camera into a standalone point', async () => {
     const originalMetadata = selectedFeature.metadata;
     const originalProperties = selectedFeature.properties;

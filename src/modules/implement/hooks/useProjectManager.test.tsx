@@ -157,7 +157,7 @@ describe("useProjectManager", () => {
     expect(success).toBe(true);
     expect(result.current.selectedProject).toEqual(backendProject);
     expect(result.current.projects).toEqual([backendProject]);
-    expect(mockResetDesign).toHaveBeenCalled();
+    expect(mockResetDesign).not.toHaveBeenCalled();
     expect(mockAddTab).toHaveBeenCalledWith({
       id: backendProject.id,
       name: backendProject.name,

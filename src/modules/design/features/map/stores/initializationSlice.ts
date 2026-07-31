@@ -221,6 +221,27 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                         unlistenSync();
                     }
                 });
+                if (!options.bootstrap.streamingMode) {
+                    const fullState = await withTimeout(loadDesignState(projectId), 15000, 'loadDesignState');
+                    if (initializeRequestId !== getLatestInitializeRequestId()) return;
+                    const fullFeatures = fullState?.features || {};
+                    const fullStateWithBootstrap = {
+                        ...initialShell,
+                        ...(fullState || {}),
+                        features: fullFeatures
+                    };
+                    set({
+                        state: normalizeMapStateForDisplay(fullStateWithBootstrap),
+                        projectId,
+                        projectKey: normalizedProjectKey,
+                        projectPath,
+                        lastSync: Date.now(),
+                        isHydrating: false,
+                        error: null
+                    });
+                    logger.info(`[Store] Bootstrap hydration loaded ${Object.keys(fullFeatures).length} features in ${(performance.now() - tStart).toFixed(1)}ms for project ${projectId}`);
+                    return;
+                }
                 keepHydratingAfterReturn = true;
                 void (async () => {
                     try {

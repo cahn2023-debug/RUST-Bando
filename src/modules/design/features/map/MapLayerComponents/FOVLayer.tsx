@@ -1,6 +1,6 @@
 import React from 'react';
-import { Polygon } from 'react-leaflet';
-import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+import { useMapContext } from '../MapContext';
+import { useDesignSync, EMPTY_OBJ } from '@IMPLEMENT/stores/useDesignSync';
 import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore';
 import {
     getFeatureDisplayInfo,
@@ -9,6 +9,10 @@ import {
     getFeatureMetadataValue
 } from '@TOOL/utils/featureUtils';
 import { getParsedMetadata } from './SharedMapComponents';
+
+const FOV_SOURCE_ID = 'maplibre-fov-source';
+const FOV_FILL_LAYER_ID = 'maplibre-fov-fill';
+const FOV_LINE_LAYER_ID = 'maplibre-fov-line';
 
 const metadataNumber = (value: unknown, fallback: number) => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
@@ -19,33 +23,73 @@ const metadataNumber = (value: unknown, fallback: number) => {
     return fallback;
 };
 
-export const FOVLayer = React.memo(({
-    features,
-    feature_groups,
-    previewMetadata,
-    currentZoom,
-    renderedPointIds,
-    renderLimit = 250
-}: any) => {
+const removeFovLayers = (map: maplibregl.Map) => {
+    if (map.getLayer(FOV_LINE_LAYER_ID)) map.removeLayer(FOV_LINE_LAYER_ID);
+    if (map.getLayer(FOV_FILL_LAYER_ID)) map.removeLayer(FOV_FILL_LAYER_ID);
+    if (map.getSource(FOV_SOURCE_ID)) map.removeSource(FOV_SOURCE_ID);
+};
+
+const ensureFovLayers = (map: maplibregl.Map, data: GeoJSON.FeatureCollection) => {
+    const source = map.getSource(FOV_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (source) {
+        source.setData(data);
+        return;
+    }
+
+    map.addSource(FOV_SOURCE_ID, { type: 'geojson', data });
+    map.addLayer({
+        id: FOV_FILL_LAYER_ID,
+        type: 'fill',
+        source: FOV_SOURCE_ID,
+        paint: {
+            'fill-color': ['get', 'color'],
+            'fill-opacity': 0.15,
+        },
+    });
+    map.addLayer({
+        id: FOV_LINE_LAYER_ID,
+        type: 'line',
+        source: FOV_SOURCE_ID,
+        paint: {
+            'line-color': ['get', 'color'],
+            'line-width': 1,
+            'line-dasharray': [2, 2],
+        },
+    });
+};
+
+export const FOVLayer = React.memo(() => {
+    const { map } = useMapContext();
+    const rawFeatures = useDesignSync(s => s.state?.features || (EMPTY_OBJ as Record<string, any>));
+    const visibleFeatures = useDesignSync(s => s.visibleFeatures);
+    const isLargeProject = useDesignSync(s => Boolean(s.state?.isLargeProject));
+    const featureGroups = useDesignSync(s => s.state?.feature_groups || (EMPTY_OBJ as Record<string, any>));
+    const previewMetadata = useDesignSync(s => s.previewMetadata);
     const drawingMode = useDesignSync(s => s.drawingMode);
     const showFovTypes = useSettingsStore(s => s.showFovTypes);
-    const isClickThrough = drawingMode !== 'none' && drawingMode !== 'move';
+    const [currentZoom, setCurrentZoom] = React.useState(() => map?.getZoom() ?? 0);
 
-    const fovItems = React.useMemo(() => {
-        const items: Array<{
-            id: string;
-            points: [number, number][];
-            color: string;
-            isClickThrough: boolean;
-        }> = [];
+    React.useEffect(() => {
+        if (!map) return;
+        const syncZoom = () => setCurrentZoom(map.getZoom());
+        syncZoom();
+        map.on('zoomend', syncZoom);
+        return () => {
+            map.off('zoomend', syncZoom);
+        };
+    }, [map]);
+
+    const collection = React.useMemo<GeoJSON.FeatureCollection>(() => {
+        const features = Object.values(isLargeProject ? visibleFeatures : rawFeatures);
+        const isClickThrough = drawingMode !== 'none' && drawingMode !== 'move';
+        const items: GeoJSON.Feature[] = [];
 
         for (const f of features) {
-            if (items.length >= renderLimit) break;
+            if (items.length >= 250) break;
             const geomType = String(f.geom_type || '').toLowerCase();
             if (geomType && geomType !== 'point') continue;
-            if (renderedPointIds && !renderedPointIds.has(f.id)) continue;
 
-            const group = feature_groups[f.group_id];
+            const group = f.group_id ? featureGroups[f.group_id] : null;
             if (!group) continue;
 
             const metadata = getParsedMetadata(f, previewMetadata);
@@ -61,7 +105,7 @@ export const FOVLayer = React.memo(({
                 groupType === 'NUT_GIAO' ||
                 groupName.includes('nut giao') ||
                 groupName.includes('intersection') ||
-                !!metadata.parent_feature_id;
+                Boolean(metadata.parent_feature_id);
             const isJunctionIcon = displayInfo.isIntersection && displayInfo.iconKey === 'intersection';
 
             if (currentZoom < 13) continue;
@@ -76,34 +120,41 @@ export const FOVLayer = React.memo(({
             const points = calculateFOVPoints(coords, fovRadius, rotation, fovAngle);
             if (points.length === 0) continue;
 
+            const coordinates = points.map(point => [point[1], point[0]]);
+            coordinates.push(coordinates[0]);
             items.push({
-                id: `fov-${f.id}-${rotation}-${fovAngle}-${fovRadius}`,
-                points,
-                color: displayInfo.color || '#3b82f6',
-                isClickThrough
+                type: 'Feature',
+                geometry: { type: 'Polygon', coordinates: [coordinates] },
+                properties: {
+                    id: f.id,
+                    color: displayInfo.color || '#3b82f6',
+                    clickThrough: isClickThrough,
+                },
             });
         }
 
-        return items;
-    }, [features, feature_groups, previewMetadata, currentZoom, renderedPointIds, showFovTypes, renderLimit, isClickThrough]);
+        return { type: 'FeatureCollection', features: items };
+    }, [currentZoom, drawingMode, featureGroups, isLargeProject, previewMetadata, rawFeatures, showFovTypes, visibleFeatures]);
 
-    return (
-        <>
-            {fovItems.map(item => (
-                <Polygon
-                    key={item.id}
-                    positions={item.points}
-                    pathOptions={{
-                        color: item.color,
-                        weight: 1,
-                        fillOpacity: 0.15,
-                        fillColor: item.color,
-                        dashArray: '5, 5',
-                        className: item.isClickThrough ? 'pointer-events-none' : ''
-                    }}
-                    interactive={false}
-                />
-            ))}
-        </>
-    );
+    React.useEffect(() => {
+        if (!map) return;
+        if (collection.features.length === 0) {
+            removeFovLayers(map);
+            return;
+        }
+
+        const apply = () => ensureFovLayers(map, collection);
+        if (map.isStyleLoaded()) apply();
+        else map.once('styledata', apply);
+
+        return () => {
+            map.off('styledata', apply);
+        };
+    }, [collection, map]);
+
+    React.useEffect(() => () => {
+        if (map) removeFovLayers(map);
+    }, [map]);
+
+    return null;
 });

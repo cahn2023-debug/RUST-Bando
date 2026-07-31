@@ -17,7 +17,7 @@ export type {
 
 export const EMPTY_OBJ = {};
 
-export type MapRenderEngine = 'leaflet' | 'maplibre-fast';
+export type MapRenderEngine = 'maplibre-fast';
 
 export interface MapRenderMetrics {
     engine: MapRenderEngine;

@@ -4,7 +4,6 @@ import { X, Printer, MousePointer2, Loader2, Download, Search, Minus, Square, Co
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getFeatureDisplayInfo } from '@TOOL/utils/featureUtils';
 import html2canvas from 'html2canvas';
-import L from 'leaflet';
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { PRINT_COLORS, PRINT_PREVIEW_COLORS } from '@DESIGN/features/print/printColors';
@@ -13,6 +12,46 @@ import { Button } from '@DESIGN/components/ui/Button';
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+const pointInBounds = (
+  lng: number,
+  lat: number,
+  [minLat, minLng, maxLat, maxLng]: [number, number, number, number]
+) => lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng;
+
+const requestMapCapture = async (printArea: [number, number, number, number]) => {
+  const captureId = `print_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  const capturePromise = new Promise<{ dataUrl: string }>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      cleanup();
+      reject(new Error("Timeout waiting for map capture"));
+    }, 10000);
+
+    let unlistenResult: (() => void) | undefined;
+    let unlistenError: (() => void) | undefined;
+
+    const cleanup = () => {
+      if (unlistenResult) unlistenResult();
+      if (unlistenError) unlistenError();
+      clearTimeout(timeout);
+    };
+
+    listen<{ captureId?: string; dataUrl: string }>('map-capture-result', (event) => {
+      if (event.payload.captureId && event.payload.captureId !== captureId) return;
+      cleanup();
+      resolve(event.payload);
+    }).then(f => { unlistenResult = f; });
+
+    listen<{ captureId?: string; error: string }>('map-capture-error', (event) => {
+      if (event.payload.captureId && event.payload.captureId !== captureId) return;
+      cleanup();
+      reject(new Error(event.payload.error));
+    }).then(f => { unlistenError = f; });
+  });
+
+  emit('request-map-capture', { captureId, printArea });
+  return capturePromise;
+};
 
 interface PrintDialogProps {
   onClose: () => void;
@@ -60,35 +99,9 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
     if (printArea) {
       const captureForPreview = async () => {
         try {
-          if (isStandalone) {
-            console.log('[PrintDialog] Requesting preview capture...');
-            const capturePromise = new Promise<{ dataUrl: string }>((resolve, reject) => {
-              const timeout = setTimeout(() => reject(new Error("Timeout")), 5000);
-              let unlistenResult: (() => void) | undefined;
-              listen<{ dataUrl: string }>('map-capture-result', (event) => {
-                if (unlistenResult) unlistenResult();
-                clearTimeout(timeout);
-                resolve(event.payload);
-              }).then(f => { unlistenResult = f; });
-            });
-            emit('request-map-capture', { printArea });
-
-            const result = await capturePromise;
-            if (active) setPreviewImage(result.dataUrl);
-          } else {
-            const mapContainer = document.querySelector('.leaflet-container') as HTMLElement;
-            if (mapContainer) {
-              const canvas = await html2canvas(mapContainer, {
-                useCORS: true,
-                scale: 1, // Preview doesn't need high res
-                ignoreElements: (el) => {
-                  const className = typeof el.className === 'string' ? el.className : "";
-                  return className.includes('leaflet-control-container');
-                }
-              });
-              if (active) setPreviewImage(canvas.toDataURL('image/png'));
-            }
-          }
+          console.log('[PrintDialog] Requesting preview capture...');
+          const result = await requestMapCapture(printArea);
+          if (active) setPreviewImage(result.dataUrl);
         } catch (err) {
           console.error('[PrintDialog] Preview capture failed:', err);
         }
@@ -114,19 +127,15 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
   const dynamicLegend = useMemo(() => {
     if (!printArea || features.length === 0 || !state?.feature_groups) return [];
 
-    // printArea: [minLat, minLng, maxLat, maxLng]
-    const [minLat, minLng, maxLat, maxLng] = printArea;
-    const bounds = L.latLngBounds([minLat, minLng], [maxLat, maxLng]);
-
     const visibleFeatures = features.filter(f => {
       try {
         const coords = typeof f.coordinates === 'string' ? JSON.parse(f.coordinates) : f.coordinates;
         if (f.geom_type === 'Point' || f.geom_type === 'POINT') {
-          return bounds.contains([coords[1], coords[0]]);
+          return pointInBounds(coords[0], coords[1], printArea);
         }
         if (Array.isArray(coords)) {
           const flatCoords = (f.geom_type === 'Polygon' || f.geom_type === 'POLYGON') ? (Array.isArray(coords[0]) ? coords[0] : coords) : coords;
-          return flatCoords.some((c: any) => bounds.contains([c[1], c[0]]));
+          return flatCoords.some((c: any) => pointInBounds(c[0], c[1], printArea));
         }
         return false;
       } catch { return false; }
@@ -202,7 +211,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
         });
         mapCanvas = img;
       } else {
-        const mapContainer = document.querySelector('.leaflet-container') as HTMLElement;
+        const mapContainer = document.querySelector('.design-maplibre-fast') as HTMLElement;
         if (!mapContainer) throw new Error("Không tìm thấy bản đồ");
 
         mapCanvas = await html2canvas(mapContainer, {
@@ -211,8 +220,8 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
           scale: 2,
           ignoreElements: (el) => {
             const className = typeof el.className === 'string' ? el.className : "";
-            return className.includes('leaflet-control-container') ||
-              className.includes('leaflet-draw-toolbar');
+            return className.includes('maplibregl-control-container') ||
+              className.includes('maplibregl-ctrl');
           }
         });
       }

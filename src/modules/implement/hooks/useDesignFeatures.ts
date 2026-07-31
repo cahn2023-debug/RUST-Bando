@@ -92,9 +92,17 @@ export const useFeatureNumbering = (features: Record<string, FeatureState>) => {
     return useMemo(() => calculateFeatureNumbers(Object.values(features), features), [features]);
 };
 
+type MapBoundsLike = {
+    getSouth: () => number;
+    getNorth: () => number;
+    getWest: () => number;
+    getEast: () => number;
+    contains: (point: [number, number]) => boolean;
+};
+
 export const useVisibleFeatures = (
     features: Record<string, FeatureState>,
-    bounds: L.LatLngBounds | null,
+    bounds: MapBoundsLike | null,
     selectedFeatureId: string | null,
     hasVirtualChildren?: Set<string>
 ) => {
@@ -291,4 +299,3 @@ export const useVisibleFeatures = (
         return visibleFeatures;
     }, [features, boundsValues, selectedFeatureId, optimizedFeatureData, hasVirtualChildren]);
 };
-

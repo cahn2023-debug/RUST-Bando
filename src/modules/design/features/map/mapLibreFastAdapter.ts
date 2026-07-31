@@ -177,7 +177,7 @@ const toRenderFeature = (
         const pointIconKey = isCameraIcon(displayInfo.iconKey) ? displayInfo.iconKey : (
             displayInfo.isIntersection ? 'intersection' : (displayInfo.iconKey || 'default')
         );
-        const hasPointIcon = Boolean(pointIconKey);
+        const hasPointIcon = Boolean(pointIconKey && pointIconKey !== 'default' && pointIconKey !== 'point_circle');
         const iconImageId = hasPointIcon
             ? [
                 'design-point',

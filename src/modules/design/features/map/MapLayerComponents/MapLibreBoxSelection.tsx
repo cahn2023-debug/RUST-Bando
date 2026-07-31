@@ -1,35 +1,41 @@
 import { useRef, useEffect } from 'react';
-import { useMap } from 'react-leaflet';
-import L from 'leaflet';
+import { useMapContext } from '../MapContext';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getFeatureBounds, intersectsBounds, normalizeFeatureForSummary } from '@TOOL/utils/selectionUtils';
 
-export function BoxSelectionHandler() {
-  const map = useMap();
+const QUERY_LAYERS = [
+  'design-fast-points',
+  'design-fast-point-icons',
+  'design-fast-point-labels',
+  'design-fast-lines',
+  'design-fast-line-hit-area',
+  'design-fast-polygons',
+  'design-fast-polygon-strokes',
+];
+
+export function MapLibreBoxSelection() {
+  const { map } = useMapContext();
   const { state, setBoxSelection, selectFeature } = useDesignSync();
   const lastSelectionTime = useRef(0);
 
   useEffect(() => {
     if (!map) return;
 
-    let startPoint: L.Point | null = null;
+    let startPoint: { x: number; y: number } | null = null;
     let selectionBox: HTMLDivElement | null = null;
     let isDragging = false;
 
-    // Lắng nghe trực tiếp trên container của bản đồ để tránh bị Layer chặn sự kiện
     const container = map.getContainer();
 
     const onMouseDown = (e: MouseEvent) => {
-      // Shield: Don't interfere if Move tool is active
       if (useDesignSync.getState().drawingMode === 'move') return;
       if (!e.shiftKey) return;
 
       isDragging = true;
-      // Chuyển tọa độ chuột sang tọa độ container bản đồ
       const rect = container.getBoundingClientRect();
-      startPoint = L.point(e.clientX - rect.left, e.clientY - rect.top);
+      startPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
 
-      map.dragging.disable();
+      map.dragPan.disable();
       container.style.cursor = 'crosshair';
 
       selectionBox = document.createElement('div');
@@ -45,7 +51,6 @@ export function BoxSelectionHandler() {
 
       container.appendChild(selectionBox);
 
-      // Ngăn chặn sự kiện mặc định của trình duyệt
       e.preventDefault();
       e.stopPropagation();
     };
@@ -54,7 +59,7 @@ export function BoxSelectionHandler() {
       if (!isDragging || !startPoint || !selectionBox) return;
 
       const rect = container.getBoundingClientRect();
-      const currentPoint = L.point(e.clientX - rect.left, e.clientY - rect.top);
+      const currentPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
 
       const minX = Math.min(startPoint.x, currentPoint.x);
       const minY = Math.min(startPoint.y, currentPoint.y);
@@ -71,14 +76,23 @@ export function BoxSelectionHandler() {
       if (!isDragging || !startPoint || !selectionBox) return;
 
       const rect = container.getBoundingClientRect();
-      const currentPoint = L.point(e.clientX - rect.left, e.clientY - rect.top);
+      const currentPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
 
-      // Chuyển tọa độ box sang LatLngBounds
-      const p1 = map.containerPointToLatLng(startPoint);
-      const p2 = map.containerPointToLatLng(currentPoint);
-      const bounds = L.latLngBounds(p1, p2);
+      const minX = Math.min(startPoint.x, currentPoint.x);
+      const minY = Math.min(startPoint.y, currentPoint.y);
+      const maxX = Math.max(startPoint.x, currentPoint.x);
+      const maxY = Math.max(startPoint.y, currentPoint.y);
 
-      // Dọn dẹp UI
+      // Convert container pixels to LngLat coordinates in MapLibre
+      const p1 = map.unproject([minX, minY]);
+      const p2 = map.unproject([maxX, maxY]);
+
+      const west = Math.min(p1.lng, p2.lng);
+      const east = Math.max(p1.lng, p2.lng);
+      const south = Math.min(p1.lat, p2.lat);
+      const north = Math.max(p1.lat, p2.lat);
+
+      // Cleanup UI
       if (selectionBox.parentNode) {
         selectionBox.parentNode.removeChild(selectionBox);
       }
@@ -86,26 +100,34 @@ export function BoxSelectionHandler() {
       isDragging = false;
       startPoint = null;
       selectionBox = null;
-      map.dragging.enable();
+      map.dragPan.enable();
       container.style.cursor = '';
       lastSelectionTime.current = Date.now();
 
-      if (bounds.getNorthEast().equals(bounds.getSouthWest())) return;
+      if (west === east && south === north) return;
 
       // Fit view
-      map.fitBounds(bounds, { padding: [20, 20] });
+      map.fitBounds([[west, south], [east, north]], { padding: 40 });
 
       if (!state) return;
 
-      // Cho phép UI xóa box và cập nhật fitBounds trước khi tính toán nặng
       setTimeout(() => {
         try {
-          const selectionBounds: [number, number, number, number] = [
-            bounds.getWest(),
-            bounds.getSouth(),
-            bounds.getEast(),
-            bounds.getNorth()
-          ];
+          const selectionBounds: [number, number, number, number] = [west, south, east, north];
+          const queryLayers = QUERY_LAYERS.filter(layerId => Boolean(map.getLayer(layerId)));
+          const renderedFeatureIds = new Set(
+            queryLayers.length > 0
+              ? map.queryRenderedFeatures(
+                [
+                  [minX, minY],
+                  [maxX, maxY],
+                ],
+                { layers: queryLayers }
+              )
+                .map(feature => feature.properties?.id)
+                .filter((id): id is string => typeof id === 'string')
+              : []
+          );
 
           const allFeatures = Object.values(state.features || {});
           const featureGroups = state.feature_groups || {};
@@ -114,7 +136,6 @@ export function BoxSelectionHandler() {
           const intersectedFeatures = [];
           const stats: Record<string, number> = {};
 
-          // Phase 1: Fast Filter (No normalization yet)
           for (let i = 0; i < allFeatures.length; i++) {
             const feature = allFeatures[i];
             const group = feature.group_id ? featureGroups[feature.group_id] : null;
@@ -122,10 +143,10 @@ export function BoxSelectionHandler() {
             const layer = layers[group.layer_id];
             if (!layer || !layer.is_visible) continue;
 
-            const featureBounds = getFeatureBounds(feature);
-            if (!featureBounds) continue;
+            const isRenderedHit = renderedFeatureIds.has(feature.id);
+            const featureBounds = isRenderedHit ? null : getFeatureBounds(feature);
 
-            if (intersectsBounds(featureBounds, selectionBounds)) {
+            if (isRenderedHit || (featureBounds && intersectsBounds(featureBounds, selectionBounds))) {
               intersectedFeatures.push({ feature, group });
               const dType = group.type || 'KHÁC';
               stats[dType] = (stats[dType] || 0) + 1;
@@ -137,58 +158,37 @@ export function BoxSelectionHandler() {
             return;
           }
 
-          // Phase 2: Normalization (Chỉ normalize tối đa 1000 mục để hiện list chi tiết nhanh)
           const itemsToProcess = intersectedFeatures.slice(0, 1000).map(f =>
             normalizeFeatureForSummary(f.feature, f.group.type, f.group.name)
           );
 
-          // Update Store
           selectFeature(null);
           setBoxSelection({
             count: intersectedFeatures.length,
             byType: stats,
             items: itemsToProcess as any,
-            bounds: [bounds.getSouth(), bounds.getWest(), bounds.getNorth(), bounds.getEast()]
+            bounds: [south, west, north, east]
           });
 
         } catch (err) {
-          console.error("[BoxSelection] Error in async processing:", err);
+          console.error('[MapLibreBoxSelection] Error in async processing:', err);
         }
       }, 50);
     };
 
-    const onMapClick = (e: L.LeafletMouseEvent) => {
+    const onMapClick = (e: maplibregl.MapMouseEvent) => {
       const currentState = useDesignSync.getState();
-      const originalTarget = (e.originalEvent as MouseEvent)?.target as HTMLElement;
-
-      const isFeatureClick = originalTarget && (
-        originalTarget.tagName === 'path' ||
-        originalTarget.tagName === 'IMG' ||
-        originalTarget.closest('.leaflet-marker-icon') ||
-        originalTarget.closest('.leaflet-interactive') ||
-        originalTarget.closest('.custom-map-marker') ||
-        originalTarget.closest('.selected-marker') ||
-        originalTarget.classList.contains('leaflet-marker-icon') ||
-        originalTarget.classList.contains('leaflet-interactive') ||
-        originalTarget.classList.contains('custom-map-marker') ||
-        originalTarget.classList.contains('selected-marker')
-      );
-
-      if (isFeatureClick) return;
-
-      const lastMarkerClick = (currentState as any)._lastMarkerClickTime || 0;
-      const timeSinceMarkerClick = Date.now() - lastMarkerClick;
-      if (timeSinceMarkerClick < 100) return;
-
       if (currentState.drawingMode !== 'none' && currentState.drawingMode !== 'move') return;
 
       if (!isDragging && (Date.now() - lastSelectionTime.current > 500)) {
-        selectFeature(null);
-        setBoxSelection(null);
+        // If clicked empty map area, clear box selection
+        if (!e.defaultPrevented) {
+          selectFeature(null);
+          setBoxSelection(null);
+        }
       }
     };
 
-    // Đăng ký sự kiện trực tiếp trên DOM Container
     container.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
@@ -199,9 +199,9 @@ export function BoxSelectionHandler() {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       map.off('click', onMapClick);
-      map.dragging.enable();
+      map.dragPan.enable();
     };
-  }, [map, state, setBoxSelection, selectFeature]);
+  }, [map, selectFeature, setBoxSelection, state]);
 
   return null;
 }

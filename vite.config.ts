@@ -11,6 +11,9 @@ export default defineConfig({
     tailwindcss(),
     wasm()
   ],
+  optimizeDeps: {
+    include: ["@turf/turf"]
+  },
   server: {
     port: 3000,
     strictPort: true,

@@ -1,17 +1,18 @@
 // Browser/Tauri runtime polyfill
 import "@IMPLEMENT/lib/tauri";
 
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import "@DESIGN/index.css";
 import "@/modules/i18n"; // Initialize i18n
 import { ErrorBoundary } from "@DESIGN/components/ui/ErrorBoundary";
+import { lazyWithRetry } from "@TOOL/utils/lazyWithRetry";
+import App from "./App";
 
 // Lazy load components to optimize per-window bundle usage
-const App = lazy(() => import("./App"));
-const AnalysisWindow = lazy(() => import("@IMPLEMENT/features/analysis/AnalysisWindow"));
-const PrintWindow = lazy(() => import("@DESIGN/features/print/PrintWindow"));
-const StreetViewPage = lazy(() => import("@DESIGN/features/map/MapLayerComponents/StreetViewPage"));
+const AnalysisWindow = lazyWithRetry(() => import("@IMPLEMENT/features/analysis/AnalysisWindow"), { moduleName: "AnalysisWindow" });
+const PrintWindow = lazyWithRetry(() => import("@DESIGN/features/print/PrintWindow"), { moduleName: "PrintWindow" });
+const StreetViewPage = lazyWithRetry(() => import("@DESIGN/features/map/MapLayerComponents/StreetViewPage"), { moduleName: "StreetViewPage" });
 
 const rootElement = document.getElementById("root") as HTMLElement;
 const pathname = window.location.pathname;

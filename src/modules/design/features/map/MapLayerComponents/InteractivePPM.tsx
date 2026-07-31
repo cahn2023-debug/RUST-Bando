@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { useMapEvents } from 'react-leaflet';
+import { useMapContext } from '../MapContext';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import {
     getPointCoordinates,
@@ -30,6 +30,7 @@ const parseMetadata = (value: unknown) => {
 };
 
 export const InteractivePPM: React.FC = () => {
+    const { map } = useMapContext();
     const showDORILayers = useDesignSync(s => s.showDORILayers);
     const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
     const state = useDesignSync(s => s.state);
@@ -95,8 +96,8 @@ export const InteractivePPM: React.FC = () => {
         const ppm = calculatePPMAtPoint(
             camera.lat,
             camera.lng,
-            event.latlng.lat,
-            event.latlng.lng,
+            event.lngLat.lat,
+            event.lngLat.lng,
             camera.resolutionX,
             camera.hfov,
             camera.installHeight,
@@ -105,8 +106,8 @@ export const InteractivePPM: React.FC = () => {
 
         setPpmInfo({
             ppm,
-            lat: event.latlng.lat,
-            lng: event.latlng.lng,
+            lat: event.lngLat.lat,
+            lng: event.lngLat.lng,
             x: event.originalEvent.clientX,
             y: event.originalEvent.clientY
         });
@@ -118,8 +119,10 @@ export const InteractivePPM: React.FC = () => {
         }
     }, []);
 
-    useMapEvents({
-        mousemove(e) {
+    useEffect(() => {
+        if (!map) return;
+
+        const onMouseMove = (e: maplibregl.MapMouseEvent) => {
             if (!showDORILayers || !camera) {
                 if (ppmInfo) clearPpmInfo();
                 return;
@@ -128,11 +131,19 @@ export const InteractivePPM: React.FC = () => {
             if (rafRef.current === null) {
                 rafRef.current = window.requestAnimationFrame(flushMouseMove);
             }
-        },
-        mouseout() {
+        };
+        const onMouseOut = () => {
             clearPpmInfo();
-        }
-    });
+        };
+
+        map.on('mousemove', onMouseMove);
+        map.on('mouseout', onMouseOut);
+
+        return () => {
+            map.off('mousemove', onMouseMove);
+            map.off('mouseout', onMouseOut);
+        };
+    }, [camera, clearPpmInfo, flushMouseMove, map, ppmInfo, showDORILayers]);
 
     if (!ppmInfo || !showDORILayers) return null;
 
