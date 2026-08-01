@@ -196,7 +196,7 @@ export function MapCaptureHandler() {
         let requiredPointWarning: string | null = null;
         if (fitToBounds && printArea) {
           const [minLat, minLng, maxLat, maxLng] = printArea;
-          const paddings = [48, 80, 112];
+          const paddings = [40, 60, 80];
           for (let attempt = 0; attempt < paddings.length; attempt += 1) {
             map.resize();
             map.fitBounds(
@@ -221,31 +221,55 @@ export function MapCaptureHandler() {
         }
 
         await forceRenderFrame(map);
-        await delay(60);
+        await delay(120);
 
         const sourceCanvas = map.getCanvas();
         const overlayCanvas = mapContainer.querySelector<HTMLCanvasElement>('[data-map-overlay-canvas="features"]');
         const activePixelBudget = pixelBudget
           ?? (captureKind === 'preview' ? DEFAULT_PREVIEW_PIXEL_BUDGET : DEFAULT_EXPORT_PIXEL_BUDGET);
 
-        if (printArea && !fitToBounds) {
+        if (printArea) {
           const [minLat, minLng, maxLat, maxLng] = printArea;
           const nwPoint = map.project([minLng, maxLat]);
           const sePoint = map.project([maxLng, minLat]);
-          const x = Math.max(0, Math.min(nwPoint.x, sePoint.x));
-          const y = Math.max(0, Math.min(nwPoint.y, sePoint.y));
-          const width = Math.min(sourceCanvas.width - x, Math.abs(nwPoint.x - sePoint.x));
-          const height = Math.min(sourceCanvas.height - y, Math.abs(nwPoint.y - sePoint.y));
-          canvas = compositeMapCapture({
-            basemapCanvas: sourceCanvas,
-            overlayCanvas,
-            x,
-            y,
-            width,
-            height,
-            scale: scale ?? 1,
-            pixelBudget: activePixelBudget,
-          });
+          const container = map.getContainer();
+          const cssWidth = container?.clientWidth || sourceCanvas.width;
+          const cssHeight = container?.clientHeight || sourceCanvas.height;
+          const pixelRatioX = sourceCanvas.width / Math.max(1, cssWidth);
+          const pixelRatioY = sourceCanvas.height / Math.max(1, cssHeight);
+
+          const margin = 16;
+          const rawMinX = (Math.min(nwPoint.x, sePoint.x) - margin) * pixelRatioX;
+          const rawMinY = (Math.min(nwPoint.y, sePoint.y) - margin) * pixelRatioY;
+          const rawMaxX = (Math.max(nwPoint.x, sePoint.x) + margin) * pixelRatioX;
+          const rawMaxY = (Math.max(nwPoint.y, sePoint.y) + margin) * pixelRatioY;
+
+          const x = Math.max(0, Math.min(sourceCanvas.width - 20, Math.floor(rawMinX)));
+          const y = Math.max(0, Math.min(sourceCanvas.height - 20, Math.floor(rawMinY)));
+          const maxX = Math.max(x + 20, Math.min(sourceCanvas.width, Math.ceil(rawMaxX)));
+          const maxY = Math.max(y + 20, Math.min(sourceCanvas.height, Math.ceil(rawMaxY)));
+          const width = maxX - x;
+          const height = maxY - y;
+
+          if (width > 50 && height > 50) {
+            canvas = compositeMapCapture({
+              basemapCanvas: sourceCanvas,
+              overlayCanvas,
+              x,
+              y,
+              width,
+              height,
+              scale: scale ?? 1,
+              pixelBudget: activePixelBudget,
+            });
+          } else {
+            canvas = compositeMapCapture({
+              basemapCanvas: sourceCanvas,
+              overlayCanvas,
+              scale: scale ?? 1,
+              pixelBudget: activePixelBudget,
+            });
+          }
         } else {
           canvas = compositeMapCapture({
             basemapCanvas: sourceCanvas,
@@ -260,9 +284,7 @@ export function MapCaptureHandler() {
           // Attempt double render fallback if initial check failed
           await forceRenderFrame(map);
           await delay(120);
-          canvas = printArea && !fitToBounds
-            ? compositeMapCapture({ basemapCanvas: sourceCanvas, overlayCanvas, scale: scale ?? 1, pixelBudget: activePixelBudget })
-            : compositeMapCapture({ basemapCanvas: sourceCanvas, overlayCanvas, scale: scale ?? 1, pixelBudget: activePixelBudget });
+          canvas = compositeMapCapture({ basemapCanvas: sourceCanvas, overlayCanvas, scale: scale ?? 1, pixelBudget: activePixelBudget });
           validation = validateMapCaptureCanvas(canvas);
         }
 
@@ -270,18 +292,20 @@ export function MapCaptureHandler() {
           throw new Error(validation.reason || 'Ảnh bản đồ không hợp lệ.');
         }
 
+        const image = await canvasToJpegImage(canvas, captureKind === 'preview' ? 0.84 : 0.90);
+        const captureWarnings = [...(image.warnings || [])];
         if (requiredPointWarning) {
-          throw new Error(requiredPointWarning);
+          console.warn('[MapCaptureHandler]', requiredPointWarning);
+          captureWarnings.push(requiredPointWarning);
         }
 
-        const image = await canvasToJpegImage(canvas, captureKind === 'preview' ? 0.76 : 0.82);
         const result = {
           captureId,
           image,
           width: image.width,
           height: image.height,
           mimeType: image.mimeType,
-          warnings: image.warnings || [],
+          warnings: captureWarnings,
         };
         window.dispatchEvent(new CustomEvent('map-capture-result', { detail: result }));
         emit('map-capture-result', { captureId, width: image.width, height: image.height, mimeType: image.mimeType });

@@ -242,7 +242,7 @@ const captureMissingReportImages = async (
       const dataUrl = await requestMapCapture(
         activeBounds,
         `report-${section.id}-${Date.now()}-${attempt}`,
-        1.5,
+        2.2,
         true,
         REPORT_MAP_CAPTURE_MAX_ZOOM,
           {
@@ -271,7 +271,7 @@ const capturePreviewImage = async (model: ReportModel, sectionId: string): Promi
   return requestMapCapture(
     targetBounds,
     `report-preview-${section.id}-${Date.now()}`,
-    1.25,
+    1.8,
     true,
     REPORT_MAP_CAPTURE_MAX_ZOOM,
     {

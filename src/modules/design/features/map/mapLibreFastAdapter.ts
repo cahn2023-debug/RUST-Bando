@@ -454,10 +454,11 @@ export const buildMapLibreFeatureCollection = ({
         if (feature.id === selectedFeatureId) continue;
         if (!canRenderFeature(feature)) continue;
 
+        const isFocused = Boolean(focusIds && focusIds.size > 0 && focusIds.has(feature.id));
         const renderFeatureItems = toRenderFeatures(feature, selectedFeatureId, featureGroups, featureNumberMap || {}, groupThemePreview);
         for (const renderFeature of renderFeatureItems) {
             if (renderFeature.geometry.type === 'Point' || renderFeature.geometry.type === 'MultiPoint') {
-                if (renderedPoints >= lodPolicy.maxFeatures) continue;
+                if (!isFocused && renderedPoints >= lodPolicy.maxFeatures) continue;
                 renderedPoints += 1;
             }
             renderFeatures.push(renderFeature);

@@ -49,7 +49,7 @@ const requestMapCapture = async (printArea: [number, number, number, number]) =>
     }).then(f => { unlistenError = f; });
   });
 
-  emit('request-map-capture', { captureId, printArea });
+  emit('request-map-capture', { captureId, printArea, fitToBounds: true, captureKind: 'export' });
   return capturePromise;
 };
 

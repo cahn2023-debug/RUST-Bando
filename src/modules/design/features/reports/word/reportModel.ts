@@ -1,5 +1,4 @@
-import type { FeatureState, FeatureGroupState, MapState, RegionState } from "@CONTRACT/types";
-import { getFeatureDisplayInfo, getParsedMetadata, getFeatureMetadataValue, safeString, isNetworkLinkFeature } from "@TOOL/utils/featureUtils";
+import { getFeatureDisplayInfo, getParsedMetadata, getFeatureMetadataValue, safeString, isNetworkLinkFeature, calculateFOVPoints } from "@TOOL/utils/featureUtils";
 
 export type ReportSelection =
   | { type: "region"; id: string }
@@ -334,6 +333,22 @@ const makePhotoWarnings = (feature: FeatureState, photos: ReportPhoto[]): string
 export const getFeaturePoints = (feature: FeatureState): Array<[number, number]> => {
   const points: Array<[number, number]> = [];
   collectPointsFromCoordinates(parseCoordinates(feature), points);
+  if (points.length === 1) {
+    const metadata = getParsedMetadata(feature);
+    const showFov = getFeatureMetadataValue(feature, "gis.show_fov", "show_fov", metadata) !== false;
+    const fovRadius = Number(getFeatureMetadataValue(feature, "gis.fov_radius", "fov_radius", metadata) || 0);
+    if (showFov && Number.isFinite(fovRadius) && fovRadius > 0) {
+      const rotation = Number(getFeatureMetadataValue(feature, "gis.rotation", "rotation", metadata) || 0);
+      const fovAngle = Number(getFeatureMetadataValue(feature, "gis.fov_angle", "fov_angle", metadata) || 60);
+      const center = points[0];
+      const fovPoints = calculateFOVPoints(center, fovRadius, rotation, fovAngle);
+      fovPoints.forEach(([lat, lng]) => {
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          points.push([lng, lat]);
+        }
+      });
+    }
+  }
   return points;
 };
 
@@ -377,25 +392,24 @@ export const getOverallReportBounds = (model: ReportModel): ReportBounds | null 
 };
 
 export const getFeatureClusterBounds = (feature: FeatureState, related: FeatureState[] = []): ReportBounds | null => {
-  const allPoints = [feature, ...related]
-    .map(getRepresentativePoint)
-    .filter((point): point is [number, number] => point !== null);
-  if (allPoints.length === 0) return getFeatureBounds(feature, related);
+  const allPoints = [feature, ...related].flatMap(getFeaturePoints);
+  if (allPoints.length === 0) return null;
 
   let minLng = Math.min(...allPoints.map((point) => point[0]));
   let maxLng = Math.max(...allPoints.map((point) => point[0]));
   let minLat = Math.min(...allPoints.map((point) => point[1]));
   let maxLat = Math.max(...allPoints.map((point) => point[1]));
 
-  const width = Math.max(maxLng - minLng, CLUSTER_PADDING_DEGREES);
-  const height = Math.max(maxLat - minLat, CLUSTER_PADDING_DEGREES);
-  const padLng = width * LINE_PADDING_RATIO + CLUSTER_PADDING_DEGREES;
-  const padLat = height * LINE_PADDING_RATIO + CLUSTER_PADDING_DEGREES;
-
-  minLng -= padLng;
-  maxLng += padLng;
-  minLat -= padLat;
-  maxLat += padLat;
+  if (Math.abs(maxLat - minLat) < 0.00002) {
+    const midLat = (minLat + maxLat) / 2;
+    minLat = midLat - 0.00001;
+    maxLat = midLat + 0.00001;
+  }
+  if (Math.abs(maxLng - minLng) < 0.00002) {
+    const midLng = (minLng + maxLng) / 2;
+    minLng = midLng - 0.00001;
+    maxLng = midLng + 0.00001;
+  }
 
   return sanitizeReportBounds([minLat, minLng, maxLat, maxLng]);
 };
@@ -409,16 +423,11 @@ export const getFeatureBounds = (feature: FeatureState, related: FeatureState[] 
   let minLat = Math.min(...allPoints.map((point) => point[1]));
   let maxLat = Math.max(...allPoints.map((point) => point[1]));
 
-  const metadata = getParsedMetadata(feature);
-  const fovRadiusMeters = Number(getFeatureMetadataValue(feature, "gis.fov_radius", "fov_radius", metadata) || 0);
-  const radiusPadding = Number.isFinite(fovRadiusMeters) && fovRadiusMeters > 0
-    ? Math.min(fovRadiusMeters / 111_000, 0.02)
-    : 0;
+  const spanLng = maxLng - minLng;
+  const spanLat = maxLat - minLat;
 
-  const width = Math.max(maxLng - minLng, POINT_PADDING_DEGREES, radiusPadding);
-  const height = Math.max(maxLat - minLat, POINT_PADDING_DEGREES, radiusPadding);
-  const padLng = width * LINE_PADDING_RATIO + POINT_PADDING_DEGREES;
-  const padLat = height * LINE_PADDING_RATIO + POINT_PADDING_DEGREES;
+  const padLng = Math.max(spanLng * 0.05 + 0.0001, 0.0002);
+  const padLat = Math.max(spanLat * 0.05 + 0.0001, 0.0002);
 
   minLng -= padLng;
   maxLng += padLng;
@@ -599,6 +608,55 @@ const makeSectionSummary = (
 export const formatPoint = (point?: [number, number]): string =>
   point ? `${point[1].toFixed(6)}, ${point[0].toFixed(6)}` : "Chưa có tọa độ";
 
+export const getIntersectionSpatialFeatures = (
+  intersection: FeatureState,
+  linkedChildren: FeatureState[],
+  state: MapState,
+): FeatureState[] => {
+  const allDirectChildren = [intersection, ...linkedChildren];
+  const initialBounds = getFeatureBounds(intersection, linkedChildren);
+  const minPadding = 0.0009; // ~100m radius
+  let minLat = -90;
+  let minLng = -180;
+  let maxLat = 90;
+  let maxLng = 180;
+
+  if (initialBounds) {
+    [minLat, minLng, maxLat, maxLng] = initialBounds;
+    const latSpan = maxLat - minLat;
+    const lngSpan = maxLng - minLng;
+    if (latSpan < minPadding) {
+      const midLat = (minLat + maxLat) / 2;
+      minLat = midLat - minPadding;
+      maxLat = midLat + minPadding;
+    }
+    if (lngSpan < minPadding) {
+      const midLng = (minLng + maxLng) / 2;
+      minLng = midLng - minPadding;
+      maxLng = midLng + minPadding;
+    }
+  }
+
+  const existingIds = new Set(allDirectChildren.map((c) => c.id));
+  const result: FeatureState[] = [...linkedChildren];
+
+  Object.values(state.features || {}).forEach((candidate) => {
+    if (existingIds.has(candidate.id)) return;
+    if (isNetworkLinkFeature(candidate)) return;
+    if (isFeatureLine(candidate)) return;
+    const points = getFeaturePoints(candidate);
+    const isInside = points.some(([lng, lat]) => (
+      lat >= minLat && lat <= maxLat && lng >= minLng && lng <= maxLng
+    ));
+    if (isInside) {
+      result.push(candidate);
+      existingIds.add(candidate.id);
+    }
+  });
+
+  return result.sort(compareFeatures);
+};
+
 export const buildReportModel = (
   state: MapState,
   selections: ReportSelection[],
@@ -630,24 +688,28 @@ export const buildReportModel = (
 
     const group = feature.group_id ? state.feature_groups?.[feature.group_id] : null;
     const info = getFeatureDisplayInfo(feature, getGroupKind(group), group?.name, metadata);
-    const children = collectFeatureTree(feature.id, childrenMap, featureIds);
+    const children = collectFeatureTree(feature.id, childrenMap);
+    const intersectionRelated = info.isIntersection
+      ? getIntersectionSpatialFeatures(feature, children, state)
+      : children;
+
     const details = info.isIntersection
-      ? children.map((child, index) => makeFeatureDetail(child, state, childrenMap, `Đối tượng ${sectionIndex + 1}_${index + 1}`, featureDetailsCache))
+      ? intersectionRelated.map((child, index) => makeFeatureDetail(child, state, childrenMap, `Đối tượng ${sectionIndex + 1}_${index + 1}`, featureDetailsCache))
       : [makeFeatureDetail(feature, state, childrenMap, feature.name || `Đối tượng ${sectionIndex + 1}`, featureDetailsCache)];
     const routeIntersections = info.isLine ? getRouteIntersectionFeatures(feature, state) : [];
     const captureMode: ReportCaptureMode = info.isIntersection ? "intersection" : info.isLine ? "route" : "feature";
     const focusFeatureIds = captureMode === "route"
       ? unique([feature.id, ...routeIntersections.map((item) => item.id)])
-      : unique([feature.id, ...children.map((child) => child.id)]);
+      : unique([feature.id, ...intersectionRelated.map((item) => item.id)]);
     const hiddenFeatureIds = captureMode === "route"
       ? Object.values(state.features || {})
         .filter((candidate) => candidate.id !== feature.id && isFeatureLine(candidate))
         .map((candidate) => candidate.id)
       : [];
-    const captureRelated = captureMode === "route" ? routeIntersections : children;
+    const captureRelated = captureMode === "route" ? routeIntersections : intersectionRelated;
     const requiredFeatures = captureMode === "route"
       ? [feature, ...routeIntersections]
-      : [feature, ...children];
+      : [feature, ...intersectionRelated];
     const requiredFeatureIds = unique(requiredFeatures.map((item) => item.id));
     const requiredPoints = uniquePoints(requiredFeatures.flatMap(getFeaturePoints));
     const photoWarnings = details.flatMap((detail) => detail.photoWarnings);
@@ -663,7 +725,7 @@ export const buildReportModel = (
       details,
       photos: getFeaturePhotos(feature, metadata),
       photoWarnings,
-      bounds: info.isIntersection ? getFeatureClusterBounds(feature, children) : getFeatureBounds(feature, captureRelated),
+      bounds: info.isIntersection ? getFeatureClusterBounds(feature, intersectionRelated) : getFeatureBounds(feature, captureRelated),
       captureMode,
       focusFeatureIds,
       hiddenFeatureIds,

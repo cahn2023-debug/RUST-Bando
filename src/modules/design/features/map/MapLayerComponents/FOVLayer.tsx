@@ -53,6 +53,7 @@ export const buildFovFeatureCollection = ({
     showFovTypes,
     currentZoom,
     hiddenIds = new Set<string>(),
+    focusIds,
     bounds = null,
     isClickThrough = false,
 }: {
@@ -62,6 +63,7 @@ export const buildFovFeatureCollection = ({
     showFovTypes: string[];
     currentZoom: number;
     hiddenIds?: Set<string>;
+    focusIds?: Set<string>;
     bounds?: FovBounds;
     isClickThrough?: boolean;
 }): GeoJSON.FeatureCollection => {
@@ -83,11 +85,14 @@ export const buildFovFeatureCollection = ({
         if (!displayInfo.isCamera || !typeEnabled || !showFov) continue;
 
         const isInsideIntersection = isMapIntersectionChild(f, group, metadata, displayInfo);
-        if (currentZoom < MAP_FOV_MIN_ZOOM) continue;
-        if (isInsideIntersection && currentZoom < MAP_INTERSECTION_CHILD_MIN_ZOOM) continue;
+        const isFocused = Boolean(focusIds && focusIds.size > 0 && focusIds.has(f.id));
+        if (!isFocused) {
+            if (currentZoom < MAP_FOV_MIN_ZOOM) continue;
+            if (isInsideIntersection && currentZoom < MAP_INTERSECTION_CHILD_MIN_ZOOM) continue;
+        }
 
         const coords = getPointCoordinates(f);
-        if (!coords || !isPointInBounds(coords, bounds)) continue;
+        if (!coords || (!isFocused && !isPointInBounds(coords, bounds))) continue;
 
         const rotation = metadataNumber(getFeatureMetadataValue(f, 'gis.rotation', 'rotation', metadata), 0);
         const fovAngle = metadataNumber(getFeatureMetadataValue(f, 'gis.fov_angle', 'fov_angle', metadata), 60);
@@ -166,6 +171,28 @@ export const FOVLayer = React.memo(() => {
     const showFovTypes = useSettingsStore(s => s.showFovTypes);
     const [currentZoom, setCurrentZoom] = React.useState(() => map?.getZoom() ?? 0);
     const [viewportTick, setViewportTick] = React.useState(0);
+    const [reportCaptureScope, setReportCaptureScope] = React.useState<{
+        active: boolean;
+        focusFeatureIds?: string[];
+    } | null>(null);
+
+    React.useEffect(() => {
+        const handleReportCapture = (event: Event) => {
+            const detail = (event as CustomEvent<any>).detail;
+            if (!detail?.active) {
+                setReportCaptureScope(null);
+                return;
+            }
+            setReportCaptureScope({
+                active: true,
+                focusFeatureIds: Array.isArray(detail.focusFeatureIds) ? detail.focusFeatureIds : [],
+            });
+        };
+        window.addEventListener('design-report-map-capture', handleReportCapture);
+        return () => {
+            window.removeEventListener('design-report-map-capture', handleReportCapture);
+        };
+    }, []);
 
     React.useEffect(() => {
         if (!map) return;
@@ -183,17 +210,18 @@ export const FOVLayer = React.memo(() => {
     }, [map]);
 
     const collection = React.useMemo<GeoJSON.FeatureCollection>(() => {
-        const features = Object.values(isLargeProject ? visibleFeatures : rawFeatures);
+        const features = Object.values(reportCaptureScope?.active ? rawFeatures : isLargeProject ? visibleFeatures : rawFeatures);
         const isClickThrough = drawingMode !== 'none' && drawingMode !== 'move';
         const mapBounds = map?.getBounds();
-        const bounds = mapBounds
-            ? {
+        const bounds = reportCaptureScope?.active || !mapBounds
+            ? null
+            : {
                 south: mapBounds.getSouth(),
                 north: mapBounds.getNorth(),
                 west: mapBounds.getWest(),
                 east: mapBounds.getEast(),
-            }
-            : null;
+            };
+        const focusIds = new Set(reportCaptureScope?.active ? reportCaptureScope.focusFeatureIds || [] : []);
 
         return buildFovFeatureCollection({
             features,
@@ -202,10 +230,11 @@ export const FOVLayer = React.memo(() => {
             showFovTypes,
             currentZoom,
             hiddenIds: mapHiddenIds,
+            focusIds,
             bounds,
             isClickThrough,
         });
-    }, [currentZoom, drawingMode, featureGroups, isLargeProject, map, mapHiddenIds, previewMetadata, rawFeatures, showFovTypes, viewportTick, visibleFeatures]);
+    }, [currentZoom, drawingMode, featureGroups, isLargeProject, map, mapHiddenIds, previewMetadata, rawFeatures, reportCaptureScope, showFovTypes, viewportTick, visibleFeatures]);
 
     React.useEffect(() => {
         if (!map) return;
