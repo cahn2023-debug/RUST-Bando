@@ -8,6 +8,7 @@ import {
     getFeatureMetadataValue
 } from '@TOOL/utils/featureUtils';
 import { calculateDORIRanges, calculateArcPoints, SENSOR_SIZES, calculateHFOV, mapRotationToHeading } from '@TOOL/utils/cameraMath';
+import { getRenderableFeatureById } from '../featureLookup';
 
 const DORI_SOURCE_ID = 'maplibre-dori-source';
 const DORI_FILL_LAYER_ID = 'maplibre-dori-fill';
@@ -40,7 +41,9 @@ const removeDoriLayers = (map: maplibregl.Map) => {
         if (map.getLayer(DORI_LINE_LAYER_ID)) map.removeLayer(DORI_LINE_LAYER_ID);
         if (map.getLayer(DORI_FILL_LAYER_ID)) map.removeLayer(DORI_FILL_LAYER_ID);
         if (map.getSource(DORI_SOURCE_ID)) map.removeSource(DORI_SOURCE_ID);
-    } catch (e) {}
+    } catch {
+        // Layer cleanup can race with MapLibre style disposal.
+    }
 };
 
 const ensureDoriLayers = (map: maplibregl.Map, data: GeoJSON.FeatureCollection) => {
@@ -77,12 +80,14 @@ export const DORIOverlay: React.FC = () => {
     const showDORILayers = useDesignSync(s => s.showDORILayers);
     const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
     const state = useDesignSync(s => s.state);
+    const visibleFeatures = useDesignSync(s => s.visibleFeatures);
+    const featureDetailsCache = useDesignSync(s => s.featureDetailsCache);
     const previewMetadata = useDesignSync(s => s.previewMetadata);
 
     const collection = React.useMemo<GeoJSON.FeatureCollection>(() => {
         if (!showDORILayers || !selectedFeatureId || !state) return emptyCollection();
 
-        const feature = state.features[selectedFeatureId];
+        const feature = getRenderableFeatureById(selectedFeatureId, { state, visibleFeatures, featureDetailsCache });
         if (!feature) return emptyCollection();
 
         const isPreviewing = previewMetadata?.id === selectedFeatureId;
@@ -132,7 +137,7 @@ export const DORIOverlay: React.FC = () => {
                 } as GeoJSON.Feature;
             }),
         };
-    }, [previewMetadata, selectedFeatureId, showDORILayers, state]);
+    }, [featureDetailsCache, previewMetadata, selectedFeatureId, showDORILayers, state, visibleFeatures]);
 
     React.useEffect(() => {
         if (!map) return;

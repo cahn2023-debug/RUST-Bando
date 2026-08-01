@@ -9,6 +9,7 @@ import type {
 import { getParsedCoordinates } from '@TOOL/utils/featureUtils';
 import { getFeatureDisplayInfo, isCameraIcon } from '@TOOL/utils/featureDisplay';
 import { getFeatureMetadataValue, getParsedMetadata } from '@TOOL/utils/featureMetadata';
+import { MAP_POINT_CLUSTER_HIDE_AT_ZOOM, MAP_INTERSECTION_CHILD_MIN_ZOOM, isMapIntersectionChild } from './mapDisplayPolicy';
 
 const SUMMARY_FEATURE_LIMIT = 1800;
 const DETAIL_FEATURE_LIMIT = 6000;
@@ -59,7 +60,13 @@ const getFeatureMetadataWithGroupPreview = (
 const styleValueFromMetadata = (feature: FeatureState, metadata: Record<string, any>, key: string) => {
     const properties = parseObject(feature.properties);
     const gis = parseObject(metadata.gis);
-    return gis[key] ?? metadata[key] ?? properties[key];
+    let val = gis[key] ?? metadata[key] ?? properties[key];
+    if (val === undefined && key === 'size') {
+        val = gis.stroke ?? metadata.stroke ?? properties.stroke
+            ?? gis.weight ?? metadata.weight ?? properties.weight
+            ?? gis.line_width ?? metadata.line_width ?? properties.line_width;
+    }
+    return val;
 };
 
 const asColor = (value: unknown) => {
@@ -91,6 +98,28 @@ const imageIdSafe = (value: unknown) => String(value ?? '')
     .toLowerCase()
     .replace(/[^a-z0-9_-]+/g, '-');
 
+const isLineGeomType = (feature: FeatureState, metadata: Record<string, any>): boolean => {
+    const geomType = String(feature.geom_type || '').trim().toLowerCase();
+    if (geomType === 'point' || geomType === '' || geomType === 'default' || geomType === 'polygon') {
+        return false;
+    }
+    if (geomType === 'linestring' || geomType === 'polyline' || geomType === 'line' || geomType === 'signalline' || geomType === 'networklink') {
+        return true;
+    }
+    if (geomType.includes('line') || geomType.includes('polyline') || geomType.includes('cable') || geomType.includes('tuyen')) {
+        return true;
+    }
+    const infraType = String(metadata?.infrastructure?.type || metadata?.type || '').toLowerCase();
+    if (infraType === 'signalline' || infraType === 'networklink' || infraType.includes('line')) {
+        return true;
+    }
+    const coords = getParsedCoordinates(feature);
+    if (Array.isArray(coords) && coords.length >= 2 && Array.isArray(coords[0])) {
+        return true;
+    }
+    return false;
+};
+
 export const getMapLibreLodPolicy = ({
     zoom,
     featureCount,
@@ -100,7 +129,7 @@ export const getMapLibreLodPolicy = ({
             level: 'summary',
             maxFeatures: SUMMARY_FEATURE_LIMIT,
             showLabels: false,
-            clusterPoints: true,
+            clusterPoints: zoom < MAP_POINT_CLUSTER_HIDE_AT_ZOOM,
             simplifyVectors: true,
         };
     }
@@ -110,7 +139,7 @@ export const getMapLibreLodPolicy = ({
             level: 'detail',
             maxFeatures: DETAIL_FEATURE_LIMIT,
             showLabels: zoom >= 17,
-            clusterPoints: false,
+            clusterPoints: zoom < MAP_POINT_CLUSTER_HIDE_AT_ZOOM,
             simplifyVectors: true,
         };
     }
@@ -119,7 +148,7 @@ export const getMapLibreLodPolicy = ({
         level: 'full',
         maxFeatures: FULL_FEATURE_LIMIT,
         showLabels: true,
-        clusterPoints: false,
+        clusterPoints: zoom < MAP_POINT_CLUSTER_HIDE_AT_ZOOM,
         simplifyVectors: false,
     };
 };
@@ -178,23 +207,128 @@ const normalizePolygon = (coordinates: any): [number, number][][] | null => {
     return normalized.length > 0 ? normalized : null;
 };
 
-const toRenderFeature = (
+type RenderableGeometry = MapLibreRenderFeature['geometry'];
+
+const parseCoordinateValue = (value: unknown): unknown => {
+    if (typeof value !== 'string') return value;
+    try {
+        return JSON.parse(value);
+    } catch {
+        return value;
+    }
+};
+
+const geometryInputForFeature = (feature: FeatureState) => {
+    const rawCoordinates = parseCoordinateValue((feature as any).coordinates);
+    if (rawCoordinates && typeof rawCoordinates === 'object' && !Array.isArray(rawCoordinates)) {
+        const rawType = (rawCoordinates as any).type;
+        if (typeof rawType === 'string') return rawCoordinates as { type: string; coordinates?: unknown; geometries?: unknown[] };
+    }
+    return {
+        type: String(feature.geom_type || 'Point'),
+        coordinates: getParsedCoordinates(feature),
+    };
+};
+
+const normalizeMultiPoint = (coordinates: any): [number, number][] | null => {
+    if (!Array.isArray(coordinates)) return null;
+    const points = coordinates.map(normalizePoint).filter(Boolean) as [number, number][];
+    return points.length > 0 ? points : null;
+};
+
+const normalizeMultiLine = (coordinates: any): [number, number][][] | null => {
+    if (!Array.isArray(coordinates)) return null;
+    const lines = coordinates.map(normalizeLine).filter(Boolean) as [number, number][][];
+    return lines.length > 0 ? lines : null;
+};
+
+const normalizeMultiPolygon = (coordinates: any): [number, number][][][] | null => {
+    if (!Array.isArray(coordinates)) return null;
+    const polygons = coordinates.map(normalizePolygon).filter(Boolean) as [number, number][][][];
+    return polygons.length > 0 ? polygons : null;
+};
+
+const normalizeRenderableGeometry = (
+    type: string,
+    coordinates: unknown,
+    isLine: boolean
+): RenderableGeometry | null => {
+    const geomType = type.trim().toLowerCase();
+    if (!isLine && (geomType === 'point' || geomType === '' || geomType === 'default')) {
+        const point = normalizePoint(coordinates);
+        return point ? { type: 'Point', coordinates: point } : null;
+    }
+    if (geomType === 'multipoint') {
+        const points = normalizeMultiPoint(coordinates);
+        return points ? { type: 'MultiPoint', coordinates: points } : null;
+    }
+    if (geomType === 'multilinestring') {
+        const lines = normalizeMultiLine(coordinates);
+        return lines ? { type: 'MultiLineString', coordinates: lines } : null;
+    }
+    if (geomType === 'multipolygon') {
+        const polygon = normalizeMultiPolygon(coordinates);
+        return polygon ? { type: 'MultiPolygon', coordinates: polygon } : null;
+    }
+    if (isLine || geomType === 'linestring' || geomType === 'polyline' || geomType === 'line') {
+        const line = normalizeLine(coordinates);
+        return line ? { type: 'LineString', coordinates: line } : null;
+    }
+    if (geomType === 'polygon') {
+        const polygon = normalizePolygon(coordinates);
+        return polygon ? { type: 'Polygon', coordinates: polygon } : null;
+    }
+    return null;
+};
+
+const renderGeomType = (geometry: RenderableGeometry) => {
+    if (geometry.type === 'Point' || geometry.type === 'MultiPoint') return 'point';
+    if (geometry.type === 'LineString' || geometry.type === 'MultiLineString') return 'line';
+    return 'polygon';
+};
+
+const toRenderFeatures = (
     feature: FeatureState,
     selectedFeatureId: string | null | undefined,
     featureGroups: Record<string, any>,
     featureNumberMap: Record<string, string | number>,
-    groupThemePreview?: Record<string, any> | null
-): MapLibreRenderFeature | null => {
-    const geomType = String(feature.geom_type || 'Point').toLowerCase();
-    const coordinates = getParsedCoordinates(feature);
+    groupThemePreview?: Record<string, any> | null,
+    childPath: string[] = []
+): MapLibreRenderFeature[] => {
+    const geometryInput = geometryInputForFeature(feature);
+    const geomType = String(geometryInput.type || feature.geom_type || 'Point').toLowerCase();
     const selected = feature.id === selectedFeatureId;
     const metadata = getFeatureMetadataWithGroupPreview(feature, groupThemePreview);
     const color = selected ? SELECTED_COLOR : (asColor(styleValueFromMetadata(feature, metadata, 'color')) || DEFAULT_COLOR);
     const size = selected ? Math.max(asSize(styleValueFromMetadata(feature, metadata, 'size')), 12) : asSize(styleValueFromMetadata(feature, metadata, 'size'));
+    const isLine = isLineGeomType(feature, metadata);
+    const childId = childPath.length > 0 ? `${feature.id}::${childPath.join('.')}` : feature.id;
+    const parentFeatureId = childPath.length > 0 ? feature.id : undefined;
 
-    if (geomType === 'point' || geomType === '' || geomType === 'default') {
-        const point = normalizePoint(coordinates);
-        if (!point) return null;
+    if (geomType === 'geometrycollection') {
+        const geometries = Array.isArray((geometryInput as any).geometries) ? (geometryInput as any).geometries : [];
+        return geometries.flatMap((geometry: any, index: number) => {
+            const childFeature = {
+                ...feature,
+                geom_type: String(geometry?.type || ''),
+                coordinates: geometry,
+            } as FeatureState;
+            const children = toRenderFeatures(childFeature, selectedFeatureId, featureGroups, featureNumberMap, groupThemePreview, [...childPath, `g${index}`]);
+            if (children.length === 0) {
+                console.warn('[mapLibreFastAdapter] Skipped invalid GeometryCollection child:', feature.id, index);
+            }
+            return children;
+        });
+    }
+
+    const geometry = normalizeRenderableGeometry(geomType, (geometryInput as any).coordinates, isLine);
+    if (!geometry) {
+        console.warn('[mapLibreFastAdapter] Skipped invalid geometry:', feature.id, geomType);
+        return [];
+    }
+
+    const kind = renderGeomType(geometry);
+    if (kind === 'point') {
         const group = feature.group_id ? featureGroups[feature.group_id] : null;
         const displayInfo = getFeatureDisplayInfo(feature, group?.type, group?.name, metadata);
         const rawDisplaySize = metadata.gis?.size ?? metadata.size ?? feature?.properties?.size ?? size;
@@ -218,11 +352,12 @@ const toRenderFeature = (
                 imageIdSafe(rotation),
             ].join('-')
             : '';
-        return {
+        return [{
             type: 'Feature',
-            geometry: { type: 'Point', coordinates: point },
+            geometry,
             properties: {
-                id: feature.id,
+                id: childId,
+                parentFeatureId,
                 groupId: feature.group_id,
                 layerId: feature.layer_id,
                 name: feature.name,
@@ -239,18 +374,17 @@ const toRenderFeature = (
                 labelIndex,
                 iconImageId,
             },
-        };
+        }];
     }
 
-    if (geomType === 'linestring' || geomType === 'polyline' || geomType === 'line') {
-        const line = normalizeLine(coordinates);
-        if (!line) return null;
+    if (kind === 'line') {
         const dashArray = asDashArray(metadata.gis?.dashArray ?? metadata.dashArray);
-        return {
+        return [{
             type: 'Feature',
-            geometry: { type: 'LineString', coordinates: line },
+            geometry,
             properties: {
-                id: feature.id,
+                id: childId,
+                parentFeatureId,
                 groupId: feature.group_id,
                 layerId: feature.layer_id,
                 name: feature.name,
@@ -260,29 +394,24 @@ const toRenderFeature = (
                 selected,
                 dashArray,
             },
-        };
+        }];
     }
 
-    if (geomType === 'polygon') {
-        const polygon = normalizePolygon(coordinates);
-        if (!polygon) return null;
-        return {
-            type: 'Feature',
-            geometry: { type: 'Polygon', coordinates: polygon },
-            properties: {
-                id: feature.id,
-                groupId: feature.group_id,
-                layerId: feature.layer_id,
-                name: feature.name,
-                geomType: 'polygon',
-                color,
-                size,
-                selected,
-            },
-        };
-    }
-
-    return null;
+    return [{
+        type: 'Feature',
+        geometry,
+        properties: {
+            id: childId,
+            parentFeatureId,
+            groupId: feature.group_id,
+            layerId: feature.layer_id,
+            name: feature.name,
+            geomType: 'polygon',
+            color,
+            size,
+            selected,
+        },
+    }];
 };
 
 export const buildMapLibreFeatureCollection = ({
@@ -300,21 +429,37 @@ export const buildMapLibreFeatureCollection = ({
     const lodPolicy = getMapLibreLodPolicy({ zoom, featureCount: features.length, selectedFeatureId });
     const selected = selectedFeatureId ? features.find(feature => feature.id === selectedFeatureId) : null;
     const featureGroups = featureGroupsInput || {};
-    const selectedRenderFeature = selected ? toRenderFeature(selected, selectedFeatureId, featureGroups, featureNumberMap || {}, groupThemePreview) : null;
+    const canRenderFeature = (feature: FeatureState) => {
+        if (hiddenIds.has(feature.id)) return false;
+        if (feature.group_id && hiddenIds.has(feature.group_id)) return false;
+        if (feature.layer_id && hiddenIds.has(feature.layer_id)) return false;
+
+        const metadata = getFeatureMetadataWithGroupPreview(feature, groupThemePreview);
+        const group = feature.group_id ? featureGroups[feature.group_id] : null;
+        const displayInfo = getFeatureDisplayInfo(feature, group?.type, group?.name, metadata);
+        return zoom >= MAP_INTERSECTION_CHILD_MIN_ZOOM || !isMapIntersectionChild(feature, group, metadata, displayInfo);
+    };
+    const selectedRenderFeature = selected && canRenderFeature(selected)
+        ? toRenderFeatures(selected, selectedFeatureId, featureGroups, featureNumberMap || {}, groupThemePreview)
+        : [];
     const renderFeatures: MapLibreRenderFeature[] = [];
+    let renderedPoints = 0;
 
     for (const feature of features) {
-        if (renderFeatures.length >= lodPolicy.maxFeatures) break;
         if (feature.id === selectedFeatureId) continue;
-        if (hiddenIds.has(feature.id)) continue;
-        if (feature.group_id && hiddenIds.has(feature.group_id)) continue;
-        if (feature.layer_id && hiddenIds.has(feature.layer_id)) continue;
+        if (!canRenderFeature(feature)) continue;
 
-        const renderFeature = toRenderFeature(feature, selectedFeatureId, featureGroups, featureNumberMap || {}, groupThemePreview);
-        if (renderFeature) renderFeatures.push(renderFeature);
+        const renderFeatureItems = toRenderFeatures(feature, selectedFeatureId, featureGroups, featureNumberMap || {}, groupThemePreview);
+        for (const renderFeature of renderFeatureItems) {
+            if (renderFeature.geometry.type === 'Point' || renderFeature.geometry.type === 'MultiPoint') {
+                if (renderedPoints >= lodPolicy.maxFeatures) continue;
+                renderedPoints += 1;
+            }
+            renderFeatures.push(renderFeature);
+        }
     }
 
-    if (selectedRenderFeature) renderFeatures.unshift(selectedRenderFeature);
+    if (selectedRenderFeature.length > 0) renderFeatures.unshift(...selectedRenderFeature);
 
     return {
         collection: {

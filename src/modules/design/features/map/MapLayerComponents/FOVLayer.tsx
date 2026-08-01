@@ -1,4 +1,5 @@
 import React from 'react';
+import type { FeatureState } from '@CONTRACT/types';
 import { useMapContext } from '../MapContext';
 import { useDesignSync, EMPTY_OBJ } from '@IMPLEMENT/stores/useDesignSync';
 import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore';
@@ -9,6 +10,7 @@ import {
     getFeatureMetadataValue
 } from '@TOOL/utils/featureUtils';
 import { getParsedMetadata } from './SharedMapComponents';
+import { MAP_FOV_MIN_ZOOM, MAP_INTERSECTION_CHILD_MIN_ZOOM, isMapIntersectionChild } from '../mapDisplayPolicy';
 
 const FOV_SOURCE_ID = 'maplibre-fov-source';
 const FOV_FILL_LAYER_ID = 'maplibre-fov-fill';
@@ -23,13 +25,104 @@ const metadataNumber = (value: unknown, fallback: number) => {
     return fallback;
 };
 
+type FovBounds = {
+    south: number;
+    north: number;
+    west: number;
+    east: number;
+} | null;
+
+type PreviewMetadata = { id: string; metadata: any } | null;
+
+const isFovTypeEnabled = (iconKey: string, showFovTypes: string[]) => {
+    if (showFovTypes.includes(iconKey)) return true;
+    if (iconKey === 'cctv' && showFovTypes.includes('camera')) return true;
+    if (iconKey === 'camera' && showFovTypes.includes('cctv')) return true;
+    return false;
+};
+
+const isPointInBounds = ([lng, lat]: [number, number], bounds: FovBounds) => {
+    if (!bounds) return true;
+    return lat >= bounds.south && lat <= bounds.north && lng >= bounds.west && lng <= bounds.east;
+};
+
+export const buildFovFeatureCollection = ({
+    features,
+    featureGroups,
+    previewMetadata,
+    showFovTypes,
+    currentZoom,
+    hiddenIds = new Set<string>(),
+    bounds = null,
+    isClickThrough = false,
+}: {
+    features: FeatureState[];
+    featureGroups: Record<string, any>;
+    previewMetadata?: PreviewMetadata;
+    showFovTypes: string[];
+    currentZoom: number;
+    hiddenIds?: Set<string>;
+    bounds?: FovBounds;
+    isClickThrough?: boolean;
+}): GeoJSON.FeatureCollection => {
+    const items: GeoJSON.Feature[] = [];
+
+    for (const f of features) {
+        if (hiddenIds.has(f.id)) continue;
+        if (f.group_id && hiddenIds.has(f.group_id)) continue;
+        if (f.layer_id && hiddenIds.has(f.layer_id)) continue;
+
+        const geomType = String(f.geom_type || '').toLowerCase();
+        if (geomType && geomType !== 'point') continue;
+
+        const group = f.group_id ? featureGroups[f.group_id] : null;
+        const metadata = getParsedMetadata(f, previewMetadata ?? null);
+        const displayInfo = getFeatureDisplayInfo(f, group?.type, group?.name, metadata);
+        const typeEnabled = isFovTypeEnabled(displayInfo.iconKey, showFovTypes);
+        const showFov = getFeatureMetadataValue(f, 'gis.show_fov', 'show_fov', metadata) !== false;
+        if (!displayInfo.isCamera || !typeEnabled || !showFov) continue;
+
+        const isInsideIntersection = isMapIntersectionChild(f, group, metadata, displayInfo);
+        if (currentZoom < MAP_FOV_MIN_ZOOM) continue;
+        if (isInsideIntersection && currentZoom < MAP_INTERSECTION_CHILD_MIN_ZOOM) continue;
+
+        const coords = getPointCoordinates(f);
+        if (!coords || !isPointInBounds(coords, bounds)) continue;
+
+        const rotation = metadataNumber(getFeatureMetadataValue(f, 'gis.rotation', 'rotation', metadata), 0);
+        const fovAngle = metadataNumber(getFeatureMetadataValue(f, 'gis.fov_angle', 'fov_angle', metadata), 60);
+        const fovRadius = metadataNumber(getFeatureMetadataValue(f, 'gis.fov_radius', 'fov_radius', metadata), 50);
+        const points = calculateFOVPoints(coords, fovRadius, rotation, fovAngle);
+        if (points.length === 0) continue;
+
+        const coordinates = points.map(point => [point[1], point[0]]);
+        coordinates.push(coordinates[0]);
+        items.push({
+            type: 'Feature',
+            geometry: { type: 'Polygon', coordinates: [coordinates] },
+            properties: {
+                id: f.id,
+                color: displayInfo.color || '#3b82f6',
+                clickThrough: isClickThrough,
+                rotation,
+                fovAngle,
+                fovRadius,
+            },
+        });
+    }
+
+    return { type: 'FeatureCollection', features: items };
+};
+
 const removeFovLayers = (map: maplibregl.Map) => {
     try {
         if (!(map as any).style) return;
         if (map.getLayer(FOV_LINE_LAYER_ID)) map.removeLayer(FOV_LINE_LAYER_ID);
         if (map.getLayer(FOV_FILL_LAYER_ID)) map.removeLayer(FOV_FILL_LAYER_ID);
         if (map.getSource(FOV_SOURCE_ID)) map.removeSource(FOV_SOURCE_ID);
-    } catch (e) {}
+    } catch {
+        // Layer cleanup can race with MapLibre style disposal.
+    }
 };
 
 const ensureFovLayers = (map: maplibregl.Map, data: GeoJSON.FeatureCollection) => {
@@ -67,77 +160,52 @@ export const FOVLayer = React.memo(() => {
     const visibleFeatures = useDesignSync(s => s.visibleFeatures);
     const isLargeProject = useDesignSync(s => Boolean(s.state?.isLargeProject));
     const featureGroups = useDesignSync(s => s.state?.feature_groups || (EMPTY_OBJ as Record<string, any>));
+    const mapHiddenIds = useDesignSync(s => s.mapHiddenIds);
     const previewMetadata = useDesignSync(s => s.previewMetadata);
     const drawingMode = useDesignSync(s => s.drawingMode);
     const showFovTypes = useSettingsStore(s => s.showFovTypes);
     const [currentZoom, setCurrentZoom] = React.useState(() => map?.getZoom() ?? 0);
+    const [viewportTick, setViewportTick] = React.useState(0);
 
     React.useEffect(() => {
         if (!map) return;
-        const syncZoom = () => setCurrentZoom(map.getZoom());
-        syncZoom();
-        map.on('zoomend', syncZoom);
+        const syncViewport = () => {
+            setCurrentZoom(map.getZoom());
+            setViewportTick(tick => tick + 1);
+        };
+        syncViewport();
+        map.on('zoomend', syncViewport);
+        map.on('moveend', syncViewport);
         return () => {
-            map.off('zoomend', syncZoom);
+            map.off('zoomend', syncViewport);
+            map.off('moveend', syncViewport);
         };
     }, [map]);
 
     const collection = React.useMemo<GeoJSON.FeatureCollection>(() => {
         const features = Object.values(isLargeProject ? visibleFeatures : rawFeatures);
         const isClickThrough = drawingMode !== 'none' && drawingMode !== 'move';
-        const items: GeoJSON.Feature[] = [];
+        const mapBounds = map?.getBounds();
+        const bounds = mapBounds
+            ? {
+                south: mapBounds.getSouth(),
+                north: mapBounds.getNorth(),
+                west: mapBounds.getWest(),
+                east: mapBounds.getEast(),
+            }
+            : null;
 
-        for (const f of features) {
-            if (items.length >= 250) break;
-            const geomType = String(f.geom_type || '').toLowerCase();
-            if (geomType && geomType !== 'point') continue;
-
-            const group = f.group_id ? featureGroups[f.group_id] : null;
-            if (!group) continue;
-
-            const metadata = getParsedMetadata(f, previewMetadata);
-            const displayInfo = getFeatureDisplayInfo(f, group.type, group.name, metadata);
-            const typeEnabled = showFovTypes.includes(displayInfo.iconKey);
-            const showFov = getFeatureMetadataValue(f, 'gis.show_fov', 'show_fov', metadata) !== false;
-            if (!displayInfo.isCamera || !typeEnabled || !showFov) continue;
-
-            const groupType = String(group.type || '').toUpperCase();
-            const groupName = String(group.name || '').toLowerCase();
-            const isInsideIntersection =
-                groupType === 'INTERSECTION' ||
-                groupType === 'NUT_GIAO' ||
-                groupName.includes('nut giao') ||
-                groupName.includes('intersection') ||
-                Boolean(metadata.parent_feature_id);
-            const isJunctionIcon = displayInfo.isIntersection && displayInfo.iconKey === 'intersection';
-
-            if (currentZoom < 13) continue;
-            if (isInsideIntersection && !isJunctionIcon && currentZoom < 17) continue;
-
-            const coords = getPointCoordinates(f);
-            if (!coords) continue;
-
-            const rotation = metadataNumber(getFeatureMetadataValue(f, 'gis.rotation', 'rotation', metadata), 0);
-            const fovAngle = metadataNumber(getFeatureMetadataValue(f, 'gis.fov_angle', 'fov_angle', metadata), 60);
-            const fovRadius = metadataNumber(getFeatureMetadataValue(f, 'gis.fov_radius', 'fov_radius', metadata), 50);
-            const points = calculateFOVPoints(coords, fovRadius, rotation, fovAngle);
-            if (points.length === 0) continue;
-
-            const coordinates = points.map(point => [point[1], point[0]]);
-            coordinates.push(coordinates[0]);
-            items.push({
-                type: 'Feature',
-                geometry: { type: 'Polygon', coordinates: [coordinates] },
-                properties: {
-                    id: f.id,
-                    color: displayInfo.color || '#3b82f6',
-                    clickThrough: isClickThrough,
-                },
-            });
-        }
-
-        return { type: 'FeatureCollection', features: items };
-    }, [currentZoom, drawingMode, featureGroups, isLargeProject, previewMetadata, rawFeatures, showFovTypes, visibleFeatures]);
+        return buildFovFeatureCollection({
+            features,
+            featureGroups,
+            previewMetadata,
+            showFovTypes,
+            currentZoom,
+            hiddenIds: mapHiddenIds,
+            bounds,
+            isClickThrough,
+        });
+    }, [currentZoom, drawingMode, featureGroups, isLargeProject, map, mapHiddenIds, previewMetadata, rawFeatures, showFovTypes, viewportTick, visibleFeatures]);
 
     React.useEffect(() => {
         if (!map) return;

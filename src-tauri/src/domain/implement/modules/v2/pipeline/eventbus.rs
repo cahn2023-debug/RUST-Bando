@@ -7,6 +7,14 @@ pub enum StorageCommand {
         path: PathBuf,
         reply: oneshot::Sender<Result<(), String>>,
     },
+    OpenProjectBootstrap {
+        path: PathBuf,
+        title: String,
+        base_hint: String,
+        open_request_id: Option<i64>,
+        viewport_first_limit: i64,
+        reply: oneshot::Sender<Result<serde_json::Value, String>>,
+    },
     CreateProject {
         id: String,
         title: String,

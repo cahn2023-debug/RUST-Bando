@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { FeatureState } from '@CONTRACT/types';
 import { buildMapLibreFeatureCollection, getMapLibreLodPolicy } from './mapLibreFastAdapter';
 
@@ -22,6 +22,12 @@ describe('mapLibreFastAdapter', () => {
     it('uses summary LOD for low zoom or very large viewports', () => {
         expect(getMapLibreLodPolicy({ zoom: 13, featureCount: 100 }).level).toBe('summary');
         expect(getMapLibreLodPolicy({ zoom: 18, featureCount: 9000 }).level).toBe('summary');
+    });
+
+    it('clusters points only below zoom 15', () => {
+        expect(getMapLibreLodPolicy({ zoom: 14.9, featureCount: 100 }).clusterPoints).toBe(true);
+        expect(getMapLibreLodPolicy({ zoom: 15, featureCount: 100 }).clusterPoints).toBe(false);
+        expect(getMapLibreLodPolicy({ zoom: 18, featureCount: 9000 }).clusterPoints).toBe(false);
     });
 
     it('builds render GeoJSON with flattened style properties', () => {
@@ -131,6 +137,31 @@ describe('mapLibreFastAdapter', () => {
         });
 
         expect(collection.features.map(feature => feature.properties.id)).toEqual(['visible']);
+    });
+
+    it('hides intersection children below zoom 17 while keeping the parent intersection', () => {
+        const parent = pointFeature('intersection-parent', [105.8, 21.02], {
+            group_id: 'junction-group',
+            metadata: JSON.stringify({ icon: 'intersection' }),
+        });
+        const child = pointFeature('junction-camera', [105.81, 21.03], {
+            group_id: 'junction-group',
+            metadata: JSON.stringify({ icon: 'cctv', parent_feature_id: 'intersection-parent' }),
+        });
+
+        const lowZoom = buildMapLibreFeatureCollection({
+            features: [parent, child],
+            featureGroups: { 'junction-group': { type: 'INTERSECTION', name: 'Nút giao' } },
+            zoom: 16,
+        });
+        const highZoom = buildMapLibreFeatureCollection({
+            features: [parent, child],
+            featureGroups: { 'junction-group': { type: 'INTERSECTION', name: 'Nút giao' } },
+            zoom: 17,
+        });
+
+        expect(lowZoom.collection.features.map(feature => feature.properties.id)).toEqual(['intersection-parent']);
+        expect(highZoom.collection.features.map(feature => feature.properties.id)).toEqual(['intersection-parent', 'junction-camera']);
     });
 
     it('adds display properties for camera point icons', () => {
@@ -286,5 +317,142 @@ describe('mapLibreFastAdapter', () => {
         expect(collection.features[0].geometry).toEqual({ type: 'Point', coordinates: [105.8, 21.02] });
         expect(collection.features[1].geometry).toEqual({ type: 'LineString', coordinates: [[105.8, 21.02], [105.81, 21.03]] });
         expect(collection.features[2].geometry).toEqual({ type: 'Polygon', coordinates: [[[105.8, 21.02], [105.81, 21.03], [105.82, 21.04]]] });
+    });
+
+    it('keeps valid polylines after point LOD caps and preserves legacy style', () => {
+        const manyPoints = Array.from({ length: 2200 }, (_, index) => pointFeature(`p${index}`));
+        const legacyLine: FeatureState = {
+            id: 'legacy-line-after-points',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Legacy Line After Points',
+            geom_type: 'Polyline',
+            coordinates: { points: [{ lng: 105.8, lat: 21.02 }, { lng: 105.82, lat: 21.04 }] } as any,
+            properties: {},
+            metadata: JSON.stringify({ gis: { color: '#06b6d4', size: 5, dashArray: [6, 3] } }),
+        };
+
+        const { collection, lodPolicy } = buildMapLibreFeatureCollection({
+            features: [...manyPoints, legacyLine],
+            zoom: 13,
+        });
+
+        const renderedLine = collection.features.find(feature => feature.properties.id === 'legacy-line-after-points');
+        const renderedPoints = collection.features.filter(feature => feature.geometry.type === 'Point');
+
+        expect(lodPolicy.level).toBe('summary');
+        expect(renderedPoints).toHaveLength(lodPolicy.maxFeatures);
+        expect(renderedLine?.geometry).toEqual({
+            type: 'LineString',
+            coordinates: [[105.8, 21.02], [105.82, 21.04]],
+        });
+        expect(renderedLine?.properties).toEqual(expect.objectContaining({
+            color: '#06b6d4',
+            size: 5,
+            dashArray: [6, 3],
+        }));
+    });
+
+    it('renders custom polyline geom_types such as SignalLine, NetworkLink, and Cable', () => {
+        const signalLine: FeatureState = {
+            id: 'signal-1',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'SignalLine 1',
+            geom_type: 'SignalLine',
+            coordinates: [[105.78, 21.04], [105.79, 21.05]],
+            properties: {},
+            metadata: JSON.stringify({ stroke: 22 }),
+        };
+
+        const networkLink: FeatureState = {
+            id: 'network-1',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'NetworkLink 1',
+            geom_type: 'NetworkLink',
+            coordinates: [[105.80, 21.06], [105.81, 21.07]],
+            properties: {},
+            metadata: JSON.stringify({ weight: 14 }),
+        };
+
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [signalLine, networkLink],
+            zoom: 20,
+        });
+
+        expect(collection.features).toHaveLength(2);
+        expect(collection.features[0].geometry.type).toBe('LineString');
+        expect(collection.features[0].properties.id).toBe('signal-1');
+        expect(collection.features[0].properties.size).toBe(22);
+
+        expect(collection.features[1].geometry.type).toBe('LineString');
+        expect(collection.features[1].properties.id).toBe('network-1');
+        expect(collection.features[1].properties.size).toBe(14);
+    });
+
+    it('renders the full GeoJSON geometry surface and keeps valid GeometryCollection children', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const features: FeatureState[] = [
+            pointFeature('point'),
+            pointFeature('multi-point', [0, 0], {
+                geom_type: 'MultiPoint',
+                coordinates: [[105.8, 21.02], [105.81, 21.03]] as any,
+            }),
+            pointFeature('line', [0, 0], {
+                geom_type: 'LineString',
+                coordinates: [[105.8, 21.02], [105.81, 21.03]] as any,
+            }),
+            pointFeature('multi-line', [0, 0], {
+                geom_type: 'MultiLineString',
+                coordinates: [
+                    [[105.8, 21.02], [105.81, 21.03]],
+                    [[105.82, 21.04], [105.83, 21.05]],
+                ] as any,
+            }),
+            pointFeature('polygon', [0, 0], {
+                geom_type: 'Polygon',
+                coordinates: [[[105.8, 21.02], [105.81, 21.02], [105.81, 21.03], [105.8, 21.02]]] as any,
+            }),
+            pointFeature('multi-polygon', [0, 0], {
+                geom_type: 'MultiPolygon',
+                coordinates: [
+                    [[[105.8, 21.02], [105.81, 21.02], [105.81, 21.03], [105.8, 21.02]]],
+                    [[[105.9, 21.1], [105.91, 21.1], [105.91, 21.11], [105.9, 21.1]]],
+                ] as any,
+            }),
+            pointFeature('collection', [0, 0], {
+                geom_type: 'GeometryCollection',
+                coordinates: {
+                    type: 'GeometryCollection',
+                    geometries: [
+                        { type: 'Point', coordinates: [105.8, 21.02] },
+                        { type: 'LineString', coordinates: [[105.82, 21.04], ['bad', 21.05]] },
+                        { type: 'LineString', coordinates: [[105.83, 21.06], [105.84, 21.07]] },
+                    ],
+                } as any,
+            }),
+        ];
+
+        const { collection } = buildMapLibreFeatureCollection({ features, zoom: 20 });
+        const byId = Object.fromEntries(collection.features.map(feature => [feature.properties.id, feature]));
+
+        expect(byId.point.geometry.type).toBe('Point');
+        expect(byId['multi-point'].geometry.type).toBe('MultiPoint');
+        expect(byId.line.geometry.type).toBe('LineString');
+        expect(byId['multi-line'].geometry.type).toBe('MultiLineString');
+        expect(byId.polygon.geometry.type).toBe('Polygon');
+        expect(byId['multi-polygon'].geometry.type).toBe('MultiPolygon');
+        expect(byId['collection::g0']).toEqual(expect.objectContaining({
+            geometry: { type: 'Point', coordinates: [105.8, 21.02] },
+            properties: expect.objectContaining({ parentFeatureId: 'collection' }),
+        }));
+        expect(byId['collection::g2']).toEqual(expect.objectContaining({
+            geometry: { type: 'LineString', coordinates: [[105.83, 21.06], [105.84, 21.07]] },
+            properties: expect.objectContaining({ parentFeatureId: 'collection' }),
+        }));
+        expect(byId['collection::g1']).toBeUndefined();
+        expect(warn).toHaveBeenCalledWith('[mapLibreFastAdapter] Skipped invalid GeometryCollection child:', 'collection', 1);
+        warn.mockRestore();
     });
 });

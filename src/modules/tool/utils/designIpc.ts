@@ -308,26 +308,21 @@ export const pull_collaboration_events = async (
 export const loadDesignState = async (
   projectId: string,
   options: { includeFeatures?: boolean } = {}
-): Promise<any | null> => {
-  try {
-    const result = await invoke<any>(
-      'load_design_state_v2',
-      withCompatArgs(
-        {
-          project_id: projectId,
-          include_features: options.includeFeatures,
-        },
-        {
-          projectId,
-          includeFeatures: options.includeFeatures,
-        }
-      )
-    );
-    return result ?? null;
-  } catch (err) {
-    console.warn('[V2] load_design_state failed:', err);
-    return null;
-  }
+): Promise<any> => {
+  const result = await invoke<any>(
+    'load_design_state_v2',
+    withCompatArgs(
+      {
+        project_id: projectId,
+        include_features: options.includeFeatures,
+      },
+      {
+        projectId,
+        includeFeatures: options.includeFeatures,
+      }
+    )
+  );
+  return result ?? null;
 };
 
 export interface ProjectBootstrap {
@@ -344,6 +339,7 @@ export interface ProjectBootstrap {
   regions: Record<string, unknown>;
   layers: Record<string, unknown>;
   featureGroups: Record<string, unknown>;
+  initialState?: Record<string, unknown> | null;
   streamingMode: boolean;
   viewportFirst?: boolean;
   cacheStatus: {

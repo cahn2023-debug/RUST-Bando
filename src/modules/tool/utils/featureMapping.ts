@@ -37,8 +37,8 @@ export const getParsedCoordinates = (feature: FeatureState | { coordinates: unkn
                 return inner as FeatureCoordinates;
             }
             if (obj && (obj.lng !== undefined || obj.x !== undefined || obj.longitude !== undefined || obj.Longitude !== undefined)) {
-                _coordsCache.set(feature as object, obj as FeatureCoordinates);
-                return obj as FeatureCoordinates;
+                _coordsCache.set(feature as object, obj as unknown as FeatureCoordinates);
+                return obj as unknown as FeatureCoordinates;
             }
         }
 

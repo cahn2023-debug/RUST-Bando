@@ -4,7 +4,7 @@ import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
 import { Project } from "@CONTRACT/types";
 import { useTabStore } from "@IMPLEMENT/TabInProgram/useTabStore";
 import { backfillProjectPath } from "./projectPathUtils";
-import { buildMapTilesV2, openProjectBootstrap } from "@TOOL/utils/designIpc";
+import { openProjectBootstrap } from "@TOOL/utils/designIpc";
 
 const normalizeProject = (project: Project | null | undefined): Project | null => {
     if (!project || !project.path) {
@@ -32,22 +32,7 @@ const normalizeProject = (project: Project | null | undefined): Project | null =
 const isProjectLoadable = (project: Project | null | undefined): project is Project =>
     !!project && !!project.id && !!project.path;
 
-const tileBuildInFlight = new Set<string>();
 const startupHydrationInFlight = new Set<string>();
-
-const withTimeout = async <T,>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    try {
-        return await Promise.race([
-            promise,
-            new Promise<T>((_, reject) => {
-                timeoutId = setTimeout(() => reject(new Error(`${label} timeout after ${timeoutMs}ms`)), timeoutMs);
-            }),
-        ]);
-    } finally {
-        if (timeoutId) clearTimeout(timeoutId);
-    }
-};
 
 export function useProjectManager() {
     const [projects, setProjects] = useState<Project[]>([]);
@@ -140,11 +125,13 @@ export function useProjectManager() {
                     startupHydrationInFlight.add(hydrationKey);
                     try {
                         const bootstrap = await openProjectBootstrap(hydratedProject.path, requestId);
+                        if (requestId !== requestIdRef.current) {
+                            console.warn("[useProjectManager] Startup bootstrap became stale; skipping initialize.");
+                            return;
+                        }
                         await currentSyncState.initialize(hydratedProject.id, hydratedProject.path, { bootstrap });
-                    } catch {
-                        currentSyncState.initialize(hydratedProject.id, hydratedProject.path).catch((err) => {
-                            console.warn("[useProjectManager] Startup design hydration failed:", err);
-                        });
+                    } catch (err) {
+                        console.warn("[useProjectManager] Startup project bootstrap failed:", err);
                     } finally {
                         startupHydrationInFlight.delete(hydrationKey);
                     }
@@ -197,58 +184,6 @@ export function useProjectManager() {
             invoke("index_project_files", { projectId }).catch(console.error);
             indexingTimeoutRef.current = null;
         }, 3000);
-    };
-
-    const scheduleMapTileBuild = (projectId: string, mapRevision: number, cacheStatus?: {
-        cachedTiles?: number;
-        state?: string;
-        lastViewportReady?: boolean;
-    } | null, initialBounds?: {
-        west?: number | null;
-        south?: number | null;
-        east?: number | null;
-        north?: number | null;
-    } | null) => {
-        if (cacheStatus?.state === "ready" || (cacheStatus?.cachedTiles ?? 0) > 0) {
-            console.info("[useProjectManager] Map tile cache is ready; skipping background tile build.");
-            return;
-        }
-        const buildKey = `${projectId}:${mapRevision}`;
-        if (tileBuildInFlight.has(buildKey)) return;
-        tileBuildInFlight.add(buildKey);
-        const queuedAt = performance.now();
-        setTimeout(() => {
-            const bounds = initialBounds
-                && Number.isFinite(initialBounds.west)
-                && Number.isFinite(initialBounds.south)
-                && Number.isFinite(initialBounds.east)
-                && Number.isFinite(initialBounds.north)
-                ? [
-                    Number(initialBounds.west),
-                    Number(initialBounds.south),
-                    Number(initialBounds.east),
-                    Number(initialBounds.north),
-                ] as [number, number, number, number]
-                : undefined;
-            withTimeout(buildMapTilesV2(projectId, mapRevision, {
-                minZoom: 8,
-                maxZoom: 16,
-                bounds,
-                tileLimit: 512,
-            }), 12000, "build_map_tiles_v2").catch((err) => {
-                const detail = err instanceof Error ? err.message : String(err || "");
-                if (detail.includes("channel closed")) {
-                    console.info("[useProjectManager] Background map tile build was cancelled before completion.");
-                } else {
-                    console.warn("[useProjectManager] Background map tile build failed:", err);
-                }
-            }).finally(() => {
-                tileBuildInFlight.delete(buildKey);
-            });
-        }, 750);
-        void import("@IMPLEMENT/stores/useDesignSync").then(({ useDesignSync }) => {
-            useDesignSync.getState().updateOpenMetrics({ tileBuildQueuedMs: performance.now() - queuedAt });
-        }).catch(() => {});
     };
 
     const applyOpenedProject = (project: Project, persistLastOpened: boolean) => {
@@ -371,7 +306,6 @@ export function useProjectManager() {
                     forceReload: !isAlreadyLoaded,
                     bootstrap
                 });
-                scheduleMapTileBuild(project.id, bootstrap.mapRevision || 0, bootstrap.cacheStatus, bootstrap.initialBounds);
                 scheduleProjectIndexing(project.id);
 
                 return true;
@@ -382,7 +316,13 @@ export function useProjectManager() {
         } catch (e) {
             console.error("Error opening PMP:", e);
             const isTauri = IS_REAL_TAURI;
-            const errorDetail = e instanceof Error ? e.message : typeof e === 'string' ? e : String(e || "");
+            const errorDetail = e instanceof Error
+                ? e.message
+                : typeof e === 'string'
+                    ? e
+                    : e == null
+                        ? ''
+                        : JSON.stringify(e);
             if (isTauri) {
                 alert(`Lỗi hệ thống khi nạp tệp PMP:\n${errorDetail || "Vui lòng kiểm tra lại đường dẫn."}`);
             } else {

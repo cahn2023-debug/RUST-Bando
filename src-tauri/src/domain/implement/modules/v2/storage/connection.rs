@@ -1,6 +1,6 @@
 use crate::domain::implement::modules::v2::storage::audit::{audit_database, DatabaseAuditReport};
 use crate::domain::implement::modules::v2::storage::schema::{
-    apply_base_schema, apply_v9_schema, ensure_runtime_schema_compatibility,
+    apply_base_schema, apply_v10_schema, apply_v9_schema, ensure_runtime_schema_compatibility,
     ensure_v8_compatibility, stamp_schema_version, CURRENT_SCHEMA_VERSION,
 };
 use rusqlite::{backup::Backup, params, Connection, DatabaseName, OpenFlags, TransactionBehavior};
@@ -60,7 +60,8 @@ impl PmpDatabase {
                 let (backup_path, backup_sha256) =
                     create_pre_migration_backup(&conn, &pmp_path, version)?;
                 log::info!(
-                    "[Storage] Pre-v9 migration backup created: {} ({})",
+                    "[Storage] Pre-v{} migration backup created: {} ({})",
+                    CURRENT_SCHEMA_VERSION,
                     backup_path.display(),
                     backup_sha256
                 );
@@ -77,6 +78,7 @@ impl PmpDatabase {
                 ensure_v8_compatibility(&transaction)?;
             }
             apply_v9_schema(&transaction)?;
+            apply_v10_schema(&transaction)?;
             stamp_schema_version(&transaction)?;
             let report = audit_database(&transaction)?;
             reject_blocking_audit(&report, false)?;
@@ -530,8 +532,9 @@ fn create_pre_migration_backup(
     source_version: i32,
 ) -> Result<(PathBuf, String), rusqlite::Error> {
     let timestamp = chrono::Utc::now().format("%Y%m%dT%H%M%S%3fZ");
-    let backup_path =
-        source_path.with_extension(format!("pre-v{source_version}-to-v9-{timestamp}.pmp"));
+    let backup_path = source_path.with_extension(format!(
+        "pre-v{source_version}-to-v{CURRENT_SCHEMA_VERSION}-{timestamp}.pmp"
+    ));
     let mut destination = Connection::open_with_flags(
         &backup_path,
         OpenFlags::SQLITE_OPEN_READ_WRITE
@@ -751,7 +754,9 @@ fn migrate_sync_state(conn: &Connection) -> Result<(), rusqlite::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::implement::modules::v2::storage::schema::apply_v2_schema;
+    use crate::domain::implement::modules::v2::storage::schema::{
+        apply_v2_schema, CURRENT_SCHEMA_LABEL,
+    };
     use tempfile::tempdir;
 
     fn mark_as_v8(conn: &Connection) {
@@ -772,7 +777,7 @@ mod tests {
     }
 
     #[test]
-    fn fresh_database_uses_consistent_v9_version_sources() {
+    fn fresh_database_uses_consistent_current_version_sources() {
         let directory = tempdir().expect("tempdir");
         let path = directory.path().join("fresh.pmp");
         let database = PmpDatabase::open_or_create(path).expect("fresh database");
@@ -796,9 +801,9 @@ mod tests {
             )
             .expect("configured version");
 
-        assert_eq!(user_version, 9);
-        assert_eq!(migration_version, 9);
-        assert_eq!(configured_version, "9.0.0");
+        assert_eq!(user_version, CURRENT_SCHEMA_VERSION);
+        assert_eq!(migration_version, CURRENT_SCHEMA_VERSION);
+        assert_eq!(configured_version, CURRENT_SCHEMA_LABEL);
 
         let audit = PmpDatabase::audit_path(&database.pmp_path).expect("read-only audit");
         assert!(!audit.has_blocking_errors());
@@ -827,17 +832,23 @@ mod tests {
             mark_as_v8(&conn);
         }
 
-        let database = PmpDatabase::open_or_create(path.clone()).expect("v9 migration");
+        let database = PmpDatabase::open_or_create(path.clone()).expect("schema migration");
         let user_version: i32 = database
             .conn
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .expect("user version");
-        assert_eq!(user_version, 9);
+        assert_eq!(user_version, CURRENT_SCHEMA_VERSION);
 
+        let expected_backup_marker = format!("pre-v8-to-v{CURRENT_SCHEMA_VERSION}");
         let backup_count = std::fs::read_dir(directory.path())
             .expect("backup directory")
             .filter_map(Result::ok)
-            .filter(|entry| entry.file_name().to_string_lossy().contains("pre-v8-to-v9"))
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .contains(&expected_backup_marker)
+            })
             .count();
         assert_eq!(backup_count, 1);
     }
@@ -983,7 +994,7 @@ mod tests {
             .conn
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .expect("user version");
-        assert_eq!(user_version, 9);
+        assert_eq!(user_version, CURRENT_SCHEMA_VERSION);
 
         let fallback_layer = "__recovered_layer:p2";
         let feature_relation: (String, Option<String>) = database

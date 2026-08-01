@@ -1,8 +1,8 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 9;
-pub const CURRENT_SCHEMA_LABEL: &str = "9.0.0";
+pub const CURRENT_SCHEMA_VERSION: i32 = 10;
+pub const CURRENT_SCHEMA_LABEL: &str = "10.0.0";
 
 pub const BASE_SCHEMA_SQL: &str = r#"
     CREATE TABLE IF NOT EXISTS sys_config (
@@ -927,6 +927,7 @@ pub fn apply_base_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
 pub fn apply_v2_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
     apply_base_schema(conn)?;
     apply_v9_schema(conn)?;
+    apply_v10_schema(conn)?;
     stamp_schema_version(conn)
 }
 
@@ -939,6 +940,11 @@ pub fn apply_v9_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
     create_json_validation_triggers(conn)?;
     create_numeric_validation_triggers(conn)?;
     create_timestamp_validation_triggers(conn)?;
+    ensure_feature_spatial_index(conn)
+}
+
+pub fn apply_v10_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
+    repair_feature_bbox_columns(conn)?;
     ensure_feature_spatial_index(conn)
 }
 
@@ -981,6 +987,7 @@ pub fn ensure_runtime_schema_compatibility(conn: &Connection) -> Result<(), rusq
     )?;
     ensure_map_tile_cache_schema(conn)?;
     ensure_feature_spatial_columns(conn)?;
+    repair_feature_bbox_columns(conn)?;
     ensure_feature_spatial_index(conn)
 }
 
@@ -1144,6 +1151,96 @@ fn backfill_feature_bbox_columns(conn: &Connection) -> Result<(), rusqlite::Erro
         )?;
     }
     Ok(())
+}
+
+fn repair_feature_bbox_columns(conn: &Connection) -> Result<(), rusqlite::Error> {
+    if !table_exists(conn, "features")? {
+        return Ok(());
+    }
+    let mut stmt = conn.prepare(
+        "SELECT id, coordinates_json, bbox_json, bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y
+         FROM features",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, Option<String>>(1)?,
+            row.get::<_, Option<String>>(2)?,
+            row.get::<_, Option<f64>>(3)?,
+            row.get::<_, Option<f64>>(4)?,
+            row.get::<_, Option<f64>>(5)?,
+            row.get::<_, Option<f64>>(6)?,
+        ))
+    })?;
+    let mut updates = Vec::new();
+    for row in rows {
+        let (id, coordinates_json, bbox_json, min_x, min_y, max_x, max_y) = row?;
+        let bbox = bbox_json
+            .as_deref()
+            .and_then(parse_bbox_array)
+            .or_else(|| coordinates_json.as_deref().and_then(parse_coordinate_bbox));
+        let Some((expected_min_x, expected_min_y, expected_max_x, expected_max_y)) = bbox else {
+            continue;
+        };
+        if bbox_columns_match(
+            (min_x, min_y, max_x, max_y),
+            (
+                expected_min_x,
+                expected_min_y,
+                expected_max_x,
+                expected_max_y,
+            ),
+        ) {
+            continue;
+        }
+        let repaired_bbox_json = if bbox_json.as_deref().and_then(parse_bbox_array).is_some() {
+            bbox_json
+        } else {
+            Some(
+                serde_json::json!([
+                    expected_min_x,
+                    expected_min_y,
+                    expected_max_x,
+                    expected_max_y
+                ])
+                .to_string(),
+            )
+        };
+        updates.push((
+            id,
+            expected_min_x,
+            expected_min_y,
+            expected_max_x,
+            expected_max_y,
+            repaired_bbox_json,
+        ));
+    }
+    drop(stmt);
+
+    for (id, min_x, min_y, max_x, max_y, bbox_json) in updates {
+        conn.execute(
+            "UPDATE features
+             SET bbox_min_x = ?2, bbox_min_y = ?3, bbox_max_x = ?4, bbox_max_y = ?5,
+                 bbox_json = ?6
+             WHERE id = ?1",
+            params![id, min_x, min_y, max_x, max_y, bbox_json],
+        )?;
+    }
+    Ok(())
+}
+
+fn bbox_columns_match(
+    actual: (Option<f64>, Option<f64>, Option<f64>, Option<f64>),
+    expected: (f64, f64, f64, f64),
+) -> bool {
+    const EPSILON: f64 = 1e-9;
+    let (Some(min_x), Some(min_y), Some(max_x), Some(max_y)) = actual else {
+        return false;
+    };
+    (min_x - expected.0).abs() <= EPSILON
+        && (min_y - expected.1).abs() <= EPSILON
+        && (max_x - expected.2).abs() <= EPSILON
+        && (max_y - expected.3).abs() <= EPSILON
 }
 
 fn parse_bbox_array(text: &str) -> Option<(f64, f64, f64, f64)> {
@@ -1818,6 +1915,68 @@ mod tests {
             .expect("rtree");
 
         assert_eq!(bbox, (105.0, 21.0, 106.0, 22.0));
+        assert_eq!(spatial_count, 1);
+    }
+
+    #[test]
+    fn v10_repairs_degenerate_line_bbox_columns_and_rtree() {
+        let conn = Connection::open_in_memory().expect("database");
+        apply_base_schema(&conn).expect("base schema applied");
+        apply_v9_schema(&conn).expect("v9 schema applied");
+        conn.execute(
+            "INSERT INTO projects(id, name, title) VALUES('p1', 'Project', 'Project')",
+            [],
+        )
+        .expect("project");
+        conn.execute(
+            "INSERT INTO layers(id, project_id, name) VALUES('l1', 'p1', 'Layer')",
+            [],
+        )
+        .expect("layer");
+        conn.execute(
+            "INSERT INTO features(
+                id, project_id, layer_id, name, geom_type, coordinates_json, bbox_json,
+                bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y
+             )
+             VALUES(
+                'f1', 'p1', 'l1', 'Line', 'LineString',
+                '[[105.0,21.0],[106.0,22.0]]',
+                '[105.0,21.0,106.0,22.0]',
+                105.0, 21.0, 105.0, 21.0
+             )",
+            [],
+        )
+        .expect("legacy feature");
+
+        apply_v10_schema(&conn).expect("v10 migration");
+
+        let bbox: (f64, f64, f64, f64) = conn
+            .query_row(
+                "SELECT bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y FROM features WHERE id='f1'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .expect("bbox");
+        let bbox_json: String = conn
+            .query_row("SELECT bbox_json FROM features WHERE id='f1'", [], |row| {
+                row.get(0)
+            })
+            .expect("bbox json");
+        let spatial_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM feature_rtree r
+                 INNER JOIN features f ON f.rowid = r.rowid
+                 WHERE f.id = 'f1'
+                   AND r.max_x >= 105.75 AND r.min_x <= 105.75
+                   AND r.max_y >= 21.75 AND r.min_y <= 21.75",
+                [],
+                |row| row.get(0),
+            )
+            .expect("rtree");
+
+        assert_eq!(bbox, (105.0, 21.0, 106.0, 22.0));
+        assert_eq!(bbox_json, "[105.0,21.0,106.0,22.0]");
         assert_eq!(spatial_count, 1);
     }
 

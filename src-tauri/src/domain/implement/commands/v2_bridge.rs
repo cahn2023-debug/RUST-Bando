@@ -223,7 +223,9 @@ async fn load_design_state_from_tables(
     result_obj.insert("featureCount".to_string(), json!(feature_count));
     result_obj.insert(
         "mapRevision".to_string(),
-        json!(map_revision_for_project(state, project_id).await.unwrap_or(0)),
+        json!(map_revision_for_project(state, project_id)
+            .await
+            .unwrap_or(0)),
     );
     result_obj.insert(
         "isLargeProject".to_string(),
@@ -280,6 +282,10 @@ fn feature_row_to_state(row: &Value) -> Value {
 
 fn fast_feature_row_to_state(row: &Value) -> Value {
     let metadata = parse_json_value(row.get("metadata_json"), json!({}));
+    let metadata_string = row
+        .get("metadata_json")
+        .map(normalize_metadata_to_string)
+        .unwrap_or_else(|| "{}".to_string());
     let properties = parse_json_value(row.get("properties_json"), json!({}));
     let gis = metadata
         .get("gis")
@@ -310,7 +316,7 @@ fn fast_feature_row_to_state(row: &Value) -> Value {
                 .cloned()
                 .unwrap_or(Value::Null),
         },
-        "metadata": "{}",
+        "metadata": metadata_string,
         "bbox": bbox_value_to_state(row.get("bbox_json")),
     })
 }
@@ -1174,7 +1180,8 @@ pub async fn load_design_state_v2(
         .and_then(|row| row.get("feature_count"))
         .and_then(Value::as_i64)
         .unwrap_or(0);
-    let include_features = should_include_features(include_features.or(includeFeatures), feature_count);
+    let include_features =
+        should_include_features(include_features.or(includeFeatures), feature_count);
     let read_model_state = ensure_design_shape(
         load_design_state_from_tables(&state, &project_id, include_features, feature_count).await?,
     );
@@ -1864,7 +1871,7 @@ mod tests {
     }
 
     #[test]
-    fn fast_feature_row_to_state_keeps_render_fields_and_flattens_style() {
+    fn fast_feature_row_to_state_keeps_render_fields_and_metadata() {
         let row = json!({
             "id": "feature-1",
             "layer_id": "layer-1",
@@ -1880,9 +1887,21 @@ mod tests {
         let out = fast_feature_row_to_state(&row);
 
         assert_eq!(out.get("id").and_then(Value::as_str), Some("feature-1"));
-        assert_eq!(out.pointer("/properties/color").and_then(Value::as_str), Some("#22d3ee"));
-        assert_eq!(out.pointer("/properties/size").and_then(Value::as_i64), Some(6));
-        assert_eq!(out.get("metadata").and_then(Value::as_str), Some("{}"));
+        assert_eq!(
+            out.pointer("/properties/color").and_then(Value::as_str),
+            Some("#22d3ee")
+        );
+        assert_eq!(
+            out.pointer("/properties/size").and_then(Value::as_i64),
+            Some(6)
+        );
+        let metadata = out.get("metadata").and_then(Value::as_str).unwrap_or("{}");
+        let metadata_value: Value = serde_json::from_str(metadata).unwrap();
+        assert_eq!(
+            metadata_value.pointer("/gis/color").and_then(Value::as_str),
+            Some("#22d3ee")
+        );
+        assert_eq!(metadata_value.get("heavy").and_then(Value::as_str), Some("ignored"));
         assert!(out.get("coordinates").and_then(Value::as_array).is_some());
         assert!(out.get("bbox").and_then(Value::as_object).is_some());
     }
@@ -1890,9 +1909,15 @@ mod tests {
     #[test]
     fn include_features_defaults_to_viewport_mode_above_limit() {
         assert!(should_include_features(None, FULL_FEATURE_HYDRATION_LIMIT));
-        assert!(!should_include_features(None, FULL_FEATURE_HYDRATION_LIMIT + 1));
+        assert!(!should_include_features(
+            None,
+            FULL_FEATURE_HYDRATION_LIMIT + 1
+        ));
         assert!(!should_include_features(Some(false), 269));
-        assert!(should_include_features(Some(true), FULL_FEATURE_HYDRATION_LIMIT + 1));
+        assert!(should_include_features(
+            Some(true),
+            FULL_FEATURE_HYDRATION_LIMIT + 1
+        ));
     }
 
     #[tokio::test]
@@ -1920,13 +1945,18 @@ mod tests {
         let statements = responder.await.expect("query responder");
 
         assert_eq!(state_value.get("features"), Some(&json!({})));
-        assert_eq!(state_value.get("featureCount").and_then(Value::as_i64), Some(269));
+        assert_eq!(
+            state_value.get("featureCount").and_then(Value::as_i64),
+            Some(269)
+        );
         assert_eq!(
             state_value.get("isLargeProject").and_then(Value::as_bool),
             Some(true)
         );
         assert!(statements.iter().all(|sql| {
-            !sql.contains("coordinates_json, properties_json, metadata_json, bbox_json FROM features")
+            !sql.contains(
+                "coordinates_json, properties_json, metadata_json, bbox_json FROM features",
+            )
         }));
     }
 
@@ -1955,7 +1985,10 @@ mod tests {
         let statements = responder.await.expect("query responder");
 
         assert_eq!(state_value.get("features"), Some(&json!({})));
-        assert_eq!(state_value.get("featureCount").and_then(Value::as_i64), Some(0));
+        assert_eq!(
+            state_value.get("featureCount").and_then(Value::as_i64),
+            Some(0)
+        );
         assert_eq!(
             state_value.get("isLargeProject").and_then(Value::as_bool),
             Some(false)

@@ -12,8 +12,6 @@ import type { ProjectBootstrap } from '../../../../tool/utils/designIpc';
 import { normalizeMapStateForDisplay } from '../../../../tool/utils/normalizeDisplay';
 
 
-let initWatchdogTimer: ReturnType<typeof setTimeout> | null = null;
-let loadingSinceTs: number | null = null;
 let lastInitializedKey: string | null = null;
 let lastInitializedAt = 0;
 let initBurstWindowStart = 0;
@@ -22,17 +20,24 @@ let initBurstKey: string | null = null;
 const INIT_BURST_WINDOW_MS = 30000;
 const INIT_BURST_MAX_COUNT = 6;
 
-const mapStateFromBootstrap = (bootstrap: ProjectBootstrap): any => ({
-    regions: bootstrap.regions || {},
-    layers: bootstrap.layers || {},
-    feature_groups: bootstrap.featureGroups || {},
-    features: {},
-    settings: bootstrap.settings || {},
-    featureCount: bootstrap.featureCount || 0,
-    mapRevision: bootstrap.mapRevision || 0,
-    isLargeProject: Boolean(bootstrap.streamingMode || bootstrap.viewportFirst),
-    viewportFeatureLimit: 10000
-});
+const mapStateFromBootstrap = (bootstrap: ProjectBootstrap): any => {
+    const initialState = bootstrap.initialState && typeof bootstrap.initialState === 'object'
+        ? bootstrap.initialState as Record<string, any>
+        : {};
+    const isLargeProject = Boolean(bootstrap.streamingMode || bootstrap.viewportFirst || initialState.isLargeProject);
+    return {
+        regions: initialState.regions || bootstrap.regions || {},
+        layers: initialState.layers || bootstrap.layers || {},
+        feature_groups: initialState.feature_groups || bootstrap.featureGroups || {},
+        features: isLargeProject ? {} : (initialState.features || {}),
+        settings: initialState.settings || bootstrap.settings || {},
+        initialBounds: initialState.initialBounds || bootstrap.initialBounds || null,
+        featureCount: initialState.featureCount || bootstrap.featureCount || 0,
+        mapRevision: initialState.mapRevision || bootstrap.mapRevision || 0,
+        isLargeProject,
+        viewportFeatureLimit: initialState.viewportFeatureLimit || 10000
+    };
+};
 
 export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], InitializationSlice> = (set, get) => ({
     unsubscribeFirestore: null,
@@ -52,14 +57,6 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
     })),
 
     initialize: async (projectId: string, projectPath?: string, options?: { forceReload?: boolean; bootstrap?: ProjectBootstrap }) => {
-        const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> => {
-            return await Promise.race([
-                promise,
-                new Promise<T>((_, reject) =>
-                    setTimeout(() => reject(new Error(`${label} timeout after ${timeoutMs}ms`)), timeoutMs)
-                )
-            ]);
-        };
         const normalizedProjectKey = projectPath ?? `id:${projectId}`;
         const currentInitKey = `${projectId}@${normalizedProjectKey}`;
         const {
@@ -107,16 +104,11 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
 
         // 1. Nếu đang nạp chính project này, bỏ qua để tránh loop (trừ khi forceReload)
         if (currentlyLoading && currentProjectId === projectId) {
-            const isStaleLoading = !!loadingSinceTs && now - loadingSinceTs > 20000;
-            if (!forceReload && !isStaleLoading) {
+            if (!forceReload) {
                 logger.sync(`[Sync] Already initializing project ${projectId}. Ignoring duplicate call.`);
                 return;
             }
-            logger.warn(
-                forceReload
-                    ? `[Sync] Force reloading project ${projectId}; superseding active hydration.`
-                    : `[Sync] Detected stale loading state for project ${projectId}. Recovering...`
-            );
+            logger.warn(`[Sync] Force reloading project ${projectId}; superseding active hydration.`);
             set({ isLoading: false, isHydrating: false });
         }
 
@@ -132,22 +124,6 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
         }
 
         const initializeRequestId = incrementInitializeRequestId();
-        loadingSinceTs = Date.now();
-        if (initWatchdogTimer) {
-            clearTimeout(initWatchdogTimer);
-            initWatchdogTimer = null;
-        }
-        initWatchdogTimer = setTimeout(() => {
-            if (initializeRequestId === getLatestInitializeRequestId()) {
-                set({
-                    isLoading: false,
-                    isHydrating: false,
-                    error: 'Hydration timeout: vui lòng thử mở lại dự án.'
-                });
-                loadingSinceTs = null;
-            }
-        }, 20000);
-
         const currentUnsubscribe = get().unsubscribeFirestore;
         if (currentUnsubscribe) currentUnsubscribe();
 
@@ -187,12 +163,10 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             openMetrics: options?.bootstrap?.openPerformanceHint || null
         });
 
-        let keepHydratingAfterReturn = false;
         try {
             if (options?.bootstrap) {
                 const tStart = performance.now();
                 const initialShell = mapStateFromBootstrap(options.bootstrap);
-                const shouldKeepViewportFirst = Boolean(initialShell.isLargeProject);
                 const normalizedState = normalizeMapStateForDisplay(initialShell);
                 const shellCommitMs = performance.now() - tStart;
                 set({
@@ -202,7 +176,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                     projectPath,
                     lastSync: Date.now(),
                     isLoading: false,
-                    isHydrating: true,
+                    isHydrating: false,
                     openMetrics: {
                         ...(get().openMetrics || {}),
                         shellCommitMs
@@ -234,53 +208,11 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                         unlistenSync();
                     }
                 });
-                if (shouldKeepViewportFirst) {
+                if (initialShell.isLargeProject) {
                     logger.info(`[Store] Viewport-first bootstrap ready for project ${projectId}; visible feature queries will hydrate map features.`);
-                    return;
+                } else {
+                    logger.info(`[Store] Bootstrap state loaded ${Object.keys(normalizedState.features || {}).length} features for project ${projectId}`);
                 }
-                keepHydratingAfterReturn = true;
-                void (async () => {
-                    try {
-                        const fullState = await withTimeout(
-                            loadDesignState(projectId, shouldKeepViewportFirst ? { includeFeatures: false } : {}),
-                            15000,
-                            'loadDesignState'
-                        );
-                        if (initializeRequestId !== getLatestInitializeRequestId()) return;
-                        const fullHydrationMs = performance.now() - tStart;
-                        const fullFeatures = shouldKeepViewportFirst ? {} : (fullState?.features || {});
-                        const fullStateWithBootstrap = {
-                            ...initialShell,
-                            ...(fullState || {}),
-                            features: fullFeatures,
-                            isLargeProject: shouldKeepViewportFirst || Boolean(fullState?.isLargeProject),
-                            viewportFeatureLimit: initialShell.viewportFeatureLimit || fullState?.viewportFeatureLimit
-                        };
-                        set({
-                            state: normalizeMapStateForDisplay(fullStateWithBootstrap),
-                            projectId,
-                            projectKey: normalizedProjectKey,
-                            projectPath,
-                            lastSync: Date.now(),
-                            isHydrating: false,
-                            error: null,
-                            openMetrics: {
-                                ...(get().openMetrics || {}),
-                                fullHydrationMs
-                            }
-                        });
-                        logger.info(`[Store] Background hydration loaded ${Object.keys(fullFeatures).length} features in ${fullHydrationMs.toFixed(1)}ms for project ${projectId}`);
-                        logger.info('[OpenPerf] Background hydration complete', {
-                            projectId,
-                            ...(get().openMetrics || {}),
-                            fullHydrationMs,
-                        });
-                    } catch (err) {
-                        if (initializeRequestId !== getLatestInitializeRequestId()) return;
-                        logger.warn(`[Sync] Failed to load features for bootstrap project ${projectId}:`, err);
-                        set({ isHydrating: false });
-                    }
-                })();
                 return;
             }
 
@@ -291,7 +223,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             if (needsLoad) {
                 if (projectPath) {
                     logger.sync(`[Sync] Loading project from: ${projectPath}`);
-                    await withTimeout(invoke('load_pmp_file', { path: projectPath }), 15000, 'load_pmp_file');
+                    await invoke('load_pmp_file', { path: projectPath });
                 } else if (activeProject) {
                     throw new Error(`Phiên làm việc cho dự án ${projectId} đã kết thúc. Vui lòng mở lại tệp.`);
                 }
@@ -305,7 +237,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             let state;
             try {
                 // ✅ Sử dụng utility loadDesignState (V2 Bridge) thay vì invokeBincode
-                state = await withTimeout(loadDesignState(projectId), 15000, 'loadDesignState');
+                state = await loadDesignState(projectId);
 
                 if (initializeRequestId !== getLatestInitializeRequestId()) {
                     logger.sync(`[Sync] Request ${initializeRequestId} stale after hydration. Abandoning state update.`);
@@ -317,14 +249,10 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                     return;
                 }
 
-                if (e?.toString().includes("Timeout")) {
-                    throw new Error(`Không thể nạp dữ liệu: Phản hồi từ Backend quá chậm hoặc Database bị khóa (Locked). Vui lòng thử lại.`);
-                }
-
                 if (e?.toString().includes("Database Lock")) {
                     console.warn("[useDesignSync] Retrying hydration after lock discovery...");
                     await new Promise(r => setTimeout(r, 2000));
-                    state = await withTimeout(loadDesignState(projectId), 15000, 'loadDesignState');
+                    state = await loadDesignState(projectId);
                 } else {
                     throw e;
                 }
@@ -401,26 +329,16 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             localStorage.removeItem('bando:v2_state'); // Clear stale layout/state cache
             set({ error: String(err) });
         } finally {
-            if (initWatchdogTimer) {
-                clearTimeout(initWatchdogTimer);
-                initWatchdogTimer = null;
-            }
-            loadingSinceTs = null;
             if (initializeRequestId === getLatestInitializeRequestId()) {
-                set(keepHydratingAfterReturn ? { isLoading: false } : { isLoading: false, isHydrating: false });
+                set({ isLoading: false, isHydrating: false });
             }
         }
     },
 
     reset: () => {
         incrementInitializeRequestId();
-        loadingSinceTs = null;
         lastInitializedKey = null;
         lastInitializedAt = 0;
-        if (initWatchdogTimer) {
-            clearTimeout(initWatchdogTimer);
-            initWatchdogTimer = null;
-        }
         set({
             state: null,
             projectId: null,

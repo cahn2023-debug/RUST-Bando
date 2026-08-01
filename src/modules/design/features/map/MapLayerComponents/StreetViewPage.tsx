@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { listen } from '@tauri-apps/api/event';
+import { safeListen } from '@IMPLEMENT/lib/tauri';
 import { StreetViewJS } from '../Palette/StreetViewJS';
-import { getGoogleMapsApiKey } from '@TOOL/utils/googleMapsRuntime';
 
 const normalizeHeading = (value: number) => ((value % 360) + 360) % 360;
 
@@ -35,18 +34,19 @@ const parseStreetViewLocation = () => {
 
 const StreetViewPage: React.FC = () => {
   const [location, setLocation] = useState(() => parseStreetViewLocation());
-  const [apiKey] = useState(() => getGoogleMapsApiKey());
 
   useEffect(() => {
-    const unlistenLocation = listen<{ lat: number; lng: number; heading?: number; fov?: number }>(
+    const unlistenPromise = safeListen<{ lat: number; lng: number; heading?: number; fov?: number }>(
       'location-change',
       (event) => {
-        setLocation({
-          lat: event.payload.lat,
-          lng: event.payload.lng,
-          heading: normalizeHeading(event.payload.heading ?? 0),
-          fov: event.payload.fov ?? 90
-        });
+        if (event?.payload) {
+          setLocation({
+            lat: event.payload.lat,
+            lng: event.payload.lng,
+            heading: normalizeHeading(event.payload.heading ?? 0),
+            fov: event.payload.fov ?? 90
+          });
+        }
       }
     );
 
@@ -59,7 +59,7 @@ const StreetViewPage: React.FC = () => {
     document.title = 'Street View';
 
     return () => {
-      unlistenLocation.then((fn) => fn());
+      unlistenPromise.then((fn) => fn && fn());
       root.classList.remove('streetview-window');
       body.classList.remove('streetview-window');
       root.style.removeProperty('color-scheme');
@@ -89,7 +89,7 @@ const StreetViewPage: React.FC = () => {
         filter: 'none'
       }}
     >
-      <StreetViewJS lat={location.lat} lng={location.lng} heading={location.heading} fov={location.fov} apiKey={apiKey} />
+      <StreetViewJS lat={location.lat} lng={location.lng} heading={location.heading} fov={location.fov} />
     </div>
   );
 };

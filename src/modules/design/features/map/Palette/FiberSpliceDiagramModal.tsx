@@ -512,17 +512,22 @@ export function FiberSpliceDiagramModal({ enclosureId, evaluation, onClose }: Pr
     const container = diagramRef.current;
     if (!container) return;
 
-    const handleLayoutChange = () => updateSplicePaths();
-    const handleOdfLayoutChange = () => updateOdfPaths();
-    container.addEventListener('scroll', handleLayoutChange, true);
-    container.addEventListener('scroll', handleOdfLayoutChange, true);
-    window.addEventListener('resize', handleLayoutChange);
-    window.addEventListener('resize', handleOdfLayoutChange);
+    let rafId: number | null = null;
+    const handleLayoutChange = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        updateSplicePaths();
+        updateOdfPaths();
+      });
+    };
+
+    container.addEventListener('scroll', handleLayoutChange, { capture: true, passive: true });
+    window.addEventListener('resize', handleLayoutChange, { passive: true });
     return () => {
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
       container.removeEventListener('scroll', handleLayoutChange, true);
-      container.removeEventListener('scroll', handleOdfLayoutChange, true);
       window.removeEventListener('resize', handleLayoutChange);
-      window.removeEventListener('resize', handleOdfLayoutChange);
     };
   }, [updateOdfPaths, updateSplicePaths]);
 

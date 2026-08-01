@@ -261,6 +261,12 @@ export interface MapState {
   feature_groups: Record<string, FeatureGroupState>;
   features: Record<string, FeatureState>;
   settings: Record<string, unknown>;
+  initialBounds?: {
+    south?: number | null;
+    north?: number | null;
+    west?: number | null;
+    east?: number | null;
+  } | null;
   lastEventId?: string | null;
   featureCount?: number;
   mapRevision?: number;

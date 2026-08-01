@@ -38,32 +38,39 @@ export const useSnap = () => {
         if (drawingMode === 'none' && !editingFeatureId) return null;
         try {
             const threshold = manualThreshold ?? 0.00002;
+            const bound = threshold * 3;
             let bestResult: { x: number; y: number; id?: string } | null = null;
             let bestDistance = threshold;
 
             for (const feature of Object.values(features) as FeatureState[]) {
                 if (feature.id === editingFeatureId) continue;
 
+                const pointCoords = getPointCoordinates(feature);
+                if (pointCoords) {
+                    if (Math.abs(pointCoords[0] - lng) > bound || Math.abs(pointCoords[1] - lat) > bound) {
+                        continue;
+                    }
+                    const distance = Math.hypot(pointCoords[0] - lng, pointCoords[1] - lat);
+                    if (distance <= bestDistance) {
+                        bestDistance = distance;
+                        bestResult = { x: pointCoords[0], y: pointCoords[1], id: feature.id };
+                    }
+                    continue;
+                }
+
                 const metadata = getParsedMetadata(feature);
 
                 if (isLineFeature(feature) || isNetworkEdgeFeature(feature, metadata as any)) {
                     const projectedPoint = getPolylineSnapCoordinate(feature, lng, lat);
                     if (!projectedPoint) continue;
+                    if (Math.abs(projectedPoint[0] - lng) > bound || Math.abs(projectedPoint[1] - lat) > bound) {
+                        continue;
+                    }
                     const distance = Math.hypot(projectedPoint[0] - lng, projectedPoint[1] - lat);
                     if (distance < bestDistance) {
                         bestDistance = distance;
                         bestResult = { x: projectedPoint[0], y: projectedPoint[1], id: feature.id };
                     }
-                    continue;
-                }
-
-                const pointCoords = getPointCoordinates(feature);
-                if (!pointCoords) continue;
-
-                const distance = Math.hypot(pointCoords[0] - lng, pointCoords[1] - lat);
-                if (distance <= bestDistance) {
-                    bestDistance = distance;
-                    bestResult = { x: pointCoords[0], y: pointCoords[1], id: feature.id };
                 }
             }
 
@@ -76,6 +83,11 @@ export const useSnap = () => {
 
     const performSnap = useMemo(() => throttle((lat: number, lng: number) => {
         const result = snapNow(lat, lng);
+        const current = snappedPointRef.current;
+        if (!current && !result) return;
+        if (current && result && current.id === result.id && Math.abs(current.x - result.x) < 1e-7 && Math.abs(current.y - result.y) < 1e-7) {
+            return;
+        }
         setSnappedPoint(result);
     }, 50), [snapNow, setSnappedPoint]);
 

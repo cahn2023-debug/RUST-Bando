@@ -9,6 +9,7 @@ import {
 } from '@TOOL/utils/featureUtils';
 import { calculatePPMAtPoint, SENSOR_SIZES, calculateHFOV, getDORICategory } from '@TOOL/utils/cameraMath';
 import { createPortal } from 'react-dom';
+import { getRenderableFeatureById } from '../featureLookup';
 
 const metadataNumber = (value: unknown, fallback: number) => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
@@ -34,6 +35,8 @@ export const InteractivePPM: React.FC = () => {
     const showDORILayers = useDesignSync(s => s.showDORILayers);
     const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
     const state = useDesignSync(s => s.state);
+    const visibleFeatures = useDesignSync(s => s.visibleFeatures);
+    const featureDetailsCache = useDesignSync(s => s.featureDetailsCache);
     const previewMetadata = useDesignSync(s => s.previewMetadata);
     const rafRef = useRef<number | null>(null);
     const pendingEventRef = useRef<any>(null);
@@ -42,7 +45,7 @@ export const InteractivePPM: React.FC = () => {
 
     const camera = useMemo(() => {
         if (!showDORILayers || !selectedFeatureId || !state) return null;
-        const feature = state.features[selectedFeatureId];
+        const feature = getRenderableFeatureById(selectedFeatureId, { state, visibleFeatures, featureDetailsCache });
         if (!feature) return null;
 
         const isPreviewing = previewMetadata?.id === selectedFeatureId;
@@ -76,7 +79,7 @@ export const InteractivePPM: React.FC = () => {
             installHeight: Number(installHeight),
             targetHeight: Number(targetHeight)
         };
-    }, [showDORILayers, selectedFeatureId, state, previewMetadata]);
+    }, [featureDetailsCache, previewMetadata, selectedFeatureId, showDORILayers, state, visibleFeatures]);
 
     const clearPpmInfo = useCallback(() => {
         pendingEventRef.current = null;

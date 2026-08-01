@@ -9,12 +9,14 @@ import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 import { getParsedCoordinates, getParsedMetadata } from '@TOOL/utils/featureUtils';
 import { useMapStyles, type MapBasemapPreset } from './useMapStyles';
 import { buildMapLibreFeatureCollection, getMapLibreLodPolicy } from './mapLibreFastAdapter';
+import { MAP_INTERSECTION_CHILD_MIN_ZOOM, MAP_POINT_CLUSTER_HIDE_AT_ZOOM, MAP_POINT_CLUSTER_MAX_ZOOM } from './mapDisplayPolicy';
 import { buildRenderMetrics } from './mapRenderMetrics';
 import { getIconSvgString } from '@DESIGN/components/icons/MapIcons';
 import { buildPolylineSnapMarkers, type PolylineSnapMarker } from './polylineSnapMarkers';
 import type { FeatureState } from '@CONTRACT/types';
 import type { MapLibreFastFeatureCollection, MapLibreRenderFeatureCollection } from './mapLibreFastTypes';
 import { useMapContext } from './MapContext';
+import { getRenderableFeatureById } from './featureLookup';
 
 const SOURCE_ID = 'design-fast-features';
 const BASEMAP_SOURCE_ID = 'basemap';
@@ -23,6 +25,7 @@ const POINT_LAYER_ID = 'design-fast-points';
 const POINT_ICON_LAYER_ID = 'design-fast-point-icons';
 const POINT_LABEL_LAYER_ID = 'design-fast-point-labels';
 const POINT_CLUSTER_LAYER_ID = 'design-fast-point-clusters';
+const POINT_CLUSTER_COUNT_LAYER_ID = 'design-fast-point-cluster-counts';
 const LINE_HIT_LAYER_ID = 'design-fast-line-hit-area';
 const LINE_LAYER_ID = 'design-fast-lines';
 const POLYGON_LAYER_ID = 'design-fast-polygons';
@@ -38,6 +41,12 @@ const EDIT_MIDPOINT_LAYER_ID = 'design-fast-edit-midpoints';
 const EDIT_SNAP_LINK_LAYER_ID = 'design-fast-edit-snap-links';
 const MAP_MAX_ZOOM = 23;
 const MAP_MAX_NATIVE_ZOOM = 20;
+const BASEMAP_RETRY_DELAYS_MS = [1000, 3000] as const;
+const POINT_GEOMETRY_FILTER = ['match', ['geometry-type'], ['Point', 'MultiPoint'], true, false] as unknown as maplibregl.FilterSpecification;
+const LINE_GEOMETRY_FILTER = ['match', ['geometry-type'], ['LineString', 'MultiLineString'], true, false] as unknown as maplibregl.FilterSpecification;
+const POLYGON_GEOMETRY_FILTER = ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false] as unknown as maplibregl.FilterSpecification;
+
+export type BasemapLoadState = 'initializing' | 'ready' | 'degraded' | 'offline';
 
 const emptyCollection: MapLibreRenderFeatureCollection = {
     type: 'FeatureCollection',
@@ -54,6 +63,32 @@ const now = () => canUsePerformanceNow() ? performance.now() : Date.now();
 
 const toLngLat = (center: [number, number]): [number, number] => [center[1], center[0]];
 
+type BootstrapBounds = {
+    south?: number | null;
+    north?: number | null;
+    west?: number | null;
+    east?: number | null;
+} | null | undefined;
+
+const getValidBootstrapBounds = (bounds: BootstrapBounds): [[number, number], [number, number]] | null => {
+    if (!bounds) return null;
+    const west = Number(bounds.west);
+    const south = Number(bounds.south);
+    const east = Number(bounds.east);
+    const north = Number(bounds.north);
+    if (![west, south, east, north].every(Number.isFinite)) return null;
+    if (west < -180 || east > 180 || south < -90 || north > 90) return null;
+    if (west >= east || south >= north) return null;
+    return [[west, south], [east, north]];
+};
+
+const resolveInteractiveFeatureId = (properties: Record<string, any> | undefined | null) => {
+    const parentFeatureId = properties?.parentFeatureId;
+    if (typeof parentFeatureId === 'string' && parentFeatureId) return parentFeatureId;
+    const id = properties?.id;
+    return typeof id === 'string' ? id : null;
+};
+
 const createRasterStyle = (tileUrls: string[]): maplibregl.StyleSpecification => ({
     version: 8,
     sources: {
@@ -65,6 +100,13 @@ const createRasterStyle = (tileUrls: string[]): maplibregl.StyleSpecification =>
         },
     },
     layers: [
+        {
+            id: 'neutral-background',
+            type: 'background',
+            paint: {
+                'background-color': '#e5e7eb',
+            },
+        },
         {
             id: 'basemap',
             type: 'raster',
@@ -101,7 +143,7 @@ export const clearMapImageCache = () => {
     imageLoadInFlight.clear();
 };
 
-const escapeSvgText = (value: unknown) => String(value ?? '')
+const escapeSvgText = (value: unknown) => (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? String(value) : '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -126,9 +168,9 @@ const loadSvgBitmap = (blob: Blob) => {
             URL.revokeObjectURL(url);
             resolve(image);
         };
-        image.onerror = error => {
+        image.onerror = () => {
             URL.revokeObjectURL(url);
-            reject(error);
+            reject(new Error('Failed to load SVG image'));
         };
         image.src = url;
     });
@@ -261,7 +303,9 @@ const preparePointImages = (
                         map.triggerRepaint();
                         didAddImage = true;
                     }
-                } catch (e) {}
+                } catch {
+                    // Map may have been disposed before the async icon load completed.
+                }
                 if (didAddImage) onImageReady(now() - preloadStart);
             })
             .catch(error => {
@@ -374,7 +418,7 @@ const stableJsonKey = (value: unknown) => {
     try {
         return JSON.stringify(value);
     } catch {
-        return String(value);
+        return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? String(value) : '';
     }
 };
 
@@ -417,15 +461,19 @@ const missingPointIconKey = (map: maplibregl.Map, collection: MapLibreRenderFeat
     return missing.join('|');
 };
 
+const addMapLayer = (map: maplibregl.Map, layer: maplibregl.AddLayerObject, beforeId?: string) => {
+    map.addLayer(layer, beforeId);
+};
+
 const ensureBasemapOverlayLayers = (map: maplibregl.Map, preset?: MapBasemapPreset | null) => {
     if (!map.getSource(SOURCE_ID)) return;
 
     if (!map.getLayer(BASEMAP_HEAT_LAYER_ID)) {
-        map.addLayer({
+        addMapLayer(map, {
             id: BASEMAP_HEAT_LAYER_ID,
             type: 'heatmap',
             source: SOURCE_ID,
-            filter: ['all', ['==', ['geometry-type'], 'Point'], ['!', ['has', 'point_count']]],
+            filter: ['all', POINT_GEOMETRY_FILTER, ['!', ['has', 'point_count']]] as unknown as maplibregl.FilterSpecification,
             layout: {
                 visibility: preset?.kind === 'heat' ? 'visible' : 'none',
             },
@@ -458,7 +506,7 @@ const ensureBasemapOverlayLayers = (map: maplibregl.Map, preset?: MapBasemapPres
                     '#ef4444',
                 ],
             },
-        }, map.getLayer(POLYGON_LAYER_ID) ? POLYGON_LAYER_ID : undefined);
+        } as maplibregl.AddLayerObject, map.getLayer(POLYGON_LAYER_ID) ? POLYGON_LAYER_ID : undefined);
     }
 
     map.setLayoutProperty(BASEMAP_HEAT_LAYER_ID, 'visibility', preset?.kind === 'heat' ? 'visible' : 'none');
@@ -473,45 +521,45 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
             type: 'geojson',
             data: emptyCollection as any,
             promoteId: 'id',
-            cluster: clusterPoints,
+            cluster: true,
             clusterRadius: 48,
-            clusterMaxZoom: 15,
+            clusterMaxZoom: MAP_POINT_CLUSTER_MAX_ZOOM,
         });
     }
 
     if (!map.getLayer(POLYGON_LAYER_ID)) {
-        map.addLayer({
+        addMapLayer(map, {
             id: POLYGON_LAYER_ID,
             type: 'fill',
             source: SOURCE_ID,
-            filter: ['==', ['geometry-type'], 'Polygon'],
+            filter: POLYGON_GEOMETRY_FILTER,
             paint: {
                 'fill-color': ['get', 'color'],
                 'fill-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 0.42, 0.18],
             },
-        });
+        } as maplibregl.AddLayerObject);
     }
 
     if (!map.getLayer(POLYGON_STROKE_LAYER_ID)) {
-        map.addLayer({
+        addMapLayer(map, {
             id: POLYGON_STROKE_LAYER_ID,
             type: 'line',
             source: SOURCE_ID,
-            filter: ['==', ['geometry-type'], 'Polygon'],
+            filter: POLYGON_GEOMETRY_FILTER,
             paint: {
                 'line-color': ['get', 'color'],
                 'line-width': ['case', ['boolean', ['feature-state', 'selected'], false], 4, 1.5],
                 'line-opacity': 0.9,
             },
-        });
+        } as maplibregl.AddLayerObject);
     }
 
     if (!map.getLayer(LINE_HIT_LAYER_ID)) {
-        map.addLayer({
+        addMapLayer(map, {
             id: LINE_HIT_LAYER_ID,
             type: 'line',
             source: SOURCE_ID,
-            filter: ['==', ['geometry-type'], 'LineString'],
+            filter: LINE_GEOMETRY_FILTER,
             paint: {
                 'line-color': '#000000',
                 'line-width': ['max', 18, ['+', ['get', 'size'], 10]],
@@ -521,15 +569,15 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
                 'line-cap': 'round',
                 'line-join': 'round',
             },
-        });
+        } as maplibregl.AddLayerObject);
     }
 
     if (!map.getLayer(LINE_LAYER_ID)) {
-        map.addLayer({
+        addMapLayer(map, {
             id: LINE_LAYER_ID,
             type: 'line',
             source: SOURCE_ID,
-            filter: ['==', ['geometry-type'], 'LineString'],
+            filter: LINE_GEOMETRY_FILTER,
             paint: {
                 'line-color': ['get', 'color'],
                 'line-width': ['get', 'size'],
@@ -540,11 +588,11 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
                 'line-cap': 'round',
                 'line-join': 'round',
             },
-        });
+        } as maplibregl.AddLayerObject);
     }
 
     if (!map.getLayer(POINT_CLUSTER_LAYER_ID)) {
-        map.addLayer({
+        addMapLayer(map, {
             id: POINT_CLUSTER_LAYER_ID,
             type: 'circle',
             source: SOURCE_ID,
@@ -556,15 +604,35 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
                 'circle-stroke-color': '#ecfeff',
                 'circle-stroke-width': 1,
             },
-        });
+        } as maplibregl.AddLayerObject);
+    }
+
+    if (!map.getLayer(POINT_CLUSTER_COUNT_LAYER_ID)) {
+        addMapLayer(map, {
+            id: POINT_CLUSTER_COUNT_LAYER_ID,
+            type: 'symbol',
+            source: SOURCE_ID,
+            filter: ['has', 'point_count'],
+            layout: {
+                'text-field': ['get', 'point_count_abbreviated'],
+                'text-size': 12,
+                'text-allow-overlap': true,
+                'text-ignore-placement': true,
+            },
+            paint: {
+                'text-color': '#ecfeff',
+                'text-halo-color': '#0f172a',
+                'text-halo-width': 1,
+            },
+        } as maplibregl.AddLayerObject);
     }
 
     if (!map.getLayer(POINT_LAYER_ID)) {
-        map.addLayer({
+        addMapLayer(map, {
             id: POINT_LAYER_ID,
             type: 'circle',
             source: SOURCE_ID,
-            filter: ['all', ['==', ['geometry-type'], 'Point'], ['!', ['has', 'point_count']]],
+            filter: ['all', POINT_GEOMETRY_FILTER, ['!', ['has', 'point_count']]] as unknown as maplibregl.FilterSpecification,
             paint: {
                 'circle-color': ['get', 'color'],
                 'circle-radius': [
@@ -587,30 +655,30 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
                     ['case', ['boolean', ['feature-state', 'selected'], false], 3, 1.5],
                 ],
             },
-        });
+        } as maplibregl.AddLayerObject);
     }
 
     if (!map.getLayer(POINT_ICON_LAYER_ID)) {
-        map.addLayer({
+        addMapLayer(map, {
             id: POINT_ICON_LAYER_ID,
             type: 'symbol',
             source: SOURCE_ID,
-            filter: ['all', ['==', ['geometry-type'], 'Point'], ['!', ['has', 'point_count']], ['to-boolean', ['get', 'iconImageId']]],
+            filter: ['all', POINT_GEOMETRY_FILTER, ['!', ['has', 'point_count']], ['to-boolean', ['get', 'iconImageId']]] as unknown as maplibregl.FilterSpecification,
             layout: {
                 'icon-image': ['get', 'iconImageId'],
                 'icon-size': 1,
                 'icon-allow-overlap': true,
                 'icon-ignore-placement': true,
             },
-        });
+        } as maplibregl.AddLayerObject);
     }
 
     if (!map.getLayer(POINT_LABEL_LAYER_ID)) {
-        map.addLayer({
+        addMapLayer(map, {
             id: POINT_LABEL_LAYER_ID,
             type: 'symbol',
             source: SOURCE_ID,
-            filter: ['all', ['==', ['geometry-type'], 'Point'], ['!', ['has', 'point_count']], ['!', ['to-boolean', ['get', 'iconImageId']]]],
+            filter: ['all', POINT_GEOMETRY_FILTER, ['!', ['has', 'point_count']], ['!', ['to-boolean', ['get', 'iconImageId']]]] as unknown as maplibregl.FilterSpecification,
             layout: {
                 'text-field': ['get', 'labelIndex'],
                 'text-size': 11,
@@ -623,7 +691,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
                 'text-halo-color': '#0f172a',
                 'text-halo-width': 1,
             },
-        });
+        } as maplibregl.AddLayerObject);
     }
 
     if (!map.getLayer(LABEL_LAYER_ID)) {
@@ -647,6 +715,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
     }
 
     map.setLayoutProperty(POINT_CLUSTER_LAYER_ID, 'visibility', clusterPoints ? 'visible' : 'none');
+    map.setLayoutProperty(POINT_CLUSTER_COUNT_LAYER_ID, 'visibility', clusterPoints ? 'visible' : 'none');
     map.setLayoutProperty(LABEL_LAYER_ID, 'visibility', showLabels ? 'visible' : 'none');
     [
         POLYGON_LAYER_ID,
@@ -654,6 +723,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
         LINE_HIT_LAYER_ID,
         LINE_LAYER_ID,
         POINT_CLUSTER_LAYER_ID,
+        POINT_CLUSTER_COUNT_LAYER_ID,
         POINT_LAYER_ID,
         POINT_ICON_LAYER_ID,
         POINT_LABEL_LAYER_ID,
@@ -797,13 +867,18 @@ export function MapLibreFastRenderer({
     }
     const requestRef = React.useRef(0);
     const lastBasemapTilesKeyRef = React.useRef<string | null>(null);
-    const selectedFeatureRef = React.useRef<string | null>(null);
+    const selectedFeatureRef = React.useRef<Set<string>>(new Set());
     const layerSetupKeyRef = React.useRef<string | null>(null);
     const lastSetDataKeyRef = React.useRef<string | null>(null);
     const snapRafRef = React.useRef(0);
     const pendingSnapEventRef = React.useRef<any>(null);
+    const basemapRetryTimersRef = React.useRef<ReturnType<typeof setTimeout>[]>([]);
+    const basemapRetryAttemptRef = React.useRef(0);
+    const fittedBootstrapBoundsKeyRef = React.useRef<string | null>(null);
     const features = useDesignSync(s => s.visibleFeatures);
     const rawFeatures = useDesignSync(s => s.state?.features || (EMPTY_OBJ as Record<string, FeatureState>));
+    const featureDetailsCache = useDesignSync(s => s.featureDetailsCache);
+    const mapState = useDesignSync(s => s.state);
     const isLargeProject = useDesignSync(s => Boolean(s.state?.isLargeProject));
     const featureGroups = useDesignSync(s => s.state?.feature_groups || (EMPTY_OBJ as Record<string, any>));
     const projectId = useDesignSync(s => s.projectId);
@@ -816,6 +891,7 @@ export function MapLibreFastRenderer({
     const snappedPoint = useDesignSync(s => s.snappedPoint);
     const viewportFeatureLimit = useDesignSync(s => s.state?.viewportFeatureLimit || 10000);
     const mapRevision = useDesignSync(s => s.state?.mapRevision || 0);
+    const initialBounds = useDesignSync(s => s.state?.initialBounds as BootstrapBounds);
     const viewportRevision = useDesignSync(s => s.viewportRevision);
     const selectFeature = useDesignSync(s => s.selectFeature);
     const setHoverId = useDesignSync(s => s.setHoverId);
@@ -837,6 +913,7 @@ export function MapLibreFastRenderer({
     const [currentZoom, setCurrentZoom] = React.useState(zoom);
     const [viewportTick, setViewportTick] = React.useState(0);
     const [iconReadyRevision, setIconReadyRevision] = React.useState(0);
+    const [basemapLoadState, setBasemapLoadState] = React.useState<BasemapLoadState>(() => navigator.onLine === false ? 'offline' : 'initializing');
     const firstViewportQueryReportedRef = React.useRef(false);
     const firstSetDataReportedRef = React.useRef(false);
     const firstPaintReportedRef = React.useRef(false);
@@ -861,10 +938,15 @@ export function MapLibreFastRenderer({
         () => renderZoomForLodBucket(currentZoom, renderFeatureValues.length),
         [currentZoom, renderFeatureValues.length]
     );
+    const renderVisibilityPolicyKey = [
+        currentZoom < MAP_POINT_CLUSTER_HIDE_AT_ZOOM ? 'cluster' : 'plain',
+        currentZoom < MAP_INTERSECTION_CHILD_MIN_ZOOM ? 'hide-children' : 'show-children',
+    ].join(':');
     const renderCacheKey = React.useMemo(() => [
         featureListKey(renderFeatureValues as FeatureState[], mapRevision),
         setKey(mapHiddenIds),
         renderZoom,
+        renderVisibilityPolicyKey,
         featureGroupsKey(featureGroups),
         featureNumberKey(featureNumberMap),
         stableJsonKey(groupThemePreview),
@@ -875,6 +957,7 @@ export function MapLibreFastRenderer({
         mapHiddenIds,
         mapRevision,
         renderFeatureValues,
+        renderVisibilityPolicyKey,
         renderZoom,
     ]);
     const renderCollectionResult = React.useMemo(() => {
@@ -883,7 +966,7 @@ export function MapLibreFastRenderer({
             features: renderFeatureValues as FeatureState[],
             selectedFeatureId: null,
             hiddenIds: mapHiddenIds,
-            zoom: renderZoom,
+            zoom: currentZoom,
             featureGroups,
             featureNumberMap,
             groupThemePreview,
@@ -899,25 +982,26 @@ export function MapLibreFastRenderer({
         mapHiddenIds,
         renderCacheKey,
         renderFeatureValues,
-        renderZoom,
+        currentZoom,
     ]);
     const editingFeature = React.useMemo(
-        () => editingFeatureId ? (rawFeatures as Record<string, FeatureState>)[editingFeatureId] || (features as Record<string, FeatureState>)[editingFeatureId] || null : null,
-        [editingFeatureId, features, rawFeatures]
+        () => getRenderableFeatureById(editingFeatureId, { state: mapState, visibleFeatures: features, featureDetailsCache }),
+        [editingFeatureId, featureDetailsCache, features, mapState]
     );
     const selectedFeature = React.useMemo(
-        () => selectedFeatureId ? (rawFeatures as Record<string, FeatureState>)[selectedFeatureId] || (features as Record<string, FeatureState>)[selectedFeatureId] || null : null,
-        [features, rawFeatures, selectedFeatureId]
+        () => getRenderableFeatureById(selectedFeatureId, { state: mapState, visibleFeatures: features, featureDetailsCache }),
+        [featureDetailsCache, features, mapState, selectedFeatureId]
     );
     const snapFeatureRecord = React.useMemo(() => {
         const record: Record<string, FeatureState> = {
+            ...(featureDetailsCache as Record<string, FeatureState>),
             ...(features as Record<string, FeatureState>),
             ...(rawFeatures as Record<string, FeatureState>),
         };
         if (selectedFeature?.id) record[selectedFeature.id] = selectedFeature;
         if (editingFeature?.id) record[editingFeature.id] = editingFeature;
         return record;
-    }, [editingFeature, features, rawFeatures, selectedFeature]);
+    }, [editingFeature, featureDetailsCache, features, rawFeatures, selectedFeature]);
     const editCoords = React.useMemo(() => featureCoordinates(editingFeature || selectedFeature), [editingFeature, selectedFeature]);
     const polylineSnapMarkers = React.useMemo(() => {
         const feature = editingFeature || selectedFeature;
@@ -1005,7 +1089,38 @@ export function MapLibreFastRenderer({
             setCurrentZoom(map.getZoom());
             setViewportTick(tick => tick + 1);
         });
-        map.once('load', () => setViewportTick(tick => tick + 1));
+        map.once('load', () => {
+            setBasemapLoadState(navigator.onLine === false ? 'offline' : 'ready');
+            basemapRetryAttemptRef.current = 0;
+            setViewportTick(tick => tick + 1);
+        });
+        map.on('error', (event: any) => {
+            const sourceId = event?.sourceId || event?.source?.id;
+            if (sourceId && sourceId !== BASEMAP_SOURCE_ID) return;
+            if (navigator.onLine === false) {
+                setBasemapLoadState('offline');
+                return;
+            }
+            setBasemapLoadState('degraded');
+            const retryIndex = basemapRetryAttemptRef.current;
+            const retryDelay = BASEMAP_RETRY_DELAYS_MS[retryIndex];
+            if (retryDelay === undefined) return;
+            basemapRetryAttemptRef.current += 1;
+            const timer = setTimeout(() => {
+                const source = map.getSource(BASEMAP_SOURCE_ID) as { reload?: () => void } | undefined;
+                source?.reload?.();
+            }, retryDelay);
+            basemapRetryTimersRef.current.push(timer);
+        });
+        const handleOnline = () => {
+            setBasemapLoadState('initializing');
+            basemapRetryAttemptRef.current = 0;
+            const source = map.getSource(BASEMAP_SOURCE_ID) as { reload?: () => void } | undefined;
+            source?.reload?.();
+        };
+        const handleOffline = () => setBasemapLoadState('offline');
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
         map.on('styleimagemissing', e => {
             const id = e.id;
             if (!id || map.hasImage(id)) return;
@@ -1019,19 +1134,51 @@ export function MapLibreFastRenderer({
             });
         });
 
+        map.on('click', POINT_CLUSTER_LAYER_ID, event => {
+            const feature = event.features?.[0];
+            const clusterId = feature?.properties?.cluster_id;
+            const coordinates = feature?.geometry?.type === 'Point'
+                ? (feature.geometry.coordinates as [number, number])
+                : null;
+            if (clusterId === undefined || !coordinates) return;
+
+            const source = map.getSource(SOURCE_ID) as any;
+            const zoomToCluster = (expansionZoom: number) => {
+                const targetZoom = Math.min(expansionZoom, MAP_MAX_ZOOM);
+                const target = { center: coordinates, zoom: targetZoom, duration: 250 };
+                if (typeof (map as any).easeTo === 'function') (map as any).easeTo(target);
+                else map.flyTo(target);
+            };
+
+            const maybePromise = source?.getClusterExpansionZoom?.(clusterId, (error: unknown, expansionZoom: number) => {
+                if (!error && Number.isFinite(expansionZoom)) zoomToCluster(expansionZoom);
+            });
+            if (maybePromise && typeof maybePromise.then === 'function') {
+                maybePromise.then((expansionZoom: number) => {
+                    if (Number.isFinite(expansionZoom)) zoomToCluster(expansionZoom);
+                }).catch(() => {});
+            }
+        });
+        map.on('mousemove', POINT_CLUSTER_LAYER_ID, () => {
+            map.getCanvas().style.cursor = 'pointer';
+        });
+        map.on('mouseleave', POINT_CLUSTER_LAYER_ID, () => {
+            map.getCanvas().style.cursor = '';
+        });
+
         const interactiveLayers = [POINT_LAYER_ID, POINT_ICON_LAYER_ID, POINT_LABEL_LAYER_ID, LINE_HIT_LAYER_ID, LINE_LAYER_ID, POLYGON_LAYER_ID];
         map.on('click', interactiveLayers, event => {
             const latest = latestRef.current;
             if (latest.drawingMode !== 'none') return;
             const feature = event.features?.[0];
-            const id = feature?.properties?.id;
-            if (typeof id !== 'string') return;
+            const id = resolveInteractiveFeatureId(feature?.properties as Record<string, any> | undefined);
+            if (!id) return;
             const lngLat = event.lngLat;
             latest.selectFeature(id, false, [lngLat.lat, lngLat.lng]);
         });
         map.on('mousemove', interactiveLayers, event => {
-            const id = event.features?.[0]?.properties?.id;
-            latestRef.current.setHoverId(typeof id === 'string' ? id : null);
+            const id = resolveInteractiveFeatureId(event.features?.[0]?.properties as Record<string, any> | undefined);
+            latestRef.current.setHoverId(id);
             map.getCanvas().style.cursor = id ? 'pointer' : '';
         });
         map.on('mouseleave', interactiveLayers, () => {
@@ -1152,6 +1299,10 @@ export function MapLibreFastRenderer({
         }
 
         return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+            basemapRetryTimersRef.current.forEach(timer => clearTimeout(timer));
+            basemapRetryTimersRef.current = [];
             window.removeEventListener('mouseup', onGlobalMouseUp);
             if (snapRafRef.current) {
                 cancelAnimationFrame(snapRafRef.current);
@@ -1195,6 +1346,23 @@ export function MapLibreFastRenderer({
             map.jumpTo({ center: toLngLat(center), zoom });
         }
     }, [center, zoom]);
+
+    React.useEffect(() => {
+        const map = mapRef.current;
+        const bounds = getValidBootstrapBounds(initialBounds);
+        if (!map || !bounds) return;
+        const boundsKey = `${projectId || 'no-project'}:${mapRevision}:${bounds.flat().join(',')}`;
+        if (fittedBootstrapBoundsKeyRef.current === boundsKey) return;
+        fittedBootstrapBoundsKeyRef.current = boundsKey;
+
+        const fit = () => {
+            if (typeof map.fitBounds !== 'function') return;
+            map.fitBounds(bounds, { padding: 72, maxZoom: 18, duration: 0 });
+            setViewportTick(tick => tick + 1);
+        };
+        if (map.isStyleLoaded()) fit();
+        else map.once('load', fit);
+    }, [initialBounds, mapRevision, projectId]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -1262,6 +1430,10 @@ export function MapLibreFastRenderer({
             if (!updateRasterSourceTiles(map, BASEMAP_SOURCE_ID, basemapTiles)) {
                 console.warn('[MapLibreFastRenderer] Basemap source does not support tile updates.');
             }
+            basemapRetryTimersRef.current.forEach(timer => clearTimeout(timer));
+            basemapRetryTimersRef.current = [];
+            basemapRetryAttemptRef.current = 0;
+            setBasemapLoadState(navigator.onLine === false ? 'offline' : 'ready');
             ensureBasemapOverlayLayers(map, activeBasemapPreset);
         };
 
@@ -1276,14 +1448,24 @@ export function MapLibreFastRenderer({
         const map = mapRef.current;
         if (!map || !map.getSource(SOURCE_ID)) return;
         const previousSelected = selectedFeatureRef.current;
-        if (previousSelected && previousSelected !== selectedFeatureId) {
-            map.setFeatureState({ source: SOURCE_ID, id: previousSelected }, { selected: false });
-        }
+        previousSelected.forEach(id => {
+            map.setFeatureState({ source: SOURCE_ID, id }, { selected: false });
+        });
+        const nextSelected = new Set<string>();
         if (selectedFeatureId) {
-            map.setFeatureState({ source: SOURCE_ID, id: selectedFeatureId }, { selected: true });
+            for (const feature of renderCollectionResult.collection.features) {
+                const properties = feature.properties as Record<string, any>;
+                if (properties.id === selectedFeatureId || properties.parentFeatureId === selectedFeatureId) {
+                    nextSelected.add(String(properties.id));
+                }
+            }
+            if (nextSelected.size === 0) nextSelected.add(selectedFeatureId);
         }
-        selectedFeatureRef.current = selectedFeatureId;
-    }, [selectedFeatureId, viewportRevision]);
+        nextSelected.forEach(id => {
+            map.setFeatureState({ source: SOURCE_ID, id }, { selected: true });
+        });
+        selectedFeatureRef.current = nextSelected;
+    }, [renderCollectionResult, selectedFeatureId, viewportRevision]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -1337,8 +1519,18 @@ export function MapLibreFastRenderer({
                     didSetData = true;
                 }
                 if (selectedFeatureId && source && didSetData) {
-                    map.setFeatureState({ source: SOURCE_ID, id: selectedFeatureId }, { selected: true });
-                    selectedFeatureRef.current = selectedFeatureId;
+                    const nextSelected = new Set<string>();
+                    for (const feature of displayCollection.features) {
+                        const properties = feature.properties as Record<string, any>;
+                        if (properties.id === selectedFeatureId || properties.parentFeatureId === selectedFeatureId) {
+                            nextSelected.add(String(properties.id));
+                        }
+                    }
+                    if (nextSelected.size === 0) nextSelected.add(selectedFeatureId);
+                    nextSelected.forEach(id => {
+                        map.setFeatureState({ source: SOURCE_ID, id }, { selected: true });
+                    });
+                    selectedFeatureRef.current = nextSelected;
                 }
                 const mapLibreSetDataMs = now() - setDataStart;
                 if (!firstSetDataReportedRef.current) {
@@ -1404,7 +1596,7 @@ export function MapLibreFastRenderer({
     React.useEffect(() => {
         const map = mapRef.current;
         if (!map || !zoomToTrigger) return;
-        const feature = (features as any)[zoomToTrigger.id] || (rawFeatures as any)[zoomToTrigger.id];
+        const feature = getRenderableFeatureById(zoomToTrigger.id, { state: mapState, visibleFeatures: features, featureDetailsCache });
         const bbox = feature?.bbox;
         if (bbox) {
             map.fitBounds(
@@ -1420,7 +1612,14 @@ export function MapLibreFastRenderer({
             ? [zoomToTrigger.location[1], zoomToTrigger.location[0]]
             : null;
         if (coordinates) map.flyTo({ center: coordinates as [number, number], zoom: Math.max(map.getZoom(), 19), duration: 250 });
-    }, [features, rawFeatures, zoomToTrigger]);
+    }, [featureDetailsCache, features, mapState, zoomToTrigger]);
 
-    return <div ref={containerRef} className="design-maplibre-fast" data-testid="maplibre-fast-renderer" />;
+    return (
+        <div
+            ref={containerRef}
+            className="design-maplibre-fast"
+            data-testid="maplibre-fast-renderer"
+            data-basemap-state={basemapLoadState}
+        />
+    );
 }

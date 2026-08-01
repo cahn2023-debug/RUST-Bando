@@ -830,6 +830,29 @@ async fn switch_database(state: &ActorState, path: PathBuf) -> Result<(), String
     rx.await.map_err(|e| e.to_string())?
 }
 
+async fn open_project_bootstrap_in_worker(
+    state: &ActorState,
+    path: PathBuf,
+    title: String,
+    base_hint: String,
+    open_request_id: Option<i64>,
+) -> Result<Value, String> {
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::OpenProjectBootstrap {
+            path,
+            title,
+            base_hint,
+            open_request_id,
+            viewport_first_limit: VIEWPORT_FIRST_FEATURE_LIMIT,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| format!("IPC Queue error: {}", e))?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
 fn trim_to_option(input: Option<String>) -> Option<String> {
     input
         .map(|value| value.trim().to_string())
@@ -1560,6 +1583,58 @@ fn settings_from_rows(rows: Value) -> Value {
         .unwrap_or_else(|| json!({}))
 }
 
+fn bootstrap_parse_json_value(value: Option<&Value>, default: Value) -> Value {
+    match value {
+        Some(Value::String(text)) => serde_json::from_str(text).unwrap_or(default),
+        Some(Value::Null) | None => default,
+        Some(other) => other.clone(),
+    }
+}
+
+fn bootstrap_metadata_to_string(value: Option<&Value>) -> String {
+    match value {
+        None | Some(Value::Null) => "{}".to_string(),
+        Some(Value::String(text)) => {
+            let trimmed = text.trim();
+            if trimmed.is_empty() || trimmed == "null" || trimmed == "undefined" {
+                "{}".to_string()
+            } else {
+                trimmed.to_string()
+            }
+        }
+        Some(other) => other.to_string(),
+    }
+}
+
+fn bootstrap_bbox_to_state(value: Option<&Value>) -> Value {
+    let parsed = bootstrap_parse_json_value(value, Value::Null);
+    if let Some(arr) = parsed.as_array() {
+        if arr.len() == 4 {
+            return json!({
+                "min_x": arr[0].clone(),
+                "min_y": arr[1].clone(),
+                "max_x": arr[2].clone(),
+                "max_y": arr[3].clone(),
+            });
+        }
+    }
+    parsed
+}
+
+fn bootstrap_feature_row_to_state(row: &Value) -> Value {
+    json!({
+        "id": row.get("id").cloned().unwrap_or(Value::Null),
+        "layer_id": row.get("layer_id").cloned().unwrap_or(Value::Null),
+        "group_id": row.get("group_id").cloned().unwrap_or(Value::Null),
+        "name": row.get("name").cloned().unwrap_or_else(|| json!("Untitled Feature")),
+        "geom_type": row.get("geom_type").cloned().unwrap_or_else(|| json!("Point")),
+        "coordinates": bootstrap_parse_json_value(row.get("coordinates_json"), Value::Null),
+        "properties": bootstrap_parse_json_value(row.get("properties_json"), json!({})),
+        "metadata": bootstrap_metadata_to_string(row.get("metadata_json")),
+        "bbox": bootstrap_bbox_to_state(row.get("bbox_json")),
+    })
+}
+
 async fn project_map_revision(state: &ActorState, project_id: &str) -> Result<i64, String> {
     let rows = exec_query(
         state,
@@ -1656,6 +1731,34 @@ async fn build_project_bootstrap(
         .unwrap_or(0);
 
     let use_viewport_first = should_use_viewport_first(feature_count);
+    let mut features_obj = serde_json::Map::new();
+    if !use_viewport_first {
+        let features = exec_query(
+            state,
+            "SELECT id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json FROM features WHERE project_id = ?1 ORDER BY created_at, id",
+            vec![project_id.to_string()],
+        )
+        .await?;
+        if let Some(rows) = features.as_array() {
+            for row in rows {
+                if let Some(id) = row.get("id").and_then(Value::as_str) {
+                    features_obj.insert(id.to_string(), bootstrap_feature_row_to_state(row));
+                }
+            }
+        }
+    }
+    let initial_state = json!({
+        "regions": regions.clone(),
+        "layers": layers.clone(),
+        "feature_groups": feature_groups.clone(),
+        "features": Value::Object(features_obj),
+        "settings": settings.clone(),
+        "initialBounds": initial_bounds.clone(),
+        "featureCount": feature_count,
+        "mapRevision": map_revision,
+        "isLargeProject": use_viewport_first,
+        "viewportFeatureLimit": VIEWPORT_FIRST_FEATURE_LIMIT
+    });
 
     Ok(json!({
         "project": project,
@@ -1666,6 +1769,7 @@ async fn build_project_bootstrap(
         "regions": regions,
         "layers": layers,
         "featureGroups": feature_groups,
+        "initialState": initial_state,
         "streamingMode": use_viewport_first,
         "viewportFirst": use_viewport_first,
         "cacheStatus": {
@@ -2835,8 +2939,14 @@ pub async fn sync_v2_start(
             .or_else(|| push_response.get("server_time"))
             .and_then(Value::as_str)
             .map(ToString::to_string);
-        storage_mark_outbox_synced(&state, event_ids, server_seq_start, ledger_hash, server_time)
-            .await?
+        storage_mark_outbox_synced(
+            &state,
+            event_ids,
+            server_seq_start,
+            ledger_hash,
+            server_time,
+        )
+        .await?
     };
 
     let after_seq = current_sync_cursor(&state, &project_id).await?;
@@ -3123,16 +3233,43 @@ pub async fn open_project_bootstrap(
     if !path_buf.exists() {
         return Err(format!("Tệp PMP không tồn tại tại đường dẫn: {}", path));
     }
-    let project = load_pmp_file(app, state.clone(), path.clone()).await?;
+    let title = path_buf
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("Unknown Project")
+        .to_string();
+    let base_hint = path_buf
+        .parent()
+        .map(|parent| parent.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let bootstrap = open_project_bootstrap_in_worker(
+        &state,
+        path_buf,
+        title,
+        base_hint,
+        open_request_id,
+    )
+    .await?;
+    let project = bootstrap
+        .get("project")
+        .cloned()
+        .ok_or_else(|| "open_project_bootstrap returned no project".to_string())?;
     let project_id = project
         .get("id")
         .and_then(Value::as_str)
         .map(|value| value.to_string())
         .ok_or_else(|| "Loaded project is missing an id".to_string())?;
-    let mut bootstrap = build_project_bootstrap(&state, project, &project_id).await?;
-    if let Some(obj) = bootstrap.as_object_mut() {
-        obj.insert("openRequestId".to_string(), json!(open_request_id));
+
+    let (app_data_dir, mut app_state) = load_app_state(&app)?;
+    app_state.project_id = Some(project_id);
+    app_state.last_opened_path = Some(path.clone());
+    app_state.pending_open_path = None;
+    app_state.v2_loaded = true;
+    if let Some(recent) = recent_project_from_value(&project) {
+        upsert_recent_project(&mut app_state, recent);
     }
+    persist_app_state(&app_data_dir, &app_state)?;
+
     Ok(bootstrap)
 }
 

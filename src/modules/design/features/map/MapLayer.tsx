@@ -1,4 +1,4 @@
-import { MapProvider } from './MapContext';
+import { MapProvider, useMapContext } from './MapContext';
 import './MapLayer.css';
 import {
     MapLibreMeasurementTool,

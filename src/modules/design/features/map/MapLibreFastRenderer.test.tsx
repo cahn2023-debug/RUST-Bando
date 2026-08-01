@@ -36,9 +36,13 @@ const mockMapState = vi.hoisted(() => {
     type SourceRecord = {
         data: any;
         tiles?: string[];
+        cluster?: boolean;
+        clusterRadius?: number;
+        clusterMaxZoom?: number;
         setData: (data: any) => void;
         setTiles: (tiles: string[]) => void;
         reload: () => void;
+        getClusterExpansionZoom: (clusterId: number, callback?: (error: unknown, zoom: number) => void) => Promise<number> | undefined;
     };
     type HandlerRecord = {
         event: string;
@@ -63,6 +67,7 @@ const mockMapState = vi.hoisted(() => {
         doubleClickZoom = { disable: vi.fn(), enable: vi.fn() };
         touchZoomRotate = { disable: vi.fn(), enable: vi.fn() };
         triggerRepaint = vi.fn();
+        easeTo = vi.fn();
         setLayoutProperty = vi.fn((id: string, key: string, value: any) => {
             const layer = this.layers.get(id);
             if (layer) {
@@ -87,6 +92,7 @@ const mockMapState = vi.hoisted(() => {
 
         addSource(id: string, source: any) {
             const record: SourceRecord = {
+                ...(source as any),
                 data: source.data,
                 tiles: source.tiles,
                 setData: vi.fn((data: any) => {
@@ -96,6 +102,10 @@ const mockMapState = vi.hoisted(() => {
                     record.tiles = tiles;
                 }),
                 reload: vi.fn(),
+                getClusterExpansionZoom: vi.fn((_clusterId: number, callback?: (error: unknown, zoom: number) => void) => {
+                    callback?.(null, 16);
+                    return undefined;
+                }),
             };
             this.sources.set(id, record);
         }
@@ -290,11 +300,9 @@ describe('MapLibreFastRenderer', () => {
         await waitFor(() => {
             const lastMap = mockMapState.getLastMap();
             expect(lastMap?.layers.get('design-fast-point-icons')).toBeTruthy();
-            expect(lastMap?.layers.get('design-fast-points')?.filter).toEqual([
-                'all',
-                ['==', ['geometry-type'], 'Point'],
+            expect(lastMap?.layers.get('design-fast-points')?.filter).toEqual(expect.arrayContaining([
                 ['!', ['has', 'point_count']],
-            ]);
+            ]));
             const data = lastMap?.sources.get('design-fast-features')?.data;
             expect(data.features[0].properties).toEqual(expect.objectContaining({
                 id: 'camera-1',
@@ -336,6 +344,7 @@ describe('MapLibreFastRenderer', () => {
             const data = lastMap?.sources.get('design-fast-features')?.data;
 
             expect(pointLayer?.type).toBe('circle');
+            expect(pointLayer?.filter).toEqual(expect.arrayContaining([['!', ['has', 'point_count']]]));
             expect(pointLayer?.paint['circle-radius']).toEqual(expect.arrayContaining(['case']));
             expect(pointLayer?.paint['circle-opacity']).toEqual(expect.arrayContaining([
                 ['to-boolean', ['get', 'iconImageId']],
@@ -412,6 +421,65 @@ describe('MapLibreFastRenderer', () => {
             const moveLayers = lastMap?.layerHandlers.find((record: any) => record.event === 'mousemove' && Array.isArray(record.layers))?.layers;
             expect(clickLayers).toContain('design-fast-line-hit-area');
             expect(moveLayers).toContain('design-fast-line-hit-area');
+        });
+    });
+
+    it('creates a permanently clustered source and cluster count layer', async () => {
+        useDesignSync.setState({
+            state: {
+                features: { 'point-1': pointFeature('point-1') },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={13} />);
+
+        await waitFor(() => {
+            const lastMap = mockMapState.getLastMap();
+            const source = lastMap?.sources.get('design-fast-features');
+
+            expect(source).toEqual(expect.objectContaining({
+                cluster: true,
+                clusterRadius: 48,
+                clusterMaxZoom: 14,
+            }));
+            expect(lastMap?.layers.get('design-fast-point-clusters')).toBeTruthy();
+            expect(lastMap?.layers.get('design-fast-point-cluster-counts')).toEqual(expect.objectContaining({
+                id: 'design-fast-point-cluster-counts',
+                type: 'symbol',
+                source: 'design-fast-features',
+            }));
+            expect(lastMap?.layers.get('design-fast-point-cluster-counts')?.layout['text-field']).toEqual(['get', 'point_count_abbreviated']);
+        });
+    });
+
+    it('zooms to a cluster expansion level when a cluster is clicked', async () => {
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={13} />);
+
+        await waitFor(() => {
+            expect(mockMapState.getLastMap()?.layerHandlers.some((record: any) => (
+                record.event === 'click' && record.layers === 'design-fast-point-clusters'
+            ))).toBe(true);
+        });
+
+        const lastMap = mockMapState.getLastMap();
+        const clusterClickHandler = lastMap?.layerHandlers.find((record: any) => (
+            record.event === 'click' && record.layers === 'design-fast-point-clusters'
+        ))?.handler;
+
+        clusterClickHandler?.({
+            features: [{
+                geometry: { type: 'Point', coordinates: [105.8, 21.02] },
+                properties: { cluster_id: 7 },
+            }],
+        });
+
+        expect(lastMap?.sources.get('design-fast-features')?.getClusterExpansionZoom).toHaveBeenCalledWith(7, expect.any(Function));
+        expect(lastMap?.easeTo).toHaveBeenCalledWith({
+            center: [105.8, 21.02],
+            zoom: 16,
+            duration: 250,
         });
     });
 

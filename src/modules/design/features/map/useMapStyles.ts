@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 
 export type MapBasemapId = 'street' | 'satellite' | 'heat' | 'dark';
 export type MapBasemapKind = 'raster' | 'heat';
@@ -69,6 +70,8 @@ const DEFAULT_MAP_FEATURES: MapFeatures = {
     pois: true,
     labels: true
 };
+const EMPTY_SETTINGS: Record<string, unknown> = {};
+const EMPTY_MAP_SETTINGS: Record<string, unknown> = {};
 
 const isMapBasemapId = (value: unknown): value is MapBasemapId =>
     typeof value === 'string' && MAP_BASEMAP_PRESETS.some(preset => preset.id === value);
@@ -106,17 +109,55 @@ const getSavedMapSettings = (): MapStyleSettings => {
     }
 };
 
+const getLegacySavedBasemapId = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+        const savedFeatures = window.localStorage.getItem(MAP_FEATURES_STORAGE_KEY);
+        if (!savedFeatures) return null;
+        const parsedFeatures = JSON.parse(savedFeatures) as Partial<MapStyleSettings>;
+        return parsedFeatures.basemapId === undefined ? null : migrateBasemapId(parsedFeatures.basemapId);
+    } catch {
+        return null;
+    }
+};
+
 export function useMapStyles() {
     const [settings, setSettings] = useState<MapStyleSettings>(getSavedMapSettings);
-    const { basemapId, ...mapFeatures } = settings;
+    const projectId = useDesignSync(s => s.projectId);
+    const projectSettings = useDesignSync(s => s.state?.settings || EMPTY_SETTINGS);
+    const updateSettings = useDesignSync(s => s.updateSettings);
+    const migratedProjectRef = useRef<string | null>(null);
+    const projectMapSettings = (projectSettings as any)?.map || EMPTY_MAP_SETTINGS;
+    const projectBasemapId = isMapBasemapId(projectMapSettings.basemapId)
+        ? projectMapSettings.basemapId
+        : null;
+    const basemapId = projectBasemapId || settings.basemapId;
+    const { basemapId: _localBasemapId, ...mapFeatures } = settings;
 
     useEffect(() => {
         try {
-            window.localStorage.setItem(MAP_FEATURES_STORAGE_KEY, JSON.stringify(settings));
+            window.localStorage.setItem(MAP_FEATURES_STORAGE_KEY, JSON.stringify(mapFeatures));
         } catch {
             // localStorage can be unavailable in restricted browser contexts.
         }
-    }, [settings]);
+    }, [mapFeatures]);
+
+    useEffect(() => {
+        if (!projectId || projectBasemapId) return;
+        if (migratedProjectRef.current === projectId) return;
+        const legacyBasemapId = getLegacySavedBasemapId();
+        if (!legacyBasemapId) return;
+        migratedProjectRef.current = projectId;
+        void updateSettings({
+            ...projectSettings,
+            map: {
+                ...(projectMapSettings || {}),
+                basemapId: legacyBasemapId,
+            },
+        }).catch(error => {
+            console.warn('[useMapStyles] Failed to migrate project basemap setting:', error);
+        });
+    }, [projectBasemapId, projectId, projectMapSettings, projectSettings, updateSettings]);
 
     const featureStyleRules = useMemo(() => {
         const rules: string[] = [];
@@ -154,9 +195,19 @@ export function useMapStyles() {
 
     const setBasemapId = useCallback((nextBasemapId: MapBasemapId) => {
         setSettings(prev => ({ ...prev, basemapId: nextBasemapId }));
-    }, []);
+        if (!projectId) return;
+        void updateSettings({
+            ...projectSettings,
+            map: {
+                ...(projectMapSettings || {}),
+                basemapId: nextBasemapId,
+            },
+        }).catch(error => {
+            console.warn('[useMapStyles] Failed to persist project basemap setting:', error);
+        });
+    }, [projectId, projectMapSettings, projectSettings, updateSettings]);
 
-    const mapKey = useMemo(() => JSON.stringify(settings), [settings]);
+    const mapKey = useMemo(() => JSON.stringify({ ...settings, basemapId }), [basemapId, settings]);
     const activeBasemapPreset = useMemo(() => getPreset(basemapId), [basemapId]);
 
     return {

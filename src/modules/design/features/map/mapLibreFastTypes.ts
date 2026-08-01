@@ -4,8 +4,11 @@ type Position = [number, number];
 
 export type MapLibreFastGeometry =
     | { type: 'Point'; coordinates: Position }
+    | { type: 'MultiPoint'; coordinates: Position[] }
     | { type: 'LineString'; coordinates: Position[] }
-    | { type: 'Polygon'; coordinates: Position[][] };
+    | { type: 'MultiLineString'; coordinates: Position[][] }
+    | { type: 'Polygon'; coordinates: Position[][] }
+    | { type: 'MultiPolygon'; coordinates: Position[][][] };
 
 export interface MapLibreFastFeature<TGeometry = MapLibreFastGeometry, TProperties = Record<string, unknown>> {
     type: 'Feature';
@@ -36,6 +39,7 @@ export interface MapLibreLodPolicy {
 
 export interface MapLibreRenderFeatureProperties {
     id: string;
+    parentFeatureId?: string;
     groupId: string | null;
     layerId: string;
     name: string;

@@ -44,6 +44,7 @@ impl StorageWorker {
                                 next,
                                 StorageCommand::Query { .. }
                                     | StorageCommand::OpenDatabase { .. }
+                                    | StorageCommand::OpenProjectBootstrap { .. }
                                     | StorageCommand::DispatchEvents { .. }
                                     | StorageCommand::ApplyRemoteEvents { .. }
                                     | StorageCommand::UpdateProjectState { .. }
@@ -155,6 +156,27 @@ impl StorageWorker {
                     Err(e) => Err(e.to_string()),
                 };
                 let _ = reply.send(result);
+            }
+            StorageCommand::OpenProjectBootstrap {
+                path,
+                title,
+                base_hint,
+                open_request_id,
+                viewport_first_limit,
+                reply,
+            } => {
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.open_project_bootstrap(
+                        path,
+                        &title,
+                        &base_hint,
+                        open_request_id,
+                        viewport_first_limit,
+                    )
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
+                let _ = reply.send(res);
             }
             StorageCommand::Query {
                 sql,
@@ -494,6 +516,7 @@ impl StorageWorker {
                 cmd,
                 StorageCommand::Query { .. }
                     | StorageCommand::OpenDatabase { .. }
+                    | StorageCommand::OpenProjectBootstrap { .. }
                     | StorageCommand::DispatchEvents { .. }
                     | StorageCommand::ApplyRemoteEvents { .. }
                     | StorageCommand::UpdateProjectState { .. }
@@ -516,6 +539,9 @@ impl StorageWorker {
                     | StorageCommand::ApplyProjectMediaRecovery { .. }
                     | StorageCommand::UndoDesignEvent { .. }
                     | StorageCommand::RedoDesignEvent { .. }
+                    | StorageCommand::GetMapTile { .. }
+                    | StorageCommand::BuildMapTiles { .. }
+                    | StorageCommand::InvalidateMapTiles { .. }
             ) {
                 self.execute(commands.into_iter().next().expect("single command"))
                     .await;
@@ -651,7 +677,328 @@ fn generate_inverse_event_json(
     }
 }
 
+fn worker_uuid_from_text_fallback(input: &str) -> String {
+    let trimmed = input.trim();
+    if let Ok(parsed) = uuid::Uuid::parse_str(trimmed) {
+        return parsed.to_string();
+    }
+    uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_OID, trimmed.as_bytes()).to_string()
+}
+
+fn worker_trim_to_option(input: Option<String>) -> Option<String> {
+    input
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn worker_rows_to_object_by_id(rows: Value) -> Value {
+    let mut out = serde_json::Map::new();
+    if let Some(items) = rows.as_array() {
+        for row in items {
+            if let Some(id) = row.get("id").and_then(Value::as_str) {
+                out.insert(id.to_string(), row.clone());
+            }
+        }
+    }
+    Value::Object(out)
+}
+
+fn worker_settings_from_rows(rows: Value) -> Value {
+    rows.as_array()
+        .and_then(|items| items.first())
+        .and_then(|row| row.get("settings_json"))
+        .cloned()
+        .unwrap_or_else(|| json!({}))
+}
+
+fn worker_parse_json_value(value: Option<&Value>, default: Value) -> Value {
+    match value {
+        Some(Value::String(text)) => serde_json::from_str(text).unwrap_or(default),
+        Some(Value::Null) | None => default,
+        Some(other) => other.clone(),
+    }
+}
+
+fn worker_normalize_metadata_to_string(value: Option<&Value>) -> String {
+    match value {
+        None | Some(Value::Null) => "{}".to_string(),
+        Some(Value::String(text)) => {
+            let trimmed = text.trim();
+            if trimmed.is_empty() || trimmed == "null" || trimmed == "undefined" {
+                "{}".to_string()
+            } else {
+                trimmed.to_string()
+            }
+        }
+        Some(other) => other.to_string(),
+    }
+}
+
+fn worker_bbox_value_to_state(value: Option<&Value>) -> Value {
+    let parsed = worker_parse_json_value(value, Value::Null);
+    if let Some(arr) = parsed.as_array() {
+        if arr.len() == 4 {
+            return json!({
+                "min_x": arr[0].clone(),
+                "min_y": arr[1].clone(),
+                "max_x": arr[2].clone(),
+                "max_y": arr[3].clone(),
+            });
+        }
+    }
+    parsed
+}
+
+fn worker_feature_row_to_state(row: &Value) -> Value {
+    json!({
+        "id": row.get("id").cloned().unwrap_or(Value::Null),
+        "layer_id": row.get("layer_id").cloned().unwrap_or(Value::Null),
+        "group_id": row.get("group_id").cloned().unwrap_or(Value::Null),
+        "name": row.get("name").cloned().unwrap_or_else(|| json!("Untitled Feature")),
+        "geom_type": row.get("geom_type").cloned().unwrap_or_else(|| json!("Point")),
+        "coordinates": worker_parse_json_value(row.get("coordinates_json"), Value::Null),
+        "properties": worker_parse_json_value(row.get("properties_json"), json!({})),
+        "metadata": worker_normalize_metadata_to_string(row.get("metadata_json")),
+        "bbox": worker_bbox_value_to_state(row.get("bbox_json")),
+    })
+}
+
+fn worker_project_from_row(row: &Value, path: &str) -> Option<Value> {
+    let id = row.get("id")?.as_str()?.to_string();
+    let name = row
+        .get("title")
+        .or_else(|| row.get("name"))
+        .and_then(Value::as_str)
+        .unwrap_or("Untitled Project")
+        .to_string();
+    let description = worker_trim_to_option(
+        row.get("description")
+            .and_then(Value::as_str)
+            .map(|value| value.to_string()),
+    );
+    let status = row
+        .get("status")
+        .and_then(Value::as_str)
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "active".to_string());
+    let created_at = row
+        .get("created_at")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    let updated_at = row
+        .get("updated_at")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string();
+    Some(json!({
+        "id": worker_uuid_from_text_fallback(&id),
+        "name": name,
+        "title": name,
+        "path": path,
+        "description": description,
+        "status": status,
+        "created_at": created_at,
+        "updated_at": updated_at,
+        "metadata_json": row.get("metadata_json").cloned(),
+        "contract_number": Value::Null,
+        "investor": Value::Null,
+        "contractor": Value::Null,
+        "signed_date": Value::Null,
+        "duration": Value::Null,
+        "end_date": Value::Null
+    }))
+}
+
 impl StorageWorker {
+    fn open_project_bootstrap(
+        &mut self,
+        path: PathBuf,
+        title: &str,
+        base_hint: &str,
+        open_request_id: Option<i64>,
+        viewport_first_limit: i64,
+    ) -> Result<Value, String> {
+        log::info!("[StorageWorker] Opening project bootstrap: {:?}", path);
+        self.db = PmpDatabase::open_or_create(path.clone()).map_err(|e| e.to_string())?;
+        let path_str = path.to_string_lossy().to_string();
+
+        let mut first_project = self.query(
+            "SELECT id, title, description, metadata_json, created_at, updated_at FROM projects ORDER BY created_at ASC LIMIT 1",
+            vec![],
+        )?;
+
+        if first_project
+            .as_array()
+            .map(|arr| arr.is_empty())
+            .unwrap_or(true)
+        {
+            let fallback_id = uuid::Uuid::new_v4().to_string();
+            self.db
+                .conn
+                .execute(
+                    "INSERT INTO projects (id, name, title, base_dir_hint) VALUES (?1, ?2, ?3, ?4)",
+                    params![fallback_id, title, title, base_hint],
+                )
+                .map_err(|e| e.to_string())?;
+            first_project = self.query(
+                "SELECT id, title, description, metadata_json, created_at, updated_at FROM projects WHERE id = ?1 LIMIT 1",
+                vec![fallback_id],
+            )?;
+        }
+
+        let project_row = first_project
+            .as_array()
+            .and_then(|items| items.first())
+            .ok_or_else(|| "Failed to resolve project metadata from .pmp file".to_string())?;
+        let project = worker_project_from_row(project_row, &path_str)
+            .ok_or_else(|| "Failed to resolve project metadata from .pmp file".to_string())?;
+        let project_id = project
+            .get("id")
+            .and_then(Value::as_str)
+            .ok_or_else(|| "Loaded project is missing an id".to_string())?
+            .to_string();
+
+        self.db
+            .conn
+            .execute(
+                "INSERT OR REPLACE INTO sys_config(key, value) VALUES ('active_project_id', ?1)",
+                params![project_id],
+            )
+            .map_err(|e| e.to_string())?;
+        self.db
+            .conn
+            .execute(
+                "INSERT OR REPLACE INTO sys_config(key, value) VALUES ('active_project_path', ?1)",
+                params![path_str],
+            )
+            .map_err(|e| e.to_string())?;
+
+        self.build_project_bootstrap_payload(project, &project_id, open_request_id, viewport_first_limit)
+    }
+
+    fn build_project_bootstrap_payload(
+        &self,
+        project: Value,
+        project_id: &str,
+        open_request_id: Option<i64>,
+        viewport_first_limit: i64,
+    ) -> Result<Value, String> {
+        let bootstrap_start = std::time::Instant::now();
+        let feature_count_rows = self.query(
+            "SELECT COUNT(*) AS feature_count FROM features WHERE project_id = ?1",
+            vec![project_id.to_string()],
+        )?;
+        let feature_count = feature_count_rows
+            .as_array()
+            .and_then(|items| items.first())
+            .and_then(|row| row.get("feature_count"))
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
+        let map_revision_rows = self.query(
+            "SELECT COALESCE(MAX(global_seq), 0) AS map_revision FROM events WHERE project_id = ?1",
+            vec![project_id.to_string()],
+        )?;
+        let map_revision = map_revision_rows
+            .as_array()
+            .and_then(|items| items.first())
+            .and_then(|row| row.get("map_revision"))
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
+        let regions = worker_rows_to_object_by_id(self.query(
+            "SELECT id, parent_id, name, description FROM regions WHERE project_id = ?1 ORDER BY created_at, id",
+            vec![project_id.to_string()],
+        )?);
+        let layers = worker_rows_to_object_by_id(self.query(
+            "SELECT id, region_id, name, is_visible FROM layers WHERE project_id = ?1 ORDER BY created_at, id",
+            vec![project_id.to_string()],
+        )?);
+        let feature_groups = worker_rows_to_object_by_id(self.query(
+            "SELECT id, layer_id, parent_id, name, group_type, is_visible, metadata_json FROM feature_groups WHERE project_id = ?1 ORDER BY created_at, id",
+            vec![project_id.to_string()],
+        )?);
+        let settings = worker_settings_from_rows(self.query(
+            "SELECT settings_json FROM project_settings WHERE project_id = ?1 LIMIT 1",
+            vec![project_id.to_string()],
+        )?);
+        let initial_bounds = self
+            .query(
+                "SELECT MIN(bbox_min_y) AS south, MAX(bbox_max_y) AS north,
+                        MIN(bbox_min_x) AS west, MAX(bbox_max_x) AS east
+                 FROM features
+                 WHERE project_id = ?1
+                   AND bbox_min_x IS NOT NULL AND bbox_min_y IS NOT NULL
+                   AND bbox_max_x IS NOT NULL AND bbox_max_y IS NOT NULL",
+                vec![project_id.to_string()],
+            )?
+            .as_array()
+            .and_then(|items| items.first())
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        let cached_tiles = self
+            .query(
+                "SELECT COUNT(*) AS cached_tiles FROM map_tile_cache WHERE project_id = ?1 AND revision = ?2",
+                vec![project_id.to_string(), map_revision.to_string()],
+            )?
+            .as_array()
+            .and_then(|items| items.first())
+            .and_then(|row| row.get("cached_tiles"))
+            .and_then(Value::as_i64)
+            .unwrap_or(0);
+
+        let use_viewport_first = feature_count > viewport_first_limit;
+        let mut features_obj = serde_json::Map::new();
+        if !use_viewport_first {
+            let features = self.query(
+                "SELECT id, layer_id, group_id, name, geom_type, coordinates_json, properties_json, metadata_json, bbox_json FROM features WHERE project_id = ?1 ORDER BY created_at, id",
+                vec![project_id.to_string()],
+            )?;
+            if let Some(rows) = features.as_array() {
+                for row in rows {
+                    if let Some(id) = row.get("id").and_then(Value::as_str) {
+                        features_obj.insert(id.to_string(), worker_feature_row_to_state(row));
+                    }
+                }
+            }
+        }
+
+        let initial_state = json!({
+            "regions": regions.clone(),
+            "layers": layers.clone(),
+            "feature_groups": feature_groups.clone(),
+            "features": Value::Object(features_obj),
+            "settings": settings.clone(),
+            "initialBounds": initial_bounds.clone(),
+            "featureCount": feature_count,
+            "mapRevision": map_revision,
+            "isLargeProject": use_viewport_first,
+            "viewportFeatureLimit": viewport_first_limit
+        });
+
+        Ok(json!({
+            "project": project,
+            "featureCount": feature_count,
+            "mapRevision": map_revision,
+            "initialBounds": initial_bounds,
+            "settings": settings,
+            "regions": regions,
+            "layers": layers,
+            "featureGroups": feature_groups,
+            "initialState": initial_state,
+            "streamingMode": use_viewport_first,
+            "viewportFirst": use_viewport_first,
+            "cacheStatus": {
+                "cachedTiles": cached_tiles,
+                "state": if cached_tiles > 0 { "ready" } else { "missing" },
+                "lastViewportReady": cached_tiles > 0
+            },
+            "openPerformanceHint": {
+                "bootstrapMs": bootstrap_start.elapsed().as_secs_f64() * 1000.0
+            },
+            "openRequestId": open_request_id
+        }))
+    }
+
     fn dispatch_events(&mut self, events: Vec<EventEnvelope>) -> Result<usize, String> {
         if let Err(e) = ensure_runtime_schema_compatibility(&self.db.conn) {
             log::error!("[StorageWorker] Failed to ensure runtime schema compatibility before dispatch: {e}");
@@ -918,12 +1265,13 @@ impl StorageWorker {
         let mut skipped = 0i64;
         let limit = tile_limit.unwrap_or(512).clamp(1, 20_000);
         let started = std::time::Instant::now();
+        let max_duration = std::time::Duration::from_millis(4500);
 
         for z in min_zoom..=max_zoom {
             let (min_x, max_x, min_y, max_y) = tile_range_for_bounds(bounds, z);
             for x in min_x..=max_x {
                 for y in min_y..=max_y {
-                    if built >= limit {
+                    if built >= limit || started.elapsed() >= max_duration {
                         return Ok(json!({
                             "projectId": project_id,
                             "revision": revision,
@@ -1626,6 +1974,7 @@ impl StorageWorker {
                 | StorageCommand::SaveProject { .. }
                 | StorageCommand::Query { .. }
                 | StorageCommand::OpenDatabase { .. }
+                | StorageCommand::OpenProjectBootstrap { .. }
                 | StorageCommand::BackupProject { .. }
                 | StorageCommand::ListBackups { .. }
                 | StorageCommand::RestoreProject { .. }
@@ -4457,10 +4806,27 @@ fn coordinates_json_for_db(value: &Value) -> Option<String> {
     }
 }
 
-fn bbox_tuple_from_json(value: &Value) -> Option<(f64, f64, f64, f64)> {
+fn coordinate_bbox_tuple_from_json(value: &Value) -> Option<(f64, f64, f64, f64)> {
     let mut bbox: Option<(f64, f64, f64, f64)> = None;
     collect_bbox_points(value, &mut bbox);
     bbox
+}
+
+fn flat_bbox_tuple_from_json(value: &Value) -> Option<(f64, f64, f64, f64)> {
+    let arr = value.as_array()?;
+    if arr.len() != 4 {
+        return None;
+    }
+    let min_x = arr[0].as_f64()?;
+    let min_y = arr[1].as_f64()?;
+    let max_x = arr[2].as_f64()?;
+    let max_y = arr[3].as_f64()?;
+    Some((
+        min_x.min(max_x),
+        min_y.min(max_y),
+        min_x.max(max_x),
+        min_y.max(max_y),
+    ))
 }
 
 fn collect_bbox_points(value: &Value, bbox: &mut Option<(f64, f64, f64, f64)>) {
@@ -4487,13 +4853,13 @@ fn bbox_tuple_for_db(
     coordinates: Option<&Value>,
     bbox: Option<&Value>,
 ) -> Option<(f64, f64, f64, f64)> {
-    bbox.and_then(bbox_tuple_from_json)
-        .or_else(|| coordinates.and_then(bbox_tuple_from_json))
+    bbox.and_then(flat_bbox_tuple_from_json)
+        .or_else(|| coordinates.and_then(coordinate_bbox_tuple_from_json))
 }
 
 fn bbox_json_for_db(coordinates: Option<&Value>, bbox: Option<&Value>) -> Option<String> {
-    bbox.filter(|value| !value.is_null())
-        .map(Value::to_string)
+    bbox.and_then(flat_bbox_tuple_from_json)
+        .map(|(min_x, min_y, max_x, max_y)| json!([min_x, min_y, max_x, max_y]).to_string())
         .or_else(|| {
             bbox_tuple_for_db(coordinates, None)
                 .map(|(min_x, min_y, max_x, max_y)| json!([min_x, min_y, max_x, max_y]).to_string())
@@ -5083,6 +5449,11 @@ fn apply_event_to_read_models(
                     changes_obj
                         .entry("coordinates".to_string())
                         .or_insert(geometry);
+                }
+                if changes_obj.contains_key("coordinates") && !changes_obj.contains_key("bbox") {
+                    if let Some(current_obj) = current.as_object_mut() {
+                        current_obj.remove("bbox");
+                    }
                 }
                 if !changes_obj.contains_key("coordinates")
                     && current
@@ -6897,6 +7268,116 @@ mod tests {
     fn storage_worker_for(db: PmpDatabase) -> StorageWorker {
         let (_tx, rx) = mpsc::channel(1);
         StorageWorker { rx, db }
+    }
+
+    #[test]
+    fn bbox_helpers_separate_flat_bbox_from_nested_coordinates() {
+        assert_eq!(
+            flat_bbox_tuple_from_json(&json!([106.0, 22.0, 105.0, 21.0])),
+            Some((105.0, 21.0, 106.0, 22.0))
+        );
+        assert_eq!(
+            coordinate_bbox_tuple_from_json(&json!([[105.0, 21.0], [106.0, 22.0]])),
+            Some((105.0, 21.0, 106.0, 22.0))
+        );
+        assert_eq!(
+            coordinate_bbox_tuple_from_json(&json!([[
+                [105.0, 21.0],
+                [106.0, 21.5],
+                [105.5, 22.0],
+                [105.0, 21.0]
+            ]])),
+            Some((105.0, 21.0, 106.0, 22.0))
+        );
+        assert_eq!(
+            bbox_tuple_for_db(
+                Some(&json!([[105.0, 21.0], [106.0, 22.0]])),
+                Some(&json!([105.0, 21.0]))
+            ),
+            Some((105.0, 21.0, 106.0, 22.0))
+        );
+    }
+
+    #[test]
+    fn feature_create_and_update_store_bbox_for_entire_polyline() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("polyline_bbox.pmp");
+        let mut db = PmpDatabase::open_or_create(pmp_path).expect("open db");
+        let project_id = Uuid::new_v4();
+        let layer_id = Uuid::new_v4();
+        let feature_id = Uuid::new_v4();
+        seed_basic_project(&db.conn, &project_id.to_string(), "Project A");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name) VALUES (?1, ?2, ?3)",
+                params![layer_id.to_string(), project_id.to_string(), "Layer"],
+            )
+            .expect("layer");
+
+        let tx = db.conn.transaction().expect("tx");
+        let created = EventEnvelope::new(
+            project_id,
+            "feature",
+            feature_id,
+            AppEvent::FeatureCreated {
+                id: feature_id,
+                layer_id,
+                group_id: None,
+                task_id: None,
+                name: "Line".to_string(),
+                geom_type: "LineString".to_string(),
+                geometry: json!([[105.0, 21.0], [106.0, 22.0]]),
+                properties: json!({}),
+                style_id: None,
+                is_visible: true,
+                note: None,
+                bbox: Some(json!([105.0, 21.0])),
+                metadata: json!({}),
+            },
+            "test-device",
+            None,
+        );
+        apply_event_to_read_models(&tx, &created).expect("create feature");
+        let updated = EventEnvelope::new(
+            project_id,
+            "feature",
+            feature_id,
+            AppEvent::FeatureUpdated {
+                id: feature_id,
+                changes: json!({
+                    "coordinates": [[105.5, 21.5], [107.0, 23.0]]
+                }),
+            },
+            "test-device",
+            None,
+        );
+        apply_event_to_read_models(&tx, &updated).expect("update feature");
+        tx.commit().expect("commit");
+
+        let bbox: (f64, f64, f64, f64) = db
+            .conn
+            .query_row(
+                "SELECT bbox_min_x, bbox_min_y, bbox_max_x, bbox_max_y FROM features WHERE id = ?1",
+                params![feature_id.to_string()],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .expect("bbox");
+        let spatial_count: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*)
+                 FROM feature_rtree r
+                 INNER JOIN features f ON f.rowid = r.rowid
+                 WHERE f.id = ?1
+                   AND r.max_x >= 106.75 AND r.min_x <= 106.75
+                   AND r.max_y >= 22.75 AND r.min_y <= 22.75",
+                params![feature_id.to_string()],
+                |row| row.get(0),
+            )
+            .expect("rtree");
+
+        assert_eq!(bbox, (105.5, 21.5, 107.0, 23.0));
+        assert_eq!(spatial_count, 1);
     }
 
     #[test]

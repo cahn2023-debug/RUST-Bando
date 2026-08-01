@@ -33,17 +33,17 @@ export async function safeInvoke<T>(command: string, args?: any): Promise<T> {
     }
     return await tauriInvoke<T>(command, args);
   } catch (error) {
+    if (command === "build_map_tiles_v2") {
+      console.info(`[Tauri SafeInvoke Info] command: ${command}`, error);
+      return null as any;
+    }
     console.error(`[Tauri SafeInvoke Error] command: ${command}`, error);
-    // Safer defaults for common list commands to prevent crashes
     if (["get_recent_projects", "get_projects", "get_project_tree", "get_materials", "get_tasks", "get_notes"].includes(command)) {
       return [] as any;
     }
     return null as any;
   }
 }
-
-
-
 
 export async function safeEmit(event: string, payload?: any): Promise<void> {
   if (!IS_REAL_TAURI) {
@@ -61,7 +61,6 @@ export async function safeEmit(event: string, payload?: any): Promise<void> {
 
 export async function safeListen<T>(event: string, handler: (event: any) => void): Promise<UnlistenFn> {
   if (!IS_REAL_TAURI) {
-    // Return a dummy unlisten function wrapped in Promise
     return Promise.resolve(() => { });
   }
 
