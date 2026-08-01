@@ -240,7 +240,9 @@ const loadPhotoBytes = async (photo: ReportPhoto, projectId?: string | null): Pr
       const bytes = await invoke<number[] | Uint8Array>("read_binary_file", {
         path: targetPath,
       });
-      return bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      if (bytes && (bytes instanceof Uint8Array ? bytes.length > 0 : bytes.length > 0)) {
+        return bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      }
     } catch (e) {
       console.warn("[reportDocx] Failed to read photo file directly:", targetPath, e);
     }
@@ -256,10 +258,16 @@ const loadPhotoBytes = async (photo: ReportPhoto, projectId?: string | null): Pr
     try {
       const asset = await resolveMediaAsset(effectiveProjectId, photo.assetId);
       if (asset.path) {
-        const bytes = await invoke<number[] | Uint8Array>("read_binary_file", {
-          path: asset.path,
-        });
-        return bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+        try {
+          const bytes = await invoke<number[] | Uint8Array>("read_binary_file", {
+            path: asset.path,
+          });
+          if (bytes && (bytes instanceof Uint8Array ? bytes.length > 0 : bytes.length > 0)) {
+            return bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+          }
+        } catch (readErr) {
+          console.warn("[reportDocx] Failed to read resolved asset path:", asset.path, readErr);
+        }
       }
       if (asset.dataUrl && asset.dataUrl.startsWith("data:")) {
         const parts = asset.dataUrl.split(",");

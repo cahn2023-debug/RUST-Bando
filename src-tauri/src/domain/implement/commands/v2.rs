@@ -24,7 +24,9 @@ const RAW_BINARY_PATH_HEADER: &str = "x-antinigaty-file-path-b64";
 const BINARY_SAVE_EXTENSIONS: &[&str] = &[
     "pmp", "xlsx", "docx", "zip", "json", "csv", "png", "jpg", "jpeg",
 ];
-const BINARY_READ_EXTENSIONS: &[&str] = &["pmp", "xlsx", "xls", "csv", "kml", "kmz", "json"];
+const BINARY_READ_EXTENSIONS: &[&str] = &[
+    "pmp", "xlsx", "xls", "csv", "kml", "kmz", "json", "png", "jpg", "jpeg", "webp", "gif", "bmp", "svg", "ico", "tif", "tiff",
+];
 const VIEWPORT_FIRST_FEATURE_LIMIT: i64 = 10_000;
 
 fn should_use_viewport_first(feature_count: i64) -> bool {

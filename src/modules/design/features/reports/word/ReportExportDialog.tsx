@@ -718,6 +718,7 @@ export function SitePhotoPreviewItem({ photo, projectId }: { photo: ReportPhoto;
 
   useEffect(() => {
     let cancelled = false;
+    let createdUrl: string | null = null;
     setError(null);
 
     if (photo.dataUrl) {
@@ -734,8 +735,8 @@ export function SitePhotoPreviewItem({ photo, projectId }: { photo: ReportPhoto;
           const uint8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
           const mime = photo.mimeType || (photo.relativePath?.endsWith(".png") ? "image/png" : "image/jpeg");
           const blob = new Blob([uint8], { type: mime });
-          const objectUrl = URL.createObjectURL(blob);
-          setSrc(objectUrl);
+          createdUrl = URL.createObjectURL(blob);
+          setSrc(createdUrl);
           setLoading(false);
           return;
         } catch (e) {
@@ -769,6 +770,9 @@ export function SitePhotoPreviewItem({ photo, projectId }: { photo: ReportPhoto;
 
     return () => {
       cancelled = true;
+      if (createdUrl) {
+        URL.revokeObjectURL(createdUrl);
+      }
     };
   }, [photo, projectId]);
 
