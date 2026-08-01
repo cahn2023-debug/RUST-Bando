@@ -137,7 +137,7 @@ export const exportProjectData = async (projectState: MapState, projectName: str
 
     await invoke('save_binary_file', {
       path: filePath,
-      data: Array.from(finalContent)
+      data: finalContent
     });
 
     updateProgress(100, 'Hoàn tất! Cấu trúc ZIP phân cấp đã được lưu.');
@@ -393,7 +393,7 @@ export const exportGroupToKML = async (state: MapState, groupId: string, groupNa
 
     await invoke('save_binary_file', {
       path: filePath,
-      data: Array.from(uint8Array)
+      data: uint8Array
     });
 
     console.log(`[Export] Successfully exported ${groupFeatures.length} features to ${filePath}`);
@@ -462,7 +462,7 @@ export const exportGroupToKMZ = async (state: MapState, groupId: string, groupNa
 
     await invoke('save_binary_file', {
       path: filePath,
-      data: Array.from(kmzContent)
+      data: kmzContent
     });
 
     console.log(`[Export] Successfully exported ${groupFeatures.length} features to KMZ: ${filePath}`);

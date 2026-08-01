@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import JSZip from "jszip";
 import type { ReportModel } from "./reportModel";
 import { buildReportDocx } from "./reportDocx";
 
@@ -26,7 +27,11 @@ describe("reportDocx", () => {
         description: "Mô tả",
         summary: ["CCTV: 1"],
         photos: [],
+        photoWarnings: ["Camera: Chưa có ảnh site photo."],
         bounds: [10, 106, 10.2, 106.2],
+        captureMode: "feature",
+        focusFeatureIds: ["camera"],
+        hiddenFeatureIds: [],
         details: [{
           feature: {
             id: "camera",
@@ -44,6 +49,7 @@ describe("reportDocx", () => {
           metadata: {},
           properties: {},
           photos: [],
+          photoWarnings: ["Camera: Chưa có ảnh site photo."],
           bounds: [10, 106, 10.2, 106.2],
           startPoint: [106.1, 10.1],
           connectedNames: [],
@@ -53,5 +59,9 @@ describe("reportDocx", () => {
 
     const buffer = await buildReportDocx(model, {});
     expect(buffer.byteLength).toBeGreaterThan(1000);
+    const zip = await JSZip.loadAsync(buffer);
+    const documentXml = await zip.file("word/document.xml")?.async("string");
+    expect(documentXml).toContain("Báo cáo test");
+    expect(documentXml).toContain("Chưa có ảnh site photo");
   });
 });

@@ -20,7 +20,7 @@ export type ReportImageMap = Record<string, string | undefined>;
 
 const PAGE_IMAGE_WIDTH = 560;
 const PHOTO_WIDTH = 360;
-const MAX_EMBED_SOURCE_WIDTH = 1200;
+const MAX_EMBED_SOURCE_WIDTH = 2400;
 const HIDDEN_DETAIL_FIELD_KEYS = new Set([
   "color",
   "gis.rotation",
@@ -42,6 +42,7 @@ type NormalizedImageData = {
   height: number;
 };
 const imageResizeCache = new Map<string, NormalizedImageData>();
+export const clearImageResizeCache = (): void => imageResizeCache.clear();
 
 const text = (value: unknown): string => {
   if (value === null || value === undefined || value === "") return "-";
@@ -91,10 +92,22 @@ const resizeDataUrl = async (dataUrl: string): Promise<NormalizedImageData> => {
   const context = canvas.getContext("2d");
   if (!context) return { dataUrl, width: image.naturalWidth, height: image.naturalHeight };
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  const resized = canvas.toDataURL("image/jpeg", 0.82);
+  const resized = canvas.toDataURL("image/jpeg", 0.90);
   const result = { dataUrl: resized, width: canvas.width, height: canvas.height };
+  canvas.width = 0;
+  canvas.height = 0;
   imageResizeCache.set(dataUrl, result);
   return result;
+};
+
+const base64ToUint8Array = (base64: string): Uint8Array => {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i += 1) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
 };
 
 const dataUrlToImage = async (dataUrl: string, width: number): Promise<ImageRun | null> => {
@@ -103,7 +116,7 @@ const dataUrlToImage = async (dataUrl: string, width: number): Promise<ImageRun 
   if (!match) return null;
   const type = match[1].toLowerCase() === "jpeg" ? "jpg" : match[1].toLowerCase();
   if (!["png", "jpg", "gif", "bmp"].includes(type)) return null;
-  const bytes = Uint8Array.from(atob(match[2]), (char) => char.charCodeAt(0));
+  const bytes = base64ToUint8Array(match[2]);
   const aspectHeight = Math.max(1, Math.round(width * (normalizedImage.height / Math.max(1, normalizedImage.width))));
   return new ImageRun({
     type: type as "png" | "jpg" | "gif" | "bmp",
@@ -189,6 +202,7 @@ const detailBlocks = async (detail: ReportFeatureDetail): Promise<Array<Paragrap
     keyValueTable(rows),
     ...(propertyRows.length ? [paragraph("Properties", true), keyValueTable(propertyRows)] : []),
     paragraph("Site photo", true),
+    ...detail.photoWarnings.map((warning) => paragraph(warning)),
     ...(await photoBlocks(detail.photos)),
   ];
 };
@@ -217,58 +231,81 @@ const sectionBlocks = async (section: ReportSection, imageMap: ReportImageMap): 
   ];
 };
 
-export const buildReportDocx = async (model: ReportModel, imageMap: ReportImageMap = {}): Promise<ArrayBuffer> => {
-  const detailSections: Array<Paragraph | Table> = [];
-  for (const section of model.sections) {
-    detailSections.push(...await sectionBlocks(section, imageMap));
-  }
+export const buildReportDocx = async (
+  model: ReportModel,
+  imageMap: ReportImageMap = {},
+  onProgress?: (percent: number, statusText: string) => void,
+): Promise<ArrayBuffer> => {
+  clearImageResizeCache();
+  try {
+    const detailSections: Array<Paragraph | Table> = [];
+    const total = model.sections.length;
+    for (let index = 0; index < total; index += 1) {
+      const section = model.sections[index];
+      if (onProgress && total > 0) {
+        const percent = Math.round(((index + 1) / total) * 100);
+        onProgress(percent, `Đang tạo văn bản mục ${index + 1}/${total}: ${section.title}...`);
+      }
+      if (index % 2 === 0) {
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      detailSections.push(...(await sectionBlocks(section, imageMap)));
+    }
 
-  const children: Array<Paragraph | Table> = [
-    new Paragraph({
-      heading: HeadingLevel.TITLE,
-      alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: model.title, bold: true })],
-      spacing: { after: 200 },
-    }),
-    paragraph(`Ngày tạo: ${new Date(model.generatedAt).toLocaleString("vi-VN")}`),
-    new Paragraph({
-      heading: HeadingLevel.HEADING_1,
-      children: [new TextRun({ text: "Mục lục", bold: true })],
-      spacing: { before: 200, after: 120 },
-    }),
-    ...model.sections.map((section) => new Paragraph({
-      children: [
-        new InternalHyperlink({
-          anchor: section.anchor,
-          children: [new TextRun({ text: section.title, style: "Hyperlink" })],
-        }),
-      ],
-      spacing: { after: 80 },
-    })),
-    new Paragraph({
-      heading: HeadingLevel.HEADING_1,
-      children: [new TextRun({ text: "Chi tiết", bold: true })],
-      spacing: { before: 320, after: 120 },
-    }),
-    ...detailSections,
-  ];
+    if (onProgress) {
+      onProgress(100, "Đang đóng gói file Word...");
+      await new Promise((r) => setTimeout(r, 0));
+    }
 
-  const doc = new Document({
-    documentDefaults: {
-      run: {
-        font: "Times New Roman",
-        size: 24, // 12pt
-      },
-    },
-    sections: [{
-      properties: {
-        page: {
-          margin: { top: 720, right: 720, bottom: 720, left: 720 },
+    const children: Array<Paragraph | Table> = [
+      new Paragraph({
+        heading: HeadingLevel.TITLE,
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: model.title, bold: true })],
+        spacing: { after: 200 },
+      }),
+      paragraph(`Ngày tạo: ${new Date(model.generatedAt).toLocaleString("vi-VN")}`),
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        children: [new TextRun({ text: "Mục lục", bold: true })],
+        spacing: { before: 200, after: 120 },
+      }),
+      ...model.sections.map((section) => new Paragraph({
+        children: [
+          new InternalHyperlink({
+            anchor: section.anchor,
+            children: [new TextRun({ text: section.title, style: "Hyperlink" })],
+          }),
+        ],
+        spacing: { after: 80 },
+      })),
+      new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        children: [new TextRun({ text: "Chi tiết", bold: true })],
+        spacing: { before: 320, after: 120 },
+      }),
+      ...detailSections,
+    ];
+
+    const doc = new Document({
+      documentDefaults: {
+        run: {
+          font: "Times New Roman",
+          size: 24, // 12pt
         },
       },
-      children,
-    }],
-  } as any);
+      sections: [{
+        properties: {
+          page: {
+            margin: { top: 720, right: 720, bottom: 720, left: 720 },
+          },
+        },
+        children,
+      }],
+    } as any);
 
-  return Packer.toArrayBuffer(doc);
+    return await Packer.toArrayBuffer(doc);
+  } finally {
+    clearImageResizeCache();
+  }
 };

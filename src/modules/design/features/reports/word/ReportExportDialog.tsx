@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { Check, ChevronDown, ChevronRight, Download, Eye, FileText, Loader2, X } from "lucide-react";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
@@ -10,13 +9,16 @@ import { cn } from "@TOOL/utils/cn";
 import {
   buildReportModel,
   getDefaultReportSelections,
+  getOverallReportBounds,
   getSelectableReportItems,
+  sanitizeReportBounds,
   type ReportBounds,
   type ReportModel,
   type ReportPhoto,
   type ReportSelection,
 } from "./reportModel";
 import { buildReportDocx, type ReportImageMap } from "./reportDocx";
+import { saveReportDocxFile } from "./reportFileSave";
 
 interface ReportExportDialogProps {
   projectName: string;
@@ -25,6 +27,10 @@ interface ReportExportDialogProps {
 
 type CaptureResult = { captureId?: string; dataUrl: string };
 type CaptureError = { captureId?: string; error: string };
+type MapCaptureScope = {
+  focusFeatureIds?: string[];
+  hiddenFeatureIds?: string[];
+};
 
 const keyOf = (selection: ReportSelection): string => `${selection.type}:${selection.id}`;
 type SelectableReportItem = ReturnType<typeof getSelectableReportItems>[number];
@@ -76,8 +82,10 @@ const requestMapCapture = async (
   scale = 2,
   fitToBounds = true,
   zoom = REPORT_MAP_CAPTURE_MAX_ZOOM,
+  scope: MapCaptureScope = {},
 ): Promise<string | undefined> => {
-  if (!bounds) return undefined;
+  const safeBounds = sanitizeReportBounds(bounds);
+  if (!safeBounds) return undefined;
 
   return new Promise<string | undefined>((resolve) => {
     let done = false;
@@ -110,7 +118,15 @@ const requestMapCapture = async (
       });
 
       if (!done) {
-        await emit("request-map-capture", { captureId, printArea: bounds, scale, fitToBounds, zoom });
+        await emit("request-map-capture", {
+          captureId,
+          printArea: safeBounds,
+          scale,
+          fitToBounds,
+          zoom,
+          focusFeatureIds: scope.focusFeatureIds,
+          hiddenFeatureIds: scope.hiddenFeatureIds,
+        });
       }
     };
 
@@ -128,17 +144,37 @@ const captureMissingReportImages = async (
 ): Promise<ReportImageMap> => {
   const imageMap: ReportImageMap = { ...existing };
   const missingSections = model.sections.filter((section) => !imageMap[section.id]);
+  const overallBounds = getOverallReportBounds(model);
+
   for (let index = 0; index < missingSections.length; index += 1) {
     const section = missingSections[index];
     onProgress?.(index + 1, missingSections.length);
     if (imageMap[section.id]) continue;
+
+    const targetBounds = sanitizeReportBounds(section.bounds) || overallBounds;
     for (let attempt = 1; attempt <= 3; attempt += 1) {
-      const dataUrl = await requestMapCapture(section.bounds, `report-${section.id}-${Date.now()}-${attempt}`, 1.5, true);
+      if (attempt > 1) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      const activeBounds = attempt === 3 && overallBounds ? overallBounds : targetBounds;
+      const dataUrl = await requestMapCapture(
+        activeBounds,
+        `report-${section.id}-${Date.now()}-${attempt}`,
+        1.5,
+        true,
+        REPORT_MAP_CAPTURE_MAX_ZOOM,
+        {
+          focusFeatureIds: section.focusFeatureIds,
+          hiddenFeatureIds: section.hiddenFeatureIds,
+        },
+      );
       if (dataUrl) {
         imageMap[section.id] = dataUrl;
         break;
       }
     }
+    // Short pause to allow V8 Garbage Collector to reclaim temporary canvas & network RAM
+    await new Promise((r) => setTimeout(r, 20));
   }
   return imageMap;
 };
@@ -146,13 +182,24 @@ const captureMissingReportImages = async (
 const capturePreviewImage = async (model: ReportModel, sectionId: string): Promise<string | undefined> => {
   const section = model.sections.find((item) => item.id === sectionId) || model.sections[0];
   if (!section) return undefined;
-  return requestMapCapture(section.bounds, `report-preview-${section.id}-${Date.now()}`, 1.25, true);
+  const targetBounds = sanitizeReportBounds(section.bounds) || getOverallReportBounds(model);
+  return requestMapCapture(
+    targetBounds,
+    `report-preview-${section.id}-${Date.now()}`,
+    1.25,
+    true,
+    REPORT_MAP_CAPTURE_MAX_ZOOM,
+    {
+      focusFeatureIds: section.focusFeatureIds,
+      hiddenFeatureIds: section.hiddenFeatureIds,
+    },
+  );
 };
 
 const hydrateReportPhotoAssets = async (model: ReportModel, projectId?: string | null): Promise<ReportModel> => {
   if (!projectId) return model;
   const cache = new Map<string, string>();
-  const resolvePhotos = async (photos: ReportPhoto[]): Promise<ReportPhoto[]> => {
+  const resolvePhotos = async (photos: ReportPhoto[], ownerLabel: string): Promise<ReportPhoto[]> => {
     const resolved = await Promise.all(photos.map(async (photo) => {
       if (photo.dataUrl) return photo;
       if (!photo.assetId) return null;
@@ -162,24 +209,41 @@ const hydrateReportPhotoAssets = async (model: ReportModel, projectId?: string |
           cache.set(photo.assetId, asset.src);
         }
         const dataUrl = cache.get(photo.assetId) || "";
-        return dataUrl ? { ...photo, dataUrl } : null;
+        return dataUrl
+          ? { ...photo, dataUrl }
+          : { ...photo, warning: `${ownerLabel}: Không resolve được ảnh ${photo.label}.` };
       } catch (error) {
         console.warn("[ReportExportDialog] Failed to resolve report photo asset:", photo.assetId, error);
-        return null;
+        return { ...photo, warning: `${ownerLabel}: Không resolve được ảnh ${photo.label}.` };
       }
     }));
-    return resolved.filter((photo): photo is ReportPhoto => !!photo && !!photo.dataUrl);
+    return resolved.filter((photo): photo is ReportPhoto => !!photo);
   };
 
   const sections = await Promise.all(model.sections.map(async (section) => ({
     ...section,
-    photos: await resolvePhotos(section.photos),
-    details: await Promise.all(section.details.map(async (detail) => ({
-      ...detail,
-      photos: await resolvePhotos(detail.photos),
-    }))),
+    photos: await resolvePhotos(section.photos, section.title),
+    details: await Promise.all(section.details.map(async (detail) => {
+      const photos = await resolvePhotos(detail.photos, detail.feature.name || detail.feature.id);
+      return {
+        ...detail,
+        photos,
+        photoWarnings: [
+          ...detail.photoWarnings,
+          ...photos
+            .filter((photo) => !!photo.warning && !photo.dataUrl)
+            .map((photo) => photo.warning as string),
+        ],
+      };
+    })),
   })));
-  return { ...model, sections };
+  return {
+    ...model,
+    sections: sections.map((section) => ({
+      ...section,
+      photoWarnings: section.details.flatMap((detail) => detail.photoWarnings),
+    })),
+  };
 };
 
 export function ReportExportDialog({ projectName, onClose }: ReportExportDialogProps) {
@@ -200,6 +264,13 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const defaultReportTitle = useMemo(() => `Báo cáo thiết kế - ${projectName}`, [projectName]);
+  const [reportTitle, setReportTitle] = useState(defaultReportTitle);
+  const effectiveReportTitle = reportTitle.trim() || defaultReportTitle;
+
+  useEffect(() => {
+    setReportTitle(defaultReportTitle);
+  }, [defaultReportTitle]);
 
   useEffect(() => {
     if (!state) return;
@@ -231,8 +302,8 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
 
   const baseReportModel = useMemo(() => {
     if (!state) return null;
-    return buildReportModel(state, selections, `Báo cáo thiết kế - ${projectName}`);
-  }, [projectName, selections, state]);
+    return buildReportModel(state, selections, effectiveReportTitle);
+  }, [effectiveReportTitle, selections, state]);
   const [reportModel, setReportModel] = useState<ReportModel | null>(null);
 
   useEffect(() => {
@@ -242,6 +313,8 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
       setReportModel(null);
       return;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReportModel(baseReportModel);
     hydrateReportPhotoAssets(baseReportModel, projectId)
       .then((hydrated) => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -337,13 +410,19 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
       if (includeMapImages) {
         const missingMapImages = reportModel.sections.filter((section) => !nextImageMap[section.id]);
         if (missingMapImages.length > 0) {
-          throw new Error(`Không chụp được ảnh bản đồ cho ${missingMapImages.length} mục. Vui lòng mở bản đồ và thử xuất lại.`);
+          console.warn(`[ReportExportDialog] ${missingMapImages.length} mục không chụp được ảnh bản đồ. Tiếp tục tạo file Word.`);
+          setExportStatus(`Đang tạo file Word (${missingMapImages.length} mục không chụp được bản đồ)...`);
         }
+      }
+      const photoWarningCount = reportModel.sections.reduce((count, section) => count + section.photoWarnings.length, 0);
+      if (photoWarningCount > 0) {
+        console.warn(`[ReportExportDialog] ${photoWarningCount} cảnh báo ảnh site photo. Tiếp tục tạo file Word.`);
+        setExportStatus(`Đang tạo file Word (${photoWarningCount} cảnh báo ảnh site photo)...`);
       }
       setImageMap(nextImageMap);
       const filePath = await save({
         filters: [{ name: "Word Document", extensions: ["docx"] }],
-        defaultPath: `${sanitizeFileName(projectName)}-báo-cáo-thiết-kế.docx`,
+        defaultPath: `${sanitizeFileName(effectiveReportTitle)}.docx`,
       });
       if (!filePath) {
         setExportStatus(null);
@@ -351,12 +430,11 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
       }
 
       setExportStatus("Đang tạo nội dung Word...");
-      const buffer = await buildReportDocx(reportModel, nextImageMap);
-      setExportStatus("Đang lưu file...");
-      await invoke("save_binary_file", {
-        path: filePath,
-        data: Array.from(new Uint8Array(buffer)),
+      const buffer = await buildReportDocx(reportModel, nextImageMap, (_percent, statusText) => {
+        setExportStatus(statusText);
       });
+      setExportStatus("Đang lưu file vào hệ thống...");
+      await saveReportDocxFile(filePath, buffer);
       setExportStatus("Đã xuất file Word.");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -386,7 +464,20 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
         </div>
 
         <div className="h-12 border-b border-cad-border flex items-center justify-between px-5 shrink-0">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <label className="flex min-w-[260px] max-w-[430px] items-center gap-2 text-[10px] font-black uppercase tracking-wide text-cad-text-muted">
+              Tiêu đề
+              <input
+                type="text"
+                value={reportTitle}
+                onChange={(event) => {
+                  setReportTitle(event.target.value);
+                  setImageMap({});
+                }}
+                className="min-w-0 flex-1 rounded border border-cad-border bg-cad-elevated px-2 py-1.5 text-xs font-semibold normal-case tracking-normal text-cad-text-primary outline-none focus:border-cad-accent"
+                placeholder={defaultReportTitle}
+              />
+            </label>
             <button
               onClick={() => setActiveView("select")}
               className={cn("px-3 py-1.5 text-[10px] font-bold uppercase rounded border", activeView === "select" ? "border-cad-accent text-cad-accent bg-cad-accent/10" : "border-cad-border text-cad-text-muted")}

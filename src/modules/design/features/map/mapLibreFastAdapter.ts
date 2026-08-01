@@ -417,6 +417,7 @@ const toRenderFeatures = (
 export const buildMapLibreFeatureCollection = ({
     features,
     selectedFeatureId,
+    focusIds,
     hiddenIds = new Set<string>(),
     zoom,
     featureGroups: featureGroupsInput = {},
@@ -430,6 +431,7 @@ export const buildMapLibreFeatureCollection = ({
     const selected = selectedFeatureId ? features.find(feature => feature.id === selectedFeatureId) : null;
     const featureGroups = featureGroupsInput || {};
     const canRenderFeature = (feature: FeatureState) => {
+        if (focusIds && focusIds.size > 0 && !focusIds.has(feature.id)) return false;
         if (hiddenIds.has(feature.id)) return false;
         if (feature.group_id && hiddenIds.has(feature.group_id)) return false;
         if (feature.layer_id && hiddenIds.has(feature.layer_id)) return false;

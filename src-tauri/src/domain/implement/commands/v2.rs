@@ -18,8 +18,9 @@ use tokio::sync::{mpsc, oneshot};
 use url::Url;
 use uuid::Uuid;
 
-const MAX_BINARY_FILE_BYTES: usize = 50 * 1024 * 1024;
+const MAX_BINARY_FILE_BYTES: usize = 1000 * 1024 * 1024;
 const MAX_REMOTE_IMAGE_BYTES: u64 = 10 * 1024 * 1024;
+const RAW_BINARY_PATH_HEADER: &str = "x-antinigaty-file-path-b64";
 const BINARY_SAVE_EXTENSIONS: &[&str] = &[
     "pmp", "xlsx", "docx", "zip", "json", "csv", "png", "jpg", "jpeg",
 ];
@@ -161,19 +162,63 @@ fn ensure_excel_extension(path: &Path) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn save_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
-    let path = PathBuf::from(path);
+    save_binary_file_bytes(PathBuf::from(path), &data, MAX_BINARY_FILE_BYTES)
+}
+
+#[tauri::command]
+pub fn save_binary_file_raw(request: tauri::ipc::Request<'_>) -> Result<(), String> {
+    let encoded_path = request
+        .headers()
+        .get(RAW_BINARY_PATH_HEADER)
+        .and_then(|value| value.to_str().ok());
+    save_binary_file_raw_parts(encoded_path, request.body(), MAX_BINARY_FILE_BYTES)
+}
+
+fn save_binary_file_raw_parts(
+    encoded_path: Option<&str>,
+    body: &tauri::ipc::InvokeBody,
+    max_bytes: usize,
+) -> Result<(), String> {
+    let data = match body {
+        tauri::ipc::InvokeBody::Raw(data) => data.as_slice(),
+        tauri::ipc::InvokeBody::Json(_) => {
+            return Err("Expected raw binary request body".to_string());
+        }
+    };
+    let path = decode_raw_binary_path_header(encoded_path)?;
+    save_binary_file_bytes(path, data, max_bytes)
+}
+
+fn save_binary_file_bytes(path: PathBuf, data: &[u8], max_bytes: usize) -> Result<(), String> {
     validate_binary_path(&path, BINARY_SAVE_EXTENSIONS)?;
-    if data.len() > MAX_BINARY_FILE_BYTES {
-        return Err(format!(
-            "File is too large to save through this command (max {} MB)",
-            MAX_BINARY_FILE_BYTES / 1024 / 1024
-        ));
-    }
+    validate_binary_data_len(data.len(), max_bytes)?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|error| format!("Failed to create parent directory: {error}"))?;
     }
     std::fs::write(&path, data).map_err(|error| format!("Failed to save file: {error}"))
+}
+
+fn validate_binary_data_len(data_len: usize, max_bytes: usize) -> Result<(), String> {
+    if data_len > max_bytes {
+        return Err(format!(
+            "File is too large to save through this command (max {} MB)",
+            max_bytes / 1024 / 1024
+        ));
+    }
+    Ok(())
+}
+
+fn decode_raw_binary_path_header(encoded_path: Option<&str>) -> Result<PathBuf, String> {
+    let encoded_path = encoded_path.ok_or_else(|| "Missing file path header".to_string())?;
+    let bytes = general_purpose::STANDARD
+        .decode(encoded_path)
+        .map_err(|_| "Invalid file path header".to_string())?;
+    let path = String::from_utf8(bytes).map_err(|_| "Invalid file path header".to_string())?;
+    if path.trim().is_empty() {
+        return Err("Missing file path header".to_string());
+    }
+    Ok(PathBuf::from(path))
 }
 
 #[tauri::command]
@@ -4181,6 +4226,70 @@ mod tests {
             .expect("read binary file");
 
         assert_eq!(actual, bytes);
+    }
+
+    #[test]
+    fn raw_binary_file_command_round_trips_unicode_path() {
+        let dir = tempdir().expect("tempdir");
+        let file_path = dir.path().join("Báo cáo thiết kế.docx");
+        let encoded_path = general_purpose::STANDARD.encode(file_path.to_string_lossy().as_bytes());
+        let bytes = vec![0_u8, 1, 2, 3, 254, 255];
+        let body = tauri::ipc::InvokeBody::Raw(bytes.clone());
+
+        save_binary_file_raw_parts(Some(&encoded_path), &body, MAX_BINARY_FILE_BYTES)
+            .expect("save raw binary file");
+
+        let actual = std::fs::read(file_path).expect("read saved raw binary file");
+        assert_eq!(actual, bytes);
+    }
+
+    #[test]
+    fn raw_binary_file_command_rejects_invalid_base64_path_header() {
+        let body = tauri::ipc::InvokeBody::Raw(vec![1, 2, 3]);
+
+        let error = save_binary_file_raw_parts(Some("***"), &body, MAX_BINARY_FILE_BYTES)
+            .expect_err("invalid base64 should fail");
+
+        assert!(error.contains("Invalid file path header"));
+    }
+
+    #[test]
+    fn raw_binary_file_command_rejects_json_body() {
+        let dir = tempdir().expect("tempdir");
+        let file_path = dir.path().join("report.docx");
+        let encoded_path = general_purpose::STANDARD.encode(file_path.to_string_lossy().as_bytes());
+        let body = tauri::ipc::InvokeBody::Json(json!({ "data": [1, 2, 3] }));
+
+        let error = save_binary_file_raw_parts(Some(&encoded_path), &body, MAX_BINARY_FILE_BYTES)
+            .expect_err("json body should fail");
+
+        assert!(error.contains("Expected raw binary request body"));
+    }
+
+    #[test]
+    fn raw_binary_file_command_rejects_unsupported_extension() {
+        let dir = tempdir().expect("tempdir");
+        let file_path = dir.path().join("report.exe");
+        let encoded_path = general_purpose::STANDARD.encode(file_path.to_string_lossy().as_bytes());
+        let body = tauri::ipc::InvokeBody::Raw(vec![1, 2, 3]);
+
+        let error = save_binary_file_raw_parts(Some(&encoded_path), &body, MAX_BINARY_FILE_BYTES)
+            .expect_err("unsupported extension should fail");
+
+        assert!(error.contains("Unsupported file extension: exe"));
+    }
+
+    #[test]
+    fn raw_binary_file_command_rejects_oversized_body() {
+        let dir = tempdir().expect("tempdir");
+        let file_path = dir.path().join("report.docx");
+        let encoded_path = general_purpose::STANDARD.encode(file_path.to_string_lossy().as_bytes());
+        let body = tauri::ipc::InvokeBody::Raw(vec![1, 2, 3]);
+
+        let error =
+            save_binary_file_raw_parts(Some(&encoded_path), &body, 2).expect_err("body too large");
+
+        assert!(error.contains("File is too large"));
     }
 
     #[tokio::test]

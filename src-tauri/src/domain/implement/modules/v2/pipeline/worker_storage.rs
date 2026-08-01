@@ -127,7 +127,14 @@ impl StorageWorker {
                 reply,
             } => {
                 let res = catch_unwind(AssertUnwindSafe(|| {
-                    self.build_map_tiles(&project_id, revision, min_zoom, max_zoom, bounds, tile_limit)
+                    self.build_map_tiles(
+                        &project_id,
+                        revision,
+                        min_zoom,
+                        max_zoom,
+                        bounds,
+                        tile_limit,
+                    )
                 }))
                 .map_err(panic_to_string)
                 .and_then(|result| result);
@@ -211,7 +218,9 @@ impl StorageWorker {
                 let _ = reply.send(res);
             }
             StorageCommand::SaveProject { reply } => {
-                log::info!("[StorageWorker] Saving project (rebuilding snapshot and checkpointing WAL)...");
+                log::info!(
+                    "[StorageWorker] Saving project (rebuilding snapshot and checkpointing WAL)..."
+                );
                 let res = catch_unwind(AssertUnwindSafe(|| {
                     let active_project_id: Option<String> = self
                         .db
@@ -560,12 +569,13 @@ fn generate_inverse_event_json(
 ) -> Result<Option<String>, String> {
     let project_id = envelope.project_id.to_string();
     match &envelope.event {
-        AppEvent::FeatureCreated { id, .. } => {
-            Ok(Some(json!({
+        AppEvent::FeatureCreated { id, .. } => Ok(Some(
+            json!({
                 "type": "FeatureDeleted",
                 "payload": { "id": id.to_string() }
-            }).to_string()))
-        }
+            })
+            .to_string(),
+        )),
         AppEvent::FeatureDeleted { id } => {
             if let Some(snapshot) = fetch_feature_snapshot(tx, &project_id, &id.to_string())? {
                 Ok(Some(json!({
@@ -589,31 +599,41 @@ fn generate_inverse_event_json(
         AppEvent::FeatureUpdated { id, changes } => {
             if let Some(snapshot) = fetch_feature_snapshot(tx, &project_id, &id.to_string())? {
                 let mut inverse_changes = json!({});
-                if let (Some(changes_obj), Some(inv_obj)) = (changes.as_object(), inverse_changes.as_object_mut()) {
+                if let (Some(changes_obj), Some(inv_obj)) =
+                    (changes.as_object(), inverse_changes.as_object_mut())
+                {
                     for (key, _val) in changes_obj {
-                        let snap_key = if key == "geometry" { "coordinates" } else { key };
+                        let snap_key = if key == "geometry" {
+                            "coordinates"
+                        } else {
+                            key
+                        };
                         if let Some(old_val) = snapshot.get(snap_key) {
                             inv_obj.insert(key.clone(), old_val.clone());
                         }
                     }
                 }
-                Ok(Some(json!({
-                    "type": "FeatureUpdated",
-                    "payload": {
-                        "id": id.to_string(),
-                        "changes": inverse_changes
-                    }
-                }).to_string()))
+                Ok(Some(
+                    json!({
+                        "type": "FeatureUpdated",
+                        "payload": {
+                            "id": id.to_string(),
+                            "changes": inverse_changes
+                        }
+                    })
+                    .to_string(),
+                ))
             } else {
                 Ok(None)
             }
         }
-        AppEvent::FeatureGroupCreated { id, .. } => {
-            Ok(Some(json!({
+        AppEvent::FeatureGroupCreated { id, .. } => Ok(Some(
+            json!({
                 "type": "FeatureGroupDeleted",
                 "payload": { "id": id.to_string() }
-            }).to_string()))
-        }
+            })
+            .to_string(),
+        )),
         AppEvent::FeatureGroupDeleted { id } => {
             if let Some(snapshot) = fetch_feature_group_snapshot(tx, &id.to_string())? {
                 Ok(Some(json!({
@@ -631,33 +651,38 @@ fn generate_inverse_event_json(
                 Ok(None)
             }
         }
-        AppEvent::LayerCreated { id, .. } => {
-            Ok(Some(json!({
+        AppEvent::LayerCreated { id, .. } => Ok(Some(
+            json!({
                 "type": "LayerDeleted",
                 "payload": { "id": id.to_string() }
-            }).to_string()))
-        }
+            })
+            .to_string(),
+        )),
         AppEvent::LayerDeleted { id } => {
             if let Some(snapshot) = fetch_layer_snapshot(tx, &id.to_string())? {
-                Ok(Some(json!({
-                    "type": "LayerCreated",
-                    "payload": {
-                        "id": id.to_string(),
-                        "region_id": snapshot.get("region_id").cloned().unwrap_or(Value::Null),
-                        "name": snapshot.get("name").cloned().unwrap_or_else(|| json!("Layer")),
-                        "metadata": json!({})
-                    }
-                }).to_string()))
+                Ok(Some(
+                    json!({
+                        "type": "LayerCreated",
+                        "payload": {
+                            "id": id.to_string(),
+                            "region_id": snapshot.get("region_id").cloned().unwrap_or(Value::Null),
+                            "name": snapshot.get("name").cloned().unwrap_or_else(|| json!("Layer")),
+                            "metadata": json!({})
+                        }
+                    })
+                    .to_string(),
+                ))
             } else {
                 Ok(None)
             }
         }
-        AppEvent::RegionCreated { id, .. } => {
-            Ok(Some(json!({
+        AppEvent::RegionCreated { id, .. } => Ok(Some(
+            json!({
                 "type": "RegionDeleted",
                 "payload": { "id": id.to_string() }
-            }).to_string()))
-        }
+            })
+            .to_string(),
+        )),
         AppEvent::RegionDeleted { id } => {
             if let Some(snapshot) = fetch_region_snapshot(tx, &id.to_string())? {
                 Ok(Some(json!({
@@ -874,7 +899,12 @@ impl StorageWorker {
             )
             .map_err(|e| e.to_string())?;
 
-        self.build_project_bootstrap_payload(project, &project_id, open_request_id, viewport_first_limit)
+        self.build_project_bootstrap_payload(
+            project,
+            &project_id,
+            open_request_id,
+            viewport_first_limit,
+        )
     }
 
     fn build_project_bootstrap_payload(
@@ -1023,7 +1053,8 @@ impl StorageWorker {
                 tx.execute(
                     "DELETE FROM design_history WHERE project_id = ?1 AND status = 'undone'",
                     params![project_id],
-                ).ok();
+                )
+                .ok();
                 tx.execute(
                     "INSERT INTO design_history (id, project_id, event_id, event_type, forward_event_json, inverse_event_json, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'done')",
                     params![
@@ -1139,7 +1170,8 @@ impl StorageWorker {
         };
 
         let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
-        let inverse_val: Value = serde_json::from_str(&inverse_json_str).map_err(|e| e.to_string())?;
+        let inverse_val: Value =
+            serde_json::from_str(&inverse_json_str).map_err(|e| e.to_string())?;
 
         let inverse_envelopes = if let Some(arr) = inverse_val.as_array() {
             arr.clone()
@@ -1166,7 +1198,8 @@ impl StorageWorker {
         tx.execute(
             "UPDATE design_history SET status = 'undone' WHERE id = ?1",
             params![history_id],
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
         rebuild_project_snapshot(&tx, project_id)?;
         tx.commit().map_err(|e| e.to_string())?;
@@ -1186,7 +1219,8 @@ impl StorageWorker {
         };
 
         let tx = self.db.conn.transaction().map_err(|e| e.to_string())?;
-        let forward_val: Value = serde_json::from_str(&forward_json_str).map_err(|e| e.to_string())?;
+        let forward_val: Value =
+            serde_json::from_str(&forward_json_str).map_err(|e| e.to_string())?;
 
         if let Ok(app_event) = crate::domain::models::v2::AppEvent::from_value_robust(forward_val) {
             let entity_type_str = app_event.entity_type().to_string();
@@ -1205,7 +1239,8 @@ impl StorageWorker {
         tx.execute(
             "UPDATE design_history SET status = 'done' WHERE id = ?1",
             params![history_id],
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
         rebuild_project_snapshot(&tx, project_id)?;
         tx.commit().map_err(|e| e.to_string())?;
@@ -4015,8 +4050,12 @@ fn repair_missing_features_from_events(
         return Ok(0);
     }
 
-    let project_uuid = uuid::Uuid::parse_str(project_id)
-        .map_err(|_| format!("Invalid project_id for missing feature repair: {}", project_id))?;
+    let project_uuid = uuid::Uuid::parse_str(project_id).map_err(|_| {
+        format!(
+            "Invalid project_id for missing feature repair: {}",
+            project_id
+        )
+    })?;
     let events: Vec<(String, String)> = {
         let mut stmt = tx
             .prepare(
@@ -4066,8 +4105,12 @@ fn repair_missing_features_from_events(
     };
 
     for (entity_id, payload_json) in events {
-        let entity_uuid = uuid::Uuid::parse_str(&entity_id)
-            .map_err(|_| format!("Invalid feature id for missing feature repair: {}", entity_id))?;
+        let entity_uuid = uuid::Uuid::parse_str(&entity_id).map_err(|_| {
+            format!(
+                "Invalid feature id for missing feature repair: {}",
+                entity_id
+            )
+        })?;
         let event = AppEvent::robust_deserialize(&payload_json)?;
         let entity_type = event.entity_type().to_string();
         let envelope = EventEnvelope::new(
@@ -4139,7 +4182,8 @@ fn repair_missing_feature_coordinates(
 
     let mut repaired = 0usize;
     for feature_id in feature_ids {
-        let Some(coordinates) = recover_feature_created_coordinates(tx, project_id, &feature_id)? else {
+        let Some(coordinates) = recover_feature_created_coordinates(tx, project_id, &feature_id)?
+        else {
             continue;
         };
         let Some(coordinates_json) = coordinates_json_for_db(&coordinates) else {
@@ -4710,7 +4754,11 @@ fn compact_old_event_payloads(tx: &Transaction<'_>, project_id: &str) -> Result<
     .map_err(|e| e.to_string())
 }
 
-fn prune_design_history(tx: &Transaction<'_>, project_id: &str, max_steps: usize) -> Result<usize, String> {
+fn prune_design_history(
+    tx: &Transaction<'_>,
+    project_id: &str,
+    max_steps: usize,
+) -> Result<usize, String> {
     tx.execute(
         "DELETE FROM design_history
          WHERE project_id = ?1
@@ -4726,25 +4774,30 @@ fn prune_design_history(tx: &Transaction<'_>, project_id: &str, max_steps: usize
 }
 
 fn delete_old_acked_outbox(tx: &Transaction<'_>, project_id: &str) -> Result<usize, String> {
-    let acked = tx.execute(
-        "DELETE FROM sync_outbox
+    let acked = tx
+        .execute(
+            "DELETE FROM sync_outbox
          WHERE project_id = ?1
            AND status = 'acked'
            AND julianday('now') - julianday(COALESCE(acked_at, updated_at, created_at)) > ?2",
-        params![project_id, HISTORY_RETENTION_DAYS],
-    ).unwrap_or(0);
+            params![project_id, HISTORY_RETENTION_DAYS],
+        )
+        .unwrap_or(0);
 
-    let local = tx.execute(
-        "DELETE FROM sync_outbox
+    let local = tx
+        .execute(
+            "DELETE FROM sync_outbox
          WHERE project_id = ?1
            AND status IN ('pending', 'local', 'acked')
            AND event_id IN (SELECT id FROM events WHERE project_id = ?1)
            AND julianday('now') - julianday(created_at) > 1.0",
-        params![project_id],
-    ).unwrap_or(0);
+            params![project_id],
+        )
+        .unwrap_or(0);
 
-    let capped = tx.execute(
-        "DELETE FROM sync_outbox
+    let capped = tx
+        .execute(
+            "DELETE FROM sync_outbox
          WHERE project_id = ?1
            AND event_id NOT IN (
                SELECT event_id FROM sync_outbox
@@ -4752,8 +4805,9 @@ fn delete_old_acked_outbox(tx: &Transaction<'_>, project_id: &str) -> Result<usi
                ORDER BY created_at DESC
                LIMIT 500
            )",
-        params![project_id],
-    ).unwrap_or(0);
+            params![project_id],
+        )
+        .unwrap_or(0);
 
     Ok(acked + local + capped)
 }
@@ -7009,7 +7063,11 @@ fn encode_polygon_geometry(feature: &TileFeature, bounds: [f64; 4]) -> Option<Ve
         }
         out.push(command_integer(7, 1));
     }
-    if out.is_empty() { None } else { Some(out) }
+    if out.is_empty() {
+        None
+    } else {
+        Some(out)
+    }
 }
 
 fn mvt_geom_kind(geom_type: &str) -> u64 {
@@ -7165,8 +7223,7 @@ fn lon_to_tile_x(lon: f64, z: i64) -> i64 {
 fn lat_to_tile_y(lat: f64, z: i64) -> i64 {
     let lat = lat.clamp(-85.05112878, 85.05112878).to_radians();
     let n = 2f64.powi(z as i32);
-    ((1.0 - (lat.tan() + 1.0 / lat.cos()).ln() / std::f64::consts::PI) / 2.0 * n).floor()
-        as i64
+    ((1.0 - (lat.tan() + 1.0 / lat.cos()).ln() / std::f64::consts::PI) / 2.0 * n).floor() as i64
 }
 
 fn tile_x_to_lon(x: i64, z: i64) -> f64 {
@@ -7174,8 +7231,7 @@ fn tile_x_to_lon(x: i64, z: i64) -> f64 {
 }
 
 fn tile_y_to_lat(y: i64, z: i64) -> f64 {
-    let n = std::f64::consts::PI
-        - 2.0 * std::f64::consts::PI * y as f64 / 2f64.powi(z as i32);
+    let n = std::f64::consts::PI - 2.0 * std::f64::consts::PI * y as f64 / 2f64.powi(z as i32);
     n.sinh().atan().to_degrees()
 }
 
@@ -7614,7 +7670,8 @@ mod tests {
             "test-device",
             None,
         );
-        let err = apply_event_to_read_models(&tx, &envelope).expect_err("missing target should fail");
+        let err =
+            apply_event_to_read_models(&tx, &envelope).expect_err("missing target should fail");
         assert!(err.contains("FeatureUpdated target not found in project"));
         tx.rollback().expect("rollback");
 
@@ -7629,7 +7686,10 @@ mod tests {
         let project_a_metadata: Value =
             serde_json::from_str(&project_a_row.1).expect("metadata json");
         assert_eq!(project_a_row.0, "Node A");
-        assert_eq!(project_a_metadata.get("description"), Some(&json!("original")));
+        assert_eq!(
+            project_a_metadata.get("description"),
+            Some(&json!("original"))
+        );
 
         let project_b_count: i64 = db
             .conn
@@ -7712,8 +7772,10 @@ mod tests {
         );
         persist_event(&tx, &updated).expect("persist updated event");
 
-        assert!(project_needs_missing_feature_repair(&tx, &project_id.to_string())
-            .expect("needs repair"));
+        assert!(
+            project_needs_missing_feature_repair(&tx, &project_id.to_string())
+                .expect("needs repair")
+        );
         let repaired = repair_missing_features_from_events(&tx, &project_id.to_string())
             .expect("repair missing feature");
         assert_eq!(repaired, 1);
@@ -7823,7 +7885,9 @@ mod tests {
     #[test]
     fn repair_missing_features_from_events_skips_compacted_created_payloads() {
         let dir = tempdir().expect("tempdir");
-        let pmp_path = dir.path().join("repair_missing_features_skip_compacted.pmp");
+        let pmp_path = dir
+            .path()
+            .join("repair_missing_features_skip_compacted.pmp");
         let mut db = PmpDatabase::open_or_create(pmp_path).expect("open db");
         let project_id = Uuid::new_v4();
         let feature_id = Uuid::new_v4();
@@ -8610,8 +8674,8 @@ mod tests {
         assert_eq!(persisted, 3);
 
         let feature_count: i64 = {
-            let reopened =
-                PmpDatabase::open_or_create(dir.path().join("event_roundtrip.pmp")).expect("reopen db");
+            let reopened = PmpDatabase::open_or_create(dir.path().join("event_roundtrip.pmp"))
+                .expect("reopen db");
             reopened
                 .conn
                 .query_row(
@@ -9705,24 +9769,33 @@ mod tests {
     async fn test_undo_redo_design_events() {
         let dir = tempdir().expect("tempdir");
         let pmp_path = dir.path().join("undo_redo_test.pmp");
-        let project_id_uuid = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+        let project_id_uuid =
+            uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
         let project_id = project_id_uuid.to_string();
 
         let db = PmpDatabase::open_or_create(pmp_path).expect("open db");
         let (_tx, rx) = mpsc::channel(32);
         let mut worker = StorageWorker { rx, db };
 
-        worker.db.conn.execute(
-            "INSERT INTO projects (id, name, title) VALUES (?1, ?2, ?3)",
-            params![project_id, "Undo Redo", "Undo Redo"],
-        ).unwrap();
+        worker
+            .db
+            .conn
+            .execute(
+                "INSERT INTO projects (id, name, title) VALUES (?1, ?2, ?3)",
+                params![project_id, "Undo Redo", "Undo Redo"],
+            )
+            .unwrap();
 
         let layer_id_uuid = uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000003").unwrap();
 
-        worker.db.conn.execute(
-            "INSERT INTO layers (id, project_id, name) VALUES (?1, ?2, ?3)",
-            params![layer_id_uuid.to_string(), project_id, "Layer 1"],
-        ).unwrap();
+        worker
+            .db
+            .conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name) VALUES (?1, ?2, ?3)",
+                params![layer_id_uuid.to_string(), project_id, "Layer 1"],
+            )
+            .unwrap();
 
         let envelope = crate::domain::models::v2::EventEnvelope::new(
             project_id_uuid,
@@ -9750,31 +9823,43 @@ mod tests {
         let persisted = worker.dispatch_events(vec![envelope]).unwrap();
         assert_eq!(persisted, 1);
 
-        let feature_count: i64 = worker.db.conn.query_row(
-            "SELECT COUNT(*) FROM features WHERE project_id = ?1",
-            params![project_id],
-            |r| r.get(0),
-        ).unwrap();
+        let feature_count: i64 = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM features WHERE project_id = ?1",
+                params![project_id],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(feature_count, 1);
 
         let undo_res = worker.undo_design_event(&project_id).unwrap();
         assert_eq!(undo_res.get("success").and_then(Value::as_bool), Some(true));
 
-        let feature_count_after_undo: i64 = worker.db.conn.query_row(
-            "SELECT COUNT(*) FROM features WHERE project_id = ?1",
-            params![project_id],
-            |r| r.get(0),
-        ).unwrap();
+        let feature_count_after_undo: i64 = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM features WHERE project_id = ?1",
+                params![project_id],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(feature_count_after_undo, 0);
 
         let redo_res = worker.redo_design_event(&project_id).unwrap();
         assert_eq!(redo_res.get("success").and_then(Value::as_bool), Some(true));
 
-        let feature_count_after_redo: i64 = worker.db.conn.query_row(
-            "SELECT COUNT(*) FROM features WHERE project_id = ?1",
-            params![project_id],
-            |r| r.get(0),
-        ).unwrap();
+        let feature_count_after_redo: i64 = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM features WHERE project_id = ?1",
+                params![project_id],
+                |r| r.get(0),
+            )
+            .unwrap();
         assert_eq!(feature_count_after_redo, 1);
     }
 }

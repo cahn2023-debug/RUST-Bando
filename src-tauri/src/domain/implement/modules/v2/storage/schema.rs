@@ -1020,7 +1020,8 @@ fn ensure_map_tile_cache_schema(conn: &Connection) -> Result<(), rusqlite::Error
         ("max_x", "REAL NOT NULL DEFAULT 180.0"),
         ("max_y", "REAL NOT NULL DEFAULT 85.05112878"),
     ] {
-        if table_exists(conn, "map_tile_cache")? && !column_exists(conn, "map_tile_cache", column)? {
+        if table_exists(conn, "map_tile_cache")? && !column_exists(conn, "map_tile_cache", column)?
+        {
             conn.execute(
                 &format!("ALTER TABLE map_tile_cache ADD COLUMN {column} {ty}"),
                 [],

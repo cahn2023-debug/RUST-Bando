@@ -1901,7 +1901,10 @@ mod tests {
             metadata_value.pointer("/gis/color").and_then(Value::as_str),
             Some("#22d3ee")
         );
-        assert_eq!(metadata_value.get("heavy").and_then(Value::as_str), Some("ignored"));
+        assert_eq!(
+            metadata_value.get("heavy").and_then(Value::as_str),
+            Some("ignored")
+        );
         assert!(out.get("coordinates").and_then(Value::as_array).is_some());
         assert!(out.get("bbox").and_then(Value::as_object).is_some());
     }

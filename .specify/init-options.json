@@ -1,11 +1,12 @@
 {
-  "ai": "agy",
+  "ai": "codex",
   "ai_commands_dir": null,
   "ai_skills": true,
   "branch_numbering": "sequential",
   "here": true,
+  "integration": "codex",
   "offline": false,
   "preset": null,
   "script": "ps",
-  "speckit_version": "0.4.2"
+  "speckit_version": "0.15.1"
 }

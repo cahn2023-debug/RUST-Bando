@@ -139,6 +139,40 @@ describe('mapLibreFastAdapter', () => {
         expect(collection.features.map(feature => feature.properties.id)).toEqual(['visible']);
     });
 
+    it('limits report capture rendering to focused route and intersection ids', () => {
+        const route: FeatureState = {
+            id: 'route-1',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Route 1',
+            geom_type: 'LineString',
+            coordinates: [[105.8, 21.02], [105.81, 21.03]],
+            properties: {},
+            metadata: JSON.stringify({ infrastructure: { type: 'SignalLine' } }),
+        };
+        const intersection = pointFeature('intersection-1', [105.805, 21.025], {
+            metadata: JSON.stringify({ icon: 'intersection' }),
+        });
+        const unrelatedRoute: FeatureState = {
+            ...route,
+            id: 'route-2',
+            name: 'Route 2',
+            coordinates: [[105.9, 21.1], [105.91, 21.11]],
+        };
+        const routeChild = pointFeature('camera-child', [105.805, 21.025], {
+            metadata: JSON.stringify({ icon: 'cctv', parent_feature_id: 'intersection-1' }),
+        });
+
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [route, intersection, unrelatedRoute, routeChild],
+            focusIds: new Set(['route-1', 'intersection-1']),
+            hiddenIds: new Set(['route-2']),
+            zoom: 20,
+        });
+
+        expect(collection.features.map(feature => feature.properties.id)).toEqual(['route-1', 'intersection-1']);
+    });
+
     it('hides intersection children below zoom 17 while keeping the parent intersection', () => {
         const parent = pointFeature('intersection-parent', [105.8, 21.02], {
             group_id: 'junction-group',

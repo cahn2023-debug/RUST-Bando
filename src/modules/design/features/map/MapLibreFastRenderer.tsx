@@ -135,8 +135,16 @@ type MapLibreImageData = {
 };
 
 const MAX_IMAGE_CACHE_SIZE = 256;
+const MAX_ICON_LOADS_PER_RENDER = 96;
 const imageCache = new Map<string, Promise<MapLibreImageData>>();
 const imageLoadInFlight = new Set<string>();
+const REPORT_CAPTURE_EVENT = 'design-report-map-capture';
+
+type ReportCaptureScope = {
+    active: boolean;
+    focusFeatureIds?: string[];
+    hiddenFeatureIds?: string[];
+};
 
 export const clearMapImageCache = () => {
     imageCache.clear();
@@ -260,53 +268,52 @@ const parseIconImageId = (imageId: string): Record<string, any> | null => {
 const preparePointImages = (
     map: maplibregl.Map,
     collection: MapLibreRenderFeatureCollection,
-    onImageReady: (preloadMs: number) => void
+    onImageReady: (imageId: string, image: MapLibreImageData, preloadMs: number) => void
 ): MapLibreRenderFeatureCollection => {
-    let nextCollection: MapLibreRenderFeatureCollection | null = null;
-    const ensureMutableCollection = () => {
-        if (!nextCollection) {
-            nextCollection = {
-                ...collection,
-                features: collection.features.map(feature => ({
-                    ...feature,
-                    properties: { ...feature.properties },
-                })),
+    const missingIconMap = new Map<string, Record<string, any>>();
+    for (let index = 0; index < collection.features.length; index += 1) {
+        const properties = collection.features[index].properties as Record<string, any>;
+        const imageId = properties?.iconImageId;
+        if (imageId && !map.hasImage(imageId)) {
+            if (!missingIconMap.has(imageId)) {
+                missingIconMap.set(imageId, properties);
+            }
+        }
+    }
+
+    if (missingIconMap.size === 0) return collection;
+
+    const nextFeatures = collection.features.map(feature => {
+        const imageId = (feature.properties as Record<string, any>)?.iconImageId;
+        if (imageId && missingIconMap.has(imageId)) {
+            return {
+                ...feature,
+                properties: {
+                    ...feature.properties,
+                    iconImageId: '',
+                },
             };
         }
-        return nextCollection;
+        return feature;
+    });
+
+    const nextCollection: MapLibreRenderFeatureCollection = {
+        ...collection,
+        features: nextFeatures,
     };
 
-    for (const feature of collection.features) {
-        const properties = feature.properties as Record<string, any>;
-        const imageId = properties.iconImageId;
-        if (!imageId || map.hasImage(imageId)) continue;
-        const mutable = ensureMutableCollection();
-        const targetFeature = mutable.features.find(item => item.properties.id === properties.id);
-        if (targetFeature) {
-            targetFeature.properties = {
-                ...targetFeature.properties,
-                iconImageId: '',
-            };
-        }
+    let scheduledLoads = 0;
+    for (const [imageId, properties] of missingIconMap) {
         if (imageLoadInFlight.has(imageId)) continue;
+        if (scheduledLoads >= MAX_ICON_LOADS_PER_RENDER) break;
+        scheduledLoads += 1;
         imageLoadInFlight.add(imageId);
         const svg = iconSvgForFeature(properties);
         const preloadStart = now();
         void loadSvgImage(imageId, svg)
             .then(image => {
                 imageLoadInFlight.delete(imageId);
-                let didAddImage = false;
-                try {
-                    if (!(map as any).style) return;
-                    if (!map.hasImage(imageId)) {
-                        map.addImage(imageId, image);
-                        map.triggerRepaint();
-                        didAddImage = true;
-                    }
-                } catch {
-                    // Map may have been disposed before the async icon load completed.
-                }
-                if (didAddImage) onImageReady(now() - preloadStart);
+                onImageReady(imageId, image, now() - preloadStart);
             })
             .catch(error => {
                 imageLoadInFlight.delete(imageId);
@@ -314,7 +321,7 @@ const preparePointImages = (
             });
     }
 
-    return nextCollection || collection;
+    return nextCollection;
 };
 
 const setGeoJsonData = (
@@ -427,10 +434,9 @@ const setKey = (ids: Set<string> | undefined | null) => {
     return Array.from(ids).sort().join('|');
 };
 
-const featureListKey = (features: FeatureState[], mapRevision: number) => {
-    if (features.length === 0) return `${mapRevision}:0`;
-    return `${mapRevision}:${features.length}:${features.map(feature => feature.id).join('|')}`;
-};
+const featureListKey = (features: FeatureState[], mapRevision: number, viewportRevision: number) => (
+    `${mapRevision}:${viewportRevision}:${features.length}`
+);
 
 const featureGroupsKey = (featureGroups: Record<string, any>) => Object.keys(featureGroups || {})
     .sort()
@@ -445,20 +451,19 @@ const featureNumberKey = (featureNumberMap: Record<string, string | number>) => 
     .map(id => `${id}:${featureNumberMap[id]}`)
     .join('|');
 
-const renderZoomForLodBucket = (zoom: number, featureCount: number) => {
-    const policy = getMapLibreLodPolicy({ zoom, featureCount });
-    if (policy.level === 'summary') return 14;
-    if (policy.level === 'detail') return policy.showLabels ? 18 : 16;
+const quantizeZoomBucket = (zoom: number) => {
+    if (zoom < 15) return 14;
+    if (zoom < 17) return 16;
+    if (zoom < 19) return 18;
     return 20;
 };
 
-const missingPointIconKey = (map: maplibregl.Map, collection: MapLibreRenderFeatureCollection) => {
-    const missing: string[] = [];
-    for (const feature of collection.features) {
-        const imageId = feature.properties.iconImageId;
-        if (imageId && !map.hasImage(imageId)) missing.push(imageId);
-    }
-    return missing.join('|');
+const renderZoomForLodBucket = (zoom: number, featureCount: number) => {
+    const quantized = quantizeZoomBucket(zoom);
+    const policy = getMapLibreLodPolicy({ zoom: quantized, featureCount });
+    if (policy.level === 'summary') return 14;
+    if (policy.level === 'detail') return policy.showLabels ? 18 : 16;
+    return 20;
 };
 
 const addMapLayer = (map: maplibregl.Map, layer: maplibregl.AddLayerObject, beforeId?: string) => {
@@ -872,6 +877,8 @@ export function MapLibreFastRenderer({
     const lastSetDataKeyRef = React.useRef<string | null>(null);
     const snapRafRef = React.useRef(0);
     const pendingSnapEventRef = React.useRef<any>(null);
+    const iconReadyRafRef = React.useRef(0);
+    const pendingIconPreloadMsRef = React.useRef<number | null>(null);
     const basemapRetryTimersRef = React.useRef<ReturnType<typeof setTimeout>[]>([]);
     const basemapRetryAttemptRef = React.useRef(0);
     const fittedBootstrapBoundsKeyRef = React.useRef<string | null>(null);
@@ -913,19 +920,32 @@ export function MapLibreFastRenderer({
     const [currentZoom, setCurrentZoom] = React.useState(zoom);
     const [viewportTick, setViewportTick] = React.useState(0);
     const [iconReadyRevision, setIconReadyRevision] = React.useState(0);
+    const [reportCaptureScope, setReportCaptureScope] = React.useState<ReportCaptureScope | null>(null);
     const [basemapLoadState, setBasemapLoadState] = React.useState<BasemapLoadState>(() => navigator.onLine === false ? 'offline' : 'initializing');
     const firstViewportQueryReportedRef = React.useRef(false);
     const firstSetDataReportedRef = React.useRef(false);
     const firstPaintReportedRef = React.useRef(false);
+    const pendingLoadedIconsRef = React.useRef<Map<string, { image: MapLibreImageData; preloadMs: number }>>(new Map());
     const preparedPointImagesRef = React.useRef<{
         collection: MapLibreRenderFeatureCollection;
         missingIconKey: string;
         displayCollection: MapLibreRenderFeatureCollection;
     } | null>(null);
     const renderFeatureValues = React.useMemo(
-        () => Object.values(isLargeProject ? features : rawFeatures),
-        [features, isLargeProject, rawFeatures]
+        () => Object.values(reportCaptureScope?.active ? rawFeatures : isLargeProject ? features : rawFeatures),
+        [features, isLargeProject, rawFeatures, reportCaptureScope]
     );
+    const reportCaptureFocusIds = React.useMemo(
+        () => new Set(reportCaptureScope?.active ? reportCaptureScope.focusFeatureIds || [] : []),
+        [reportCaptureScope]
+    );
+    const effectiveHiddenIds = React.useMemo(() => {
+        const hidden = new Set(mapHiddenIds || []);
+        if (reportCaptureScope?.active) {
+            (reportCaptureScope.hiddenFeatureIds || []).forEach((id) => hidden.add(id));
+        }
+        return hidden;
+    }, [mapHiddenIds, reportCaptureScope]);
     const renderFeatureRecord = React.useMemo(() => {
         const record: Record<string, FeatureState> = {};
         for (const feature of renderFeatureValues as FeatureState[]) {
@@ -938,13 +958,15 @@ export function MapLibreFastRenderer({
         () => renderZoomForLodBucket(currentZoom, renderFeatureValues.length),
         [currentZoom, renderFeatureValues.length]
     );
+    const quantizedZoom = quantizeZoomBucket(currentZoom);
     const renderVisibilityPolicyKey = [
-        currentZoom < MAP_POINT_CLUSTER_HIDE_AT_ZOOM ? 'cluster' : 'plain',
-        currentZoom < MAP_INTERSECTION_CHILD_MIN_ZOOM ? 'hide-children' : 'show-children',
+        quantizedZoom < MAP_POINT_CLUSTER_HIDE_AT_ZOOM ? 'cluster' : 'plain',
+        quantizedZoom < MAP_INTERSECTION_CHILD_MIN_ZOOM ? 'hide-children' : 'show-children',
     ].join(':');
     const renderCacheKey = React.useMemo(() => [
-        featureListKey(renderFeatureValues as FeatureState[], mapRevision),
-        setKey(mapHiddenIds),
+        featureListKey(renderFeatureValues as FeatureState[], mapRevision, isLargeProject ? viewportRevision : 0),
+        setKey(effectiveHiddenIds),
+        setKey(reportCaptureFocusIds),
         renderZoom,
         renderVisibilityPolicyKey,
         featureGroupsKey(featureGroups),
@@ -954,19 +976,23 @@ export function MapLibreFastRenderer({
         featureGroups,
         featureNumberMap,
         groupThemePreview,
-        mapHiddenIds,
+        isLargeProject,
+        effectiveHiddenIds,
+        reportCaptureFocusIds,
         mapRevision,
         renderFeatureValues,
         renderVisibilityPolicyKey,
         renderZoom,
+        viewportRevision,
     ]);
     const renderCollectionResult = React.useMemo(() => {
         const sourceStart = now();
         const result = buildMapLibreFeatureCollection({
             features: renderFeatureValues as FeatureState[],
             selectedFeatureId: null,
-            hiddenIds: mapHiddenIds,
-            zoom: currentZoom,
+            focusIds: reportCaptureFocusIds,
+            hiddenIds: effectiveHiddenIds,
+            zoom: renderZoom,
             featureGroups,
             featureNumberMap,
             groupThemePreview,
@@ -979,10 +1005,11 @@ export function MapLibreFastRenderer({
         featureGroups,
         featureNumberMap,
         groupThemePreview,
-        mapHiddenIds,
+        effectiveHiddenIds,
+        reportCaptureFocusIds,
         renderCacheKey,
         renderFeatureValues,
-        currentZoom,
+        renderZoom,
     ]);
     const editingFeature = React.useMemo(
         () => getRenderableFeatureById(editingFeatureId, { state: mapState, visibleFeatures: features, featureDetailsCache }),
@@ -1062,6 +1089,25 @@ export function MapLibreFastRenderer({
         setHoverId,
         isMeasureActive,
     ]);
+
+    React.useEffect(() => {
+        const handleReportCapture = (event: Event) => {
+            const detail = (event as CustomEvent<ReportCaptureScope>).detail;
+            if (!detail?.active) {
+                setReportCaptureScope(null);
+                return;
+            }
+            setReportCaptureScope({
+                active: true,
+                focusFeatureIds: Array.isArray(detail.focusFeatureIds) ? detail.focusFeatureIds : [],
+                hiddenFeatureIds: Array.isArray(detail.hiddenFeatureIds) ? detail.hiddenFeatureIds : [],
+            });
+        };
+        window.addEventListener(REPORT_CAPTURE_EVENT, handleReportCapture);
+        return () => {
+            window.removeEventListener(REPORT_CAPTURE_EVENT, handleReportCapture);
+        };
+    }, []);
 
     React.useEffect(() => {
         if (!containerRef.current || mapRef.current) return;
@@ -1308,7 +1354,13 @@ export function MapLibreFastRenderer({
                 cancelAnimationFrame(snapRafRef.current);
                 snapRafRef.current = 0;
             }
+            if (iconReadyRafRef.current) {
+                cancelAnimationFrame(iconReadyRafRef.current);
+                iconReadyRafRef.current = 0;
+            }
+            pendingLoadedIconsRef.current.clear();
             pendingSnapEventRef.current = null;
+            pendingIconPreloadMsRef.current = null;
             try {
                 setMap(null);
             } catch {
@@ -1493,15 +1545,41 @@ export function MapLibreFastRenderer({
                     ensureOverlayLayers(map);
                     layerSetupKeyRef.current = layerSetupKey;
                 }
-                const iconKey = missingPointIconKey(map, collection);
+                const iconKey = String(iconReadyRevision);
                 let displayCollection = preparedPointImagesRef.current?.collection === collection
                     && preparedPointImagesRef.current.missingIconKey === iconKey
                     ? preparedPointImagesRef.current.displayCollection
                     : null;
                 if (!displayCollection) {
-                    displayCollection = preparePointImages(map, collection, (iconPreloadMs) => {
-                        updateOpenMetrics({ iconPreloadMs });
-                        setIconReadyRevision(revision => revision + 1);
+                    displayCollection = preparePointImages(map, collection, (imageId, image, iconPreloadMs) => {
+                        pendingLoadedIconsRef.current.set(imageId, { image, preloadMs: iconPreloadMs });
+                        if (iconReadyRafRef.current) return;
+                        iconReadyRafRef.current = requestAnimationFrame(() => {
+                            iconReadyRafRef.current = 0;
+                            const currentMap = mapRef.current;
+                            const batch = Array.from(pendingLoadedIconsRef.current.entries());
+                            pendingLoadedIconsRef.current.clear();
+                            if (!currentMap || batch.length === 0) return;
+
+                            let didAdd = false;
+                            let maxPreloadMs = 0;
+                            for (const [id, item] of batch) {
+                                try {
+                                    if ((currentMap as any).style && !currentMap.hasImage(id)) {
+                                        currentMap.addImage(id, item.image);
+                                        didAdd = true;
+                                        maxPreloadMs = Math.max(maxPreloadMs, item.preloadMs);
+                                    }
+                                } catch {
+                                    // Map disposed before load completion
+                                }
+                            }
+                            if (didAdd) {
+                                currentMap.triggerRepaint();
+                                if (maxPreloadMs > 0) updateOpenMetrics({ iconPreloadMs: maxPreloadMs });
+                                setIconReadyRevision(revision => revision + 1);
+                            }
+                        });
                     });
                     preparedPointImagesRef.current = {
                         collection,
@@ -1510,7 +1588,7 @@ export function MapLibreFastRenderer({
                     };
                 }
                 const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
-                const dataKey = `${renderCacheKey}::icons:${iconKey}`;
+                const dataKey = `${renderCacheKey}::icons:${iconReadyRevision}`;
                 const setDataStart = now();
                 let didSetData = false;
                 if (source && lastSetDataKeyRef.current !== dataKey) {

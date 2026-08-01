@@ -846,4 +846,62 @@ describe('MapLibreFastRenderer', () => {
             expect(lastMap?.sources.get('design-fast-features')).toBeTruthy();
         });
     });
+
+    it('deduplicates missing icon preloads across multiple features sharing the same icon style', async () => {
+        const manyCameras = Object.fromEntries(
+            Array.from({ length: 50 }, (_, i) => [`cam-${i}`, pointFeature(`cam-${i}`, { icon: 'cctv', size: 24, color: '#6366f1' })])
+        );
+        useDesignSync.setState({
+            state: {
+                features: manyCameras,
+                feature_groups: { 'group-1': { type: 'CAMERA', name: 'Camera' } },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            const lastMap = mockMapState.getLastMap();
+            const data = lastMap?.sources.get('design-fast-features')?.data;
+            expect(data.features.length).toBe(50);
+            // Verify all features receive iconImageId after batch RAF update
+            const sampleIconId = data.features[0].properties.iconImageId;
+            expect(sampleIconId).toContain('design-point-cctv');
+            expect(lastMap?.images.has(sampleIconId)).toBe(true);
+        });
+    });
+
+    it('reuses GeoJSON collection within the same quantized zoom bucket across continuous zoom micro-changes', async () => {
+        useDesignSync.setState({
+            state: {
+                features: {
+                    'point-1': pointFeature('point-1', { color: '#ef4444', size: 14 }),
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        const { rerender } = render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={15.1} />);
+
+        let setDataMock: any;
+        await waitFor(() => {
+            const lastMap = mockMapState.getLastMap();
+            setDataMock = lastMap?.sources.get('design-fast-features')?.setData;
+            expect(setDataMock).toHaveBeenCalled();
+        });
+
+        const callsBefore = setDataMock.mock.calls.length;
+
+        // Micro-zoom change within the same bucket [15.0..16.99]
+        rerender(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={16.4} />);
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        // GeoJSON setData should NOT be re-invoked because zoom stayed inside bucket 16
+        expect(setDataMock.mock.calls.length).toBe(callsBefore);
+    });
 });

@@ -13,7 +13,10 @@ export interface ReportPhoto {
   label: string;
   dataUrl: string;
   assetId?: string;
+  warning?: string;
 }
+
+export type ReportCaptureMode = "intersection" | "route" | "feature";
 
 export interface ReportFeatureDetail {
   feature: FeatureState;
@@ -27,6 +30,7 @@ export interface ReportFeatureDetail {
   startPoint?: [number, number];
   endPoint?: [number, number];
   connectedNames: string[];
+  photoWarnings: string[];
 }
 
 export interface ReportSection {
@@ -39,7 +43,11 @@ export interface ReportSection {
   summary: string[];
   details: ReportFeatureDetail[];
   photos: ReportPhoto[];
+  photoWarnings: string[];
   bounds: ReportBounds | null;
+  captureMode: ReportCaptureMode;
+  focusFeatureIds: string[];
+  hiddenFeatureIds: string[];
 }
 
 export interface ReportModel {
@@ -206,10 +214,112 @@ const getRepresentativePoint = (feature: FeatureState): [number, number] | null 
   return [lng, lat];
 };
 
+const unique = (values: string[]): string[] => Array.from(new Set(values.filter(Boolean)));
+
+const isFeatureLine = (feature: FeatureState, metadata = getParsedMetadata(feature)): boolean => {
+  const groupKind = "";
+  const info = getFeatureDisplayInfo(feature, groupKind, undefined, metadata);
+  if (info.isLine) return true;
+  const geomType = String(feature.geom_type || "").toLowerCase();
+  return geomType.includes("line") || geomType.includes("polyline") || geomType.includes("route");
+};
+
+const isFeatureIntersection = (
+  feature: FeatureState,
+  state: MapState,
+  metadata = getParsedMetadata(feature),
+): boolean => {
+  const group = feature.group_id ? state.feature_groups?.[feature.group_id] : null;
+  return getFeatureDisplayInfo(feature, getGroupKind(group), group?.name, metadata).isIntersection;
+};
+
+const pointToSegmentDistance = (
+  point: [number, number],
+  start: [number, number],
+  end: [number, number],
+): number => {
+  const [px, py] = point;
+  const [x1, y1] = start;
+  const [x2, y2] = end;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  if (dx === 0 && dy === 0) return Math.hypot(px - x1, py - y1);
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+};
+
+const pointTouchesRoute = (point: [number, number], routePoints: Array<[number, number]>): boolean => {
+  if (routePoints.length < 2) return false;
+  const lngValues = routePoints.map(([lng]) => lng);
+  const latValues = routePoints.map(([, lat]) => lat);
+  const extent = Math.max(
+    Math.max(...lngValues) - Math.min(...lngValues),
+    Math.max(...latValues) - Math.min(...latValues),
+  );
+  const tolerance = Math.max(0.0003, extent * 0.02);
+  for (let index = 0; index < routePoints.length - 1; index += 1) {
+    if (pointToSegmentDistance(point, routePoints[index], routePoints[index + 1]) <= tolerance) return true;
+  }
+  return false;
+};
+
+const getRouteIntersectionFeatures = (route: FeatureState, state: MapState): FeatureState[] => {
+  const routePoints = getFeaturePoints(route);
+  if (routePoints.length < 2) return [];
+  return Object.values(state.features || {})
+    .filter((candidate) => candidate.id !== route.id)
+    .filter((candidate) => isFeatureIntersection(candidate, state))
+    .filter((candidate) => getFeaturePoints(candidate).some((point) => pointTouchesRoute(point, routePoints)))
+    .sort(compareFeatures);
+};
+
+const makePhotoWarnings = (feature: FeatureState, photos: ReportPhoto[]): string[] => (
+  photos.length === 0 ? [`${feature.name || feature.id}: Chưa có ảnh site photo.`] : []
+);
+
 export const getFeaturePoints = (feature: FeatureState): Array<[number, number]> => {
   const points: Array<[number, number]> = [];
   collectPointsFromCoordinates(parseCoordinates(feature), points);
   return points;
+};
+
+export const sanitizeReportBounds = (bounds: ReportBounds | null | undefined): ReportBounds | null => {
+  if (!bounds || !Array.isArray(bounds) || bounds.length !== 4) return null;
+  const [minLat, minLng, maxLat, maxLng] = bounds.map(Number);
+  if (![minLat, minLng, maxLat, maxLng].every((val) => Number.isFinite(val))) return null;
+
+  let s = Math.min(minLat, maxLat);
+  let n = Math.max(minLat, maxLat);
+  let w = Math.min(minLng, maxLng);
+  let e = Math.max(minLng, maxLng);
+
+  if (Math.abs(n - s) < 0.0002) {
+    const mid = (s + n) / 2;
+    s = mid - 0.0005;
+    n = mid + 0.0005;
+  }
+
+  if (Math.abs(e - w) < 0.0002) {
+    const mid = (w + e) / 2;
+    w = mid - 0.0005;
+    e = mid + 0.0005;
+  }
+
+  return [s, w, n, e];
+};
+
+export const getOverallReportBounds = (model: ReportModel): ReportBounds | null => {
+  const allBounds = model.sections
+    .map((s) => sanitizeReportBounds(s.bounds))
+    .filter((b): b is ReportBounds => b !== null);
+  if (allBounds.length === 0) return null;
+
+  const minLat = Math.min(...allBounds.map((b) => b[0]));
+  const minLng = Math.min(...allBounds.map((b) => b[1]));
+  const maxLat = Math.max(...allBounds.map((b) => b[2]));
+  const maxLng = Math.max(...allBounds.map((b) => b[3]));
+
+  return sanitizeReportBounds([minLat, minLng, maxLat, maxLng]);
 };
 
 export const getFeatureClusterBounds = (feature: FeatureState, related: FeatureState[] = []): ReportBounds | null => {
@@ -233,7 +343,7 @@ export const getFeatureClusterBounds = (feature: FeatureState, related: FeatureS
   minLat -= padLat;
   maxLat += padLat;
 
-  return [minLat, minLng, maxLat, maxLng];
+  return sanitizeReportBounds([minLat, minLng, maxLat, maxLng]);
 };
 
 export const getFeatureBounds = (feature: FeatureState, related: FeatureState[] = []): ReportBounds | null => {
@@ -261,7 +371,7 @@ export const getFeatureBounds = (feature: FeatureState, related: FeatureState[] 
   minLat -= padLat;
   maxLat += padLat;
 
-  return [minLat, minLng, maxLat, maxLng];
+  return sanitizeReportBounds([minLat, minLng, maxLat, maxLng]);
 };
 
 const getFeatureDescription = (feature: FeatureState, metadata: Record<string, unknown>): string => {
@@ -277,7 +387,10 @@ const getFeaturePhotos = (feature: FeatureState, metadata: Record<string, unknow
   ];
   const singleUrl = safeString(media.imageUrl || metadata.imageUrl);
   if (singleUrl) urls.unshift(singleUrl);
-  const assetIds = asStringArray(media.imageAssetIds);
+  const assetIds = [
+    ...asStringArray(media.imageAssetIds),
+    ...asStringArray(metadata.imageAssetIds),
+  ];
 
   const legacyPhotos = Array.from(new Set(urls))
     .filter((url) => url.startsWith("data:image") || /^https?:\/\//i.test(url))
@@ -287,7 +400,7 @@ const getFeaturePhotos = (feature: FeatureState, metadata: Record<string, unknow
       dataUrl,
     }));
 
-  const assetPhotos = assetIds.map((assetId, index) => ({
+  const assetPhotos = Array.from(new Set(assetIds)).map((assetId, index) => ({
     id: `${feature.id}-asset-photo-${index + 1}`,
     label: `Ảnh ${legacyPhotos.length + index + 1}`,
     dataUrl: "",
@@ -312,6 +425,7 @@ const makeFeatureDetail = (
   const points = getFeaturePoints(feature);
   const startPoint = points[0];
   const endPoint = points.length > 1 ? points[points.length - 1] : undefined;
+  const photos = getFeaturePhotos(feature, metadata);
 
   return {
     feature,
@@ -320,11 +434,12 @@ const makeFeatureDetail = (
     description: getFeatureDescription(feature, metadata),
     metadata,
     properties: toPlainRecord(feature.properties),
-    photos: getFeaturePhotos(feature, metadata),
+    photos,
     bounds: getFeatureBounds(feature, childrenMap.get(feature.id) || []),
     startPoint,
     endPoint,
     connectedNames: getConnectedNames(feature, state),
+    photoWarnings: makePhotoWarnings(feature, photos),
   };
 };
 
@@ -397,6 +512,18 @@ export const buildReportModel = (state: MapState, selections: ReportSelection[],
     const details = info.isIntersection
       ? children.map((child, index) => makeFeatureDetail(child, state, childrenMap, `Đối tượng ${sectionIndex + 1}_${index + 1}`))
       : [makeFeatureDetail(feature, state, childrenMap, feature.name || `Đối tượng ${sectionIndex + 1}`)];
+    const routeIntersections = info.isLine ? getRouteIntersectionFeatures(feature, state) : [];
+    const captureMode: ReportCaptureMode = info.isIntersection ? "intersection" : info.isLine ? "route" : "feature";
+    const focusFeatureIds = captureMode === "route"
+      ? unique([feature.id, ...routeIntersections.map((item) => item.id)])
+      : unique([feature.id, ...children.map((child) => child.id)]);
+    const hiddenFeatureIds = captureMode === "route"
+      ? Object.values(state.features || {})
+        .filter((candidate) => candidate.id !== feature.id && isFeatureLine(candidate))
+        .map((candidate) => candidate.id)
+      : [];
+    const captureRelated = captureMode === "route" ? routeIntersections : children;
+    const photoWarnings = details.flatMap((detail) => detail.photoWarnings);
 
     return {
       id: feature.id,
@@ -408,7 +535,11 @@ export const buildReportModel = (state: MapState, selections: ReportSelection[],
       summary: makeSectionSummary(feature, state, children, metadata, childrenMap),
       details,
       photos: getFeaturePhotos(feature, metadata),
-      bounds: info.isIntersection ? getFeatureClusterBounds(feature, children) : getFeatureBounds(feature, children),
+      photoWarnings,
+      bounds: info.isIntersection ? getFeatureClusterBounds(feature, children) : getFeatureBounds(feature, captureRelated),
+      captureMode,
+      focusFeatureIds,
+      hiddenFeatureIds,
     } satisfies ReportSection;
   });
 

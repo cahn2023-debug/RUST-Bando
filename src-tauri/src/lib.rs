@@ -70,6 +70,7 @@ pub fn run() {
             crate::domain::implement::commands::v2::analyze_import_file,
             crate::domain::implement::commands::v2::analyze_pmp_import,
             crate::domain::implement::commands::v2::save_binary_file,
+            crate::domain::implement::commands::v2::save_binary_file_raw,
             crate::domain::implement::commands::v2::read_binary_file,
             crate::domain::implement::commands::v2::copy_text_to_system_clipboard,
             crate::domain::implement::commands::v2::fetch_url_as_data_url,

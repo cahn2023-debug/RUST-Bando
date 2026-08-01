@@ -19,14 +19,32 @@ export const validateMapCaptureCanvas = (canvas: HTMLCanvasElement): CaptureVali
     return { valid: false, reason: "Ảnh bản đồ quá nhỏ hoặc chưa sẵn sàng." };
   }
 
-  const context = canvas.getContext("2d", { willReadFrequently: true });
+  let context = canvas.getContext("2d", { willReadFrequently: true });
+  let targetCanvas = canvas;
+
+  if (!context && typeof document !== "undefined") {
+    try {
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext("2d", { willReadFrequently: true });
+      if (tempCtx) {
+        tempCtx.drawImage(canvas, 0, 0);
+        context = tempCtx;
+        targetCanvas = tempCanvas;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   if (!context) {
     return { valid: false, reason: "Không đọc được dữ liệu ảnh bản đồ." };
   }
 
   let imageData: ImageData;
   try {
-    imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    imageData = context.getImageData(0, 0, targetCanvas.width, targetCanvas.height);
   } catch {
     return { valid: false, reason: "Không đọc được dữ liệu ảnh bản đồ." };
   }

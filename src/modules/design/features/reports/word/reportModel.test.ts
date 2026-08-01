@@ -6,6 +6,7 @@ import {
   getDefaultReportSelections,
   getFeatureBounds,
   getSelectableReportItems,
+  sanitizeReportBounds,
 } from "./reportModel";
 
 const state: MapState = {
@@ -58,6 +59,19 @@ const state: MapState = {
       properties: {},
       coordinates: [[106.1, 10.1], [106.2, 10.2]],
     },
+    otherFiber: {
+      id: "otherFiber",
+      layer_id: "l1",
+      group_id: "g1",
+      name: "Cáp quang khác",
+      geom_type: "LineString",
+      metadata: JSON.stringify({
+        display_order: "3",
+        infrastructure: { type: "SignalLine", cable_type: "FO" },
+      }),
+      properties: {},
+      coordinates: [[106.3, 10.3], [106.4, 10.4]],
+    },
   },
   settings: {},
 };
@@ -76,7 +90,7 @@ describe("reportModel", () => {
   it("expands region and feature children", () => {
     const features = expandReportSelections(state, [{ type: "region", id: "r1" }]);
 
-    expect(features.map((feature) => feature.id)).toEqual(["intersection", "camera", "fiber"]);
+    expect(features.map((feature) => feature.id)).toEqual(["intersection", "camera", "fiber", "otherFiber"]);
   });
 
   it("builds intersection detail sections with child numbering and photos", () => {
@@ -86,6 +100,35 @@ describe("reportModel", () => {
     expect(model.sections[0].summary).toContain("Số vị trí thuộc nút giao: 1");
     expect(model.sections[0].details[0].label).toBe("Đối tượng 1_1");
     expect(model.sections[0].details[0].photos[0].dataUrl).toBe("data:image/png;base64,AAAA");
+    expect(model.sections[0].captureMode).toBe("intersection");
+    expect(model.sections[0].focusFeatureIds).toEqual(["intersection", "camera"]);
+  });
+
+  it("builds report sections from a selected group", () => {
+    const model = buildReportModel(state, [{ type: "group", id: "g1" }], "Test");
+
+    expect(model.sections.map((section) => section.feature.id)).toEqual(["intersection", "fiber", "otherFiber"]);
+    expect(model.sections[0].details.map((detail) => detail.feature.id)).toEqual(["camera"]);
+  });
+
+  it("builds route capture scope with route intersections and hides unrelated routes", () => {
+    const model = buildReportModel(state, [{ type: "feature", id: "fiber" }], "Route Report");
+    const section = model.sections[0];
+
+    expect(section.captureMode).toBe("route");
+    expect(section.focusFeatureIds).toEqual(["fiber", "intersection"]);
+    expect(section.hiddenFeatureIds).toContain("otherFiber");
+    expect(section.hiddenFeatureIds).not.toContain("fiber");
+    expect(section.bounds?.[0]).toBeLessThan(10.1);
+    expect(section.bounds?.[2]).toBeGreaterThan(10.2);
+  });
+
+  it("reports missing site photos without dropping resolved photos", () => {
+    const model = buildReportModel(state, [{ type: "feature", id: "fiber" }], "Photo Report");
+
+    expect(model.sections[0].details[0].photos).toEqual([]);
+    expect(model.sections[0].details[0].photoWarnings[0]).toContain("site photo");
+    expect(model.sections[0].photoWarnings[0]).toContain("site photo");
   });
 
   it("nests intersection children under their parent in selectable items", () => {
@@ -112,5 +155,14 @@ describe("reportModel", () => {
       expect.any(Number),
       expect.any(Number),
     ]));
+  });
+
+  it("sanitizes invalid or zero-span bounds correctly", () => {
+    expect(sanitizeReportBounds(null)).toBeNull();
+    expect(sanitizeReportBounds([NaN, 106, 10, 107] as any)).toBeNull();
+    const sanitized = sanitizeReportBounds([10.1, 106.1, 10.1, 106.1]);
+    expect(sanitized).not.toBeNull();
+    expect(sanitized![2]).toBeGreaterThan(sanitized![0]);
+    expect(sanitized![3]).toBeGreaterThan(sanitized![1]);
   });
 });

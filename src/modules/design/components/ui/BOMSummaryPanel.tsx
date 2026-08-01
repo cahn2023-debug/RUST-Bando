@@ -67,7 +67,7 @@ export const BOMSummaryPanel: React.FC<BOMSummaryProps> = ({ className }) => {
 
       const buffer = new TextEncoder().encode(rowsToCsv(bomToExcelData(bomSummary)));
       const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('save_binary_file', { path: filePath, data: Array.from(buffer) });
+      await invoke('save_binary_file', { path: filePath, data: buffer });
     } catch (error) {
       console.error('Export error:', error);
     }

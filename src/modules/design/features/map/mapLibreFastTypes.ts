@@ -64,6 +64,7 @@ export type MapLibreRenderFeatureCollection = MapLibreFastFeatureCollection<MapL
 export interface BuildMapLibreFeatureCollectionInput {
     features: FeatureState[];
     selectedFeatureId?: string | null;
+    focusIds?: Set<string>;
     hiddenIds?: Set<string>;
     zoom: number;
     featureGroups?: Record<string, any>;
