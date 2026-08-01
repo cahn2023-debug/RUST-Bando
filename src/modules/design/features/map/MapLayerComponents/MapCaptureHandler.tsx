@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { listen, emit } from '@tauri-apps/api/event';
 import { useMapContext } from '../MapContext';
 import { validateMapCaptureCanvas } from './mapCaptureValidation';
+import { compositeMapCapture } from '../render';
 
 const MAX_CAPTURE_ZOOM = 36;
 const REPORT_CAPTURE_EVENT = 'design-report-map-capture';
@@ -14,6 +15,18 @@ type MapCaptureRequest = {
   zoom?: number;
   focusFeatureIds?: string[];
   hiddenFeatureIds?: string[];
+  requiredFeatureIds?: string[];
+  requiredPoints?: Array<[number, number]>;
+  captureKind?: 'preview' | 'export';
+  pixelBudget?: number;
+};
+
+type MapCaptureImage = {
+  mimeType: 'image/jpeg';
+  bytes: Uint8Array;
+  width: number;
+  height: number;
+  warnings?: string[];
 };
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -51,44 +64,62 @@ const forceRenderFrame = (map: maplibregl.Map): Promise<void> => (
   })
 );
 
-const MAX_MAP_CAPTURE_WIDTH = 1600;
+const DEFAULT_EXPORT_PIXEL_BUDGET = 1_800_000;
+const DEFAULT_PREVIEW_PIXEL_BUDGET = 900_000;
+const REQUIRED_POINT_MARGIN_PX = 24;
 
-const cropCanvas = (
-  sourceCanvas: HTMLCanvasElement,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  scale = 1
-) => {
-  const rawWidth = Math.max(1, Math.round(width * scale));
-  const rawHeight = Math.max(1, Math.round(height * scale));
+const canvasToJpegImage = (canvas: HTMLCanvasElement, quality = 0.82): Promise<MapCaptureImage> => (
+  new Promise((resolve, reject) => {
+    if (typeof canvas.toBlob !== 'function') {
+      try {
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        const base64 = dataUrl.split(',')[1] || '';
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index += 1) {
+          bytes[index] = binary.charCodeAt(index);
+        }
+        resolve({ mimeType: 'image/jpeg', bytes, width: canvas.width, height: canvas.height });
+      } catch (error) {
+        reject(error);
+      }
+      return;
+    }
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error('Map capture encode failed'));
+        return;
+      }
+      blob.arrayBuffer()
+        .then((buffer) => resolve({
+          mimeType: 'image/jpeg',
+          bytes: new Uint8Array(buffer),
+          width: canvas.width,
+          height: canvas.height,
+        }))
+        .catch(reject);
+    }, 'image/jpeg', quality);
+  })
+);
 
-  let targetWidth = rawWidth;
-  let targetHeight = rawHeight;
-  if (targetWidth > MAX_MAP_CAPTURE_WIDTH) {
-    const downScale = MAX_MAP_CAPTURE_WIDTH / targetWidth;
-    targetWidth = MAX_MAP_CAPTURE_WIDTH;
-    targetHeight = Math.max(1, Math.round(targetHeight * downScale));
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = targetWidth;
-  canvas.height = targetHeight;
-  const context = canvas.getContext('2d');
-  if (!context) throw new Error('Canvas 2D context is unavailable');
-  context.drawImage(
-    sourceCanvas,
-    x,
-    y,
-    width,
-    height,
-    0,
-    0,
-    targetWidth,
-    targetHeight
-  );
-  return canvas;
+const validateRequiredPointsInViewport = (
+  map: maplibregl.Map,
+  points: Array<[number, number]> | undefined,
+  marginPx = REQUIRED_POINT_MARGIN_PX
+): string | null => {
+  if (!points || points.length === 0) return null;
+  const container = map.getContainer();
+  const width = container.clientWidth || map.getCanvas().clientWidth || map.getCanvas().width;
+  const height = container.clientHeight || map.getCanvas().clientHeight || map.getCanvas().height;
+  const missingCount = points.reduce((count, [lng, lat]) => {
+    const projected = map.project([lng, lat]);
+    const inside = projected.x >= marginPx
+      && projected.y >= marginPx
+      && projected.x <= width - marginPx
+      && projected.y <= height - marginPx;
+    return inside ? count : count + 1;
+  }, 0);
+  return missingCount > 0 ? `${missingCount}/${points.length} required map points are outside the capture frame.` : null;
 };
 
 export function MapCaptureHandler() {
@@ -106,7 +137,19 @@ export function MapCaptureHandler() {
         return;
       }
 
-      const { captureId, printArea: rawPrintArea, scale, fitToBounds, zoom, focusFeatureIds, hiddenFeatureIds } = payload;
+      const {
+        captureId,
+        printArea: rawPrintArea,
+        scale,
+        fitToBounds,
+        zoom,
+        focusFeatureIds,
+        hiddenFeatureIds,
+        requiredFeatureIds,
+        requiredPoints,
+        captureKind,
+        pixelBudget,
+      } = payload;
       const originalCenter = map.getCenter();
       const originalZoom = map.getZoom();
       const originalPitch = map.getPitch();
@@ -120,6 +163,8 @@ export function MapCaptureHandler() {
             active: true,
             focusFeatureIds,
             hiddenFeatureIds,
+            requiredFeatureIds,
+            captureKind,
           },
         }));
         captureModeEnabled = true;
@@ -148,29 +193,40 @@ export function MapCaptureHandler() {
           }
         }
 
+        let requiredPointWarning: string | null = null;
         if (fitToBounds && printArea) {
           const [minLat, minLng, maxLat, maxLng] = printArea;
-          map.resize();
-          map.fitBounds(
-            [
-              [minLng, minLat],
-              [maxLng, maxLat],
-            ],
-            {
-              animate: false,
-              padding: 10,
-              maxZoom: Math.min(zoom ?? 19, MAX_CAPTURE_ZOOM),
-            }
-          );
-          await waitForMapIdle(map);
+          const paddings = [48, 80, 112];
+          for (let attempt = 0; attempt < paddings.length; attempt += 1) {
+            map.resize();
+            map.fitBounds(
+              [
+                [minLng, minLat],
+                [maxLng, maxLat],
+              ],
+              {
+                animate: false,
+                padding: paddings[attempt],
+                maxZoom: Math.min((zoom ?? 19) - attempt, MAX_CAPTURE_ZOOM),
+              }
+            );
+            await waitForMapIdle(map);
+            await forceRenderFrame(map);
+            requiredPointWarning = validateRequiredPointsInViewport(map, requiredPoints);
+            if (!requiredPointWarning) break;
+          }
         } else {
           await waitForMapIdle(map, 1000);
+          requiredPointWarning = validateRequiredPointsInViewport(map, requiredPoints);
         }
 
         await forceRenderFrame(map);
         await delay(60);
 
         const sourceCanvas = map.getCanvas();
+        const overlayCanvas = mapContainer.querySelector<HTMLCanvasElement>('[data-map-overlay-canvas="features"]');
+        const activePixelBudget = pixelBudget
+          ?? (captureKind === 'preview' ? DEFAULT_PREVIEW_PIXEL_BUDGET : DEFAULT_EXPORT_PIXEL_BUDGET);
 
         if (printArea && !fitToBounds) {
           const [minLat, minLng, maxLat, maxLng] = printArea;
@@ -180,9 +236,23 @@ export function MapCaptureHandler() {
           const y = Math.max(0, Math.min(nwPoint.y, sePoint.y));
           const width = Math.min(sourceCanvas.width - x, Math.abs(nwPoint.x - sePoint.x));
           const height = Math.min(sourceCanvas.height - y, Math.abs(nwPoint.y - sePoint.y));
-          canvas = cropCanvas(sourceCanvas, x, y, width, height, scale ?? 1);
+          canvas = compositeMapCapture({
+            basemapCanvas: sourceCanvas,
+            overlayCanvas,
+            x,
+            y,
+            width,
+            height,
+            scale: scale ?? 1,
+            pixelBudget: activePixelBudget,
+          });
         } else {
-          canvas = cropCanvas(sourceCanvas, 0, 0, sourceCanvas.width, sourceCanvas.height, scale ?? 1);
+          canvas = compositeMapCapture({
+            basemapCanvas: sourceCanvas,
+            overlayCanvas,
+            scale: scale ?? 1,
+            pixelBudget: activePixelBudget,
+          });
         }
 
         let validation = validateMapCaptureCanvas(canvas);
@@ -191,8 +261,8 @@ export function MapCaptureHandler() {
           await forceRenderFrame(map);
           await delay(120);
           canvas = printArea && !fitToBounds
-            ? cropCanvas(sourceCanvas, 0, 0, sourceCanvas.width, sourceCanvas.height, scale ?? 1)
-            : cropCanvas(sourceCanvas, 0, 0, sourceCanvas.width, sourceCanvas.height, scale ?? 1);
+            ? compositeMapCapture({ basemapCanvas: sourceCanvas, overlayCanvas, scale: scale ?? 1, pixelBudget: activePixelBudget })
+            : compositeMapCapture({ basemapCanvas: sourceCanvas, overlayCanvas, scale: scale ?? 1, pixelBudget: activePixelBudget });
           validation = validateMapCaptureCanvas(canvas);
         }
 
@@ -200,8 +270,25 @@ export function MapCaptureHandler() {
           throw new Error(validation.reason || 'Ảnh bản đồ không hợp lệ.');
         }
 
-        emit('map-capture-result', { captureId, dataUrl: canvas.toDataURL('image/jpeg', 0.88) });
+        if (requiredPointWarning) {
+          throw new Error(requiredPointWarning);
+        }
+
+        const image = await canvasToJpegImage(canvas, captureKind === 'preview' ? 0.76 : 0.82);
+        const result = {
+          captureId,
+          image,
+          width: image.width,
+          height: image.height,
+          mimeType: image.mimeType,
+          warnings: image.warnings || [],
+        };
+        window.dispatchEvent(new CustomEvent('map-capture-result', { detail: result }));
+        emit('map-capture-result', { captureId, width: image.width, height: image.height, mimeType: image.mimeType });
       } catch (err) {
+        window.dispatchEvent(new CustomEvent('map-capture-error', {
+          detail: { captureId, error: String(err), recoverable: true },
+        }));
         emit('map-capture-error', { captureId, error: String(err) });
       } finally {
         if (canvas) {

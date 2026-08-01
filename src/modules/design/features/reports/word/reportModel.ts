@@ -48,6 +48,9 @@ export interface ReportSection {
   captureMode: ReportCaptureMode;
   focusFeatureIds: string[];
   hiddenFeatureIds: string[];
+  requiredFeatureIds: string[];
+  requiredPoints: Array<[number, number]>;
+  captureWarnings: string[];
 }
 
 export interface ReportModel {
@@ -216,6 +219,18 @@ const getRepresentativePoint = (feature: FeatureState): [number, number] | null 
 
 const unique = (values: string[]): string[] => Array.from(new Set(values.filter(Boolean)));
 
+const uniquePoints = (points: Array<[number, number]>): Array<[number, number]> => {
+  const seen = new Set<string>();
+  const result: Array<[number, number]> = [];
+  points.forEach((point) => {
+    const key = `${point[0].toFixed(8)},${point[1].toFixed(8)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    result.push(point);
+  });
+  return result;
+};
+
 const isFeatureLine = (feature: FeatureState, metadata = getParsedMetadata(feature)): boolean => {
   const groupKind = "";
   const info = getFeatureDisplayInfo(feature, groupKind, undefined, metadata);
@@ -381,12 +396,12 @@ const getFeatureDescription = (feature: FeatureState, metadata: Record<string, u
 
 const getFeaturePhotos = (feature: FeatureState, metadata: Record<string, unknown>): ReportPhoto[] => {
   const media = isRecord(metadata.media) ? metadata.media : {};
+  const singleUrl = safeString(media.imageUrl || metadata.imageUrl);
   const urls = [
+    ...(singleUrl ? [singleUrl] : []),
     ...asStringArray(media.imageUrls),
     ...asStringArray(metadata.imageUrls),
   ];
-  const singleUrl = safeString(media.imageUrl || metadata.imageUrl);
-  if (singleUrl) urls.unshift(singleUrl);
   const assetIds = [
     ...asStringArray(media.imageAssetIds),
     ...asStringArray(metadata.imageAssetIds),
@@ -402,12 +417,18 @@ const getFeaturePhotos = (feature: FeatureState, metadata: Record<string, unknow
 
   const assetPhotos = Array.from(new Set(assetIds)).map((assetId, index) => ({
     id: `${feature.id}-asset-photo-${index + 1}`,
-    label: `Ảnh ${legacyPhotos.length + index + 1}`,
+    label: `Ảnh ${index + 1}`,
     dataUrl: "",
     assetId,
   }));
 
-  return [...legacyPhotos, ...assetPhotos];
+  return [
+    ...assetPhotos,
+    ...legacyPhotos.map((photo, index) => ({
+      ...photo,
+      label: `Ảnh ${assetPhotos.length + index + 1}`,
+    })),
+  ];
 };
 
 const toPlainRecord = (value: unknown): Record<string, unknown> =>
@@ -523,6 +544,11 @@ export const buildReportModel = (state: MapState, selections: ReportSelection[],
         .map((candidate) => candidate.id)
       : [];
     const captureRelated = captureMode === "route" ? routeIntersections : children;
+    const requiredFeatures = captureMode === "route"
+      ? [feature, ...routeIntersections]
+      : [feature, ...children];
+    const requiredFeatureIds = unique(requiredFeatures.map((item) => item.id));
+    const requiredPoints = uniquePoints(requiredFeatures.flatMap(getFeaturePoints));
     const photoWarnings = details.flatMap((detail) => detail.photoWarnings);
 
     return {
@@ -540,6 +566,9 @@ export const buildReportModel = (state: MapState, selections: ReportSelection[],
       captureMode,
       focusFeatureIds,
       hiddenFeatureIds,
+      requiredFeatureIds,
+      requiredPoints,
+      captureWarnings: [],
     } satisfies ReportSection;
   });
 

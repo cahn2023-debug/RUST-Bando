@@ -22,6 +22,8 @@ import { announce } from "@TOOL/utils/accessibility";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
+import { MapProvider } from "@DESIGN/features/map/MapContext";
+import { PersistentMapHost } from "@DESIGN/features/map/PersistentMapHost";
 
 export default function App() {
   const { loadSettings } = useSettingsStore();
@@ -242,93 +244,100 @@ export default function App() {
 
   return (
     <AppBootstrap>
-      <div className="h-full w-full min-h-0 min-w-0 flex flex-col overflow-hidden bg-cad-bg text-cad-text-primary font-sans">
-        <TopToolbar
-          onSave={handleSaveProject}
-          onUndo={() => announce("Undo action triggered")}
-          onRedo={() => announce("Redo action triggered")}
-        />
+      <MapProvider>
+        <div className="h-full w-full min-h-0 min-w-0 flex flex-col overflow-hidden bg-cad-bg text-cad-text-primary font-sans">
+          <TopToolbar
+            onSave={handleSaveProject}
+            onUndo={() => announce("Undo action triggered")}
+            onRedo={() => announce("Redo action triggered")}
+          />
 
-        {selectedProject && (
-          <div className="bg-[#2B2B2B] border-b border-[#1A1A1A] px-2 h-9 flex items-center">
-            <TabContainer
-              onTabSwitch={async (id: string) => {
-                const tab = useTabStore.getState().tabs.find(t => t.id === id);
-                if (tab) {
-                  if (activeTab === 'HOME') {
-                    setActiveTab('DESIGN');
+          {selectedProject && (
+            <div className="bg-[#2B2B2B] border-b border-[#1A1A1A] px-2 h-9 flex items-center">
+              <TabContainer
+                onTabSwitch={async (id: string) => {
+                  const tab = useTabStore.getState().tabs.find(t => t.id === id);
+                  if (tab) {
+                    if (activeTab === 'HOME') {
+                      setActiveTab('DESIGN');
+                    }
+                    const success = await handleOpenProject(tab.path);
+                    if (!success && activeTab === 'HOME') {
+                      setActiveTab('HOME');
+                    }
                   }
-                  const success = await handleOpenProject(tab.path);
-                  if (!success && activeTab === 'HOME') {
+                }}
+                onTabClose={() => {
+                  if (useTabStore.getState().tabs.length === 0) {
                     setActiveTab('HOME');
+                    handleCloseProject();
                   }
-                }
-              }}
-              onTabClose={() => {
-                if (useTabStore.getState().tabs.length === 0) {
-                  setActiveTab('HOME');
-                  handleCloseProject();
-                }
-              }}
-            />
+                }}
+              />
+            </div>
+          )}
+          <Ribbon
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            project={selectedProject}
+            onForceSave={handleForceSave}
+            contractType={contractType}
+            onContractTypeChange={setContractType}
+          />
+
+          <div className="flex-1 min-h-0 min-w-0 flex overflow-hidden relative">
+            {/* PersistentMapHost is mounted unconditionally on app launch */}
+            <div className={`absolute inset-0 ${activeTab === 'DESIGN' || (selectedProject && activeTab !== 'HOME' && activeTab !== 'ADMIN') ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+              <PersistentMapHost />
+            </div>
+
+            <main className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden relative z-10 pointer-events-auto">
+              {activeTab === "ADMIN" ? (
+                <AdminPanel />
+              ) : selectedProject && activeTab !== "HOME" ? (
+                <ProjectDetail
+                  key={selectedProject.path}
+                  project={selectedProject}
+                  activeTab={activeTab}
+                  contractType={contractType}
+                  onProjectUpdate={refreshProject}
+                />
+              ) : (
+                <HomeDashboard
+                  projects={projects}
+                  loadingProjects={loadingProjects}
+                  onOpenProject={handleOpenProject}
+                  onDeleteProject={(event, project) => {
+                    handleDeleteProject(event, project);
+                    return Promise.resolve();
+                  }}
+                  onSelectProject={async (project) => {
+                    setActiveTab("DESIGN");
+                    const success = await handleOpenProject(project.path);
+                    if (!success) setActiveTab("HOME");
+                  }}
+                  onShowCreate={() => setShowCreate(true)}
+                  onRestoreFromConfig={handleRestoreFromConfig}
+                />
+              )}
+            </main>
           </div>
-        )}
-        <Ribbon
-          activeTab={activeTab}
-          onTabChange={handleTabChange}
-          project={selectedProject}
-          onForceSave={handleForceSave}
-          contractType={contractType}
-          onContractTypeChange={setContractType}
-        />
 
-        <div className="flex-1 min-h-0 min-w-0 flex overflow-hidden relative">
-          <main className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
-            {activeTab === "ADMIN" ? (
-              <AdminPanel />
-            ) : selectedProject && activeTab !== "HOME" ? (
-              <ProjectDetail
-                key={selectedProject.path}
-                project={selectedProject}
-                activeTab={activeTab}
-                contractType={contractType}
-                onProjectUpdate={refreshProject}
-              />
-            ) : (
-              <HomeDashboard
-                projects={projects}
-                loadingProjects={loadingProjects}
-                onOpenProject={handleOpenProject}
-                onDeleteProject={(event, project) => {
-                  handleDeleteProject(event, project);
-                  return Promise.resolve();
-                }}
-                onSelectProject={async (project) => {
-                  setActiveTab("DESIGN");
-                  const success = await handleOpenProject(project.path);
-                  if (!success) setActiveTab("HOME");
-                }}
-                onShowCreate={() => setShowCreate(true)}
-                onRestoreFromConfig={handleRestoreFromConfig}
-              />
-            )}
-          </main>
+          <StatusBar />
+
+          <GlobalModals
+            showCreate={showCreate}
+            setShowCreate={setShowCreate}
+            loadProjects={loadProjects}
+            handleOpenProject={handleOpenProject}
+            setActiveTab={setActiveTab}
+            isDeleteModalOpen={isDeleteModalOpen}
+            setIsDeleteModalOpen={setIsDeleteModalOpen}
+            confirmDelete={confirmDelete}
+            projectToDelete={projectToDelete}
+          />
         </div>
-
-        <StatusBar />
-
-        <GlobalModals
-          showCreate={showCreate}
-          setShowCreate={setShowCreate}
-          loadProjects={loadProjects}
-          handleOpenProject={handleOpenProject}
-          setActiveTab={setActiveTab}
-          isDeleteModalOpen={isDeleteModalOpen}
-          setIsDeleteModalOpen={setIsDeleteModalOpen}
-          confirmDelete={confirmDelete}
-          projectToDelete={projectToDelete}
-        />
-      </div>
+      </MapProvider>
     </AppBootstrap>
   );
 }

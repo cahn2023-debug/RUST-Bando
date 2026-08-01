@@ -102,6 +102,8 @@ describe("reportModel", () => {
     expect(model.sections[0].details[0].photos[0].dataUrl).toBe("data:image/png;base64,AAAA");
     expect(model.sections[0].captureMode).toBe("intersection");
     expect(model.sections[0].focusFeatureIds).toEqual(["intersection", "camera"]);
+    expect(model.sections[0].requiredFeatureIds).toEqual(["intersection", "camera"]);
+    expect(model.sections[0].requiredPoints).toEqual([[106.1, 10.1], [106.101, 10.101]]);
   });
 
   it("builds report sections from a selected group", () => {
@@ -117,6 +119,8 @@ describe("reportModel", () => {
 
     expect(section.captureMode).toBe("route");
     expect(section.focusFeatureIds).toEqual(["fiber", "intersection"]);
+    expect(section.requiredFeatureIds).toEqual(["fiber", "intersection"]);
+    expect(section.requiredPoints).toEqual([[106.1, 10.1], [106.2, 10.2]]);
     expect(section.hiddenFeatureIds).toContain("otherFiber");
     expect(section.hiddenFeatureIds).not.toContain("fiber");
     expect(section.bounds?.[0]).toBeLessThan(10.1);

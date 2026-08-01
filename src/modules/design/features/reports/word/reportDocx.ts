@@ -16,7 +16,16 @@ import {
 import type { ReportFeatureDetail, ReportModel, ReportPhoto, ReportSection } from "./reportModel";
 import { formatPoint } from "./reportModel";
 
-export type ReportImageMap = Record<string, string | undefined>;
+export type ReportImageRef = {
+  mimeType: "image/png" | "image/jpeg" | "image/gif" | "image/bmp";
+  bytes?: Uint8Array;
+  dataUrl?: string;
+  objectUrl?: string;
+  width?: number;
+  height?: number;
+  warnings?: string[];
+};
+export type ReportImageMap = Record<string, ReportImageRef | string | undefined>;
 
 const PAGE_IMAGE_WIDTH = 560;
 const PHOTO_WIDTH = 360;
@@ -37,7 +46,8 @@ const HIDDEN_DETAIL_FIELD_KEYS = new Set([
   "weight",
 ]);
 type NormalizedImageData = {
-  dataUrl: string;
+  bytes: Uint8Array;
+  mimeType: ReportImageRef["mimeType"];
   width: number;
   height: number;
 };
@@ -72,34 +82,6 @@ const loadImage = async (dataUrl: string): Promise<HTMLImageElement> => {
   return image;
 };
 
-const resizeDataUrl = async (dataUrl: string): Promise<NormalizedImageData> => {
-  if (!dataUrl.startsWith("data:image")) return { dataUrl, width: MAX_EMBED_SOURCE_WIDTH, height: Math.round(MAX_EMBED_SOURCE_WIDTH * 0.62) };
-  const cached = imageResizeCache.get(dataUrl);
-  if (cached) return cached;
-
-  const image = await loadImage(dataUrl);
-
-  if (!image.naturalWidth || image.naturalWidth <= MAX_EMBED_SOURCE_WIDTH) {
-    const result = { dataUrl, width: image.naturalWidth || MAX_EMBED_SOURCE_WIDTH, height: image.naturalHeight || Math.round(MAX_EMBED_SOURCE_WIDTH * 0.62) };
-    imageResizeCache.set(dataUrl, result);
-    return result;
-  }
-
-  const scale = MAX_EMBED_SOURCE_WIDTH / image.naturalWidth;
-  const canvas = document.createElement("canvas");
-  canvas.width = MAX_EMBED_SOURCE_WIDTH;
-  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-  const context = canvas.getContext("2d");
-  if (!context) return { dataUrl, width: image.naturalWidth, height: image.naturalHeight };
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  const resized = canvas.toDataURL("image/jpeg", 0.90);
-  const result = { dataUrl: resized, width: canvas.width, height: canvas.height };
-  canvas.width = 0;
-  canvas.height = 0;
-  imageResizeCache.set(dataUrl, result);
-  return result;
-};
-
 const base64ToUint8Array = (base64: string): Uint8Array => {
   const binaryString = atob(base64);
   const len = binaryString.length;
@@ -110,25 +92,97 @@ const base64ToUint8Array = (base64: string): Uint8Array => {
   return bytes;
 };
 
-const dataUrlToImage = async (dataUrl: string, width: number): Promise<ImageRun | null> => {
-  const normalizedImage = await resizeDataUrl(dataUrl);
-  const match = /^data:image\/(png|jpe?g|gif|bmp);base64,(.+)$/i.exec(normalizedImage.dataUrl);
+const dataUrlMimeType = (dataUrl: string): ReportImageRef["mimeType"] | null => {
+  const match = /^data:(image\/png|image\/jpe?g|image\/gif|image\/bmp);base64,/i.exec(dataUrl);
   if (!match) return null;
-  const type = match[1].toLowerCase() === "jpeg" ? "jpg" : match[1].toLowerCase();
+  return match[1].toLowerCase() === "image/jpg" ? "image/jpeg" : match[1].toLowerCase() as ReportImageRef["mimeType"];
+};
+
+const blobToUint8Array = async (blob: Blob): Promise<Uint8Array> => new Uint8Array(await blob.arrayBuffer());
+
+const canvasToJpegBytes = (canvas: HTMLCanvasElement, quality = 0.86): Promise<Uint8Array> => (
+  new Promise((resolve, reject) => {
+    if (typeof canvas.toBlob !== "function") {
+      const fallback = canvas.toDataURL("image/jpeg", quality);
+      resolve(base64ToUint8Array(fallback.split(",")[1] || ""));
+      return;
+    }
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("Image encode failed"));
+        return;
+      }
+      blobToUint8Array(blob).then(resolve, reject);
+    }, "image/jpeg", quality);
+  })
+);
+
+const resizeDataUrl = async (dataUrl: string): Promise<NormalizedImageData | null> => {
+  const mimeType = dataUrlMimeType(dataUrl);
+  if (!mimeType) return null;
+  const cached = imageResizeCache.get(dataUrl);
+  if (cached) return cached;
+
+  const image = await loadImage(dataUrl);
+  const originalBytes = base64ToUint8Array(dataUrl.split(",")[1] || "");
+
+  if (!image.naturalWidth || image.naturalWidth <= MAX_EMBED_SOURCE_WIDTH) {
+    const result = {
+      bytes: originalBytes,
+      mimeType,
+      width: image.naturalWidth || MAX_EMBED_SOURCE_WIDTH,
+      height: image.naturalHeight || Math.round(MAX_EMBED_SOURCE_WIDTH * 0.62),
+    };
+    imageResizeCache.set(dataUrl, result);
+    return result;
+  }
+
+  const scale = MAX_EMBED_SOURCE_WIDTH / image.naturalWidth;
+  const canvas = document.createElement("canvas");
+  canvas.width = MAX_EMBED_SOURCE_WIDTH;
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const context = canvas.getContext("2d");
+  if (!context) return { bytes: originalBytes, mimeType, width: image.naturalWidth, height: image.naturalHeight };
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const bytes = await canvasToJpegBytes(canvas, 0.86);
+  const result = { bytes, mimeType: "image/jpeg" as const, width: canvas.width, height: canvas.height };
+  canvas.width = 0;
+  canvas.height = 0;
+  imageResizeCache.set(dataUrl, result);
+  return result;
+};
+
+const imageRefToImage = async (source: ReportImageRef | string, width: number): Promise<ImageRun | null> => {
+  if (typeof source !== "string" && source.bytes) {
+    const type = source.mimeType === "image/jpeg" ? "jpg" : source.mimeType.replace("image/", "");
+    if (!["png", "jpg", "gif", "bmp"].includes(type)) return null;
+    const aspectHeight = Math.max(1, Math.round(width * ((source.height || Math.round(width * 0.62)) / Math.max(1, source.width || width))));
+    return new ImageRun({
+      type: type as "png" | "jpg" | "gif" | "bmp",
+      data: source.bytes,
+      transformation: { width, height: aspectHeight },
+    });
+  }
+
+  const dataUrl = typeof source === "string" ? source : source.dataUrl;
+  if (!dataUrl) return null;
+  const normalizedImage = await resizeDataUrl(dataUrl);
+  if (!normalizedImage) return null;
+  const type = normalizedImage.mimeType === "image/jpeg" ? "jpg" : normalizedImage.mimeType.replace("image/", "");
   if (!["png", "jpg", "gif", "bmp"].includes(type)) return null;
-  const bytes = base64ToUint8Array(match[2]);
   const aspectHeight = Math.max(1, Math.round(width * (normalizedImage.height / Math.max(1, normalizedImage.width))));
   return new ImageRun({
     type: type as "png" | "jpg" | "gif" | "bmp",
-    data: bytes,
+    data: normalizedImage.bytes,
     transformation: { width, height: aspectHeight },
   });
 };
 
-const imageParagraph = async (dataUrl: string | undefined, width: number, fallback: string): Promise<Paragraph> => {
-  if (!dataUrl) return paragraph(fallback);
-  const image = await dataUrlToImage(dataUrl, width);
+const imageParagraph = async (source: ReportImageRef | string | undefined, width: number, fallback: string): Promise<Paragraph> => {
+  if (!source) return paragraph(fallback);
+  const image = await imageRefToImage(source, width);
   if (!image) {
+    const dataUrl = typeof source === "string" ? source : source.dataUrl || source.objectUrl || "";
     if (dataUrl.startsWith("http")) return paragraph(`Anh: ${dataUrl}`);
     throw new Error("Không thể nhúng ảnh bản đồ vào file Word.");
   }
@@ -209,6 +263,8 @@ const detailBlocks = async (detail: ReportFeatureDetail): Promise<Array<Paragrap
 
 const sectionBlocks = async (section: ReportSection, imageMap: ReportImageMap): Promise<Array<Paragraph | Table>> => {
   const detailChildren: Array<Paragraph | Table> = [];
+  const sectionImage = imageMap[section.id];
+  const imageWarnings = typeof sectionImage === "string" ? [] : sectionImage?.warnings || [];
   for (const detail of section.details) {
     detailChildren.push(...await detailBlocks(detail));
   }
@@ -224,7 +280,9 @@ const sectionBlocks = async (section: ReportSection, imageMap: ReportImageMap): 
       ],
       spacing: { before: 320, after: 160 },
     }),
-    await imageParagraph(imageMap[section.id], PAGE_IMAGE_WIDTH, "Không capture được ảnh bản đồ cho đối tượng này."),
+    await imageParagraph(sectionImage, PAGE_IMAGE_WIDTH, "Không capture được ảnh bản đồ cho đối tượng này."),
+    ...section.captureWarnings.map((warning) => paragraph(warning)),
+    ...imageWarnings.map((warning) => paragraph(warning)),
     ...(section.summary.length ? [paragraph("Tổng hợp", true), ...section.summary.map((item) => paragraph(item))] : []),
     ...(section.description ? [paragraph("Mô tả", true), paragraph(section.description)] : []),
     ...detailChildren,
@@ -250,6 +308,7 @@ export const buildReportDocx = async (
         await new Promise((r) => setTimeout(r, 0));
       }
       detailSections.push(...(await sectionBlocks(section, imageMap)));
+      clearImageResizeCache();
     }
 
     if (onProgress) {

@@ -32,6 +32,9 @@ describe("reportDocx", () => {
         captureMode: "feature",
         focusFeatureIds: ["camera"],
         hiddenFeatureIds: [],
+        requiredFeatureIds: ["camera"],
+        requiredPoints: [[106.1, 10.1]],
+        captureWarnings: [],
         details: [{
           feature: {
             id: "camera",

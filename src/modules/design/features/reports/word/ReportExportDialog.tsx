@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { emit, listen } from "@tauri-apps/api/event";
 import { save } from "@tauri-apps/plugin-dialog";
 import { Check, ChevronDown, ChevronRight, Download, Eye, FileText, Loader2, X } from "lucide-react";
@@ -17,7 +17,7 @@ import {
   type ReportPhoto,
   type ReportSelection,
 } from "./reportModel";
-import { buildReportDocx, type ReportImageMap } from "./reportDocx";
+import { buildReportDocx, type ReportImageMap, type ReportImageRef } from "./reportDocx";
 import { saveReportDocxFile } from "./reportFileSave";
 
 interface ReportExportDialogProps {
@@ -25,11 +25,23 @@ interface ReportExportDialogProps {
   onClose: () => void;
 }
 
-type CaptureResult = { captureId?: string; dataUrl: string };
-type CaptureError = { captureId?: string; error: string };
+type CaptureResult = {
+  captureId?: string;
+  dataUrl?: string;
+  image?: ReportImageRef;
+  width?: number;
+  height?: number;
+  mimeType?: ReportImageRef["mimeType"];
+  warnings?: string[];
+};
+type CaptureError = { captureId?: string; error: string; recoverable?: boolean };
 type MapCaptureScope = {
   focusFeatureIds?: string[];
   hiddenFeatureIds?: string[];
+  requiredFeatureIds?: string[];
+  requiredPoints?: Array<[number, number]>;
+  captureKind?: "preview" | "export";
+  pixelBudget?: number;
 };
 
 const keyOf = (selection: ReportSelection): string => `${selection.type}:${selection.id}`;
@@ -45,6 +57,40 @@ const parseKey = (key: string): ReportSelection | null => {
 
 const sanitizeFileName = (value: string): string =>
   value.replace(/[\\/:*?"<>|]/g, "-").trim() || "Báo-cáo-thiết-kế";
+
+const base64ToUint8Array = (base64: string): Uint8Array => {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+};
+
+const dataUrlToImageRef = (dataUrl: string): ReportImageRef | undefined => {
+  const match = /^data:(image\/png|image\/jpe?g|image\/gif|image\/bmp);base64,(.+)$/i.exec(dataUrl);
+  if (!match) return undefined;
+  const mimeType = match[1].toLowerCase() === "image/jpg" ? "image/jpeg" : match[1].toLowerCase() as ReportImageRef["mimeType"];
+  return { mimeType, bytes: base64ToUint8Array(match[2]), dataUrl };
+};
+
+const imageRefSrc = (image?: ReportImageRef | string): string | undefined => (
+  typeof image === "string" ? image : image?.objectUrl || image?.dataUrl
+);
+
+const withObjectUrl = (image: ReportImageRef): ReportImageRef => {
+  if (image.objectUrl || !image.bytes) return image;
+  const blob = new Blob([image.bytes], { type: image.mimeType });
+  return { ...image, objectUrl: URL.createObjectURL(blob) };
+};
+
+const releaseImageMap = (imageMap: ReportImageMap): void => {
+  Object.values(imageMap).forEach((image) => {
+    if (typeof image !== "string" && image?.objectUrl) {
+      URL.revokeObjectURL(image.objectUrl);
+    }
+  });
+};
 
 const getDescendantKeys = (items: SelectableReportItem[], key: string): string[] => {
   const index = items.findIndex((item) => item.key === key);
@@ -83,14 +129,16 @@ const requestMapCapture = async (
   fitToBounds = true,
   zoom = REPORT_MAP_CAPTURE_MAX_ZOOM,
   scope: MapCaptureScope = {},
-): Promise<string | undefined> => {
+): Promise<ReportImageRef | undefined> => {
   const safeBounds = sanitizeReportBounds(bounds);
   if (!safeBounds) return undefined;
 
-  return new Promise<string | undefined>((resolve) => {
+  return new Promise<ReportImageRef | undefined>((resolve) => {
     let done = false;
     let unlistenResult: (() => void) | undefined;
     let unlistenError: (() => void) | undefined;
+    let removeWindowResult: (() => void) | undefined;
+    let removeWindowError: (() => void) | undefined;
     const timeout = window.setTimeout(() => {
       cleanup();
       resolve(undefined);
@@ -102,13 +150,41 @@ const requestMapCapture = async (
       window.clearTimeout(timeout);
       unlistenResult?.();
       unlistenError?.();
+      removeWindowResult?.();
+      removeWindowError?.();
+    };
+
+    const resolveResult = (payload: CaptureResult) => {
+      if (payload.captureId && payload.captureId !== captureId) return;
+      cleanup();
+      if (payload.image) {
+        resolve({
+          ...payload.image,
+          width: payload.image.width ?? payload.width,
+          height: payload.image.height ?? payload.height,
+          warnings: [...(payload.image.warnings || []), ...(payload.warnings || [])],
+        });
+        return;
+      }
+      resolve(payload.dataUrl ? dataUrlToImageRef(payload.dataUrl) : undefined);
     };
 
     const setupAndEmit = async () => {
-      unlistenResult = await listen<CaptureResult>("map-capture-result", (event) => {
-        if (event.payload.captureId && event.payload.captureId !== captureId) return;
+      const onWindowResult = (event: Event) => resolveResult((event as CustomEvent<CaptureResult>).detail);
+      const onWindowError = (event: Event) => {
+        const payload = (event as CustomEvent<CaptureError>).detail;
+        if (payload.captureId && payload.captureId !== captureId) return;
         cleanup();
-        resolve(event.payload.dataUrl);
+        resolve(undefined);
+      };
+      window.addEventListener("map-capture-result", onWindowResult as EventListener);
+      window.addEventListener("map-capture-error", onWindowError as EventListener);
+      removeWindowResult = () => window.removeEventListener("map-capture-result", onWindowResult as EventListener);
+      removeWindowError = () => window.removeEventListener("map-capture-error", onWindowError as EventListener);
+
+      unlistenResult = await listen<CaptureResult>("map-capture-result", (event) => {
+        if (!event.payload.dataUrl) return;
+        resolveResult(event.payload);
       });
 
       unlistenError = await listen<CaptureError>("map-capture-error", (event) => {
@@ -126,6 +202,10 @@ const requestMapCapture = async (
           zoom,
           focusFeatureIds: scope.focusFeatureIds,
           hiddenFeatureIds: scope.hiddenFeatureIds,
+          requiredFeatureIds: scope.requiredFeatureIds,
+          requiredPoints: scope.requiredPoints,
+          captureKind: scope.captureKind,
+          pixelBudget: scope.pixelBudget,
         });
       }
     };
@@ -163,11 +243,14 @@ const captureMissingReportImages = async (
         1.5,
         true,
         REPORT_MAP_CAPTURE_MAX_ZOOM,
-        {
-          focusFeatureIds: section.focusFeatureIds,
-          hiddenFeatureIds: section.hiddenFeatureIds,
-        },
-      );
+          {
+            focusFeatureIds: section.focusFeatureIds,
+            hiddenFeatureIds: section.hiddenFeatureIds,
+            requiredFeatureIds: section.requiredFeatureIds,
+            requiredPoints: section.requiredPoints,
+            captureKind: "export",
+          },
+        );
       if (dataUrl) {
         imageMap[section.id] = dataUrl;
         break;
@@ -179,7 +262,7 @@ const captureMissingReportImages = async (
   return imageMap;
 };
 
-const capturePreviewImage = async (model: ReportModel, sectionId: string): Promise<string | undefined> => {
+const capturePreviewImage = async (model: ReportModel, sectionId: string): Promise<ReportImageRef | undefined> => {
   const section = model.sections.find((item) => item.id === sectionId) || model.sections[0];
   if (!section) return undefined;
   const targetBounds = sanitizeReportBounds(section.bounds) || getOverallReportBounds(model);
@@ -192,6 +275,9 @@ const capturePreviewImage = async (model: ReportModel, sectionId: string): Promi
     {
       focusFeatureIds: section.focusFeatureIds,
       hiddenFeatureIds: section.hiddenFeatureIds,
+      requiredFeatureIds: section.requiredFeatureIds,
+      requiredPoints: section.requiredPoints,
+      captureKind: "preview",
     },
   );
 };
@@ -257,6 +343,7 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [expandedSelectionKeys, setExpandedSelectionKeys] = useState<Set<string>>(new Set());
   const [imageMap, setImageMap] = useState<ReportImageMap>({});
+  const imageMapRef = useRef<ReportImageMap>({});
   const [activeView, setActiveView] = useState<"select" | "preview">("preview");
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [includeMapImages, setIncludeMapImages] = useState(true);
@@ -307,6 +394,14 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
   const [reportModel, setReportModel] = useState<ReportModel | null>(null);
 
   useEffect(() => {
+    imageMapRef.current = imageMap;
+  }, [imageMap]);
+
+  useEffect(() => () => {
+    releaseImageMap(imageMapRef.current);
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     if (!baseReportModel) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -350,7 +445,10 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
       });
       return next;
     });
-    setImageMap({});
+    setImageMap((prev) => {
+      releaseImageMap(prev);
+      return {};
+    });
   };
 
   const toggleSelectionExpanded = (key: string) => {
@@ -370,7 +468,11 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
     try {
       const dataUrl = await capturePreviewImage(reportModel, currentSectionId);
       if (dataUrl) {
-        setImageMap((prev) => ({ ...prev, [currentSectionId]: dataUrl }));
+        setImageMap((prev) => {
+          const previous = prev[currentSectionId];
+          if (typeof previous !== "string" && previous?.objectUrl) URL.revokeObjectURL(previous.objectUrl);
+          return { ...prev, [currentSectionId]: withObjectUrl(dataUrl) };
+        });
       }
       setActiveView("preview");
     } finally {
@@ -386,7 +488,11 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
     try {
       const dataUrl = await capturePreviewImage(reportModel, sectionId);
       if (dataUrl) {
-        setImageMap((prev) => ({ ...prev, [sectionId]: dataUrl }));
+        setImageMap((prev) => {
+          const previous = prev[sectionId];
+          if (typeof previous !== "string" && previous?.objectUrl) URL.revokeObjectURL(previous.objectUrl);
+          return { ...prev, [sectionId]: withObjectUrl(dataUrl) };
+        });
       }
     } finally {
       setIsCapturing(false);
@@ -419,7 +525,6 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
         console.warn(`[ReportExportDialog] ${photoWarningCount} cảnh báo ảnh site photo. Tiếp tục tạo file Word.`);
         setExportStatus(`Đang tạo file Word (${photoWarningCount} cảnh báo ảnh site photo)...`);
       }
-      setImageMap(nextImageMap);
       const filePath = await save({
         filters: [{ name: "Word Document", extensions: ["docx"] }],
         defaultPath: `${sanitizeFileName(effectiveReportTitle)}.docx`,
@@ -472,7 +577,10 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
                 value={reportTitle}
                 onChange={(event) => {
                   setReportTitle(event.target.value);
-                  setImageMap({});
+                  setImageMap((prev) => {
+                    releaseImageMap(prev);
+                    return {};
+                  });
                 }}
                 className="min-w-0 flex-1 rounded border border-cad-border bg-cad-elevated px-2 py-1.5 text-xs font-semibold normal-case tracking-normal text-cad-text-primary outline-none focus:border-cad-accent"
                 placeholder={defaultReportTitle}
@@ -603,6 +711,8 @@ function ReportPreview({
   onSelectSection: (sectionId: string) => void;
 }) {
   const activeSection = model.sections.find((section) => section.id === activeSectionId) || model.sections[0];
+  const activeMapImage = activeSection ? imageMap[activeSection.id] : undefined;
+  const activeMapImageSrc = imageRefSrc(activeMapImage);
   const [isTocOpen, setIsTocOpen] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     () => new Set(activeSection ? [activeSection.id] : []),
@@ -707,11 +817,14 @@ function ReportPreview({
       {activeSection ? (
         <section key={activeSection.id} id={activeSection.anchor} className="mb-10 break-inside-avoid">
           <h2 className="text-xl font-bold mb-3">{activeSection.title} <span className="text-slate-500">({activeSection.displayType})</span></h2>
-          {imageMap[activeSection.id] ? (
-            <img src={imageMap[activeSection.id]} alt={activeSection.title} loading="lazy" className="w-full max-h-[360px] object-contain border mb-3" />
+          {activeMapImageSrc ? (
+            <img src={activeMapImageSrc} alt={activeSection.title} loading="lazy" className="w-full max-h-[360px] object-contain border mb-3" />
           ) : (
             <div className="h-40 border bg-slate-100 text-slate-500 flex items-center justify-center mb-3">Chưa capture ảnh bản đồ</div>
           )}
+          {typeof activeMapImage !== "string" && activeMapImage?.warnings?.map((warning) => (
+            <p key={warning} className="mb-2 text-xs text-amber-700">{warning}</p>
+          ))}
           {activeSection.summary.length > 0 && (
             <div className="mb-3">
               <h3 className="font-bold">Tổng hợp</h3>

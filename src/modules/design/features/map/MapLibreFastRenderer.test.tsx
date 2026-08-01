@@ -131,7 +131,7 @@ const mockMapState = vi.hoisted(() => {
             return this.layers.get(id);
         }
 
-        setFeatureState() {}
+        setFeatureState = vi.fn();
         hasImage(id: string) { return this.images.has(id); }
         addImage(id: string, image: any) {
             this.images.add(id);
@@ -168,7 +168,11 @@ const mockMapState = vi.hoisted(() => {
             }
         }
 
-        once(_event: string, handler: any) {
+        once(event: string, handler: any) {
+            if (event === 'idle') {
+                requestAnimationFrame(handler);
+                return;
+            }
             handler();
         }
     }
@@ -250,6 +254,10 @@ describe('MapLibreFastRenderer', () => {
                 });
                 canvas.getContext = vi.fn(() => ({
                     clearRect: vi.fn(),
+                    beginPath: vi.fn(),
+                    arc: vi.fn(),
+                    fill: vi.fn(),
+                    stroke: vi.fn(),
                     drawImage: vi.fn(),
                     getImageData: vi.fn(() => ({
                         width: width || 36,
@@ -363,6 +371,77 @@ describe('MapLibreFastRenderer', () => {
                 labelIndex: '1',
             }));
         });
+    });
+
+    it('keeps point features out of the MapLibre source when overlayPoints is enabled', async () => {
+        useDesignSync.setState({
+            state: {
+                features: {
+                    'point-1': pointFeature('point-1', { color: '#ef4444', size: 14 }),
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        render(
+            <MapLibreFastRenderer
+                center={[21.02, 105.8]}
+                zoom={20}
+                renderFlags={{ overlayPoints: true }}
+            />
+        );
+
+        await waitFor(() => {
+            const lastMap = mockMapState.getLastMap();
+            const data = lastMap?.sources.get('design-fast-features')?.data;
+            expect(data.features).toHaveLength(0);
+            expect(document.querySelector('[data-map-overlay-canvas="features"]')).toBeTruthy();
+        });
+    });
+
+    it('does not set MapLibre data again for point-only updates when overlayPoints is enabled', async () => {
+        useDesignSync.setState({
+            state: {
+                features: {
+                    'point-1': pointFeature('point-1', { color: '#ef4444', size: 14 }),
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+                mapRevision: 1,
+            } as any,
+        } as any);
+
+        render(
+            <MapLibreFastRenderer
+                center={[21.02, 105.8]}
+                zoom={20}
+                renderFlags={{ overlayPoints: true }}
+            />
+        );
+
+        let setData: any;
+        await waitFor(() => {
+            setData = mockMapState.getLastMap()?.sources.get('design-fast-features')?.setData;
+            expect(setData).toHaveBeenCalled();
+        });
+        const callsBefore = setData.mock.calls.length;
+
+        await act(async () => {
+            useDesignSync.setState({
+                state: {
+                    features: {
+                        'point-1': pointFeature('point-1', { color: '#22c55e', size: 16 }),
+                    },
+                    feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                    isLargeProject: false,
+                    mapRevision: 2,
+                } as any,
+            } as any);
+        });
+        await Promise.resolve();
+
+        expect(setData).toHaveBeenCalledTimes(callsBefore);
     });
 
     it('uses a circle fallback until point icon images finish loading', async () => {
@@ -542,6 +621,28 @@ describe('MapLibreFastRenderer', () => {
         });
 
         expect(setData).toHaveBeenCalledTimes(initialSetDataCalls);
+    });
+
+    it('applies selection through MapLibre feature state after data is ready', async () => {
+        useDesignSync.setState({
+            state: {
+                features: {
+                    'point-1': pointFeature('point-1', { color: '#ef4444', size: 14 }),
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+            } as any,
+            selectedFeatureId: 'point-1',
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            expect(mockMapState.getLastMap()?.setFeatureState).toHaveBeenCalledWith(
+                { source: 'design-fast-features', id: 'point-1' },
+                { selected: true }
+            );
+        });
     });
 
     it('publishes snap indicator data to the drawing overlay source', async () => {

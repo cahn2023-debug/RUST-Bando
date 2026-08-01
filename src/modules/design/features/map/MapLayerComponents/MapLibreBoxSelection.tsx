@@ -3,16 +3,6 @@ import { useMapContext } from '../MapContext';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getFeatureBounds, intersectsBounds, normalizeFeatureForSummary } from '@TOOL/utils/selectionUtils';
 
-const QUERY_LAYERS = [
-  'design-fast-points',
-  'design-fast-point-icons',
-  'design-fast-point-labels',
-  'design-fast-lines',
-  'design-fast-line-hit-area',
-  'design-fast-polygons',
-  'design-fast-polygon-strokes',
-];
-
 export function MapLibreBoxSelection() {
   const { map } = useMapContext();
   const { state, setBoxSelection, selectFeature } = useDesignSync();
@@ -114,20 +104,6 @@ export function MapLibreBoxSelection() {
       setTimeout(() => {
         try {
           const selectionBounds: [number, number, number, number] = [west, south, east, north];
-          const queryLayers = QUERY_LAYERS.filter(layerId => Boolean(map.getLayer(layerId)));
-          const renderedFeatureIds = new Set(
-            queryLayers.length > 0
-              ? map.queryRenderedFeatures(
-                [
-                  [minX, minY],
-                  [maxX, maxY],
-                ],
-                { layers: queryLayers }
-              )
-                .map(feature => feature.properties?.id)
-                .filter((id): id is string => typeof id === 'string')
-              : []
-          );
 
           const allFeatures = Object.values(state.features || {});
           const featureGroups = state.feature_groups || {};
@@ -143,10 +119,9 @@ export function MapLibreBoxSelection() {
             const layer = layers[group.layer_id];
             if (!layer || !layer.is_visible) continue;
 
-            const isRenderedHit = renderedFeatureIds.has(feature.id);
-            const featureBounds = isRenderedHit ? null : getFeatureBounds(feature);
+            const featureBounds = getFeatureBounds(feature);
 
-            if (isRenderedHit || (featureBounds && intersectsBounds(featureBounds, selectionBounds))) {
+            if (featureBounds && intersectsBounds(featureBounds, selectionBounds)) {
               intersectedFeatures.push({ feature, group });
               const dType = group.type || 'KHÁC';
               stats[dType] = (stats[dType] || 0) + 1;

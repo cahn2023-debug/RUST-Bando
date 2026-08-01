@@ -17,9 +17,12 @@ import type { FeatureState } from '@CONTRACT/types';
 import type { MapLibreFastFeatureCollection, MapLibreRenderFeatureCollection } from './mapLibreFastTypes';
 import { useMapContext } from './MapContext';
 import { getRenderableFeatureById } from './featureLookup';
+import { CameraBridge, DirtyFlag, FeatureOverlayCanvas, resolveMapRenderFlags, type FeatureOverlayCanvasHandle, type MapRenderFlags } from './render';
+import { saveBootstrapMetadata } from './bootstrapMetadata';
 
 const SOURCE_ID = 'design-fast-features';
 const BASEMAP_SOURCE_ID = 'basemap';
+const CAMERA_BRIDGE_LAYER_ID = 'design-camera-bridge';
 const BASEMAP_HEAT_LAYER_ID = 'basemap-heat-overlay';
 const POINT_LAYER_ID = 'design-fast-points';
 const POINT_ICON_LAYER_ID = 'design-fast-point-icons';
@@ -144,6 +147,8 @@ type ReportCaptureScope = {
     active: boolean;
     focusFeatureIds?: string[];
     hiddenFeatureIds?: string[];
+    requiredFeatureIds?: string[];
+    captureKind?: 'preview' | 'export';
 };
 
 export const clearMapImageCache = () => {
@@ -434,6 +439,32 @@ const setKey = (ids: Set<string> | undefined | null) => {
     return Array.from(ids).sort().join('|');
 };
 
+const selectedFeatureIdsForCollection = (
+    collection: MapLibreRenderFeatureCollection,
+    selectedFeatureId: string | null
+) => {
+    const nextSelected = new Set<string>();
+    if (!selectedFeatureId) return nextSelected;
+
+    for (const feature of collection.features) {
+        const properties = feature.properties as Record<string, any>;
+        if (properties.id === selectedFeatureId || properties.parentFeatureId === selectedFeatureId) {
+            nextSelected.add(String(properties.id));
+        }
+    }
+    if (nextSelected.size === 0) nextSelected.add(selectedFeatureId);
+    return nextSelected;
+};
+
+const withoutPointFeatures = (
+    collection: MapLibreRenderFeatureCollection
+): MapLibreRenderFeatureCollection => ({
+    ...collection,
+    features: collection.features.filter(feature => (
+        feature.geometry.type !== 'Point' && feature.geometry.type !== 'MultiPoint'
+    )),
+});
+
 const featureListKey = (features: FeatureState[], mapRevision: number, viewportRevision: number) => (
     `${mapRevision}:${viewportRevision}:${features.length}`
 );
@@ -518,6 +549,39 @@ const ensureBasemapOverlayLayers = (map: maplibregl.Map, preset?: MapBasemapPres
     if (typeof (map as any).setPaintProperty === 'function') {
         (map as any).setPaintProperty(BASEMAP_HEAT_LAYER_ID, 'heatmap-opacity', preset?.kind === 'heat' ? 0.72 : 0);
     }
+};
+
+const ensureCameraBridgeLayer = (
+    map: maplibregl.Map,
+    cameraBridge: CameraBridge,
+    scheduleOverlay: (dirty: DirtyFlag) => void
+) => {
+    if (map.getLayer(CAMERA_BRIDGE_LAYER_ID)) return;
+
+    const publish = (matrixLike: unknown) => {
+        const mapCanvas = map.getCanvas();
+        const matrix = matrixLike instanceof Float32Array
+            ? matrixLike
+            : Array.isArray(matrixLike)
+                ? new Float32Array(matrixLike as number[])
+                : new Float32Array(16);
+        cameraBridge.publish({
+            matrix,
+            width: mapCanvas.width,
+            height: mapCanvas.height,
+            pixelRatio: window.devicePixelRatio || 1,
+        });
+        scheduleOverlay(DirtyFlag.Camera);
+    };
+
+    map.addLayer({
+        id: CAMERA_BRIDGE_LAYER_ID,
+        type: 'custom',
+        renderingMode: '2d',
+        render: (_gl: WebGLRenderingContext | WebGL2RenderingContext, matrix: unknown) => {
+            publish(matrix);
+        },
+    } as maplibregl.CustomLayerInterface);
 };
 
 const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLabels: boolean) => {
@@ -851,6 +915,8 @@ export function MapLibreFastRenderer({
     basemapTiles: basemapTilesProp,
     basemapKey,
     basemapPreset: basemapPresetProp,
+    renderFlags: renderFlagsProp,
+    onFirstFrameRendered,
 }: {
     center: [number, number];
     zoom: number;
@@ -861,8 +927,12 @@ export function MapLibreFastRenderer({
     basemapTiles?: string[];
     basemapKey?: string;
     basemapPreset?: MapBasemapPreset;
+    renderFlags?: Partial<MapRenderFlags> | null;
+    onFirstFrameRendered?: () => void;
 }) {
     const containerRef = React.useRef<HTMLDivElement>(null);
+    const overlayRef = React.useRef<FeatureOverlayCanvasHandle | null>(null);
+    const cameraBridgeRef = React.useRef(new CameraBridge());
     const mapRef = React.useRef<maplibregl.Map | null>(null);
     let setMap: (map: maplibregl.Map | null) => void = () => {};
     try {
@@ -878,6 +948,7 @@ export function MapLibreFastRenderer({
     const snapRafRef = React.useRef(0);
     const pendingSnapEventRef = React.useRef<any>(null);
     const iconReadyRafRef = React.useRef(0);
+    const featureStateRevisionRef = React.useRef(0);
     const pendingIconPreloadMsRef = React.useRef<number | null>(null);
     const basemapRetryTimersRef = React.useRef<ReturnType<typeof setTimeout>[]>([]);
     const basemapRetryAttemptRef = React.useRef(0);
@@ -917,6 +988,11 @@ export function MapLibreFastRenderer({
     );
     const basemapTilesKey = React.useMemo(() => basemapKey || basemapTiles.join('|'), [basemapKey, basemapTiles]);
     const activeBasemapPreset = basemapPresetProp || fallbackBasemapPreset;
+    const projectRenderFlags = (mapState?.settings as any)?.mapRenderFlags as Partial<MapRenderFlags> | undefined;
+    const renderFlags = React.useMemo(
+        () => resolveMapRenderFlags(renderFlagsProp || projectRenderFlags),
+        [projectRenderFlags, renderFlagsProp]
+    );
     const [currentZoom, setCurrentZoom] = React.useState(zoom);
     const [viewportTick, setViewportTick] = React.useState(0);
     const [iconReadyRevision, setIconReadyRevision] = React.useState(0);
@@ -1011,6 +1087,46 @@ export function MapLibreFastRenderer({
         renderFeatureValues,
         renderZoom,
     ]);
+    const applySelectedFeatureState = React.useCallback((nextSelected: Set<string>) => {
+        const map = mapRef.current;
+        if (!map || !map.getSource(SOURCE_ID)) return;
+
+        selectedFeatureRef.current.forEach(id => {
+            try {
+                map.setFeatureState({ source: SOURCE_ID, id }, { selected: false });
+            } catch {
+                // MapLibre may still be tearing down/rebuilding source state.
+            }
+        });
+        nextSelected.forEach(id => {
+            try {
+                map.setFeatureState({ source: SOURCE_ID, id }, { selected: true });
+            } catch {
+                // MapLibre may still be tearing down/rebuilding source state.
+            }
+        });
+        selectedFeatureRef.current = nextSelected;
+    }, []);
+    const scheduleSelectedFeatureState = React.useCallback((nextSelected: Set<string>, waitForSourceIdle: boolean) => {
+        const map = mapRef.current;
+        if (!map || !map.getSource(SOURCE_ID)) return;
+
+        const revision = ++featureStateRevisionRef.current;
+        let applied = false;
+        const apply = () => {
+            if (applied || revision !== featureStateRevisionRef.current || mapRef.current !== map) return;
+            applied = true;
+            applySelectedFeatureState(nextSelected);
+        };
+
+        if (waitForSourceIdle) {
+            map.once('idle', apply);
+            requestAnimationFrame(() => requestAnimationFrame(apply));
+            return;
+        }
+
+        requestAnimationFrame(apply);
+    }, [applySelectedFeatureState]);
     const editingFeature = React.useMemo(
         () => getRenderableFeatureById(editingFeatureId, { state: mapState, visibleFeatures: features, featureDetailsCache }),
         [editingFeatureId, featureDetailsCache, features, mapState]
@@ -1101,6 +1217,8 @@ export function MapLibreFastRenderer({
                 active: true,
                 focusFeatureIds: Array.isArray(detail.focusFeatureIds) ? detail.focusFeatureIds : [],
                 hiddenFeatureIds: Array.isArray(detail.hiddenFeatureIds) ? detail.hiddenFeatureIds : [],
+                requiredFeatureIds: Array.isArray(detail.requiredFeatureIds) ? detail.requiredFeatureIds : [],
+                captureKind: detail.captureKind,
             });
         };
         window.addEventListener(REPORT_CAPTURE_EVENT, handleReportCapture);
@@ -1125,20 +1243,37 @@ export function MapLibreFastRenderer({
         mapRef.current = map;
         lastBasemapTilesKeyRef.current = basemapTilesKey;
         setMapGesturesEnabled(map, true);
+        const scheduleOverlay = (dirty: DirtyFlag) => overlayRef.current?.schedule(dirty);
 
         const resizeObserver = new ResizeObserver(() => {
             map.resize();
         });
         resizeObserver.observe(containerRef.current);
 
+        map.once('render', () => {
+            onFirstFrameRendered?.();
+        });
+
         map.on('moveend', () => {
-            setCurrentZoom(map.getZoom());
+            const centerLngLat = map.getCenter();
+            const currentZoomVal = map.getZoom();
+            setCurrentZoom(currentZoomVal);
             setViewportTick(tick => tick + 1);
+            scheduleOverlay(DirtyFlag.Camera);
+
+            saveBootstrapMetadata({
+                center: [centerLngLat.lng, centerLngLat.lat],
+                zoom: currentZoomVal,
+                bearing: map.getBearing(),
+                pitch: map.getPitch(),
+            });
         });
         map.once('load', () => {
             setBasemapLoadState(navigator.onLine === false ? 'offline' : 'ready');
             basemapRetryAttemptRef.current = 0;
             setViewportTick(tick => tick + 1);
+            ensureCameraBridgeLayer(map, cameraBridgeRef.current, scheduleOverlay);
+            scheduleOverlay(DirtyFlag.Camera | DirtyFlag.Geometry);
         });
         map.on('error', (event: any) => {
             const sourceId = event?.sourceId || event?.source?.id;
@@ -1358,6 +1493,7 @@ export function MapLibreFastRenderer({
                 cancelAnimationFrame(iconReadyRafRef.current);
                 iconReadyRafRef.current = 0;
             }
+            featureStateRevisionRef.current += 1;
             pendingLoadedIconsRef.current.clear();
             pendingSnapEventRef.current = null;
             pendingIconPreloadMsRef.current = null;
@@ -1499,25 +1635,10 @@ export function MapLibreFastRenderer({
     React.useEffect(() => {
         const map = mapRef.current;
         if (!map || !map.getSource(SOURCE_ID)) return;
-        const previousSelected = selectedFeatureRef.current;
-        previousSelected.forEach(id => {
-            map.setFeatureState({ source: SOURCE_ID, id }, { selected: false });
-        });
-        const nextSelected = new Set<string>();
-        if (selectedFeatureId) {
-            for (const feature of renderCollectionResult.collection.features) {
-                const properties = feature.properties as Record<string, any>;
-                if (properties.id === selectedFeatureId || properties.parentFeatureId === selectedFeatureId) {
-                    nextSelected.add(String(properties.id));
-                }
-            }
-            if (nextSelected.size === 0) nextSelected.add(selectedFeatureId);
-        }
-        nextSelected.forEach(id => {
-            map.setFeatureState({ source: SOURCE_ID, id }, { selected: true });
-        });
-        selectedFeatureRef.current = nextSelected;
-    }, [renderCollectionResult, selectedFeatureId, viewportRevision]);
+        const nextSelected = selectedFeatureIdsForCollection(renderCollectionResult.collection, selectedFeatureId);
+        scheduleSelectedFeatureState(nextSelected, false);
+        overlayRef.current?.schedule(DirtyFlag.State);
+    }, [renderCollectionResult, scheduleSelectedFeatureState, selectedFeatureId, viewportRevision]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -1526,12 +1647,16 @@ export function MapLibreFastRenderer({
         const render = () => {
             const frameStart = now();
             const { collection, lodPolicy, sourceBuildMs } = renderCollectionResult;
+            const legacyCollection = renderFlags.overlayEnabled && renderFlags.overlayPoints
+                ? withoutPointFeatures(collection)
+                : collection;
 
             const applyData = () => {
                 const layerSetupKey = [
                     lodPolicy.clusterPoints ? 'cluster' : 'plain',
                     lodPolicy.showLabels ? 'labels' : 'nolabels',
                     activeBasemapPreset?.id || activeBasemapPreset?.kind || 'default',
+                    reportCaptureScope?.active ? 'report-capture' : 'normal',
                 ].join(':');
                 if (
                     layerSetupKeyRef.current !== layerSetupKey ||
@@ -1541,17 +1666,17 @@ export function MapLibreFastRenderer({
                     !map.getSource(EDIT_SOURCE_ID)
                 ) {
                     ensureDesignLayers(map, lodPolicy.clusterPoints, lodPolicy.showLabels);
-                    ensureBasemapOverlayLayers(map, activeBasemapPreset);
+                    ensureBasemapOverlayLayers(map, reportCaptureScope?.active ? null : activeBasemapPreset);
                     ensureOverlayLayers(map);
                     layerSetupKeyRef.current = layerSetupKey;
                 }
                 const iconKey = String(iconReadyRevision);
-                let displayCollection = preparedPointImagesRef.current?.collection === collection
+                let displayCollection = preparedPointImagesRef.current?.collection === legacyCollection
                     && preparedPointImagesRef.current.missingIconKey === iconKey
                     ? preparedPointImagesRef.current.displayCollection
                     : null;
                 if (!displayCollection) {
-                    displayCollection = preparePointImages(map, collection, (imageId, image, iconPreloadMs) => {
+                    displayCollection = preparePointImages(map, legacyCollection, (imageId, image, iconPreloadMs) => {
                         pendingLoadedIconsRef.current.set(imageId, { image, preloadMs: iconPreloadMs });
                         if (iconReadyRafRef.current) return;
                         iconReadyRafRef.current = requestAnimationFrame(() => {
@@ -1582,13 +1707,16 @@ export function MapLibreFastRenderer({
                         });
                     });
                     preparedPointImagesRef.current = {
-                        collection,
+                        collection: legacyCollection,
                         missingIconKey: iconKey,
                         displayCollection,
                     };
                 }
                 const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
-                const dataKey = `${renderCacheKey}::icons:${iconReadyRevision}`;
+                const legacyDataKey = renderFlags.overlayEnabled && renderFlags.overlayPoints
+                    ? stableJsonKey(displayCollection)
+                    : renderCacheKey;
+                const dataKey = `${legacyDataKey}::icons:${iconReadyRevision}`;
                 const setDataStart = now();
                 let didSetData = false;
                 if (source && lastSetDataKeyRef.current !== dataKey) {
@@ -1596,19 +1724,10 @@ export function MapLibreFastRenderer({
                     lastSetDataKeyRef.current = dataKey;
                     didSetData = true;
                 }
-                if (selectedFeatureId && source && didSetData) {
-                    const nextSelected = new Set<string>();
-                    for (const feature of displayCollection.features) {
-                        const properties = feature.properties as Record<string, any>;
-                        if (properties.id === selectedFeatureId || properties.parentFeatureId === selectedFeatureId) {
-                            nextSelected.add(String(properties.id));
-                        }
-                    }
-                    if (nextSelected.size === 0) nextSelected.add(selectedFeatureId);
-                    nextSelected.forEach(id => {
-                        map.setFeatureState({ source: SOURCE_ID, id }, { selected: true });
-                    });
-                    selectedFeatureRef.current = nextSelected;
+                if (source && didSetData) {
+                    const nextSelected = selectedFeatureIdsForCollection(displayCollection, selectedFeatureId);
+                    scheduleSelectedFeatureState(nextSelected, true);
+                    overlayRef.current?.schedule(DirtyFlag.Geometry | DirtyFlag.Style);
                 }
                 const mapLibreSetDataMs = now() - setDataStart;
                 if (!firstSetDataReportedRef.current) {
@@ -1652,7 +1771,7 @@ export function MapLibreFastRenderer({
         };
 
         render();
-    }, [activeBasemapPreset, iconReadyRevision, renderCacheKey, renderCollectionResult, setRenderMetrics, updateOpenMetrics]);
+    }, [activeBasemapPreset, iconReadyRevision, renderCacheKey, renderCollectionResult, renderFlags, reportCaptureScope, scheduleSelectedFeatureState, selectedFeatureId, setRenderMetrics, updateOpenMetrics]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -1660,8 +1779,15 @@ export function MapLibreFastRenderer({
 
         const applyData = () => {
             ensureOverlayLayers(map);
+            if (reportCaptureScope?.active) {
+                setGeoJsonData(map, DRAWING_SOURCE_ID, emptyOverlayCollection);
+                setGeoJsonData(map, EDIT_SOURCE_ID, emptyOverlayCollection);
+                overlayRef.current?.schedule(DirtyFlag.State);
+                return;
+            }
             setGeoJsonData(map, DRAWING_SOURCE_ID, buildDrawingOverlay(currentDrawingPoints, snappedPoint));
             setGeoJsonData(map, EDIT_SOURCE_ID, buildEditOverlay(editCoords, polylineSnapMarkers));
+            overlayRef.current?.schedule(DirtyFlag.Geometry);
         };
 
         if (map.isStyleLoaded()) {
@@ -1669,7 +1795,7 @@ export function MapLibreFastRenderer({
         } else {
             map.once('styledata', applyData);
         }
-    }, [currentDrawingPoints, editCoords, polylineSnapMarkers, snappedPoint]);
+    }, [currentDrawingPoints, editCoords, polylineSnapMarkers, reportCaptureScope, snappedPoint]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -1698,6 +1824,14 @@ export function MapLibreFastRenderer({
             className="design-maplibre-fast"
             data-testid="maplibre-fast-renderer"
             data-basemap-state={basemapLoadState}
-        />
+        >
+            <FeatureOverlayCanvas
+                ref={overlayRef}
+                camera={cameraBridgeRef.current.getSnapshot()}
+                designFeatures={renderCollectionResult.collection}
+                renderFlags={renderFlags}
+                selectedIds={selectedFeatureIdsForCollection(renderCollectionResult.collection, selectedFeatureId)}
+            />
+        </div>
     );
 }

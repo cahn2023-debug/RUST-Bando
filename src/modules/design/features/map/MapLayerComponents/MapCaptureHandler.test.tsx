@@ -73,6 +73,9 @@ describe('MapCaptureHandler', () => {
         Object.defineProperty(element, 'height', { writable: true, value: 0, configurable: true });
         (element as HTMLCanvasElement).getContext = vi.fn(() => ({ drawImage: vi.fn() })) as any;
         (element as HTMLCanvasElement).toDataURL = vi.fn(() => 'data:image/jpeg;base64,BBBB');
+        (element as HTMLCanvasElement).toBlob = vi.fn((callback: BlobCallback) => {
+          callback(new Blob([new Uint8Array([1, 2, 3])], { type: 'image/jpeg' }));
+        });
       }
       return element;
     }) as any);
@@ -85,8 +88,12 @@ describe('MapCaptureHandler', () => {
 
   it('emits capture scope and always restores inactive capture mode', async () => {
     const captureEvents: any[] = [];
+    const resultEvents: any[] = [];
     window.addEventListener('design-report-map-capture', (event) => {
       captureEvents.push((event as CustomEvent).detail);
+    });
+    window.addEventListener('map-capture-result', (event) => {
+      resultEvents.push((event as CustomEvent).detail);
     });
 
     render(<MapCaptureHandler />);
@@ -105,9 +112,12 @@ describe('MapCaptureHandler', () => {
     await waitFor(() => {
       expect(eventMocks.emit).toHaveBeenCalledWith('map-capture-result', {
         captureId: 'capture-1',
-        dataUrl: 'data:image/jpeg;base64,BBBB',
+        width: 800,
+        height: 500,
+        mimeType: 'image/jpeg',
       });
     });
+    expect(resultEvents[0].image.bytes).toEqual(new Uint8Array([1, 2, 3]));
     expect(captureEvents[0]).toEqual({
       active: true,
       focusFeatureIds: ['route-1', 'intersection-1'],
