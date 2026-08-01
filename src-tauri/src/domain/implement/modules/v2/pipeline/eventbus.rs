@@ -162,6 +162,12 @@ pub enum StorageCommand {
         bbox: Option<[f64; 4]>,
         reply: oneshot::Sender<Result<serde_json::Value, String>>,
     },
+    GetReportSectionSitePhotos {
+        pmp_path: PathBuf,
+        project_id: String,
+        feature_ids: Vec<String>,
+        reply: oneshot::Sender<Result<serde_json::Value, String>>,
+    },
     // Queries
     Query {
         sql: String,

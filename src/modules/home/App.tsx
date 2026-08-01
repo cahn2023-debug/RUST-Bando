@@ -23,7 +23,9 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
 import { MapProvider } from "@DESIGN/features/map/MapContext";
-import { PersistentMapHost } from "@DESIGN/features/map/PersistentMapHost";
+import { BasemapProvider, PersistentBasemapHost } from "@/core/basemap";
+
+const PersistentMapHost = PersistentBasemapHost;
 
 export default function App() {
   const { loadSettings } = useSettingsStore();
@@ -244,6 +246,7 @@ export default function App() {
 
   return (
     <AppBootstrap>
+      <BasemapProvider>
       <MapProvider>
         <div className="h-full w-full min-h-0 min-w-0 flex flex-col overflow-hidden bg-cad-bg text-cad-text-primary font-sans">
           <TopToolbar
@@ -338,6 +341,7 @@ export default function App() {
           />
         </div>
       </MapProvider>
+      </BasemapProvider>
     </AppBootstrap>
   );
 }

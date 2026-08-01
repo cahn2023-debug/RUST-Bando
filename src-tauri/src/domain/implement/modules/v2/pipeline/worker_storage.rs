@@ -11,7 +11,7 @@ use rusqlite::{
 };
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
@@ -70,6 +70,7 @@ impl StorageWorker {
                                     | StorageCommand::GetMapTile { .. }
                                     | StorageCommand::BuildMapTiles { .. }
                                     | StorageCommand::InvalidateMapTiles { .. }
+                                    | StorageCommand::GetReportSectionSitePhotos { .. }
                             ) {
                                 worker.execute_batch(batch).await;
                                 worker.execute(next).await;
@@ -392,6 +393,19 @@ impl StorageWorker {
                 .and_then(|result| result);
                 let _ = reply.send(res);
             }
+            StorageCommand::GetReportSectionSitePhotos {
+                pmp_path,
+                project_id,
+                feature_ids,
+                reply,
+            } => {
+                let res = catch_unwind(AssertUnwindSafe(|| {
+                    self.get_report_section_site_photos(&pmp_path, &project_id, &feature_ids)
+                }))
+                .map_err(panic_to_string)
+                .and_then(|result| result);
+                let _ = reply.send(res);
+            }
             StorageCommand::OptimizeProjectStorage { project_id, reply } => {
                 let res = catch_unwind(AssertUnwindSafe(|| {
                     self.optimize_project_storage(&project_id)
@@ -551,6 +565,7 @@ impl StorageWorker {
                     | StorageCommand::GetMapTile { .. }
                     | StorageCommand::BuildMapTiles { .. }
                     | StorageCommand::InvalidateMapTiles { .. }
+                    | StorageCommand::GetReportSectionSitePhotos { .. }
             ) {
                 self.execute(commands.into_iter().next().expect("single command"))
                     .await;
@@ -1691,6 +1706,119 @@ impl StorageWorker {
         Ok(asset)
     }
 
+    fn get_report_section_site_photos(
+        &self,
+        pmp_path: &Path,
+        project_id: &str,
+        feature_ids: &[String],
+    ) -> Result<Value, String> {
+        if feature_ids.is_empty() {
+            return Ok(json!([]));
+        }
+
+        let placeholders = feature_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let sql = format!(
+            "SELECT
+                fm.feature_id,
+                fm.asset_id,
+                fm.sort_order,
+                fm.is_primary,
+                ma.project_id,
+                ma.rel_path,
+                ma.sha256,
+                ma.mime_type,
+                ma.byte_size,
+                ma.width,
+                ma.height,
+                ma.created_at
+             FROM feature_media AS fm
+             INNER JOIN media_assets AS ma ON ma.id = fm.asset_id
+             WHERE ma.project_id = ?1 AND fm.feature_id IN ({placeholders})
+             ORDER BY fm.feature_id, fm.is_primary DESC, fm.sort_order ASC, ma.created_at ASC"
+        );
+
+        let mut stmt = self.db.conn.prepare(&sql).map_err(|e| e.to_string())?;
+
+        let mut params: Vec<&dyn rusqlite::ToSql> = Vec::with_capacity(1 + feature_ids.len());
+        params.push(&project_id);
+        for fid in feature_ids {
+            params.push(fid);
+        }
+
+        let base_dir = pmp_path.parent().unwrap_or(&self.db.base_dir);
+        let mut repaired_paths: Vec<(String, String)> = Vec::new();
+        let rows = stmt.query_map(params.as_slice(), |row| {
+            let rel_path: String = row.get(5)?;
+            let sha256: String = row.get(6)?;
+            let asset_id: String = row.get(1)?;
+            let stored_path = PathBuf::from(&rel_path);
+            let mut full_path = if stored_path.is_absolute() {
+                stored_path
+            } else {
+                base_dir.join(&stored_path)
+            };
+            let mut exists = full_path.exists();
+            let mut repaired_rel_path: Option<String> = None;
+
+            if !exists {
+                if let Some(found) = find_media_asset_file(base_dir, pmp_path, &sha256) {
+                    if let Ok(next_rel_path) = compute_rel_path(&found, base_dir) {
+                        repaired_rel_path = Some(next_rel_path);
+                    }
+                    full_path = found;
+                    exists = true;
+                }
+            }
+            if let Some(next_rel_path) = repaired_rel_path {
+                if next_rel_path != rel_path {
+                    repaired_paths.push((asset_id.clone(), next_rel_path));
+                }
+            }
+            let warning = if exists {
+                Value::Null
+            } else {
+                json!(format!(
+                    "Khong tim thay file Site Photo: {}. Da thu thu muc assets: {}",
+                    rel_path,
+                    describe_media_asset_search_dirs(base_dir, pmp_path)
+                ))
+            };
+
+            Ok(json!({
+                "featureId": row.get::<_, String>(0)?,
+                "assetId": asset_id,
+                "sortOrder": row.get::<_, i64>(2)?,
+                "isPrimary": row.get::<_, i64>(3)? == 1,
+                "projectId": row.get::<_, String>(4)?,
+                "relativePath": rel_path,
+                "absolutePath": full_path.to_string_lossy().to_string(),
+                "sha256": sha256,
+                "mimeType": row.get::<_, String>(7)?,
+                "byteSize": row.get::<_, i64>(8)?,
+                "width": row.get::<_, Option<i64>>(9)?,
+                "height": row.get::<_, Option<i64>>(10)?,
+                "status": if exists { "resolved" } else { "missing" },
+                "warning": warning,
+            }))
+        }).map_err(|e| e.to_string())?;
+
+        let mut photos = Vec::new();
+        for r in rows {
+            photos.push(r.map_err(|e| e.to_string())?);
+        }
+        drop(stmt);
+        for (asset_id, rel_path) in repaired_paths {
+            self.db
+                .conn
+                .execute(
+                    "UPDATE media_assets SET rel_path = ?1 WHERE project_id = ?2 AND id = ?3",
+                    params![rel_path, project_id, asset_id],
+                )
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(Value::Array(photos))
+    }
+
     fn analyze_project_media_recovery(&self, project_id: &str) -> Result<Value, String> {
         let candidates = build_recovery_candidates(&self.db.conn, project_id)?;
         let missing_files = missing_media_files(&self.db.conn, &self.db.base_dir, project_id)?;
@@ -2030,7 +2158,8 @@ impl StorageWorker {
                 | StorageCommand::RedoDesignEvent { .. }
                 | StorageCommand::GetMapTile { .. }
                 | StorageCommand::BuildMapTiles { .. }
-                | StorageCommand::InvalidateMapTiles { .. } => {}
+                | StorageCommand::InvalidateMapTiles { .. }
+                | StorageCommand::GetReportSectionSitePhotos { .. } => {}
             }
         }
         tx.commit().map_err(|e| e.to_string())
@@ -3017,16 +3146,54 @@ fn extension_for_mime(mime_type: &str) -> &'static str {
     }
 }
 
+fn media_asset_search_dirs(base_dir: &Path, pmp_path: &Path) -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    let mut seen = HashSet::new();
+    let mut push_dir = |path: PathBuf| {
+        if seen.insert(path.clone()) {
+            dirs.push(path);
+        }
+    };
+
+    let pmp_dir = pmp_path.parent().unwrap_or(base_dir);
+    if let Some(stem) = pmp_path.file_stem().and_then(|value| value.to_str()) {
+        push_dir(pmp_dir.join(format!("{stem}.assets")));
+        push_dir(base_dir.join(format!("{stem}.assets")));
+    }
+    push_dir(pmp_dir.join("assets"));
+    push_dir(base_dir.join("assets"));
+
+    if let Ok(entries) = fs::read_dir(base_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
+                continue;
+            };
+            if name.ends_with(".assets") || name.eq_ignore_ascii_case("assets") {
+                push_dir(path);
+            }
+        }
+    }
+
+    dirs
+}
+
+fn describe_media_asset_search_dirs(base_dir: &Path, pmp_path: &Path) -> String {
+    media_asset_search_dirs(base_dir, pmp_path)
+        .into_iter()
+        .map(|path| path.to_string_lossy().to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 fn find_media_asset_file(base_dir: &Path, pmp_path: &Path, sha256: &str) -> Option<PathBuf> {
-    let preferred_assets = pmp_path
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .map(|stem| base_dir.join(format!("{stem}.assets")));
-    if let Some(found) = preferred_assets
-        .as_ref()
-        .and_then(|assets_dir| find_file_by_stem(assets_dir, sha256))
-    {
-        return Some(found);
+    for assets_dir in media_asset_search_dirs(base_dir, pmp_path) {
+        if let Some(found) = find_file_by_stem(&assets_dir, sha256) {
+            return Some(found);
+        }
     }
 
     let entries = fs::read_dir(base_dir).ok()?;
@@ -3038,14 +3205,7 @@ fn find_media_asset_file(base_dir: &Path, pmp_path: &Path, sha256: &str) -> Opti
         let Some(name) = path.file_name().and_then(|value| value.to_str()) else {
             continue;
         };
-        if !name.ends_with(".assets") {
-            continue;
-        }
-        if preferred_assets
-            .as_ref()
-            .map(|preferred| preferred == &path)
-            .unwrap_or(false)
-        {
+        if !name.ends_with(".assets") && !name.eq_ignore_ascii_case("assets") {
             continue;
         }
         if let Some(found) = find_file_by_stem(&path, sha256) {
@@ -9762,6 +9922,251 @@ mod tests {
                 .and_then(|ids| ids.first())
                 .and_then(Value::as_str),
             Some(asset_id)
+        );
+    }
+
+    #[test]
+    fn media_asset_resolver_finds_plain_assets_dir_next_to_pmp() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("plain_assets.pmp");
+        let db = PmpDatabase::open_or_create(pmp_path.clone()).expect("open db");
+        let project_id = "plain-assets-project";
+        let feature_id = "feature-plain-assets";
+        let bytes = b"plain-assets-image";
+        let mut hasher = Sha256::new();
+        hasher.update(bytes);
+        let sha256 = hex::encode(hasher.finalize());
+        let asset_id = "asset-plain-assets";
+        let actual_rel_path = PathBuf::from("assets").join("media").join(format!("{sha256}.png"));
+        let actual_path = dir.path().join(&actual_rel_path);
+        fs::create_dir_all(actual_path.parent().expect("asset parent")).expect("asset dir");
+        fs::write(&actual_path, bytes).expect("asset file");
+
+        db.conn
+            .execute(
+                "INSERT INTO projects (id, name, title) VALUES (?1, ?2, ?3)",
+                params![project_id, "Plain Assets", "Plain Assets"],
+            )
+            .expect("project");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name, metadata_json) VALUES (?1, ?2, ?3, ?4)",
+                params!["layer-1", project_id, "Layer", "{}"],
+            )
+            .expect("layer");
+        db.conn
+            .execute(
+                "INSERT INTO features (id, project_id, layer_id, name, geom_type, properties_json, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![feature_id, project_id, "layer-1", "Camera", "Point", "{}", "{}"],
+            )
+            .expect("feature");
+        db.conn
+            .execute(
+                "INSERT INTO media_assets (id, project_id, sha256, rel_path, mime_type, byte_size, width, height)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    asset_id,
+                    project_id,
+                    sha256,
+                    r"broken\missing.png",
+                    "image/png",
+                    bytes.len() as i64,
+                    1_i64,
+                    1_i64
+                ],
+            )
+            .expect("media asset");
+        db.conn
+            .execute(
+                "INSERT INTO feature_media (feature_id, asset_id, sort_order, is_primary) VALUES (?1, ?2, ?3, ?4)",
+                params![feature_id, asset_id, 1_i64, 1_i64],
+            )
+            .expect("feature media");
+
+        let (_tx, rx) = mpsc::channel(1);
+        let worker = StorageWorker { rx, db };
+        let resolved = worker
+            .resolve_media_asset(project_id, asset_id)
+            .expect("resolve asset");
+        assert_eq!(
+            resolved.get("path").and_then(Value::as_str),
+            Some(actual_path.to_string_lossy().as_ref())
+        );
+        assert!(resolved
+            .get("dataUrl")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .starts_with("data:image/png;base64,"));
+
+        let repaired_rel_path: String = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT rel_path FROM media_assets WHERE id = ?1",
+                params![asset_id],
+                |row| row.get(0),
+            )
+            .expect("repaired rel path");
+        assert_eq!(PathBuf::from(repaired_rel_path), actual_rel_path);
+    }
+
+    #[test]
+    fn report_site_photos_resolve_from_plain_assets_dir_next_to_pmp() {
+        let dir = tempdir().expect("tempdir");
+        let pmp_path = dir.path().join("report_assets.pmp");
+        let db = PmpDatabase::open_or_create(pmp_path.clone()).expect("open db");
+        let project_id = "report-assets-project";
+        let feature_id = "feature-report-assets";
+        let bytes = b"report-assets-image";
+        let mut hasher = Sha256::new();
+        hasher.update(bytes);
+        let sha256 = hex::encode(hasher.finalize());
+        let asset_id = "asset-report-assets";
+        let actual_rel_path = PathBuf::from("assets").join("media").join(format!("{sha256}.png"));
+        let actual_path = dir.path().join(&actual_rel_path);
+        fs::create_dir_all(actual_path.parent().expect("asset parent")).expect("asset dir");
+        fs::write(&actual_path, bytes).expect("asset file");
+
+        db.conn
+            .execute(
+                "INSERT INTO projects (id, name, title) VALUES (?1, ?2, ?3)",
+                params![project_id, "Report Assets", "Report Assets"],
+            )
+            .expect("project");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name, metadata_json) VALUES (?1, ?2, ?3, ?4)",
+                params!["layer-1", project_id, "Layer", "{}"],
+            )
+            .expect("layer");
+        db.conn
+            .execute(
+                "INSERT INTO features (id, project_id, layer_id, name, geom_type, properties_json, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![feature_id, project_id, "layer-1", "Camera", "Point", "{}", "{}"],
+            )
+            .expect("feature");
+        db.conn
+            .execute(
+                "INSERT INTO media_assets (id, project_id, sha256, rel_path, mime_type, byte_size, width, height)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    asset_id,
+                    project_id,
+                    sha256,
+                    r"broken\missing.png",
+                    "image/png",
+                    bytes.len() as i64,
+                    1_i64,
+                    1_i64
+                ],
+            )
+            .expect("media asset");
+        db.conn
+            .execute(
+                "INSERT INTO feature_media (feature_id, asset_id, sort_order, is_primary) VALUES (?1, ?2, ?3, ?4)",
+                params![feature_id, asset_id, 1_i64, 1_i64],
+            )
+            .expect("feature media");
+
+        let (_tx, rx) = mpsc::channel(1);
+        let worker = StorageWorker { rx, db };
+        let photos = worker
+            .get_report_section_site_photos(&pmp_path, project_id, &[feature_id.to_string()])
+            .expect("report photos");
+        let first = photos.as_array().and_then(|items| items.first()).expect("photo");
+        assert_eq!(first.get("status").and_then(Value::as_str), Some("resolved"));
+        assert_eq!(first.get("warning"), Some(&Value::Null));
+        assert_eq!(
+            first.get("absolutePath").and_then(Value::as_str),
+            Some(actual_path.to_string_lossy().as_ref())
+        );
+
+        let repaired_rel_path: String = worker
+            .db
+            .conn
+            .query_row(
+                "SELECT rel_path FROM media_assets WHERE id = ?1",
+                params![asset_id],
+                |row| row.get(0),
+            )
+            .expect("repaired rel path");
+        assert_eq!(PathBuf::from(repaired_rel_path), actual_rel_path);
+    }
+
+    #[test]
+    fn report_site_photos_use_requested_pmp_path_for_asset_lookup() {
+        let db_dir = tempdir().expect("db tempdir");
+        let asset_dir = tempdir().expect("asset tempdir");
+        let db_pmp_path = db_dir.path().join("active_worker.pmp");
+        let requested_pmp_path = asset_dir.path().join("requested_report.pmp");
+        let db = PmpDatabase::open_or_create(db_pmp_path).expect("open db");
+        let project_id = "requested-path-project";
+        let feature_id = "feature-requested-path";
+        let bytes = b"requested-path-image";
+        let mut hasher = Sha256::new();
+        hasher.update(bytes);
+        let sha256 = hex::encode(hasher.finalize());
+        let asset_id = "asset-requested-path";
+        let actual_rel_path = PathBuf::from("assets").join("media").join(format!("{sha256}.png"));
+        let actual_path = asset_dir.path().join(&actual_rel_path);
+        fs::create_dir_all(actual_path.parent().expect("asset parent")).expect("asset dir");
+        fs::write(&actual_path, bytes).expect("asset file");
+
+        db.conn
+            .execute(
+                "INSERT INTO projects (id, name, title) VALUES (?1, ?2, ?3)",
+                params![project_id, "Requested Path", "Requested Path"],
+            )
+            .expect("project");
+        db.conn
+            .execute(
+                "INSERT INTO layers (id, project_id, name, metadata_json) VALUES (?1, ?2, ?3, ?4)",
+                params!["layer-1", project_id, "Layer", "{}"],
+            )
+            .expect("layer");
+        db.conn
+            .execute(
+                "INSERT INTO features (id, project_id, layer_id, name, geom_type, properties_json, metadata_json) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                params![feature_id, project_id, "layer-1", "Camera", "Point", "{}", "{}"],
+            )
+            .expect("feature");
+        db.conn
+            .execute(
+                "INSERT INTO media_assets (id, project_id, sha256, rel_path, mime_type, byte_size, width, height)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                params![
+                    asset_id,
+                    project_id,
+                    sha256,
+                    r"broken\missing.png",
+                    "image/png",
+                    bytes.len() as i64,
+                    1_i64,
+                    1_i64
+                ],
+            )
+            .expect("media asset");
+        db.conn
+            .execute(
+                "INSERT INTO feature_media (feature_id, asset_id, sort_order, is_primary) VALUES (?1, ?2, ?3, ?4)",
+                params![feature_id, asset_id, 1_i64, 1_i64],
+            )
+            .expect("feature media");
+
+        let (_tx, rx) = mpsc::channel(1);
+        let worker = StorageWorker { rx, db };
+        let photos = worker
+            .get_report_section_site_photos(
+                &requested_pmp_path,
+                project_id,
+                &[feature_id.to_string()],
+            )
+            .expect("report photos");
+        let first = photos.as_array().and_then(|items| items.first()).expect("photo");
+        assert_eq!(first.get("status").and_then(Value::as_str), Some("resolved"));
+        assert_eq!(
+            first.get("absolutePath").and_then(Value::as_str),
+            Some(actual_path.to_string_lossy().as_ref())
         );
     }
 

@@ -169,4 +169,61 @@ describe("reportModel", () => {
     expect(sanitized![2]).toBeGreaterThan(sanitized![0]);
     expect(sanitized![3]).toBeGreaterThan(sanitized![1]);
   });
+
+  it("extracts site photos from stringified media JSON, properties, and featureDetailsCache", () => {
+    const photoState: MapState = {
+      ...state,
+      features: {
+        ...state.features,
+        cameraWithJsonMedia: {
+          id: "cameraWithJsonMedia",
+          layer_id: "l1",
+          group_id: "g1",
+          name: "Camera với ảnh JSON",
+          geom_type: "Point",
+          metadata: JSON.stringify({
+            display_order: "4",
+          }),
+          properties: {
+            media: JSON.stringify({
+              imageAssetIds: ["asset-abc-123"],
+              imageUrls: ["https://example.com/site-photo.jpg"],
+            }),
+          },
+          coordinates: [106.5, 10.5],
+        },
+      },
+    };
+
+    const cachedFeature = {
+      id: "cameraWithJsonMedia",
+      layer_id: "l1",
+      group_id: "g1",
+      name: "Camera với ảnh JSON",
+      geom_type: "Point",
+      metadata: JSON.stringify({
+        display_order: "4",
+        media: {
+          imageAssetIds: ["asset-cached-456"],
+        },
+      }),
+      properties: {},
+      coordinates: [106.5, 10.5] as any,
+    };
+
+    const model = buildReportModel(
+      photoState,
+      [{ type: "feature", id: "cameraWithJsonMedia" }],
+      "Photo Test",
+      { cameraWithJsonMedia: cachedFeature }
+    );
+
+    const photos = model.sections[0].details[0].photos;
+    const assetIds = photos.map((p) => p.assetId).filter(Boolean);
+    const dataUrls = photos.map((p) => p.dataUrl).filter(Boolean);
+
+    expect(assetIds).toContain("asset-abc-123");
+    expect(assetIds).toContain("asset-cached-456");
+    expect(dataUrls).toContain("https://example.com/site-photo.jpg");
+  });
 });

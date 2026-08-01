@@ -1,19 +1,12 @@
 import { act, renderHook } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+import { afterEach, describe, expect, it } from 'vitest';
 import { useMapStyles } from './useMapStyles';
 
 const STORAGE_KEY = 'design.map.features';
-const originalUpdateSettings = useDesignSync.getState().updateSettings;
 
 describe('useMapStyles', () => {
     afterEach(() => {
         window.localStorage.clear();
-        useDesignSync.setState({
-            projectId: null,
-            state: null,
-            updateSettings: originalUpdateSettings,
-        } as any);
     });
 
     it('defaults to the street basemap with four tile subdomains', () => {
@@ -105,31 +98,16 @@ describe('useMapStyles', () => {
         expect(decodeURIComponent(heatTile)).toContain('s.t:8|p.v:off');
     });
 
-    it('uses and persists the project basemap setting instead of rewriting legacy storage', () => {
-        const updateSettings = vi.fn(async () => {});
-        useDesignSync.setState({
-            projectId: 'project-1',
-            state: {
-                settings: { map: { basemapId: 'satellite' } },
-                features: {},
-                feature_groups: {},
-                layers: {},
-                regions: {},
-            },
-            updateSettings,
-        } as any);
-
+    it('keeps basemap selection in application settings independent from project metadata', () => {
         const { result } = renderHook(() => useMapStyles());
 
-        expect(result.current.basemapId).toBe('satellite');
+        expect(result.current.basemapId).toBe('street');
 
         act(() => {
             result.current.setBasemapId('dark');
         });
 
-        expect(updateSettings).toHaveBeenCalledWith({
-            map: { basemapId: 'dark' },
-        });
-        expect(JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '{}').basemapId).toBeUndefined();
+        expect(result.current.basemapId).toBe('dark');
+        expect(JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '{}').basemapId).toBe('dark');
     });
 });

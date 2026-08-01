@@ -439,6 +439,9 @@ export const buildMapLibreFeatureCollection = ({
         const metadata = getFeatureMetadataWithGroupPreview(feature, groupThemePreview);
         const group = feature.group_id ? featureGroups[feature.group_id] : null;
         const displayInfo = getFeatureDisplayInfo(feature, group?.type, group?.name, metadata);
+        if (focusIds && focusIds.size > 0 && focusIds.has(feature.id)) {
+            return true;
+        }
         return zoom >= MAP_INTERSECTION_CHILD_MIN_ZOOM || !isMapIntersectionChild(feature, group, metadata, displayInfo);
     };
     const selectedRenderFeature = selected && canRenderFeature(selected)

@@ -15,6 +15,8 @@ import {
 } from "docx";
 import type { ReportFeatureDetail, ReportModel, ReportPhoto, ReportSection } from "./reportModel";
 import { formatPoint } from "./reportModel";
+import { safeInvoke as invoke } from "@IMPLEMENT/lib/tauri";
+import { resolveMediaAsset } from "@IMPLEMENT/services/mediaAssetService";
 
 export type ReportImageRef = {
   mimeType: "image/png" | "image/jpeg" | "image/gif" | "image/bmp";
@@ -224,19 +226,116 @@ const flattenRecord = (record: Record<string, unknown>, prefix = ""): Array<[str
   return rows;
 };
 
-const photoBlocks = async (photos: ReportPhoto[]): Promise<Paragraph[]> => {
-  const availablePhotos = photos.filter((photo) => !!photo.dataUrl);
-  if (availablePhotos.length === 0) return [paragraph("No site photos.")];
+const imageRunTypeFromMime = (mimeType?: string): "png" | "jpg" | "gif" | "bmp" => {
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/gif") return "gif";
+  if (mimeType === "image/bmp") return "bmp";
+  return "jpg";
+};
 
-  const blocks: Paragraph[] = [];
-  for (const photo of availablePhotos) {
-    blocks.push(paragraph(photo.label, true));
-    blocks.push(await imageParagraph(photo.dataUrl, PHOTO_WIDTH, "Không thể nhúng ảnh này vào file Word."));
+const loadPhotoBytes = async (photo: ReportPhoto, projectId?: string | null): Promise<Uint8Array | null> => {
+  const targetPath = photo.absolutePath || photo.processedAsset?.tempPath;
+  if (targetPath) {
+    try {
+      const bytes = await invoke<number[] | Uint8Array>("read_binary_file", {
+        path: targetPath,
+      });
+      return bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    } catch (e) {
+      console.warn("[reportDocx] Failed to read photo file directly:", targetPath, e);
+    }
+  }
+  if (photo.dataUrl && photo.dataUrl.startsWith("data:")) {
+    const parts = photo.dataUrl.split(",");
+    if (parts[1]) {
+      return base64ToUint8Array(parts[1]);
+    }
+  }
+  const effectiveProjectId = projectId || photo.projectId;
+  if (effectiveProjectId && photo.assetId) {
+    try {
+      const asset = await resolveMediaAsset(effectiveProjectId, photo.assetId);
+      if (asset.path) {
+        const bytes = await invoke<number[] | Uint8Array>("read_binary_file", {
+          path: asset.path,
+        });
+        return bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+      }
+      if (asset.dataUrl && asset.dataUrl.startsWith("data:")) {
+        const parts = asset.dataUrl.split(",");
+        if (parts[1]) {
+          return base64ToUint8Array(parts[1]);
+        }
+      }
+    } catch (e) {
+      console.warn("[reportDocx] Failed to resolve media asset fallback:", photo.assetId, e);
+    }
+  }
+  return null;
+};
+
+const missingPhotoCallout = (photo: ReportPhoto): Table =>
+  new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            children: [
+              paragraph("⚠️ [Không thể nạp ảnh hiện trường]", true),
+              paragraph(`Mã Asset ID: ${photo.assetId || "-"}`),
+              paragraph(`Đường dẫn tương đối: ${photo.relativePath || "-"}`),
+              paragraph(`Lý do: ${photo.warning || "Không tìm thấy file trong thư mục dự án."}`),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+
+const photoBlocks = async (photos: ReportPhoto[], projectId?: string | null): Promise<Array<Paragraph | Table>> => {
+  if (photos.length === 0) return [paragraph("Không có ảnh hiện trường.")];
+
+  const sortedPhotos = [...photos].sort((a, b) => {
+    if (a.isPrimary && !b.isPrimary) return -1;
+    if (!a.isPrimary && b.isPrimary) return 1;
+    return (a.sortOrder || 0) - (b.sortOrder || 0);
+  });
+
+  const blocks: Array<Paragraph | Table> = [];
+  for (let index = 0; index < sortedPhotos.length; index += 1) {
+    const photo = sortedPhotos[index];
+    const captionText = `Hình: ${photo.label} ${photo.isPrimary ? "(Ảnh đại diện)" : ""} - Asset ID: ${photo.assetId || photo.id}`;
+    blocks.push(paragraph(captionText, true));
+
+    const bytes = await loadPhotoBytes(photo, projectId);
+    if (bytes && bytes.length > 0) {
+      const mime = imageRunTypeFromMime(photo.processedAsset?.mimeType || photo.mimeType);
+
+      const imageRun = new ImageRun({
+        type: mime,
+        data: bytes,
+        transformation: { width: PHOTO_WIDTH, height: Math.round(PHOTO_WIDTH * 0.65) },
+      });
+
+      blocks.push(
+        new Paragraph({
+          children: [imageRun],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 160 },
+        })
+      );
+    } else if (photo.dataUrl) {
+      blocks.push(await imageParagraph(photo.dataUrl, PHOTO_WIDTH, "Không thể nhúng ảnh này vào file Word."));
+    } else {
+      blocks.push(missingPhotoCallout(photo));
+    }
   }
   return blocks;
 };
 
-const detailBlocks = async (detail: ReportFeatureDetail): Promise<Array<Paragraph | Table>> => {
+const detailBlocks = async (detail: ReportFeatureDetail, projectId?: string | null): Promise<Array<Paragraph | Table>> => {
   const propertyRows = flattenRecord(detail.properties);
   const rows: Array<[string, unknown]> = [
     ["Tên", detail.feature.name],
@@ -257,16 +356,16 @@ const detailBlocks = async (detail: ReportFeatureDetail): Promise<Array<Paragrap
     ...(propertyRows.length ? [paragraph("Properties", true), keyValueTable(propertyRows)] : []),
     paragraph("Site photo", true),
     ...detail.photoWarnings.map((warning) => paragraph(warning)),
-    ...(await photoBlocks(detail.photos)),
+    ...(await photoBlocks(detail.photos, projectId)),
   ];
 };
 
-const sectionBlocks = async (section: ReportSection, imageMap: ReportImageMap): Promise<Array<Paragraph | Table>> => {
+const sectionBlocks = async (section: ReportSection, imageMap: ReportImageMap, projectId?: string | null): Promise<Array<Paragraph | Table>> => {
   const detailChildren: Array<Paragraph | Table> = [];
   const sectionImage = imageMap[section.id];
   const imageWarnings = typeof sectionImage === "string" ? [] : sectionImage?.warnings || [];
   for (const detail of section.details) {
-    detailChildren.push(...await detailBlocks(detail));
+    detailChildren.push(...await detailBlocks(detail, projectId));
   }
 
   return [
@@ -285,6 +384,7 @@ const sectionBlocks = async (section: ReportSection, imageMap: ReportImageMap): 
     ...imageWarnings.map((warning) => paragraph(warning)),
     ...(section.summary.length ? [paragraph("Tổng hợp", true), ...section.summary.map((item) => paragraph(item))] : []),
     ...(section.description ? [paragraph("Mô tả", true), paragraph(section.description)] : []),
+    ...(section.photos.length > 0 ? [paragraph("Site photo nút giao / đối tượng gốc", true), ...(await photoBlocks(section.photos, projectId))] : []),
     ...detailChildren,
   ];
 };
@@ -293,6 +393,7 @@ export const buildReportDocx = async (
   model: ReportModel,
   imageMap: ReportImageMap = {},
   onProgress?: (percent: number, statusText: string) => void,
+  projectId?: string | null,
 ): Promise<ArrayBuffer> => {
   clearImageResizeCache();
   try {
@@ -307,13 +408,69 @@ export const buildReportDocx = async (
       if (index % 2 === 0) {
         await new Promise((r) => setTimeout(r, 0));
       }
-      detailSections.push(...(await sectionBlocks(section, imageMap)));
+      detailSections.push(...(await sectionBlocks(section, imageMap, projectId)));
       clearImageResizeCache();
     }
 
     if (onProgress) {
       onProgress(100, "Đang đóng gói file Word...");
       await new Promise((r) => setTimeout(r, 0));
+    }
+
+    const allWarnings: Array<{ section: string; featureId: string; assetId: string; warning: string }> = [];
+    model.sections.forEach((section) => {
+      const checkPhotos = (photos: ReportPhoto[]) => {
+        photos.forEach((photo) => {
+          if (photo.status === "missing" || photo.warning || (!photo.processedAsset && !photo.dataUrl)) {
+            allWarnings.push({
+              section: section.title,
+              featureId: photo.featureId || section.id,
+              assetId: photo.assetId || photo.id,
+              warning: photo.warning || "Thiếu file ảnh vật lý",
+            });
+          }
+        });
+      };
+      checkPhotos(section.photos);
+      section.details.forEach((detail) => checkPhotos(detail.photos));
+    });
+
+    const summaryWarningBlocks: Array<Paragraph | Table> = [];
+    if (allWarnings.length > 0) {
+      summaryWarningBlocks.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          children: [new TextRun({ text: "Bảng tổng hợp cảnh báo ảnh hiện trường", bold: true })],
+          spacing: { before: 400, after: 160 },
+        })
+      );
+
+      summaryWarningBlocks.push(
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: [
+            new TableRow({
+              children: [
+                new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, children: [paragraph("Mục báo cáo", true)] }),
+                new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, children: [paragraph("Mã đối tượng", true)] }),
+                new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, children: [paragraph("Asset ID", true)] }),
+                new TableCell({ width: { size: 25, type: WidthType.PERCENTAGE }, children: [paragraph("Chi tiết cảnh báo", true)] }),
+              ],
+            }),
+            ...allWarnings.map(
+              (w) =>
+                new TableRow({
+                  children: [
+                    new TableCell({ children: [paragraph(w.section)] }),
+                    new TableCell({ children: [paragraph(w.featureId)] }),
+                    new TableCell({ children: [paragraph(w.assetId)] }),
+                    new TableCell({ children: [paragraph(w.warning)] }),
+                  ],
+                })
+            ),
+          ],
+        })
+      );
     }
 
     const children: Array<Paragraph | Table> = [
@@ -344,6 +501,7 @@ export const buildReportDocx = async (
         spacing: { before: 320, after: 120 },
       }),
       ...detailSections,
+      ...summaryWarningBlocks,
     ];
 
     const doc = new Document({

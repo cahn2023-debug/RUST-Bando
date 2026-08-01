@@ -4010,6 +4010,29 @@ pub async fn resolve_media_asset(
 
 #[tauri::command]
 #[allow(non_snake_case)]
+pub async fn get_report_section_site_photos(
+    state: State<'_, ActorState>,
+    pmpPath: String,
+    projectId: String,
+    featureIds: Vec<String>,
+) -> Result<Value, String> {
+    let pmp_path = PathBuf::from(pmpPath);
+    let (tx, rx) = oneshot::channel();
+    state
+        .gateway_tx
+        .send(StorageCommand::GetReportSectionSitePhotos {
+            pmp_path,
+            project_id: projectId,
+            feature_ids: featureIds,
+            reply: tx,
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    rx.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
 pub async fn optimize_project_storage(
     state: State<'_, ActorState>,
     projectId: String,

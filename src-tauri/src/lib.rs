@@ -138,6 +138,7 @@ pub fn run() {
             crate::domain::implement::commands::v2::delete_media_asset,
             crate::domain::implement::commands::v2::replace_media_asset,
             crate::domain::implement::commands::v2::resolve_media_asset,
+            crate::domain::implement::commands::v2::get_report_section_site_photos,
             crate::domain::implement::commands::v2::optimize_project_storage,
             crate::domain::implement::commands::v2::get_project_storage_health,
             crate::domain::implement::commands::v2::analyze_project_media_recovery,

@@ -3,6 +3,7 @@ import { emit, listen } from "@tauri-apps/api/event";
 import { save } from "@tauri-apps/plugin-dialog";
 import { Check, ChevronDown, ChevronRight, Download, Eye, FileText, Loader2, X } from "lucide-react";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
+import { safeInvoke as invoke } from "@IMPLEMENT/lib/tauri";
 import { resolveMediaAsset } from "@IMPLEMENT/services/mediaAssetService";
 import { Button } from "@DESIGN/components/ui/Button";
 import { cn } from "@TOOL/utils/cn";
@@ -11,6 +12,7 @@ import {
   getDefaultReportSelections,
   getOverallReportBounds,
   getSelectableReportItems,
+  hydrateReportSitePhotos,
   sanitizeReportBounds,
   type ReportBounds,
   type ReportModel,
@@ -335,9 +337,11 @@ const hydrateReportPhotoAssets = async (model: ReportModel, projectId?: string |
 export function ReportExportDialog({ projectName, onClose }: ReportExportDialogProps) {
   const state = useDesignSync((store) => store.state);
   const projectId = useDesignSync((store) => store.projectId);
+  const projectPath = useDesignSync((store) => store.projectPath);
   const selectedFeatureId = useDesignSync((store) => store.selectedFeatureId);
   const selectedGroupId = useDesignSync((store) => store.selectedGroupId);
   const selectionSet = useDesignSync((store) => store.selectionSet);
+  const featureDetailsCache = useDesignSync((store) => store.featureDetailsCache);
 
   const selectableItems = useMemo(() => state ? getSelectableReportItems(state) : [], [state]);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -389,8 +393,8 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
 
   const baseReportModel = useMemo(() => {
     if (!state) return null;
-    return buildReportModel(state, selections, effectiveReportTitle);
-  }, [effectiveReportTitle, selections, state]);
+    return buildReportModel(state, selections, effectiveReportTitle, featureDetailsCache);
+  }, [effectiveReportTitle, selections, state, featureDetailsCache]);
   const [reportModel, setReportModel] = useState<ReportModel | null>(null);
 
   useEffect(() => {
@@ -410,15 +414,23 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setReportModel(baseReportModel);
-    hydrateReportPhotoAssets(baseReportModel, projectId)
-      .then((hydrated) => {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (!cancelled) setReportModel(hydrated);
-      });
+    if (projectPath && projectId) {
+      hydrateReportSitePhotos(baseReportModel, projectPath, projectId)
+        .then((hydrated) => {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          if (!cancelled) setReportModel(hydrated);
+        });
+    } else {
+      hydrateReportPhotoAssets(baseReportModel, projectId)
+        .then((hydrated) => {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          if (!cancelled) setReportModel(hydrated);
+        });
+    }
     return () => {
       cancelled = true;
     };
-  }, [baseReportModel, projectId]);
+  }, [baseReportModel, projectId, projectPath]);
 
   const currentSectionId = activeSectionId || reportModel?.sections[0]?.id || null;
 
@@ -537,7 +549,7 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
       setExportStatus("Đang tạo nội dung Word...");
       const buffer = await buildReportDocx(reportModel, nextImageMap, (_percent, statusText) => {
         setExportStatus(statusText);
-      });
+      }, projectId);
       setExportStatus("Đang lưu file vào hệ thống...");
       await saveReportDocxFile(filePath, buffer);
       setExportStatus("Đã xuất file Word.");
@@ -699,6 +711,98 @@ export function ReportExportDialog({ projectName, onClose }: ReportExportDialogP
   );
 }
 
+export function SitePhotoPreviewItem({ photo, projectId }: { photo: ReportPhoto; projectId?: string | null }) {
+  const [src, setSrc] = useState<string | null>(photo.dataUrl || null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(!photo.dataUrl);
+
+  useEffect(() => {
+    let cancelled = false;
+    setError(null);
+
+    if (photo.dataUrl) {
+      setSrc(photo.dataUrl);
+      setLoading(false);
+      return;
+    }
+
+    const tryLoad = async () => {
+      if (photo.absolutePath) {
+        try {
+          const bytes = await invoke<number[] | Uint8Array>("read_binary_file", { path: photo.absolutePath });
+          if (cancelled) return;
+          const uint8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+          const mime = photo.mimeType || (photo.relativePath?.endsWith(".png") ? "image/png" : "image/jpeg");
+          const blob = new Blob([uint8], { type: mime });
+          const objectUrl = URL.createObjectURL(blob);
+          setSrc(objectUrl);
+          setLoading(false);
+          return;
+        } catch (e) {
+          console.warn("[SitePhotoPreviewItem] Binary read error, trying fallback:", photo.absolutePath, e);
+        }
+      }
+
+      const effectiveProjectId = projectId || photo.projectId;
+      if (effectiveProjectId && photo.assetId) {
+        try {
+          const asset = await resolveMediaAsset(effectiveProjectId, photo.assetId);
+          if (cancelled) return;
+          if (asset.src) {
+            setSrc(asset.src);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.warn("[SitePhotoPreviewItem] Failed to resolve media asset:", photo.assetId, e);
+        }
+      }
+
+      if (!cancelled) {
+        setSrc(null);
+        setError(photo.warning || "Không thể nạp file ảnh");
+        setLoading(false);
+      }
+    };
+
+    void tryLoad();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [photo, projectId]);
+
+  if (error || (!loading && !src && photo.status === "missing")) {
+    return (
+      <div className="border border-dashed border-amber-300 bg-amber-50/60 p-3 rounded text-xs text-amber-800">
+        <p className="font-bold flex items-center gap-1">⚠️ Cảnh báo thiếu ảnh hiện trường</p>
+        <p className="mt-1">Mã Asset ID: <code className="font-mono bg-amber-100/80 px-1 rounded">{photo.assetId || "-"}</code></p>
+        <p className="mt-0.5 truncate">Đường dẫn: {photo.relativePath || "-"}</p>
+      </div>
+    );
+  }
+
+  return (
+    <figure className="border bg-white rounded p-2 shadow-sm relative">
+      {loading ? (
+        <div className="w-full h-40 flex items-center justify-center bg-slate-100 rounded text-slate-400">
+          <Loader2 size={18} className="animate-spin" />
+        </div>
+      ) : src ? (
+        <img src={src} alt={photo.label} loading="lazy" className="w-full h-40 object-contain rounded" />
+      ) : (
+        <div className="w-full h-40 flex items-center justify-center bg-slate-100 rounded text-xs text-slate-400">
+          Không tìm thấy ảnh
+        </div>
+      )}
+      <figcaption className="text-xs text-slate-600 mt-1.5 font-medium flex items-center justify-between">
+        <span>{photo.label} {photo.isPrimary ? "(Ảnh đại diện)" : ""}</span>
+        <span className="text-[10px] text-slate-400 font-mono">ID: {photo.assetId || photo.id}</span>
+      </figcaption>
+    </figure>
+  );
+}
+
 function ReportPreview({
   model,
   imageMap,
@@ -710,6 +814,7 @@ function ReportPreview({
   activeSectionId: string | null;
   onSelectSection: (sectionId: string) => void;
 }) {
+  const projectId = useDesignSync((store) => store.projectId);
   const activeSection = model.sections.find((section) => section.id === activeSectionId) || model.sections[0];
   const activeMapImage = activeSection ? imageMap[activeSection.id] : undefined;
   const activeMapImageSrc = imageRefSrc(activeMapImage);
@@ -834,22 +939,37 @@ function ReportPreview({
             </div>
           )}
           {activeSection.description && <p className="mb-3"><strong>Mô tả:</strong> {activeSection.description}</p>}
+
+          {activeSection.photos.length > 0 && (
+            <div className="mt-4 mb-5 border rounded-lg p-3 bg-slate-50/50">
+              <h3 className="font-bold text-xs uppercase tracking-wider text-slate-600 mb-2">Site photo đối tượng gốc / nút giao</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {activeSection.photos.map((photo) => (
+                  <SitePhotoPreviewItem key={photo.id} photo={photo} projectId={projectId} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {activeSection.details.map((detail) => (
             <div key={detail.feature.id} className="mt-5 border-t pt-4">
-              <h3 className="font-bold">{detail.label}: {detail.feature.name}</h3>
+              <h3 className="font-bold text-base text-slate-900">{detail.label}: {detail.feature.name}</h3>
               <p><strong>Loại:</strong> {detail.displayType}</p>
               <p><strong>Mô tả:</strong> {detail.description || "-"}</p>
               {detail.startPoint && <p><strong>Điểm đầu:</strong> {detail.startPoint[1].toFixed(6)}, {detail.startPoint[0].toFixed(6)}</p>}
               {detail.endPoint && <p><strong>Điểm cuối:</strong> {detail.endPoint[1].toFixed(6)}, {detail.endPoint[0].toFixed(6)}</p>}
               {detail.connectedNames.length > 0 && <p><strong>Kết nối/tuyến đi qua:</strong> {detail.connectedNames.join(", ")}</p>}
-              <div className="grid grid-cols-2 gap-3 mt-3">
-                {detail.photos.filter((photo) => !!photo.dataUrl).map((photo) => (
-                  <figure key={photo.id} className="border p-2">
-                    <img src={photo.dataUrl} alt={photo.label} loading="lazy" className="w-full h-40 object-contain" />
-                    <figcaption className="text-xs text-slate-500 mt-1">{photo.label}</figcaption>
-                  </figure>
-                ))}
-              </div>
+              
+              {detail.photos.length > 0 && (
+                <div className="mt-3">
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500 mb-2">Site photo đối tượng</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {detail.photos.map((photo) => (
+                      <SitePhotoPreviewItem key={photo.id} photo={photo} projectId={projectId} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </section>

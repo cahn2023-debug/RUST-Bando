@@ -66,6 +66,7 @@ export const FeatureOverlayCanvas = React.forwardRef<FeatureOverlayCanvasHandle,
             const flags = resolveMapRenderFlags(renderFlagsRef.current);
             if (flags.overlayEnabled && flags.overlayPoints) {
                 rendererRef.current?.draw(canvas);
+                window.dispatchEvent(new CustomEvent('map-overlay-frame-ready'));
                 return;
             }
             const context = glRef.current;

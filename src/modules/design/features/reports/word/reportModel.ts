@@ -13,7 +13,22 @@ export interface ReportPhoto {
   label: string;
   dataUrl: string;
   assetId?: string;
+  featureId?: string;
+  projectId?: string;
+  relativePath?: string;
+  absolutePath?: string;
+  mimeType?: string;
+  isPrimary?: boolean;
+  sortOrder?: number;
+  status?: "pending" | "resolved" | "missing" | "invalid" | "processed";
   warning?: string;
+  processedAsset?: {
+    tempPath: string;
+    mimeType: "image/jpeg" | "image/png";
+    width?: number;
+    height?: number;
+    byteLength?: number;
+  };
 }
 
 export type ReportCaptureMode = "intersection" | "route" | "feature";
@@ -136,6 +151,30 @@ const collectFeatureAndChildren = (
   if (!feature || out.has(feature.id)) return;
   out.set(feature.id, feature);
   (childrenMap.get(feature.id) || []).forEach((child) => collectFeatureAndChildren(child.id, state, childrenMap, out));
+};
+
+export const collectFeatureTree = (
+  rootId: string,
+  childrenMap: Map<string, FeatureState[]>,
+  featureIdsFilter?: Set<string>,
+): FeatureState[] => {
+  const result: FeatureState[] = [];
+  const visited = new Set<string>([rootId]);
+  const queue = [rootId];
+
+  while (queue.length > 0) {
+    const parentId = queue.shift()!;
+    const children = childrenMap.get(parentId) || [];
+    for (const child of children) {
+      if (visited.has(child.id)) continue;
+      visited.add(child.id);
+      if (!featureIdsFilter || featureIdsFilter.has(child.id)) {
+        result.push(child);
+      }
+      queue.push(child.id);
+    }
+  }
+  return result;
 };
 
 export const expandReportSelections = (state: MapState, selections: ReportSelection[]): FeatureState[] => {
@@ -394,21 +433,51 @@ const getFeatureDescription = (feature: FeatureState, metadata: Record<string, u
   return safeString(metadata.description || metadata.notes || metadata.note || propertyDescription || feature.note || "");
 };
 
+const tryParseJsonRecord = (value: unknown): Record<string, unknown> => {
+  if (isRecord(value)) return value;
+  if (typeof value === "string" && value.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(value);
+      if (isRecord(parsed)) return parsed;
+    } catch {
+      // ignore
+    }
+  }
+  return {};
+};
+
 const getFeaturePhotos = (feature: FeatureState, metadata: Record<string, unknown>): ReportPhoto[] => {
-  const media = isRecord(metadata.media) ? metadata.media : {};
-  const singleUrl = safeString(media.imageUrl || metadata.imageUrl);
+  const properties = isRecord(feature.properties) ? feature.properties : {};
+
+  const propMedia = tryParseJsonRecord(properties.media);
+  const metaMedia = tryParseJsonRecord(metadata.media);
+
+  const singleUrl = safeString(metaMedia.imageUrl || propMedia.imageUrl || metadata.imageUrl || properties.imageUrl);
   const urls = [
     ...(singleUrl ? [singleUrl] : []),
-    ...asStringArray(media.imageUrls),
+    ...asStringArray(propMedia.imageUrls),
+    ...asStringArray(metaMedia.imageUrls),
     ...asStringArray(metadata.imageUrls),
+    ...asStringArray(properties.imageUrls),
+    ...asStringArray(metadata.photos),
+    ...asStringArray(properties.photos),
+    ...asStringArray(metadata.sitePhotos),
+    ...asStringArray(properties.sitePhotos),
   ];
+
+  const singleAssetId = safeString(metaMedia.primaryImageAssetId || metaMedia.imageAssetId || propMedia.primaryImageAssetId || propMedia.imageAssetId || metadata.imageAssetId || properties.imageAssetId);
   const assetIds = [
-    ...asStringArray(media.imageAssetIds),
+    ...(singleAssetId ? [singleAssetId] : []),
+    ...asStringArray(propMedia.imageAssetIds),
+    ...asStringArray(metaMedia.imageAssetIds),
     ...asStringArray(metadata.imageAssetIds),
+    ...asStringArray(properties.imageAssetIds),
+    ...asStringArray(metadata.siteAssetIds),
+    ...asStringArray(properties.siteAssetIds),
   ];
 
   const legacyPhotos = Array.from(new Set(urls))
-    .filter((url) => url.startsWith("data:image") || /^https?:\/\//i.test(url))
+    .filter((url) => url.startsWith("data:image") || /^https?:\/\//i.test(url) || url.startsWith("blob:") || url.startsWith("asset:"))
     .map((dataUrl, index) => ({
       id: `${feature.id}-photo-${index + 1}`,
       label: `Ảnh ${index + 1}`,
@@ -435,12 +504,25 @@ const toPlainRecord = (value: unknown): Record<string, unknown> =>
   isRecord(value) ? value : {};
 
 const makeFeatureDetail = (
-  feature: FeatureState,
+  featureInput: FeatureState,
   state: MapState,
   childrenMap: Map<string, FeatureState[]>,
   label: string,
+  featureDetailsCache: Record<string, FeatureState> = {},
 ): ReportFeatureDetail => {
-  const metadata = getParsedMetadata(feature);
+  const cachedFeature = featureDetailsCache[featureInput.id];
+  const baseMeta = getParsedMetadata(featureInput);
+  const cachedMeta = cachedFeature ? getParsedMetadata(cachedFeature) : {};
+  const metadata = { ...baseMeta, ...cachedMeta };
+
+  const baseProps = isRecord(featureInput.properties) ? featureInput.properties : {};
+  const cachedProps = cachedFeature && isRecord(cachedFeature.properties) ? cachedFeature.properties : {};
+  const properties = { ...baseProps, ...cachedProps };
+
+  const feature: FeatureState = cachedFeature
+    ? { ...featureInput, ...cachedFeature, properties }
+    : { ...featureInput, properties };
+
   const group = feature.group_id ? state.feature_groups?.[feature.group_id] : null;
   const info = getFeatureDisplayInfo(feature, getGroupKind(group), group?.name, metadata);
   const points = getFeaturePoints(feature);
@@ -454,7 +536,7 @@ const makeFeatureDetail = (
     displayType: info.label,
     description: getFeatureDescription(feature, metadata),
     metadata,
-    properties: toPlainRecord(feature.properties),
+    properties: toPlainRecord(properties),
     photos,
     bounds: getFeatureBounds(feature, childrenMap.get(feature.id) || []),
     startPoint,
@@ -479,16 +561,18 @@ const getConnectedNames = (feature: FeatureState, state: MapState): string[] => 
 };
 
 const makeSectionSummary = (
-  feature: FeatureState,
+  featureInput: FeatureState,
   state: MapState,
   children: FeatureState[],
   metadata: Record<string, unknown>,
   childrenMap: Map<string, FeatureState[]>,
+  featureDetailsCache: Record<string, FeatureState> = {},
 ): string[] => {
+  const feature = featureDetailsCache[featureInput.id] || featureInput;
   const group = feature.group_id ? state.feature_groups?.[feature.group_id] : null;
   const info = getFeatureDisplayInfo(feature, getGroupKind(group), group?.name, metadata);
   if (info.isIntersection) {
-    const childDetails = children.map((child, index) => makeFeatureDetail(child, state, childrenMap, `Đối tượng 1_${index + 1}`));
+    const childDetails = children.map((child, index) => makeFeatureDetail(child, state, childrenMap, `Đối tượng 1_${index + 1}`, featureDetailsCache));
     const cameraCounts = childDetails.reduce<Record<string, number>>((acc, detail) => {
       if (["CCTV", "PTZ", "SPEED", "LPR"].includes(detail.displayType)) {
         acc[detail.displayType] = (acc[detail.displayType] || 0) + 1;
@@ -500,7 +584,7 @@ const makeSectionSummary = (
   }
 
   if (info.isLine) {
-    const detail = makeFeatureDetail(feature, state, childrenMap, feature.name);
+    const detail = makeFeatureDetail(feature, state, childrenMap, feature.name, featureDetailsCache);
     const lineType = safeString(getFeatureMetadataValue(feature, "infrastructure.type", undefined, metadata));
     const summary = [`Điểm đầu: ${formatPoint(detail.startPoint)}`, `Điểm cuối: ${formatPoint(detail.endPoint)}`];
     if (lineType === "SignalLine") {
@@ -515,7 +599,12 @@ const makeSectionSummary = (
 export const formatPoint = (point?: [number, number]): string =>
   point ? `${point[1].toFixed(6)}, ${point[0].toFixed(6)}` : "Chưa có tọa độ";
 
-export const buildReportModel = (state: MapState, selections: ReportSelection[], title = "Báo cáo thiết kế"): ReportModel => {
+export const buildReportModel = (
+  state: MapState,
+  selections: ReportSelection[],
+  title = "Báo cáo thiết kế",
+  featureDetailsCache: Record<string, FeatureState> = {},
+): ReportModel => {
   const childrenMap = getFeatureChildrenMap(state);
   const expandedFeatures = expandReportSelections(state, selections);
   const featureIds = new Set(expandedFeatures.map((feature) => feature.id));
@@ -525,14 +614,26 @@ export const buildReportModel = (state: MapState, selections: ReportSelection[],
     return !parentId || !featureIds.has(parentId);
   });
 
-  const sections = roots.map((feature, sectionIndex) => {
-    const metadata = getParsedMetadata(feature);
+  const sections = roots.map((featureInput, sectionIndex) => {
+    const cachedFeature = featureDetailsCache[featureInput.id];
+    const baseMeta = getParsedMetadata(featureInput);
+    const cachedMeta = cachedFeature ? getParsedMetadata(cachedFeature) : {};
+    const metadata = { ...baseMeta, ...cachedMeta };
+
+    const baseProps = isRecord(featureInput.properties) ? featureInput.properties : {};
+    const cachedProps = cachedFeature && isRecord(cachedFeature.properties) ? cachedFeature.properties : {};
+    const properties = { ...baseProps, ...cachedProps };
+
+    const feature: FeatureState = cachedFeature
+      ? { ...featureInput, ...cachedFeature, properties }
+      : { ...featureInput, properties };
+
     const group = feature.group_id ? state.feature_groups?.[feature.group_id] : null;
     const info = getFeatureDisplayInfo(feature, getGroupKind(group), group?.name, metadata);
-    const children = (childrenMap.get(feature.id) || []).filter((child) => featureIds.has(child.id));
+    const children = collectFeatureTree(feature.id, childrenMap, featureIds);
     const details = info.isIntersection
-      ? children.map((child, index) => makeFeatureDetail(child, state, childrenMap, `Đối tượng ${sectionIndex + 1}_${index + 1}`))
-      : [makeFeatureDetail(feature, state, childrenMap, feature.name || `Đối tượng ${sectionIndex + 1}`)];
+      ? children.map((child, index) => makeFeatureDetail(child, state, childrenMap, `Đối tượng ${sectionIndex + 1}_${index + 1}`, featureDetailsCache))
+      : [makeFeatureDetail(feature, state, childrenMap, feature.name || `Đối tượng ${sectionIndex + 1}`, featureDetailsCache)];
     const routeIntersections = info.isLine ? getRouteIntersectionFeatures(feature, state) : [];
     const captureMode: ReportCaptureMode = info.isIntersection ? "intersection" : info.isLine ? "route" : "feature";
     const focusFeatureIds = captureMode === "route"
@@ -558,7 +659,7 @@ export const buildReportModel = (state: MapState, selections: ReportSelection[],
       displayType: info.label,
       feature,
       description: getFeatureDescription(feature, metadata),
-      summary: makeSectionSummary(feature, state, children, metadata, childrenMap),
+      summary: makeSectionSummary(feature, state, children, metadata, childrenMap, featureDetailsCache),
       details,
       photos: getFeaturePhotos(feature, metadata),
       photoWarnings,
@@ -635,4 +736,89 @@ export const getSelectableReportItems = (state: MapState): Array<{
   });
 
   return items;
+};
+
+export const hydrateReportSitePhotos = async (
+  model: ReportModel,
+  pmpPath: string,
+  projectId: string,
+  onProgress?: (current: number, total: number) => void
+): Promise<ReportModel> => {
+  if (!pmpPath || !projectId || model.sections.length === 0) {
+    return model;
+  }
+
+  const { fetchSectionSitePhotos } = await import("./reportSitePhotoRepository");
+
+  const updatedSections = [...model.sections];
+  const totalSections = updatedSections.length;
+
+  for (let sIdx = 0; sIdx < totalSections; sIdx += 1) {
+    const section = updatedSections[sIdx];
+    onProgress?.(sIdx + 1, totalSections);
+
+    const sectionFeatureIds = [
+      section.feature.id,
+      ...section.details.map((d) => d.feature.id),
+    ];
+
+    const photoRefs = await fetchSectionSitePhotos(pmpPath, projectId, sectionFeatureIds);
+    if (photoRefs.length === 0) continue;
+
+    const photosByFeature = new Map<string, ReportPhoto[]>();
+
+    photoRefs.forEach((ref, index) => {
+      const warning = ref.warning || undefined;
+
+      const photoItem: ReportPhoto = {
+        id: `${ref.featureId}-${ref.assetId}-${index}`,
+        label: ref.isPrimary ? "Ảnh đại diện" : `Ảnh ${ref.sortOrder || index + 1}`,
+        dataUrl: "",
+        assetId: ref.assetId,
+        featureId: ref.featureId,
+        projectId: ref.projectId,
+        relativePath: ref.relativePath,
+        absolutePath: ref.absolutePath,
+        mimeType: ref.mimeType,
+        isPrimary: ref.isPrimary,
+        sortOrder: ref.sortOrder,
+        status: ref.status as ReportPhoto["status"],
+        warning: warning ? `${ref.featureId}: ${warning}` : undefined,
+        processedAsset: ref.processedAsset,
+      };
+
+      const existing = photosByFeature.get(ref.featureId) || [];
+      existing.push(photoItem);
+      photosByFeature.set(ref.featureId, existing);
+    });
+
+    const updatedDetails = section.details.map((detail) => {
+      const dbPhotos = photosByFeature.get(detail.feature.id) || [];
+      const combinedPhotos = dbPhotos.length > 0 ? dbPhotos : detail.photos;
+      const photoWarnings = combinedPhotos
+        .filter((p) => !!p.warning)
+        .map((p) => p.warning as string);
+
+      return {
+        ...detail,
+        photos: combinedPhotos,
+        photoWarnings: Array.from(new Set([...detail.photoWarnings, ...photoWarnings])),
+      };
+    });
+
+    const rootDbPhotos = photosByFeature.get(section.feature.id) || [];
+    const sectionPhotos = rootDbPhotos.length > 0 ? rootDbPhotos : section.photos;
+
+    updatedSections[sIdx] = {
+      ...section,
+      details: updatedDetails,
+      photos: sectionPhotos,
+      photoWarnings: updatedDetails.flatMap((d) => d.photoWarnings),
+    };
+  }
+
+  return {
+    ...model,
+    sections: updatedSections,
+  };
 };

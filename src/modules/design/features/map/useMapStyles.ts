@@ -1,7 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
-import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+    BASEMAP_PRESETS,
+    DEFAULT_BASEMAP_PREFERENCES,
+    getBasemapPreset,
+    getStyledBasemapTiles,
+    migrateBasemapPresetId,
+    type BasemapPreset,
+    type BasemapPresetId,
+} from '@/core/basemap';
 
-export type MapBasemapId = 'street' | 'satellite' | 'heat' | 'dark';
+export type MapBasemapId = BasemapPresetId;
 export type MapBasemapKind = 'raster' | 'heat';
 
 export interface MapFeatures {
@@ -16,76 +24,22 @@ export interface MapStyleSettings extends MapFeatures {
     basemapId: MapBasemapId;
 }
 
-export interface MapBasemapPreset {
-    id: MapBasemapId;
-    label: string;
-    tileLyr: 'm' | 's';
-    kind: MapBasemapKind;
-    supportsApiStyle: boolean;
-    apiStyleRules?: readonly string[];
-}
+export type MapBasemapPreset = BasemapPreset & { kind: MapBasemapKind };
 
 const MAP_FEATURES_STORAGE_KEY = 'design.map.features';
-const GOOGLE_TILE_SUBDOMAINS = ['mt0', 'mt1', 'mt2', 'mt3'] as const;
 
-export const MAP_BASEMAP_PRESETS: ReadonlyArray<MapBasemapPreset> = [
-    { id: 'street', label: 'Duong pho', tileLyr: 'm', kind: 'raster', supportsApiStyle: true },
-    { id: 'satellite', label: 'Ve tinh', tileLyr: 's', kind: 'raster', supportsApiStyle: false },
-    {
-        id: 'heat',
-        label: 'Ban do nhiet',
-        tileLyr: 'm',
-        kind: 'heat',
-        supportsApiStyle: true,
-        apiStyleRules: [
-            's.t:3|s.e:l|p.v:off',
-            's.t:8|p.v:off',
-            's.t:2|p.v:off',
-            's.t:5|p.v:off',
-        ],
-    },
-    {
-        id: 'dark',
-        label: 'Ban do den',
-        tileLyr: 'm',
-        kind: 'raster',
-        supportsApiStyle: true,
-        apiStyleRules: [
-            'p.c:#101318',
-            'p.l:-35',
-            'p.s:-60',
-            's.t:1|s.e:l|p.c:#d6dde8',
-            's.t:3|s.e:g|p.c:#222936',
-            's.t:3|s.e:l|p.c:#9aa4b2',
-            's.t:8|p.v:off',
-        ],
-    },
-];
+export const MAP_BASEMAP_PRESETS = BASEMAP_PRESETS as ReadonlyArray<MapBasemapPreset>;
 
-const DEFAULT_BASEMAP_ID: MapBasemapId = 'street';
+const DEFAULT_BASEMAP_ID: MapBasemapId = DEFAULT_BASEMAP_PREFERENCES.presetId;
 const DEFAULT_MAP_FEATURES: MapFeatures = {
-    roads: true,
-    roadNames: true,
-    buildings: true,
-    pois: true,
-    labels: true
+    roads: DEFAULT_BASEMAP_PREFERENCES.roads,
+    roadNames: DEFAULT_BASEMAP_PREFERENCES.roadNames,
+    buildings: DEFAULT_BASEMAP_PREFERENCES.buildings,
+    pois: DEFAULT_BASEMAP_PREFERENCES.pois,
+    labels: DEFAULT_BASEMAP_PREFERENCES.labels
 };
-const EMPTY_SETTINGS: Record<string, unknown> = {};
-const EMPTY_MAP_SETTINGS: Record<string, unknown> = {};
 
-const isMapBasemapId = (value: unknown): value is MapBasemapId =>
-    typeof value === 'string' && MAP_BASEMAP_PRESETS.some(preset => preset.id === value);
-
-const getPreset = (basemapId: MapBasemapId) =>
-    MAP_BASEMAP_PRESETS.find(preset => preset.id === basemapId) || MAP_BASEMAP_PRESETS[0];
-
-const migrateBasemapId = (value: unknown): MapBasemapId => {
-    if (isMapBasemapId(value)) return value;
-    if (value === 'google-vietnam-road') return 'street';
-    if (value === 'google-vietnam-satellite') return 'satellite';
-    if (value === 'google-vietnam-hybrid') return 'street';
-    return DEFAULT_BASEMAP_ID;
-};
+const getPreset = (basemapId: MapBasemapId) => getBasemapPreset(basemapId) as MapBasemapPreset;
 
 const getSavedMapSettings = (): MapStyleSettings => {
     const defaults = { ...DEFAULT_MAP_FEATURES, basemapId: DEFAULT_BASEMAP_ID };
@@ -102,84 +56,29 @@ const getSavedMapSettings = (): MapStyleSettings => {
             buildings: typeof parsedFeatures.buildings === 'boolean' ? parsedFeatures.buildings : DEFAULT_MAP_FEATURES.buildings,
             pois: typeof parsedFeatures.pois === 'boolean' ? parsedFeatures.pois : DEFAULT_MAP_FEATURES.pois,
             labels: typeof parsedFeatures.labels === 'boolean' ? parsedFeatures.labels : DEFAULT_MAP_FEATURES.labels,
-            basemapId: migrateBasemapId(parsedFeatures.basemapId),
+            basemapId: migrateBasemapPresetId(parsedFeatures.basemapId),
         };
     } catch {
         return defaults;
     }
 };
 
-const getLegacySavedBasemapId = () => {
-    if (typeof window === 'undefined') return null;
-    try {
-        const savedFeatures = window.localStorage.getItem(MAP_FEATURES_STORAGE_KEY);
-        if (!savedFeatures) return null;
-        const parsedFeatures = JSON.parse(savedFeatures) as Partial<MapStyleSettings>;
-        return parsedFeatures.basemapId === undefined ? null : migrateBasemapId(parsedFeatures.basemapId);
-    } catch {
-        return null;
-    }
-};
-
 export function useMapStyles() {
     const [settings, setSettings] = useState<MapStyleSettings>(getSavedMapSettings);
-    const projectId = useDesignSync(s => s.projectId);
-    const projectSettings = useDesignSync(s => s.state?.settings || EMPTY_SETTINGS);
-    const updateSettings = useDesignSync(s => s.updateSettings);
-    const migratedProjectRef = useRef<string | null>(null);
-    const projectMapSettings = (projectSettings as any)?.map || EMPTY_MAP_SETTINGS;
-    const projectBasemapId = isMapBasemapId(projectMapSettings.basemapId)
-        ? projectMapSettings.basemapId
-        : null;
-    const basemapId = projectBasemapId || settings.basemapId;
+    const basemapId = settings.basemapId;
     const { basemapId: _localBasemapId, ...mapFeatures } = settings;
 
     useEffect(() => {
         try {
-            window.localStorage.setItem(MAP_FEATURES_STORAGE_KEY, JSON.stringify(mapFeatures));
+            window.localStorage.setItem(MAP_FEATURES_STORAGE_KEY, JSON.stringify(settings));
         } catch {
             // localStorage can be unavailable in restricted browser contexts.
         }
-    }, [mapFeatures]);
+    }, [settings]);
 
-    useEffect(() => {
-        if (!projectId || projectBasemapId) return;
-        if (migratedProjectRef.current === projectId) return;
-        const legacyBasemapId = getLegacySavedBasemapId();
-        if (!legacyBasemapId) return;
-        migratedProjectRef.current = projectId;
-        void updateSettings({
-            ...projectSettings,
-            map: {
-                ...(projectMapSettings || {}),
-                basemapId: legacyBasemapId,
-            },
-        }).catch(error => {
-            console.warn('[useMapStyles] Failed to migrate project basemap setting:', error);
-        });
-    }, [projectBasemapId, projectId, projectMapSettings, projectSettings, updateSettings]);
-
-    const featureStyleRules = useMemo(() => {
-        const rules: string[] = [];
-        if (!mapFeatures.roads) rules.push('s.t:3|s.e:g|p.v:off');
-        if (!mapFeatures.roadNames) rules.push('s.t:3|s.e:l|p.v:off');
-        if (!mapFeatures.buildings) rules.push('s.t:2|p.v:off', 's.t:5|p.v:off');
-        if (!mapFeatures.pois) rules.push('s.t:8|p.v:off');
-        if (!mapFeatures.labels) rules.push('s.t:1|s.e:l|p.v:off', 's.t:2|s.e:l|p.v:off', 's.t:4|s.e:l|p.v:off', 's.t:6|s.e:l|p.v:off');
-        return rules;
-    }, [mapFeatures.buildings, mapFeatures.labels, mapFeatures.pois, mapFeatures.roadNames, mapFeatures.roads]);
-
-    const getStyledTiles = useCallback((targetBasemapId = basemapId) => {
-        const preset = getPreset(targetBasemapId);
-        const rules = [...(preset.apiStyleRules || []), ...featureStyleRules];
-        const apiStyle = preset.supportsApiStyle
-            ? rules.join(',')
-            : '';
-        const apiStyleParam = apiStyle ? `&apistyle=${encodeURIComponent(apiStyle)}` : '';
-        return GOOGLE_TILE_SUBDOMAINS.map(
-            subdomain => `https://${subdomain}.google.com/vt/lyrs=${preset.tileLyr}&hl=vi&gl=vn&x={x}&y={y}&z={z}${apiStyleParam}`
-        );
-    }, [basemapId, featureStyleRules]);
+    const getStyledTiles = useCallback((targetBasemapId = basemapId) => (
+        getStyledBasemapTiles(targetBasemapId, mapFeatures)
+    ), [basemapId, mapFeatures]);
 
     const getStyledUrl = useCallback((lyr: string) => {
         const preset = MAP_BASEMAP_PRESETS.find(item => item.tileLyr === lyr) || getPreset(basemapId);
@@ -195,19 +94,9 @@ export function useMapStyles() {
 
     const setBasemapId = useCallback((nextBasemapId: MapBasemapId) => {
         setSettings(prev => ({ ...prev, basemapId: nextBasemapId }));
-        if (!projectId) return;
-        void updateSettings({
-            ...projectSettings,
-            map: {
-                ...(projectMapSettings || {}),
-                basemapId: nextBasemapId,
-            },
-        }).catch(error => {
-            console.warn('[useMapStyles] Failed to persist project basemap setting:', error);
-        });
-    }, [projectId, projectMapSettings, projectSettings, updateSettings]);
+    }, []);
 
-    const mapKey = useMemo(() => JSON.stringify({ ...settings, basemapId }), [basemapId, settings]);
+    const mapKey = useMemo(() => JSON.stringify(settings), [settings]);
     const activeBasemapPreset = useMemo(() => getPreset(basemapId), [basemapId]);
 
     return {

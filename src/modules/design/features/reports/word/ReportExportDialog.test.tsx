@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { ReportExportDialog } from './ReportExportDialog';
+import { ReportExportDialog, SitePhotoPreviewItem } from './ReportExportDialog';
 import { buildReportDocx } from './reportDocx';
 import { saveReportDocxFile } from './reportFileSave';
 import { resolveMediaAsset } from '@IMPLEMENT/services/mediaAssetService';
@@ -9,6 +9,10 @@ import { resolveMediaAsset } from '@IMPLEMENT/services/mediaAssetService';
 const eventMocks = vi.hoisted(() => ({
   listeners: new Map<string, Array<(event: { payload: any }) => void>>(),
   emitted: [] as Array<{ event: string; payload: any }>,
+}));
+
+const tauriMocks = vi.hoisted(() => ({
+  safeInvoke: vi.fn(),
 }));
 
 vi.mock('@tauri-apps/api/event', () => ({
@@ -38,6 +42,10 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({
 
 vi.mock('@IMPLEMENT/services/mediaAssetService', () => ({
   resolveMediaAsset: vi.fn(),
+}));
+
+vi.mock('@IMPLEMENT/lib/tauri', () => ({
+  safeInvoke: tauriMocks.safeInvoke,
 }));
 
 vi.mock('./reportDocx', async () => {
@@ -131,5 +139,38 @@ describe('ReportExportDialog', () => {
     const exportedModel = vi.mocked(buildReportDocx).mock.calls[0][0];
     expect(exportedModel.title).toBe('Báo cáo nghiệm thu tuyến 1');
     expect(exportedModel.sections[0].photoWarnings.join(' ')).toContain('Không resolve được ảnh');
+  });
+
+  it('renders site photo preview from asset resolver fallback', async () => {
+    vi.mocked(resolveMediaAsset).mockResolvedValue({
+      id: 'asset-1',
+      assetId: 'asset-1',
+      projectId: 'project-1',
+      sha256: 'sha',
+      relPath: 'assets/media/sha.png',
+      path: 'D:/project/assets/media/sha.png',
+      mimeType: 'image/png',
+      byteSize: 12,
+      src: 'data:image/png;base64,PHOTO',
+    });
+
+    render(
+      <SitePhotoPreviewItem
+        projectId="project-1"
+        photo={{
+          id: 'photo-1',
+          label: 'Anh 1',
+          dataUrl: '',
+          assetId: 'asset-1',
+          featureId: 'feature-1',
+          status: 'resolved',
+          warning: 'old warning',
+        }}
+      />,
+    );
+
+    const image = await screen.findByRole('img', { name: 'Anh 1' });
+    expect(image).toHaveAttribute('src', 'data:image/png;base64,PHOTO');
+    expect(resolveMediaAsset).toHaveBeenCalledWith('project-1', 'asset-1');
   });
 });
