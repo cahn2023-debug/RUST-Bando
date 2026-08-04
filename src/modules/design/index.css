@@ -15,6 +15,33 @@
   --color-cad-text-secondary: var(--cad-text-secondary);
   --color-cad-text-muted: var(--cad-text-muted);
 
+  /* State Color Tokens */
+  --color-cad-state-selected: var(--cad-state-selected);
+  --color-cad-state-hover: var(--cad-state-hover);
+  --color-cad-state-drawing: var(--cad-state-drawing);
+  --color-cad-state-boxselect: var(--cad-state-boxselect);
+  --color-cad-state-warning: var(--cad-state-warning);
+  --color-cad-state-error: var(--cad-state-error);
+  --color-cad-state-locked: var(--cad-state-locked);
+  --color-cad-state-disabled: var(--cad-state-disabled);
+
+  /* Object Type Color Tokens (Point Features) */
+  --color-cad-obj-pole: var(--cad-obj-pole);
+  --color-cad-obj-cabinet: var(--cad-obj-cabinet);
+  --color-cad-obj-splice: var(--cad-obj-splice);
+  --color-cad-obj-odf: var(--cad-obj-odf);
+  --color-cad-obj-splitter: var(--cad-obj-splitter);
+  --color-cad-obj-camera: var(--cad-obj-camera);
+  --color-cad-obj-node: var(--cad-obj-node);
+
+  /* Cable FO Sequential Color Tokens */
+  --color-cad-cable-12: var(--cad-cable-12);
+  --color-cad-cable-24: var(--cad-cable-24);
+  --color-cad-cable-48: var(--cad-cable-48);
+  --color-cad-cable-96: var(--cad-cable-96);
+  --color-cad-cable-144: var(--cad-cable-144);
+  --color-cad-cable-288: var(--cad-cable-288);
+
   /* Z-index scale. Leaflet uses 200-1000 internally (panes 200-700, controls 1000),
      so all app chrome above the map starts at 1100. See design-system/MASTER.md §5.
      NOTE: Tailwind v4 generates `z-*` utilities from the `--z-index-*` namespace.
@@ -78,6 +105,53 @@
 }
 
 /* Root Theme Token Definitions */
+:root {
+  /* --- State colors (dùng chung 2 theme) --- */
+  --cad-state-selected: #10B981;
+  --cad-state-hover: rgba(229, 231, 235, 0.4);
+  --cad-state-drawing: #3B82F6;
+  --cad-state-boxselect: #06B6D4;
+  --cad-state-boxselect-fill: rgba(6, 182, 212, 0.15);
+  --cad-state-warning: #F59E0B;
+  --cad-state-error: #EF4444;
+  --cad-state-locked: #64748B;
+  --cad-state-disabled: rgba(75, 85, 99, 0.5);
+
+  /* --- Object type colors (Point features) --- */
+  --cad-obj-pole: #B45309;
+  --cad-obj-cabinet: #0D9488;
+  --cad-obj-splice: #F97316;
+  --cad-obj-odf: #8B5CF6;
+  --cad-obj-splitter: #D946EF;
+  --cad-obj-camera: #6366F1;
+  --cad-obj-node: #9CA3AF;
+
+  /* --- Cable colors (theo số sợi) --- */
+  --cad-cable-12: #94A3B8;
+  --cad-cable-24: #38BDF8;
+  --cad-cable-48: #FB923C;
+  --cad-cable-96: #C084FC;
+  --cad-cable-144: #F472B6;
+  --cad-cable-288: #4ADE80;
+
+  /* --- Polygon Zone colors --- */
+  --cad-zone-parcel-fill: rgba(250, 204, 21, 0.15);
+  --cad-zone-parcel-stroke: #EAB308;
+  --cad-zone-station-fill: rgba(96, 165, 250, 0.15);
+  --cad-zone-station-stroke: #3B82F6;
+  --cad-zone-planned-fill: rgba(163, 163, 163, 0.15);
+  --cad-zone-planned-stroke: #737373;
+
+  /* --- Sizing scale --- */
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+  --icon-xl: 32px;
+  --btn-sm: 28px;
+  --btn-md: 32px;
+  --btn-lg: 40px;
+}
+
 :root,
 [data-theme="dark"] {
   --cad-header: #101217;
@@ -92,6 +166,7 @@
   --cad-text-primary: #E5E7EB;
   --cad-text-secondary: #9CA3AF;
   --cad-text-muted: #4B5563;
+  --cad-state-hover: rgba(229, 231, 235, 0.4);
   color-scheme: dark;
 }
 
@@ -108,6 +183,7 @@
   --cad-text-primary: #0F172A;
   --cad-text-secondary: #334155;
   --cad-text-muted: #64748B;
+  --cad-state-hover: rgba(51, 65, 85, 0.4);
   color-scheme: light;
 }
 

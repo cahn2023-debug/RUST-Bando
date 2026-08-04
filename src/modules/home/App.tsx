@@ -7,7 +7,7 @@ import { ProjectDetail } from "@IMPLEMENT/features/project-management/ProjectDet
 import { useProjectManager } from "@IMPLEMENT/hooks/useProjectManager";
 import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
-import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
+import { useLayoutStore, selectRightWidth, selectBottomHeight } from "@IMPLEMENT/stores/useLayoutStore";
 
 // Extracted components
 import { AppBootstrap } from "./AppBootstrap";
@@ -24,12 +24,25 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
 import { MapProvider } from "@DESIGN/features/map/MapContext";
 import { BasemapProvider, PersistentBasemapHost } from "@/core/basemap";
+import { markMapStartup } from "@DESIGN/features/map/mapStartupTelemetry";
+import type { BasemapLifecycleState } from "@/core/basemap";
 
 const PersistentMapHost = PersistentBasemapHost;
+
+const mapStartupMilestoneByLifecycle: Partial<Record<BasemapLifecycleState, Parameters<typeof markMapStartup>[0]>> = {
+  mounting: "host-mounted",
+  "surface-ready": "container-sized",
+  "map-created": "map-created",
+  "first-frame": "first-render",
+  interactive: "interactive",
+};
 
 export default function App() {
   const { loadSettings } = useSettingsStore();
   const { logout } = useAuthStore();
+  const leftWidth = useLayoutStore((s) => s.leftWidth);
+  const rightWidth = useLayoutStore(selectRightWidth);
+  const bottomHeight = useLayoutStore(selectBottomHeight);
   const pendingSync = useDesignSync((state) => state.pendingSync);
   const syncStatus = useDesignSync((state) => state.syncStatus);
   const syncError = useDesignSync((state) => state.error);
@@ -244,6 +257,8 @@ export default function App() {
     setActiveTab(newTab);
   };
 
+  const isMapSurfaceActive = activeTab === 'DESIGN' || Boolean(selectedProject && activeTab !== 'HOME' && activeTab !== 'ADMIN');
+
   return (
     <AppBootstrap>
       <BasemapProvider>
@@ -289,39 +304,57 @@ export default function App() {
           />
 
           <div className="flex-1 min-h-0 min-w-0 flex overflow-hidden relative">
-            {/* PersistentMapHost is mounted unconditionally on app launch */}
-            <div className={`absolute inset-0 ${activeTab === 'DESIGN' || (selectedProject && activeTab !== 'HOME' && activeTab !== 'ADMIN') ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-              <PersistentMapHost />
+            {/* PersistentMapHost is mounted unconditionally on app launch and bounded inside central frame */}
+            <div
+              className={`absolute z-0 transition-all duration-150 ease-out ${isMapSurfaceActive ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+              style={{
+                top: 0,
+                left: activeTab === 'DESIGN' ? `${leftWidth}px` : 0,
+                right: activeTab === 'DESIGN' ? `${rightWidth}px` : 0,
+                bottom: activeTab === 'DESIGN' ? `${bottomHeight}px` : 0,
+              }}
+              aria-hidden={!isMapSurfaceActive}
+            >
+              <PersistentMapHost
+                onLifecycleState={(state) => {
+                  const milestone = mapStartupMilestoneByLifecycle[state];
+                  if (milestone) markMapStartup(milestone, { source: "persistent-basemap" });
+                }}
+              />
             </div>
 
-            <main className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden relative z-10 pointer-events-auto">
+            <main className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden relative z-10 pointer-events-none">
               {activeTab === "ADMIN" ? (
-                <AdminPanel />
+                <div className="flex-1 min-h-0 pointer-events-auto"><AdminPanel /></div>
               ) : selectedProject && activeTab !== "HOME" ? (
-                <ProjectDetail
-                  key={selectedProject.path}
-                  project={selectedProject}
-                  activeTab={activeTab}
-                  contractType={contractType}
-                  onProjectUpdate={refreshProject}
-                />
+                <div className={`flex-1 min-h-0 ${activeTab === "DESIGN" ? "pointer-events-none" : "pointer-events-auto"}`}>
+                  <ProjectDetail
+                    key={selectedProject.path}
+                    project={selectedProject}
+                    activeTab={activeTab}
+                    contractType={contractType}
+                    onProjectUpdate={refreshProject}
+                  />
+                </div>
               ) : (
-                <HomeDashboard
-                  projects={projects}
-                  loadingProjects={loadingProjects}
-                  onOpenProject={handleOpenProject}
-                  onDeleteProject={(event, project) => {
-                    handleDeleteProject(event, project);
-                    return Promise.resolve();
-                  }}
-                  onSelectProject={async (project) => {
-                    setActiveTab("DESIGN");
-                    const success = await handleOpenProject(project.path);
-                    if (!success) setActiveTab("HOME");
-                  }}
-                  onShowCreate={() => setShowCreate(true)}
-                  onRestoreFromConfig={handleRestoreFromConfig}
-                />
+                <div className="flex-1 min-h-0 pointer-events-auto">
+                  <HomeDashboard
+                    projects={projects}
+                    loadingProjects={loadingProjects}
+                    onOpenProject={handleOpenProject}
+                    onDeleteProject={(event, project) => {
+                      handleDeleteProject(event, project);
+                      return Promise.resolve();
+                    }}
+                    onSelectProject={async (project) => {
+                      setActiveTab("DESIGN");
+                      const success = await handleOpenProject(project.path);
+                      if (!success) setActiveTab("HOME");
+                    }}
+                    onShowCreate={() => setShowCreate(true)}
+                    onRestoreFromConfig={handleRestoreFromConfig}
+                  />
+                </div>
               )}
             </main>
           </div>

@@ -489,4 +489,119 @@ describe('mapLibreFastAdapter', () => {
         expect(warn).toHaveBeenCalledWith('[mapLibreFastAdapter] Skipped invalid GeometryCollection child:', 'collection', 1);
         warn.mockRestore();
     });
+
+    it('recognizes route, network, and multiline in geom_type/infraType and handles CSS/RGB/HSL colors', () => {
+        const routeFeature: FeatureState = {
+            id: 'route-css-color',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Route CSS Color',
+            geom_type: 'FiberRoute',
+            coordinates: [[105.8, 21.02], [105.81, 21.03]],
+            properties: {},
+            metadata: JSON.stringify({ color: 'blue', size: 4 }),
+        };
+
+        const rgbRouteFeature: FeatureState = {
+            id: 'route-rgb-color',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Route RGB Color',
+            geom_type: 'LineString',
+            coordinates: [[105.8, 21.02], [105.81, 21.03]],
+            properties: {},
+            metadata: JSON.stringify({ color: 'rgb(255,0,0)', size: 4, infrastructure: { type: 'CoreNetwork' } }),
+        };
+
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [routeFeature, rgbRouteFeature],
+            zoom: 20,
+        });
+
+        expect(collection.features).toHaveLength(2);
+        expect(collection.features[0].geometry.type).toBe('LineString');
+        expect(collection.features[0].properties.color).toBe('blue');
+        expect(collection.features[1].geometry.type).toBe('LineString');
+        expect(collection.features[1].properties.color).toBe('rgb(255,0,0)');
+    });
+
+    it('does not filter out lines/polygons at low zoom levels even if they are intersection children', () => {
+        const parent = pointFeature('intersection-parent', [105.8, 21.02], {
+            group_id: 'junction-group',
+            metadata: JSON.stringify({ icon: 'intersection' }),
+        });
+        const lineChild: FeatureState = {
+            id: 'junction-cable-child',
+            layer_id: 'layer-1',
+            group_id: 'junction-group',
+            name: 'Junction Cable',
+            geom_type: 'LineString',
+            coordinates: [[105.8, 21.02], [105.81, 21.03]],
+            properties: {},
+            metadata: JSON.stringify({ parent_feature_id: 'intersection-parent' }),
+        };
+
+        const lowZoom = buildMapLibreFeatureCollection({
+            features: [parent, lineChild],
+            featureGroups: { 'junction-group': { type: 'INTERSECTION', name: 'Nút giao' } },
+            zoom: 16,
+        });
+
+        expect(lowZoom.collection.features.map(feature => feature.properties.id)).toContain('junction-cable-child');
+    });
+
+    it('correctly classifies a route feature as a line even when geom_type is point or default if metadata or coordinates match', () => {
+        const routeWithDefaultGeomType: FeatureState = {
+            id: 'route-default-geom',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Đường Khảo Sát Mới',
+            geom_type: 'Point',
+            coordinates: [[105.8, 21.02], [105.81, 21.03]],
+            properties: {},
+            metadata: JSON.stringify({ infrastructure: { type: 'SignalLine' } }),
+        };
+
+        const routeWithObjectCoords: FeatureState = {
+            id: 'route-object-coords',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Tuyến SignalLine Mới',
+            geom_type: 'default',
+            coordinates: { points: [{ lng: 105.8, lat: 21.02 }, { lng: 105.81, lat: 21.03 }] } as any,
+            properties: {},
+            metadata: JSON.stringify({}),
+        };
+
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [routeWithDefaultGeomType, routeWithObjectCoords],
+            zoom: 20,
+        });
+
+        expect(collection.features).toHaveLength(2);
+        expect(collection.features[0].geometry.type).toBe('LineString');
+        expect(collection.features[0].properties.id).toBe('route-default-geom');
+        expect(collection.features[1].geometry.type).toBe('LineString');
+        expect(collection.features[1].properties.id).toBe('route-object-coords');
+    });
+
+    it('omits dashArray from line properties when not specified', () => {
+        const lineWithoutDash: FeatureState = {
+            id: 'solid-line',
+            layer_id: 'layer-1',
+            group_id: 'group-1',
+            name: 'Solid Line',
+            geom_type: 'LineString',
+            coordinates: [[105.8, 21.02], [105.81, 21.03]],
+            properties: {},
+            metadata: JSON.stringify({ color: '#10b981', size: 4 }),
+        };
+
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [lineWithoutDash],
+            zoom: 20,
+        });
+
+        expect(collection.features[0].properties.dashArray).toBeUndefined();
+    });
 });

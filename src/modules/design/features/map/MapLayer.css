@@ -12,6 +12,11 @@
     background: #111827;
 }
 
+.design-maplibre-fast--attached {
+    background: transparent;
+    pointer-events: none;
+}
+
 .design-feature-overlay-canvas {
     position: absolute;
     inset: 0;

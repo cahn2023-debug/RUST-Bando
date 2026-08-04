@@ -1,4 +1,5 @@
 import { getFeatureDisplayInfo, getParsedMetadata, getFeatureMetadataValue, safeString, isNetworkLinkFeature, calculateFOVPoints } from "@TOOL/utils/featureUtils";
+import type { FeatureState, MapState, RegionState, FeatureGroupState } from "@CONTRACT/types";
 
 export type ReportSelection =
   | { type: "region"; id: string }
@@ -74,9 +75,9 @@ export interface ReportModel {
   sections: ReportSection[];
 }
 
-const POINT_PADDING_DEGREES = 0.0009;
-const CLUSTER_PADDING_DEGREES = 0.00006;
-const LINE_PADDING_RATIO = 0.08;
+export const POINT_PADDING_DEGREES = 0.0009;
+export const CLUSTER_PADDING_DEGREES = 0.00006;
+export const LINE_PADDING_RATIO = 0.08;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -247,7 +248,7 @@ const collectPointsFromCoordinates = (coords: unknown, points: Array<[number, nu
   coords.forEach((child) => collectPointsFromCoordinates(child, points));
 };
 
-const getRepresentativePoint = (feature: FeatureState): [number, number] | null => {
+export const getRepresentativePoint = (feature: FeatureState): [number, number] | null => {
   const points = getFeaturePoints(feature);
   if (points.length === 0) return null;
   const lng = points.reduce((sum, point) => sum + point[0], 0) / points.length;

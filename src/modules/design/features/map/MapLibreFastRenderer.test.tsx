@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { queryVisibleFeaturesV2 } from '@TOOL/utils/designIpc';
 import { MapLibreFastRenderer, clearMapImageCache } from './MapLibreFastRenderer';
+import { MapProvider } from './MapContext';
 
 const mockMapStyles = vi.hoisted(() => ({
     tiles: ['https://tiles.example/one/{z}/{x}/{y}.png'],
@@ -503,10 +504,10 @@ describe('MapLibreFastRenderer', () => {
         });
     });
 
-    it('creates a permanently clustered source and cluster count layer', async () => {
+    it('uses a point-only clustered source while keeping routes on the main source', async () => {
         useDesignSync.setState({
             state: {
-                features: { 'point-1': pointFeature('point-1') },
+                features: { 'point-1': pointFeature('point-1'), 'line-1': lineFeature },
                 feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
                 isLargeProject: false,
             } as any,
@@ -517,17 +518,24 @@ describe('MapLibreFastRenderer', () => {
         await waitFor(() => {
             const lastMap = mockMapState.getLastMap();
             const source = lastMap?.sources.get('design-fast-features');
+            const clusterSource = lastMap?.sources.get('design-fast-point-clusters-source');
 
-            expect(source).toEqual(expect.objectContaining({
+            expect(source).toEqual(expect.not.objectContaining({
+                cluster: true,
+            }));
+            expect(clusterSource).toEqual(expect.objectContaining({
                 cluster: true,
                 clusterRadius: 48,
                 clusterMaxZoom: 14,
             }));
+            expect(source?.data.features.some((feature: any) => feature.geometry.type === 'LineString')).toBe(true);
+            expect(clusterSource?.data.features).toHaveLength(1);
+            expect(clusterSource?.data.features[0].geometry.type).toBe('Point');
             expect(lastMap?.layers.get('design-fast-point-clusters')).toBeTruthy();
             expect(lastMap?.layers.get('design-fast-point-cluster-counts')).toEqual(expect.objectContaining({
                 id: 'design-fast-point-cluster-counts',
                 type: 'symbol',
-                source: 'design-fast-features',
+                source: 'design-fast-point-clusters-source',
             }));
             expect(lastMap?.layers.get('design-fast-point-cluster-counts')?.layout['text-field']).toEqual(['get', 'point_count_abbreviated']);
         });
@@ -554,7 +562,8 @@ describe('MapLibreFastRenderer', () => {
             }],
         });
 
-        expect(lastMap?.sources.get('design-fast-features')?.getClusterExpansionZoom).toHaveBeenCalledWith(7, expect.any(Function));
+        expect(lastMap?.sources.get('design-fast-point-clusters-source')?.getClusterExpansionZoom).toHaveBeenCalledWith(7, expect.any(Function));
+        expect(lastMap?.sources.get('design-fast-features')?.getClusterExpansionZoom).not.toHaveBeenCalled();
         expect(lastMap?.easeTo).toHaveBeenCalledWith({
             center: [105.8, 21.02],
             zoom: 16,
@@ -1004,5 +1013,26 @@ describe('MapLibreFastRenderer', () => {
 
         // GeoJSON setData should NOT be re-invoked because zoom stayed inside bucket 16
         expect(setDataMock.mock.calls.length).toBe(callsBefore);
+    });
+
+    it('reuses outer map without creating a new map instance when basemapController is present', async () => {
+        const fakeMap = new mockMapState.MockMap();
+        const fakeController = {
+            getMap: () => fakeMap,
+            subscribeLifecycle: () => () => {},
+        };
+        mockMapState.clearLastMap();
+
+        const { BasemapContext } = await import('@/core/basemap/BasemapContext');
+
+        render(
+            <BasemapContext.Provider value={{ controller: fakeController as any, setController: () => {} }}>
+                <MapProvider>
+                    <MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />
+                </MapProvider>
+            </BasemapContext.Provider>
+        );
+
+        expect(mockMapState.getLastMap()).toBeNull();
     });
 });

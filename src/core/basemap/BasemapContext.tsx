@@ -6,7 +6,7 @@ interface BasemapContextType {
     setController: (controller: BasemapController | null) => void;
 }
 
-const BasemapContext = createContext<BasemapContextType | undefined>(undefined);
+export const BasemapContext = createContext<BasemapContextType | undefined>(undefined);
 
 export function BasemapProvider({ children }: { children: React.ReactNode }) {
     const [controller, setController] = useState<BasemapController | null>(null);

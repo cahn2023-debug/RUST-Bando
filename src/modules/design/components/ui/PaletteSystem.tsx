@@ -1,7 +1,8 @@
 import React, { Component, ErrorInfo, ReactNode, useEffect } from "react";
-import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
+import { PALETTE_SIDEBAR_WIDTH, useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
 import { PalettePanel } from "@DESIGN/features/map/Palette/PalettePanel";
 import { VerticalResizeHandle } from "@DESIGN/components/ui/VerticalResizeHandle";
+import { ResizeHandle } from "@DESIGN/components/ui/ResizeHandle";
 import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { PaletteRegistry } from "@DESIGN/features/map/Palette/PaletteRegistry";
@@ -74,6 +75,8 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
     const layoutColumns = useLayoutStore(s => s.layoutColumns);
     const paletteConfigs = useLayoutStore(s => s.paletteConfigs);
     const updatePaletteFlex = useLayoutStore(s => s.updatePaletteFlex);
+    const updatePaletteWidth = useLayoutStore(s => s.updatePaletteWidth);
+    const updatePaletteHeight = useLayoutStore(s => s.updatePaletteHeight);
     const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
     const selectedFeature = useDesignSync(s => selectedFeatureId ? s.state?.features?.[selectedFeatureId] : null);
     const togglePalette = useLayoutStore(s => s.togglePalette);
@@ -111,7 +114,10 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
     };
 
     const rightLayoutColumns = layoutColumns
-        .map(column => column.filter(id => paletteConfigs[id]?.dockPosition !== 'bottom'))
+        .map(column => column.filter(id => {
+            const config = paletteConfigs[id];
+            return config?.isVisible && !config?.isFloating && config?.dockPosition !== 'bottom';
+        }))
         .filter(column => column.length > 0);
     const bottomPalettes = layoutColumns
         .flat()
@@ -121,8 +127,8 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
 
     return (
         <>
-        <div 
-            className="flex shrink-0 palette-container flex-row-reverse overflow-x-auto transition-all duration-300 ease-in-out"
+        <div
+            className="flex shrink-0 palette-container flex-row-reverse overflow-x-auto transition-all duration-150 ease-in-out pointer-events-auto h-full min-h-0"
             style={{ height: bottomHeight > 0 ? `calc(100% - ${bottomHeight}px)` : '100%' }}
         >
             {rightLayoutColumns.map((column, colIdx) => {
@@ -131,8 +137,25 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
                 });
                 if (visiblePalettes.length === 0) return null;
 
+                const firstPaletteId = visiblePalettes[0];
+                const columnWidth = firstPaletteId ? (paletteConfigs[firstPaletteId].width || 350) : 350;
+
                 return (
-                    <div key={colIdx} className="flex flex-col h-full border-l border-cad-border shrink-0 transition-[width] duration-300 ease-in-out overflow-hidden" style={{ width: visiblePalettes[0] ? (paletteConfigs[visiblePalettes[0]].width || 350) : 350 }}>
+                    <div
+                        key={colIdx}
+                        className="flex flex-col h-full min-h-0 border-l border-cad-border shrink-0 transition-[width] duration-150 ease-in-out overflow-hidden relative"
+                        style={{ width: columnWidth }}
+                    >
+                        <ResizeHandle
+                            direction="right"
+                            onResize={(deltaX) => {
+                                if (firstPaletteId) {
+                                    const currentW = paletteConfigs[firstPaletteId].width || 350;
+                                    const newW = Math.max(250, Math.min(650, currentW - deltaX));
+                                    updatePaletteWidth(firstPaletteId, newW);
+                                }
+                            }}
+                        />
                         {visiblePalettes.map((id, idx) => (
                             <React.Fragment key={id}>
                                 {idx > 0 && (
@@ -148,8 +171,8 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
                                         }}
                                     />
                                 )}
-                                <PalettePanel id={id}>
-                                    <div className="flex-1 overflow-hidden p-1.5 custom-scrollbar h-full">
+                                <PalettePanel id={id} fillDock={visiblePalettes.length === 1}>
+                                    <div className="flex-1 min-h-0 overflow-hidden p-1.5 custom-scrollbar h-full flex flex-col w-full min-w-0">
                                         {renderPaletteContent(id)}
                                     </div>
                                 </PalettePanel>
@@ -163,17 +186,30 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
                 return paletteConfigs[id].isFloating && paletteConfigs[id].isVisible;
             }).map(id => (
                 <PalettePanel key={id} id={id}>
-                    <div className="flex-1 overflow-hidden p-1.5 custom-scrollbar h-full">
+                    <div className="flex-1 min-h-0 overflow-hidden p-1.5 custom-scrollbar h-full flex flex-col w-full min-w-0">
                         {renderPaletteContent(id)}
                     </div>
                 </PalettePanel>
             ))}
         </div>
         {bottomPalettes.length > 0 && (
-            <div className="absolute left-0 right-[32px] bottom-0 z-cad-panel pointer-events-auto">
+            <div
+                className="absolute left-0 bottom-0 z-cad-panel pointer-events-auto border-t border-cad-border bg-cad-surface flex flex-col min-h-0 overflow-hidden"
+                style={{ height: bottomHeight, right: PALETTE_SIDEBAR_WIDTH }}
+            >
+                <VerticalResizeHandle
+                    onResize={(deltaY) => {
+                        const bottomId = bottomPalettes[0];
+                        if (bottomId) {
+                            const currentH = paletteConfigs[bottomId].height || 320;
+                            const newH = Math.max(150, Math.min(600, currentH - deltaY));
+                            updatePaletteHeight(bottomId, newH);
+                        }
+                    }}
+                />
                 {bottomPalettes.map(id => (
-                    <PalettePanel key={id} id={id}>
-                        <div className="flex-1 overflow-hidden p-1.5 custom-scrollbar h-full">
+                    <PalettePanel key={id} id={id} fillDock={bottomPalettes.length === 1}>
+                        <div className="flex-1 min-h-0 overflow-hidden p-1.5 custom-scrollbar h-full flex flex-col w-full min-w-0">
                             {renderPaletteContent(id)}
                         </div>
                     </PalettePanel>

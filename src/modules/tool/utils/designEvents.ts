@@ -38,7 +38,7 @@ export const enrichEventBeforeDispatch = (incomingEvent: DesignEventType): any =
   const payload = { ...(event.payload as any) };
 
   // Extract entityId
-  let entityId =
+  const entityId =
     payload.id ||
     (payload as any).feature_id ||
     (payload as any).featureId ||

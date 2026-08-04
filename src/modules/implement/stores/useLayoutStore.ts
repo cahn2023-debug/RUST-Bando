@@ -17,6 +17,8 @@ export interface PaletteConfig {
 }
 
 interface LayoutState {
+    leftWidth: number;
+    updateLeftWidth: (width: number) => void;
     layoutColumns: string[][];
     activePaletteId: string | null;
     paletteConfigs: Record<string, PaletteConfig>;
@@ -49,6 +51,8 @@ const CANONICAL_PALETTE_TITLES: Record<string, string> = {
     'ai-assistant': 'AI Assistant',
 };
 
+export const PALETTE_SIDEBAR_WIDTH = 36;
+
 const getCanonicalPaletteTitle = (id: string, fallback?: string) =>
     CANONICAL_PALETTE_TITLES[id] ?? fallback ?? 'Untitled Palette';
 
@@ -73,6 +77,7 @@ const normalizePaletteConfigs = (paletteConfigs: Record<string, PaletteConfig>):
 };
 
 export const createDefaultLayoutState = () => ({
+    leftWidth: 288,
     layoutColumns: DEFAULT_LAYOUT_COLUMNS.map((column) => [...column]),
     activePaletteId: null as string | null,
     paletteConfigs: normalizePaletteConfigs(createDefaultPaletteConfigs()),
@@ -534,6 +539,7 @@ export const useLayoutStore = create<LayoutState>()(
                         },
                     };
                 }),
+            updateLeftWidth: (width: number) => set({ leftWidth: width }),
         }),
         {
             name: 'cad-layout-storage',
@@ -542,3 +548,23 @@ export const useLayoutStore = create<LayoutState>()(
         }
     )
 );
+
+export const selectRightWidth = (state: { layoutColumns: string[][]; paletteConfigs: Record<string, PaletteConfig> }) => {
+    const rightColumns = state.layoutColumns
+        .map(column => column.filter(id => {
+            const config = state.paletteConfigs[id];
+            return config?.isVisible && !config?.isFloating && config?.dockPosition !== 'bottom';
+        }))
+        .filter(column => column.length > 0);
+    return PALETTE_SIDEBAR_WIDTH + rightColumns.reduce((sum, col) => sum + (state.paletteConfigs[col[0]]?.width || 350), 0);
+};
+
+export const selectBottomHeight = (state: { layoutColumns: string[][]; paletteConfigs: Record<string, PaletteConfig> }) => {
+    const bottomPalettes = state.layoutColumns
+        .flat()
+        .filter(id => {
+            const config = state.paletteConfigs[id];
+            return config?.dockPosition === 'bottom' && config?.isVisible && !config?.isFloating;
+        });
+    return bottomPalettes.reduce((sum, id) => sum + (state.paletteConfigs[id]?.height || 320), 0);
+};

@@ -121,3 +121,28 @@ describe('DrawingExplorer coordinate input', () => {
     expect(() => parseCoordinateInput('105.871928', 'Point')).toThrow('Tọa độ');
   });
 });
+
+describe('ExplorerHeader controls', () => {
+  it('triggers onExpandAll and onCollapseAll when clicked', async () => {
+    const { ExplorerHeader } = await import('./Explorer/ExplorerHeader');
+    const onExpandAll = vi.fn();
+    const onCollapseAll = vi.fn();
+
+    render(
+      <ExplorerHeader
+        treeSearchQuery=""
+        setTreeSearchQuery={vi.fn()}
+        onCreateRegion={vi.fn()}
+        onExpandAll={onExpandAll}
+        onCollapseAll={onCollapseAll}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('Mở rộng tất cả'));
+    expect(onExpandAll).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByTitle('Thu gọn tất cả'));
+    expect(onCollapseAll).toHaveBeenCalledTimes(1);
+  });
+});
+

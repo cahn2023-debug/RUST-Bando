@@ -145,9 +145,22 @@ pub fn run() {
             crate::domain::implement::commands::v2::apply_project_media_recovery,
             crate::domain::implement::commands::v2::remove_recent_project,
             crate::domain::implement::commands::v2::delete_project,
-            crate::domain::implement::commands::v2::rebuild_fts_v2,
             crate::domain::implement::commands::v2::undo_design_event,
             crate::domain::implement::commands::v2::redo_design_event,
+            crate::domain::implement::auth::local_auth::get_current_user,
+            crate::domain::implement::auth::local_auth::local_login,
+            crate::domain::implement::auth::local_auth::local_register,
+            crate::domain::implement::auth::local_auth::logout_user,
+            crate::domain::implement::auth::local_auth::delete_local_account,
+            crate::domain::implement::auth::license::check_license,
+            crate::domain::implement::auth::license::activate_license,
+            crate::domain::implement::commands::gis_commands::st_geom_from_ewkt,
+            crate::domain::implement::commands::gis_commands::st_as_ewkt,
+            crate::domain::implement::commands::gis_commands::st_is_valid,
+            crate::domain::implement::commands::gis_commands::st_make_valid,
+            crate::domain::implement::commands::gis_commands::st_transform,
+            crate::domain::implement::commands::gis_commands::st_measure_feature,
+            crate::domain::implement::commands::gis_commands::st_spatial_relate,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

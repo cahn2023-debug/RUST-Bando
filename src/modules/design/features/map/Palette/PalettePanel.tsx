@@ -6,9 +6,10 @@ import { PaletteProvider } from '@DESIGN/features/map/Palette/PaletteContext';
 interface PalettePanelProps {
     id: string;
     children: React.ReactNode;
+    fillDock?: boolean;
 }
 
-export const PalettePanel = React.memo(({ id, children }: PalettePanelProps) => {
+export const PalettePanel = React.memo(({ id, children, fillDock = false }: PalettePanelProps) => {
     // 1. Optimized Granular Selectors
     const config = useLayoutStore(s => s.paletteConfigs[id]);
     const setPinned = useLayoutStore(s => s.setPinned);
@@ -184,18 +185,18 @@ export const PalettePanel = React.memo(({ id, children }: PalettePanelProps) => 
             <div
                 ref={containerRef}
                 className={cn(
-                    "bg-cad-surface border border-cad-border flex flex-col transition-shadow duration-300 ease-in-out z-cad-floating will-change-layout",
+                    "bg-cad-surface border border-cad-border flex flex-col overflow-hidden transition-shadow duration-300 ease-in-out z-cad-floating will-change-layout",
                     isFloating ? "fixed shadow-2xl rounded-sm" : "relative transition-all",
                     !isFloating && isBottomDocked ? "border-t" : "border-l",
-                    !isFloating && !isPinned ? "absolute right-0 top-0 bottom-0 shadow-2xl" : "",
+                    !isFloating && !isPinned ? "shadow-2xl" : "",
                     isVisible ? "opacity-100 scale-100" : "opacity-0 scale-x-0 w-0 pointer-events-none"
                 )}
                 style={{
                     width: isBottomDocked ? '100%' : config.width,
                     left: isFloating ? position.x : undefined,
                     top: isFloating ? position.y : undefined,
-                    height: isFloating ? (config.height || 400) : (isBottomDocked ? (config.height || 320) : undefined),
-                    flex: (!isFloating && isPinned && !isBottomDocked) ? (config.flex ?? 1) : undefined,
+                    height: isFloating ? (config.height || 400) : (isBottomDocked ? (fillDock ? '100%' : (config.height || 320)) : undefined),
+                    flex: !isFloating ? (fillDock ? '1 1 0%' : (!isBottomDocked ? `${config.flex ?? 1} 1 0%` : undefined)) : undefined,
                     maxHeight: isFloating ? '90vh' : '100%',
                     minHeight: isFloating ? '200px' : '0'
                 }}
@@ -230,7 +231,7 @@ export const PalettePanel = React.memo(({ id, children }: PalettePanelProps) => 
                 )}
 
                 {/* Content Area - Header removed from here */}
-                <div className="flex-1 overflow-hidden relative flex flex-col">
+                <div className="flex-1 min-h-0 w-full overflow-hidden relative flex flex-col">
                     {children}
                 </div>
             </div>

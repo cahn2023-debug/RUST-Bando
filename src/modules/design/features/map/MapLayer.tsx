@@ -49,7 +49,7 @@ export function MapLayer({
     }
 
     const content = (
-        <div className="relative w-full h-full overflow-hidden design-map-container">
+        <div className="relative w-full h-full overflow-hidden design-map-container pointer-events-none">
             <MapLibreFastRenderer
                 center={center}
                 zoom={zoom}
@@ -62,18 +62,20 @@ export function MapLayer({
                 basemapPreset={activeBasemapPreset}
             />
 
-            <MapSettingsPortal>
-                <MapSettingsPanel
-                    mapFeatures={mapFeatures}
-                    setMapFeatures={setMapFeatures}
-                    basemapId={basemapId}
-                    setBasemapId={setBasemapId}
-                    basemapPresets={basemapPresets}
-                />
-            </MapSettingsPortal>
+            <div className="pointer-events-auto">
+                <MapSettingsPortal>
+                    <MapSettingsPanel
+                        mapFeatures={mapFeatures}
+                        setMapFeatures={setMapFeatures}
+                        basemapId={basemapId}
+                        setBasemapId={setBasemapId}
+                        basemapPresets={basemapPresets}
+                    />
+                </MapSettingsPortal>
+            </div>
 
             {showDORILayers && (
-                <div className="absolute bottom-6 right-16 z-cad-map-control animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="absolute bottom-6 right-16 z-cad-map-control pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <DORILegend />
                 </div>
             )}

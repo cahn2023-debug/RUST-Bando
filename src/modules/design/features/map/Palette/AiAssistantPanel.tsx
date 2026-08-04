@@ -474,7 +474,7 @@ export function AiAssistantPanel() {
         : null;
 
     return (
-        <div className="flex h-full flex-col bg-cad-surface text-xs text-cad-text-primary select-none">
+        <div className="flex h-full w-full min-h-0 flex-col bg-cad-surface text-xs text-cad-text-primary select-none overflow-hidden">
             <div className="border-b border-cad-border bg-cad-elevated/40 p-2.5">
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-2">

@@ -41,7 +41,7 @@ export async function safeInvoke<T>(command: string, args?: any): Promise<T> {
     if (["get_recent_projects", "get_projects", "get_project_tree", "get_materials", "get_tasks", "get_notes"].includes(command)) {
       return [] as any;
     }
-    return null as any;
+    throw error;
   }
 }
 

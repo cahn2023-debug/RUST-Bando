@@ -231,7 +231,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
   }
 
   return (
-    <div className={inline ? "flex flex-col h-full bg-cad-bg" : "summary-overlay"}>
+    <div className={inline ? "flex flex-col h-full w-full min-h-0 bg-cad-bg overflow-hidden" : "summary-overlay"}>
       {/* Header aligned with image */}
       <div className="px-3 py-2 border-b border-cad-border flex justify-between items-center bg-cad-header/30">
         <div className="flex items-center gap-2">

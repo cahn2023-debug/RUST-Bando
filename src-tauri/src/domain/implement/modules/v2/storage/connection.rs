@@ -1,6 +1,6 @@
 use crate::domain::implement::modules::v2::storage::audit::{audit_database, DatabaseAuditReport};
 use crate::domain::implement::modules::v2::storage::schema::{
-    apply_base_schema, apply_v10_schema, apply_v9_schema, ensure_runtime_schema_compatibility,
+    apply_base_schema, apply_v10_schema, apply_v11_schema, apply_v9_schema, ensure_runtime_schema_compatibility,
     ensure_v8_compatibility, stamp_schema_version, CURRENT_SCHEMA_VERSION,
 };
 use rusqlite::{backup::Backup, params, Connection, DatabaseName, OpenFlags, TransactionBehavior};
@@ -79,6 +79,7 @@ impl PmpDatabase {
             }
             apply_v9_schema(&transaction)?;
             apply_v10_schema(&transaction)?;
+            apply_v11_schema(&transaction)?;
             stamp_schema_version(&transaction)?;
             let report = audit_database(&transaction)?;
             reject_blocking_audit(&report, false)?;

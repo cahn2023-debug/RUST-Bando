@@ -15,7 +15,8 @@ import {
   ExplorerFilterBar,
   ExplorerModals,
   useFlattenedTree,
-  useVirtualDrag
+  useVirtualDrag,
+  ORPHAN_REGION_ID
 } from "./Explorer";
 import { GroupIcon } from "@DESIGN/components/core/CADPanels/GroupIcon";
 import { getFeatureDisplayInfo, getParsedMetadata } from "@TOOL/utils/featureUtils";
@@ -91,8 +92,21 @@ const hasSavedExplorerViewState = (projectId: string | null | undefined): boolea
   if (!viewStateKey || !projectId) return false;
 
   try {
-    return localStorage.getItem(viewStateKey) !== null ||
-      localStorage.getItem(`drawing-explorer-expanded-${projectId}`) !== null;
+    const saved = localStorage.getItem(viewStateKey);
+    if (saved) {
+      const parsed = JSON.parse(saved) as Partial<ExplorerViewState>;
+      if (parsed.expanded && typeof parsed.expanded === 'object' && Object.values(parsed.expanded).some(Boolean)) {
+        return true;
+      }
+    }
+    const legacyExpanded = localStorage.getItem(`drawing-explorer-expanded-${projectId}`);
+    if (legacyExpanded) {
+      const parsed = JSON.parse(legacyExpanded) as Record<string, boolean>;
+      if (parsed && typeof parsed === 'object' && Object.values(parsed).some(Boolean)) {
+        return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   }
@@ -353,16 +367,33 @@ export function DrawingExplorer() {
   }, [selectedFeatureId, featuresMap, layersMap, groupsMap]);
 
   useEffect(() => {
-    if (!hasAutoExpanded.current && filteredRegions.length > 0 && !isLoading && !error) {
+    const isExpandedEmpty = !expanded || Object.keys(expanded).length === 0 || Object.values(expanded).every(v => !v);
+    if ((!hasAutoExpanded.current || isExpandedEmpty) && (filteredRegions.length > 0 || Object.keys(groupsMap).length > 0 || Object.keys(featuresMap).length > 0) && !isLoading && !error) {
       setExpanded(prev => {
         const next = { ...prev };
         filteredRegions.forEach(r => { next[r.id] = true; });
         Object.keys(groupsMap).forEach(groupId => { next[groupId] = true; });
+        next[ORPHAN_REGION_ID] = true;
         return next;
       });
       hasAutoExpanded.current = true;
     }
-  }, [filteredRegions, groupsMap, isLoading, error]);
+  }, [filteredRegions, groupsMap, featuresMap, isLoading, error, expanded]);
+
+  const handleExpandAll = () => {
+    setExpanded(() => {
+      const next: Record<string, boolean> = {};
+      filteredRegions.forEach(r => { next[r.id] = true; });
+      Object.keys(groupsMap).forEach(groupId => { next[groupId] = true; });
+      Object.keys(featuresMap).forEach(featureId => { next[`feature-${featureId}`] = true; });
+      next[ORPHAN_REGION_ID] = true;
+      return next;
+    });
+  };
+
+  const handleCollapseAll = () => {
+    setExpanded({});
+  };
 
   useEffect(() => {
     if (selectedFeatureId && flattenedItems.length > 0 && virtuosoRef.current) {
@@ -451,6 +482,11 @@ export function DrawingExplorer() {
     if (!reviewData) return;
     await applyImportedRecords(records, reviewData.groupId);
     setSelectedGroup(reviewData.groupId);
+    setExpanded(prev => ({
+      ...prev,
+      [reviewData.groupId]: true,
+      [ORPHAN_REGION_ID]: true
+    }));
     setReviewData(null);
   };
 
@@ -584,21 +620,47 @@ export function DrawingExplorer() {
   if (!isReady) return <div className="p-6 text-center text-cad-text-muted">No design state loaded</div>;
 
   return (
-    <div className="text-cad-text-primary px-3 py-2 text-[10px] font-mono flex flex-col h-full overflow-hidden">
+    <div className="text-cad-text-primary px-3 py-2 text-[10px] font-mono flex flex-col h-full w-full min-h-0 overflow-hidden">
       <ExplorerHeader 
         treeSearchQuery={treeSearchQuery} 
         setTreeSearchQuery={setTreeSearchQuery} 
-        onCreateRegion={handleCreateRegion} 
+        onCreateRegion={handleCreateRegion}
+        onExpandAll={handleExpandAll}
+        onCollapseAll={handleCollapseAll}
         disabled={isLoading}
       />
       <ExplorerFilterBar filterType={filterType} setFilterType={setFilterType} sortField={sortField} setSortField={setSortField} reverseOrder={reverseOrder} setReverseOrder={setReverseOrder} />
 
-      <div className="flex-1 min-h-0 mt-2">
-        <Virtuoso
-          ref={virtuosoRef}
-          data={flattenedItems}
-          rangeChanged={handleRangeChanged}
-          itemContent={(index: number, item: FlatTreeItem) => (
+      <div className="flex-1 min-h-[200px] mt-2 relative w-full h-full flex flex-col overflow-hidden">
+        {flattenedItems.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center p-4 text-center text-cad-text-muted gap-2 border border-dashed border-cad-border/40 rounded-sm">
+            <div className="text-[11px] font-bold text-cad-text-secondary">
+              {treeSearchQuery || filterType ? "Không tìm thấy dữ liệu khớp bộ lọc" : "Chưa có dữ liệu bản vẽ"}
+            </div>
+            <div className="text-[9px] text-cad-text-muted max-w-[180px]">
+              {treeSearchQuery || filterType
+                ? "Thử thay đổi từ khóa tìm kiếm hoặc chọn TẤT CẢ LOẠI."
+                : "Tạo dự án mới hoặc nhập dữ liệu để hiển thị."}
+            </div>
+            {(treeSearchQuery || filterType) && (
+              <button
+                onClick={() => {
+                  setTreeSearchQuery("");
+                  setFilterType(null);
+                }}
+                className="mt-1 px-2.5 py-1 bg-cad-accent/10 border border-cad-accent/30 text-cad-accent hover:bg-cad-accent hover:text-black rounded text-[9px] font-bold transition-all"
+              >
+                Xóa bộ lọc / Tìm kiếm
+              </button>
+            )}
+          </div>
+        ) : (
+          <Virtuoso
+            ref={virtuosoRef}
+            style={{ height: '100%', width: '100%', minHeight: '200px' }}
+            data={flattenedItems}
+            rangeChanged={handleRangeChanged}
+            itemContent={(index: number, item: FlatTreeItem) => (
             <div
               key={item.id}
               data-drag-id={item.type === 'region' || item.type === 'group' || item.type === 'feature' ? item.id : undefined}
@@ -722,6 +784,7 @@ export function DrawingExplorer() {
             </div>
           )}
         />
+      )}
       </div>
 
       <ExplorerModals

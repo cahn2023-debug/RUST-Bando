@@ -69,10 +69,22 @@ const isPoint = (value: unknown): value is PointCoordinates =>
   && typeof value[0] === 'number'
   && typeof value[1] === 'number';
 
+const parseCoordinates = (coordinates: unknown): unknown => {
+  if (typeof coordinates === 'string') {
+    try {
+      return JSON.parse(coordinates);
+    } catch {
+      return null;
+    }
+  }
+  return coordinates;
+};
+
 const getLineCoordinates = (feature: FeatureState): LineStringCoordinates | null => {
-  if (!Array.isArray(feature.coordinates) || feature.coordinates.length < 2) return null;
-  if (!isPoint(feature.coordinates[0])) return null;
-  return feature.coordinates as LineStringCoordinates;
+  const coords = parseCoordinates(feature.coordinates);
+  if (!Array.isArray(coords) || coords.length < 2) return null;
+  if (!isPoint(coords[0])) return null;
+  return coords as LineStringCoordinates;
 };
 
 const isPolylineFeature = (feature: FeatureState): boolean => {
@@ -105,7 +117,8 @@ const isReusableFiberPoint = (
   reusableFeatureIds: Set<string>,
   pointKind?: FiberCablePointKind
 ): boolean => {
-  if (!isPoint(feature.coordinates)) return false;
+  const coords = parseCoordinates(feature.coordinates);
+  if (!isPoint(coords)) return false;
   if (reusableFeatureIds.has(feature.id)) return true;
 
   const metadata = parseMetadata(feature.metadata);
@@ -184,11 +197,12 @@ const findExistingCablePoint = (
     const metadata = parseMetadata(feature.metadata);
     const fiber = metadata.fiber;
     if (fiber && fiber.cable_id === cableId && fiber.point_kind === pointKind) return true;
+    const coords = parseCoordinates(feature.coordinates);
     return Boolean(
       key
       && isReusableFiberPoint(feature, reusableFeatureIds, pointKind)
-      && isPoint(feature.coordinates)
-      && coordinateKey(feature.coordinates) === key
+      && isPoint(coords)
+      && coordinateKey(coords) === key
     );
   });
 };
@@ -200,9 +214,10 @@ const findExistingEnclosure = (
 ): FeatureState | undefined => {
   const key = coordinateKey(coordinate);
   return features.find(feature => {
+    const coords = parseCoordinates(feature.coordinates);
     return isReusableFiberPoint(feature, reusableFeatureIds, 'splice_enclosure')
-      && isPoint(feature.coordinates)
-      && coordinateKey(feature.coordinates) === key;
+      && isPoint(coords)
+      && coordinateKey(coords) === key;
   });
 };
 
@@ -316,7 +331,7 @@ export const buildFiberPolylineMaterializationEvents = (
     ? candidates.filter(c => options.targetFeatureIds!.includes(c.feature.id))
     : candidates;
 
-  let cablesToMaterialize = new Set(options.targetFeatureIds);
+  const cablesToMaterialize = new Set(options.targetFeatureIds);
   if (options.targetFeatureIds) {
     targetCandidates.forEach(candidate => {
       candidate.coordinates.forEach(point => {

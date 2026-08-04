@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useDesignSync, EMPTY_OBJ } from '@IMPLEMENT/stores/useDesignSync';
 import { useFeatureNumbering } from '@IMPLEMENT/hooks/useDesignFeatures';
+import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
 import { useSnap } from '@IMPLEMENT/hooks/useSnap';
 import { queryVisibleFeaturesV2 } from '@TOOL/utils/designIpc';
 import { confirmUserAction } from '@TOOL/utils/userConfirmation';
@@ -16,20 +17,25 @@ import { buildPolylineSnapMarkers, type PolylineSnapMarker } from './polylineSna
 import type { FeatureState } from '@CONTRACT/types';
 import type { MapLibreFastFeatureCollection, MapLibreRenderFeatureCollection } from './mapLibreFastTypes';
 import { useMapContext } from './MapContext';
+import { useBasemap } from '@/core/basemap';
 import { getRenderableFeatureById } from './featureLookup';
 import { CameraBridge, DirtyFlag, FeatureOverlayCanvas, resolveMapRenderFlags, type FeatureOverlayCanvasHandle, type MapRenderFlags } from './render';
 import { saveBootstrapMetadata } from './bootstrapMetadata';
+import { markMapStartup } from './mapStartupTelemetry';
 
 const SOURCE_ID = 'design-fast-features';
+const POINT_CLUSTER_SOURCE_ID = 'design-fast-point-clusters-source';
 const BASEMAP_SOURCE_ID = 'basemap';
 const CAMERA_BRIDGE_LAYER_ID = 'design-camera-bridge';
 const BASEMAP_HEAT_LAYER_ID = 'basemap-heat-overlay';
+const POINT_GLOW_LAYER_ID = 'design-fast-points-glow';
 const POINT_LAYER_ID = 'design-fast-points';
 const POINT_ICON_LAYER_ID = 'design-fast-point-icons';
 const POINT_LABEL_LAYER_ID = 'design-fast-point-labels';
 const POINT_CLUSTER_LAYER_ID = 'design-fast-point-clusters';
 const POINT_CLUSTER_COUNT_LAYER_ID = 'design-fast-point-cluster-counts';
 const LINE_HIT_LAYER_ID = 'design-fast-line-hit-area';
+const LINE_GLOW_LAYER_ID = 'design-fast-lines-glow';
 const LINE_LAYER_ID = 'design-fast-lines';
 const POLYGON_LAYER_ID = 'design-fast-polygons';
 const POLYGON_STROKE_LAYER_ID = 'design-fast-polygon-strokes';
@@ -465,9 +471,91 @@ const withoutPointFeatures = (
     )),
 });
 
-const featureListKey = (features: FeatureState[], mapRevision: number, viewportRevision: number) => (
-    `${mapRevision}:${viewportRevision}:${features.length}`
-);
+const onlyPointFeatures = (
+    collection: MapLibreRenderFeatureCollection
+): MapLibreRenderFeatureCollection => ({
+    ...collection,
+    features: collection.features.filter(feature => (
+        feature.geometry.type === 'Point' || feature.geometry.type === 'MultiPoint'
+    )),
+});
+
+const getCoordsHash = (coords: any): number => {
+    if (!coords) return 0;
+    if (typeof coords === 'number') return coords;
+    if (typeof coords === 'string') {
+        let h = 0;
+        for (let i = 0; i < coords.length; i++) h = (h + coords.charCodeAt(i)) | 0;
+        return h;
+    }
+    if (Array.isArray(coords)) {
+        if (coords.length === 0) return 0;
+        const first = coords[0];
+        const last = coords[coords.length - 1];
+        return (coords.length + getCoordsHash(first) + getCoordsHash(last)) | 0;
+    }
+    if (typeof coords === 'object') {
+        const x = coords.x ?? coords.lng ?? coords.longitude ?? coords.Longitude;
+        const y = coords.y ?? coords.lat ?? coords.latitude ?? coords.Latitude;
+        if (typeof x === 'number' && typeof y === 'number') {
+            return (x + y) | 0;
+        }
+        const pts = coords.points ?? coords.coordinates ?? coords.coords;
+        if (pts) return getCoordsHash(pts);
+    }
+    return 0;
+};
+
+const getMetadataHash = (meta: any): number => {
+    if (!meta) return 0;
+    if (typeof meta === 'string') {
+        let h = 0;
+        for (let i = 0; i < meta.length; i++) h = (h + meta.charCodeAt(i)) | 0;
+        return h;
+    }
+    if (typeof meta === 'object') {
+        const color = meta.color ?? meta.gis?.color ?? meta.stroke ?? meta.gis?.stroke;
+        const size = meta.size ?? meta.gis?.size ?? meta.weight ?? meta.gis?.weight;
+        let h = 0;
+        if (typeof color === 'string') {
+            for (let i = 0; i < color.length; i++) h = (h + color.charCodeAt(i)) | 0;
+        }
+        if (typeof size === 'number') {
+            h = (h + size) | 0;
+        }
+        return h;
+    }
+    return 0;
+};
+
+const getPropertiesHash = (props: any): number => {
+    if (!props) return 0;
+    if (typeof props === 'object') {
+        const color = props.color ?? props.stroke;
+        const size = props.size ?? props.weight;
+        let h = 0;
+        if (typeof color === 'string') {
+            for (let i = 0; i < color.length; i++) h = (h + color.charCodeAt(i)) | 0;
+        }
+        if (typeof size === 'number') {
+            h = (h + size) | 0;
+        }
+        return h;
+    }
+    return 0;
+};
+
+const featureListKey = (features: FeatureState[], mapRevision: number, viewportRevision: number) => {
+    let geoHash = 0;
+    for (let i = 0; i < features.length; i++) {
+        const f = features[i];
+        if (!f) continue;
+        geoHash = (geoHash + getCoordsHash(f.coordinates)) | 0;
+        geoHash = (geoHash + getMetadataHash(f.metadata)) | 0;
+        geoHash = (geoHash + getPropertiesHash(f.properties)) | 0;
+    }
+    return `${mapRevision}:${viewportRevision}:${features.length}:${geoHash}`;
+};
 
 const featureGroupsKey = (featureGroups: Record<string, any>) => Object.keys(featureGroups || {})
     .sort()
@@ -590,6 +678,14 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
             type: 'geojson',
             data: emptyCollection as any,
             promoteId: 'id',
+        });
+    }
+
+    if (!map.getSource(POINT_CLUSTER_SOURCE_ID)) {
+        map.addSource(POINT_CLUSTER_SOURCE_ID, {
+            type: 'geojson',
+            data: emptyCollection as any,
+            promoteId: 'id',
             cluster: true,
             clusterRadius: 48,
             clusterMaxZoom: MAP_POINT_CLUSTER_MAX_ZOOM,
@@ -641,6 +737,32 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
         } as maplibregl.AddLayerObject);
     }
 
+    if (!map.getLayer(LINE_GLOW_LAYER_ID)) {
+        addMapLayer(map, {
+            id: LINE_GLOW_LAYER_ID,
+            type: 'line',
+            source: SOURCE_ID,
+            filter: LINE_GEOMETRY_FILTER,
+            paint: {
+                'line-color': ['get', 'color'],
+                'line-width': ['+', ['get', 'size'], 8],
+                'line-opacity': [
+                    'case',
+                    ['boolean', ['feature-state', 'selected'], false],
+                    0.4,
+                    ['boolean', ['feature-state', 'hover'], false],
+                    0.25,
+                    0
+                ],
+                'line-blur': 4,
+            },
+            layout: {
+                'line-cap': 'round',
+                'line-join': 'round',
+            },
+        } as maplibregl.AddLayerObject);
+    }
+
     if (!map.getLayer(LINE_LAYER_ID)) {
         addMapLayer(map, {
             id: LINE_LAYER_ID,
@@ -649,7 +771,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
             filter: LINE_GEOMETRY_FILTER,
             paint: {
                 'line-color': ['get', 'color'],
-                'line-width': ['get', 'size'],
+                'line-width': ['max', 2, ['coalesce', ['get', 'size'], 3]],
                 'line-dasharray': ['case', ['has', 'dashArray'], ['get', 'dashArray'], ['literal', [1, 0]]],
                 'line-opacity': ['case', ['boolean', ['feature-state', 'selected'], false], 0.98, 0.74],
             },
@@ -664,7 +786,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
         addMapLayer(map, {
             id: POINT_CLUSTER_LAYER_ID,
             type: 'circle',
-            source: SOURCE_ID,
+            source: POINT_CLUSTER_SOURCE_ID,
             filter: ['has', 'point_count'],
             paint: {
                 'circle-color': '#0f766e',
@@ -680,7 +802,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
         addMapLayer(map, {
             id: POINT_CLUSTER_COUNT_LAYER_ID,
             type: 'symbol',
-            source: SOURCE_ID,
+            source: POINT_CLUSTER_SOURCE_ID,
             filter: ['has', 'point_count'],
             layout: {
                 'text-field': ['get', 'point_count_abbreviated'],
@@ -692,6 +814,53 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
                 'text-color': '#ecfeff',
                 'text-halo-color': '#0f172a',
                 'text-halo-width': 1,
+            },
+        } as maplibregl.AddLayerObject);
+    }
+
+    if (!map.getLayer(POINT_GLOW_LAYER_ID)) {
+        addMapLayer(map, {
+            id: POINT_GLOW_LAYER_ID,
+            type: 'circle',
+            source: SOURCE_ID,
+            filter: ['all', POINT_GEOMETRY_FILTER, ['!', ['has', 'point_count']]] as unknown as maplibregl.FilterSpecification,
+            paint: {
+                'circle-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#22d3ee', ['get', 'color']],
+                'circle-radius': [
+                    'case',
+                    ['to-boolean', ['get', 'iconImageId']],
+                    ['case',
+                        ['boolean', ['feature-state', 'selected'], false],
+                        ['+', ['/', ['get', 'displaySize'], 2], 5],
+                        ['boolean', ['feature-state', 'hover'], false],
+                        ['+', ['/', ['get', 'displaySize'], 2], 3],
+                        0
+                    ],
+                    ['case',
+                        ['boolean', ['feature-state', 'selected'], false],
+                        ['+', ['/', ['get', 'displaySize'], 2], 4],
+                        ['boolean', ['feature-state', 'hover'], false],
+                        ['+', ['/', ['get', 'displaySize'], 2], 2],
+                        0
+                    ]
+                ],
+                'circle-opacity': [
+                    'case',
+                    ['boolean', ['feature-state', 'selected'], false],
+                    0.35,
+                    ['boolean', ['feature-state', 'hover'], false],
+                    0.2,
+                    0
+                ],
+                'circle-stroke-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#22d3ee', '#ffffff'],
+                'circle-stroke-width': [
+                    'case',
+                    ['boolean', ['feature-state', 'selected'], false],
+                    2.5,
+                    ['boolean', ['feature-state', 'hover'], false],
+                    1.5,
+                    0
+                ],
             },
         } as maplibregl.AddLayerObject);
     }
@@ -790,9 +959,11 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
         POLYGON_LAYER_ID,
         POLYGON_STROKE_LAYER_ID,
         LINE_HIT_LAYER_ID,
+        LINE_GLOW_LAYER_ID,
         LINE_LAYER_ID,
         POINT_CLUSTER_LAYER_ID,
         POINT_CLUSTER_COUNT_LAYER_ID,
+        POINT_GLOW_LAYER_ID,
         POINT_LAYER_ID,
         POINT_ICON_LAYER_ID,
         POINT_LABEL_LAYER_ID,
@@ -905,6 +1076,53 @@ const ensureOverlayLayers = (map: maplibregl.Map) => {
     ].forEach(layerId => moveLayerToTop(map, layerId));
 };
 
+const DESIGN_LAYER_IDS = [
+    BASEMAP_HEAT_LAYER_ID,
+    CAMERA_BRIDGE_LAYER_ID,
+    POLYGON_LAYER_ID,
+    POLYGON_STROKE_LAYER_ID,
+    LINE_HIT_LAYER_ID,
+    LINE_GLOW_LAYER_ID,
+    LINE_LAYER_ID,
+    POINT_CLUSTER_LAYER_ID,
+    POINT_CLUSTER_COUNT_LAYER_ID,
+    POINT_GLOW_LAYER_ID,
+    POINT_LAYER_ID,
+    POINT_ICON_LAYER_ID,
+    POINT_LABEL_LAYER_ID,
+    LABEL_LAYER_ID,
+    DRAWING_LINE_LAYER_ID,
+    DRAWING_VERTEX_LAYER_ID,
+    SNAP_LAYER_ID,
+    EDIT_VERTEX_LAYER_ID,
+    EDIT_MIDPOINT_LAYER_ID,
+    EDIT_SNAP_LINK_LAYER_ID,
+] as const;
+
+const DESIGN_SOURCE_IDS = [
+    SOURCE_ID,
+    POINT_CLUSTER_SOURCE_ID,
+    DRAWING_SOURCE_ID,
+    EDIT_SOURCE_ID,
+] as const;
+
+const cleanupDesignMapArtifacts = (map: maplibregl.Map) => {
+    for (const layerId of DESIGN_LAYER_IDS) {
+        try {
+            if (map.getLayer(layerId)) map.removeLayer(layerId);
+        } catch {
+            // MapLibre may be mid-style transition.
+        }
+    }
+    for (const sourceId of DESIGN_SOURCE_IDS) {
+        try {
+            if (map.getSource(sourceId)) map.removeSource(sourceId);
+        } catch {
+            // MapLibre may be mid-style transition.
+        }
+    }
+};
+
 export function MapLibreFastRenderer({
     center,
     zoom,
@@ -934,17 +1152,29 @@ export function MapLibreFastRenderer({
     const overlayRef = React.useRef<FeatureOverlayCanvasHandle | null>(null);
     const cameraBridgeRef = React.useRef(new CameraBridge());
     const mapRef = React.useRef<maplibregl.Map | null>(null);
+    let contextMap: maplibregl.Map | null = null;
     let setMap: (map: maplibregl.Map | null) => void = () => {};
     try {
-        setMap = useMapContext().setMap;
+        const mapContext = useMapContext();
+        contextMap = mapContext.map;
+        setMap = mapContext.setMap;
     } catch {
         // MapProvider optional
     }
+    let basemapController = null;
+    try {
+        basemapController = useBasemap().controller;
+    } catch {
+        // BasemapProvider optional
+    }
+    const shouldUsePersistentBasemap = Boolean(basemapController);
     const requestRef = React.useRef(0);
     const lastBasemapTilesKeyRef = React.useRef<string | null>(null);
     const selectedFeatureRef = React.useRef<Set<string>>(new Set());
+    const hoveredFeatureRef = React.useRef<string | null>(null);
     const layerSetupKeyRef = React.useRef<string | null>(null);
     const lastSetDataKeyRef = React.useRef<string | null>(null);
+    const lastClusterSetDataKeyRef = React.useRef<string | null>(null);
     const snapRafRef = React.useRef(0);
     const pendingSnapEventRef = React.useRef<any>(null);
     const iconReadyRafRef = React.useRef(0);
@@ -961,6 +1191,7 @@ export function MapLibreFastRenderer({
     const featureGroups = useDesignSync(s => s.state?.feature_groups || (EMPTY_OBJ as Record<string, any>));
     const projectId = useDesignSync(s => s.projectId);
     const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
+    const hoverId = useDesignSync(s => s.hoverId);
     const mapHiddenIds = useDesignSync(s => s.mapHiddenIds);
     const groupThemePreview = useDesignSync(s => s.groupThemePreview);
     const drawingMode = useDesignSync(s => s.drawingMode);
@@ -1127,6 +1358,29 @@ export function MapLibreFastRenderer({
 
         requestAnimationFrame(apply);
     }, [applySelectedFeatureState]);
+    const applyHoverFeatureState = React.useCallback((nextHoverId: string | null) => {
+        const map = mapRef.current;
+        if (!map || !map.getSource(SOURCE_ID)) return;
+
+        const prevHoverId = hoveredFeatureRef.current;
+        if (prevHoverId === nextHoverId) return;
+
+        if (prevHoverId) {
+            try {
+                map.setFeatureState({ source: SOURCE_ID, id: prevHoverId }, { hover: false });
+            } catch {
+                // MapLibre may still be tearing down/rebuilding source state.
+            }
+        }
+        if (nextHoverId) {
+            try {
+                map.setFeatureState({ source: SOURCE_ID, id: nextHoverId }, { hover: true });
+            } catch {
+                // MapLibre may still be tearing down/rebuilding source state.
+            }
+        }
+        hoveredFeatureRef.current = nextHoverId;
+    }, []);
     const editingFeature = React.useMemo(
         () => getRenderableFeatureById(editingFeatureId, { state: mapState, visibleFeatures: features, featureDetailsCache }),
         [editingFeatureId, featureDetailsCache, features, mapState]
@@ -1228,9 +1482,14 @@ export function MapLibreFastRenderer({
     }, []);
 
     React.useEffect(() => {
-        if (!containerRef.current || mapRef.current) return;
-        const map = new maplibregl.Map({
-            container: containerRef.current,
+        if (mapRef.current) return;
+        if (shouldUsePersistentBasemap && !contextMap) return;
+
+        const ownsMap = !shouldUsePersistentBasemap;
+        if (ownsMap && !containerRef.current) return;
+
+        const map = contextMap || new maplibregl.Map({
+            container: containerRef.current!,
             style: createRasterStyle(basemapTiles),
             center: toLngLat(center),
             zoom,
@@ -1244,17 +1503,39 @@ export function MapLibreFastRenderer({
         lastBasemapTilesKeyRef.current = basemapTilesKey;
         setMapGesturesEnabled(map, true);
         const scheduleOverlay = (dirty: DirtyFlag) => overlayRef.current?.schedule(dirty);
+        const mapListenerCleanups: Array<() => void> = [];
+        const onMap = (event: string, ...args: any[]) => {
+            (map as any).on(event, ...args);
+            mapListenerCleanups.push(() => {
+                try {
+                    (map as any).off?.(event, ...args);
+                } catch {
+                    // Ignore listener cleanup races during map teardown.
+                }
+            });
+        };
 
-        const resizeObserver = new ResizeObserver(() => {
-            map.resize();
-        });
-        resizeObserver.observe(containerRef.current);
+        const resizeObserver = ownsMap && typeof ResizeObserver !== 'undefined' && containerRef.current
+            ? new ResizeObserver(() => {
+                map.resize();
+            })
+            : null;
+        resizeObserver?.observe(containerRef.current!);
+
+        if (!ownsMap) {
+            markMapStartup("project-bind-start", { projectId });
+            ensureCameraBridgeLayer(map, cameraBridgeRef.current, scheduleOverlay);
+            setBasemapLoadState(navigator.onLine === false ? 'offline' : 'ready');
+            setViewportTick(tick => tick + 1);
+            scheduleOverlay(DirtyFlag.Camera | DirtyFlag.Geometry);
+            onFirstFrameRendered?.();
+        }
 
         map.once('render', () => {
             onFirstFrameRendered?.();
         });
 
-        map.on('moveend', () => {
+        onMap('moveend', () => {
             const centerLngLat = map.getCenter();
             const currentZoomVal = map.getZoom();
             setCurrentZoom(currentZoomVal);
@@ -1275,7 +1556,7 @@ export function MapLibreFastRenderer({
             ensureCameraBridgeLayer(map, cameraBridgeRef.current, scheduleOverlay);
             scheduleOverlay(DirtyFlag.Camera | DirtyFlag.Geometry);
         });
-        map.on('error', (event: any) => {
+        onMap('error', (event: any) => {
             const sourceId = event?.sourceId || event?.source?.id;
             if (sourceId && sourceId !== BASEMAP_SOURCE_ID) return;
             if (navigator.onLine === false) {
@@ -1302,7 +1583,7 @@ export function MapLibreFastRenderer({
         const handleOffline = () => setBasemapLoadState('offline');
         window.addEventListener('online', handleOnline);
         window.addEventListener('offline', handleOffline);
-        map.on('styleimagemissing', e => {
+        onMap('styleimagemissing', (e: any) => {
             const id = e.id;
             if (!id || map.hasImage(id)) return;
             const props = parseIconImageId(id);
@@ -1315,7 +1596,7 @@ export function MapLibreFastRenderer({
             });
         });
 
-        map.on('click', POINT_CLUSTER_LAYER_ID, event => {
+        onMap('click', POINT_CLUSTER_LAYER_ID, (event: any) => {
             const feature = event.features?.[0];
             const clusterId = feature?.properties?.cluster_id;
             const coordinates = feature?.geometry?.type === 'Point'
@@ -1323,7 +1604,7 @@ export function MapLibreFastRenderer({
                 : null;
             if (clusterId === undefined || !coordinates) return;
 
-            const source = map.getSource(SOURCE_ID) as any;
+            const source = map.getSource(POINT_CLUSTER_SOURCE_ID) as any;
             const zoomToCluster = (expansionZoom: number) => {
                 const targetZoom = Math.min(expansionZoom, MAP_MAX_ZOOM);
                 const target = { center: coordinates, zoom: targetZoom, duration: 250 };
@@ -1340,15 +1621,15 @@ export function MapLibreFastRenderer({
                 }).catch(() => {});
             }
         });
-        map.on('mousemove', POINT_CLUSTER_LAYER_ID, () => {
+        onMap('mousemove', POINT_CLUSTER_LAYER_ID, () => {
             map.getCanvas().style.cursor = 'pointer';
         });
-        map.on('mouseleave', POINT_CLUSTER_LAYER_ID, () => {
+        onMap('mouseleave', POINT_CLUSTER_LAYER_ID, () => {
             map.getCanvas().style.cursor = '';
         });
 
         const interactiveLayers = [POINT_LAYER_ID, POINT_ICON_LAYER_ID, POINT_LABEL_LAYER_ID, LINE_HIT_LAYER_ID, LINE_LAYER_ID, POLYGON_LAYER_ID];
-        map.on('click', interactiveLayers, event => {
+        onMap('click', interactiveLayers, (event: any) => {
             const latest = latestRef.current;
             if (latest.drawingMode !== 'none') return;
             const feature = event.features?.[0];
@@ -1356,18 +1637,30 @@ export function MapLibreFastRenderer({
             if (!id) return;
             const lngLat = event.lngLat;
             latest.selectFeature(id, false, [lngLat.lat, lngLat.lng]);
+
+            // Pan map gently to clicked point if close to viewport boundaries
+            const pixel = event.point;
+            if (pixel) {
+                const containerRect = map.getContainer().getBoundingClientRect();
+                const padding = 100;
+                const nearEdge = pixel.x < padding || pixel.x > (containerRect.width - padding) ||
+                                 pixel.y < padding || pixel.y > (containerRect.height - padding);
+                if (nearEdge) {
+                    map.panTo(lngLat, { duration: 300 });
+                }
+            }
         });
-        map.on('mousemove', interactiveLayers, event => {
+        onMap('mousemove', interactiveLayers, (event: any) => {
             const id = resolveInteractiveFeatureId(event.features?.[0]?.properties as Record<string, any> | undefined);
             latestRef.current.setHoverId(id);
             map.getCanvas().style.cursor = id ? 'pointer' : '';
         });
-        map.on('mouseleave', interactiveLayers, () => {
+        onMap('mouseleave', interactiveLayers, () => {
             latestRef.current.setHoverId(null);
             map.getCanvas().style.cursor = '';
         });
 
-        map.on('click', async event => {
+        onMap('click', async (event: any) => {
             const latest = latestRef.current;
             if (latest.drawingMode === 'none') return;
             const { lat, lng } = toLngLatEvent(event);
@@ -1375,20 +1668,20 @@ export function MapLibreFastRenderer({
             if (!snapped) snapped = await latest.snapNow(lat, lng, 0.00002);
             latest.onLocationChange?.(snapped ? snapped.y : lat, snapped ? snapped.x : lng, snapped?.id || null);
         });
-        map.on('dblclick', event => {
+        onMap('dblclick', (event: any) => {
             const latest = latestRef.current;
             if (latest.drawingMode !== 'polyline') return;
             event.preventDefault();
             latest.onFinishDrawing?.();
         });
-        map.on('contextmenu', event => {
+        onMap('contextmenu', (event: any) => {
             const latest = latestRef.current;
             if (latest.drawingMode !== 'none') {
                 event.preventDefault();
                 latest.onFinishDrawingSession?.();
             }
         });
-        map.on('mousemove', event => {
+        onMap('mousemove', (event: any) => {
             pendingSnapEventRef.current = event;
             if (snapRafRef.current) return;
             snapRafRef.current = requestAnimationFrame(() => {
@@ -1401,7 +1694,7 @@ export function MapLibreFastRenderer({
                 latest.performSnap(lat, lng);
             });
         });
-        map.on('mouseout', () => {
+        onMap('mouseout', () => {
             const latest = latestRef.current;
             if (latest.drawingMode === 'none' && !latest.editingFeatureId) return;
             latest.clearSnap();
@@ -1416,9 +1709,9 @@ export function MapLibreFastRenderer({
             map.dragPan.disable();
             map.getCanvas().style.cursor = 'grabbing';
         };
-        map.on('mousedown', EDIT_VERTEX_LAYER_ID, startEditDrag('update'));
-        map.on('mousedown', EDIT_MIDPOINT_LAYER_ID, startEditDrag('insert'));
-        map.on('mouseup', async event => {
+        onMap('mousedown', EDIT_VERTEX_LAYER_ID, startEditDrag('update'));
+        onMap('mousedown', EDIT_MIDPOINT_LAYER_ID, startEditDrag('insert'));
+        onMap('mouseup', async (event: any) => {
             const drag = dragRef.current;
             if (!drag) return;
             dragRef.current = null;
@@ -1480,6 +1773,7 @@ export function MapLibreFastRenderer({
         }
 
         return () => {
+            mapListenerCleanups.forEach(cleanup => cleanup());
             window.removeEventListener('online', handleOnline);
             window.removeEventListener('offline', handleOffline);
             basemapRetryTimersRef.current.forEach(timer => clearTimeout(timer));
@@ -1502,12 +1796,16 @@ export function MapLibreFastRenderer({
             } catch {
                 // Optional MapProvider
             }
-            resizeObserver.disconnect();
+            resizeObserver?.disconnect();
             clearMapImageCache();
-            map.remove();
+            if (ownsMap) {
+                map.remove();
+            } else {
+                cleanupDesignMapArtifacts(map);
+            }
             mapRef.current = null;
         };
-    }, []);
+    }, [contextMap, shouldUsePersistentBasemap]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -1641,6 +1939,36 @@ export function MapLibreFastRenderer({
     }, [renderCollectionResult, scheduleSelectedFeatureState, selectedFeatureId, viewportRevision]);
 
     React.useEffect(() => {
+        applyHoverFeatureState(hoverId);
+    }, [hoverId, applyHoverFeatureState]);
+
+    React.useEffect(() => {
+        if (selectedFeatureId) {
+            const config = useLayoutStore.getState().paletteConfigs['spec-panel'];
+            if (config && !config.isVisible) {
+                useLayoutStore.setState((state) => {
+                    const cfg = state.paletteConfigs['spec-panel'];
+                    if (!cfg) return {};
+                    let newColumns = [...state.layoutColumns];
+                    const exists = newColumns.some((col) => col.includes('spec-panel'));
+                    if (!exists) {
+                        if (newColumns.length === 0) newColumns = [['spec-panel']];
+                        else newColumns[0] = ['spec-panel', ...newColumns[0]];
+                    }
+                    return {
+                        paletteConfigs: {
+                            ...state.paletteConfigs,
+                            'spec-panel': { ...cfg, isVisible: true, userClosed: false },
+                        },
+                        layoutColumns: newColumns,
+                        activePaletteId: 'spec-panel',
+                    };
+                });
+            }
+        }
+    }, [selectedFeatureId]);
+
+    React.useEffect(() => {
         const map = mapRef.current;
         if (!map) return;
 
@@ -1661,6 +1989,7 @@ export function MapLibreFastRenderer({
                 if (
                     layerSetupKeyRef.current !== layerSetupKey ||
                     !map.getSource(SOURCE_ID) ||
+                    !map.getSource(POINT_CLUSTER_SOURCE_ID) ||
                     !map.getLayer(POINT_LAYER_ID) ||
                     !map.getSource(DRAWING_SOURCE_ID) ||
                     !map.getSource(EDIT_SOURCE_ID)
@@ -1713,16 +2042,23 @@ export function MapLibreFastRenderer({
                     };
                 }
                 const source = map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+                const clusterSource = map.getSource(POINT_CLUSTER_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
                 const legacyDataKey = renderFlags.overlayEnabled && renderFlags.overlayPoints
                     ? stableJsonKey(displayCollection)
                     : renderCacheKey;
+                const clusterCollection = lodPolicy.clusterPoints ? onlyPointFeatures(displayCollection) : emptyCollection;
                 const dataKey = `${legacyDataKey}::icons:${iconReadyRevision}`;
+                const clusterDataKey = `${dataKey}::cluster:${lodPolicy.clusterPoints ? 'points' : 'empty'}`;
                 const setDataStart = now();
                 let didSetData = false;
                 if (source && lastSetDataKeyRef.current !== dataKey) {
                     source.setData(displayCollection as any);
                     lastSetDataKeyRef.current = dataKey;
                     didSetData = true;
+                }
+                if (clusterSource && lastClusterSetDataKeyRef.current !== clusterDataKey) {
+                    clusterSource.setData(clusterCollection as any);
+                    lastClusterSetDataKeyRef.current = clusterDataKey;
                 }
                 if (source && didSetData) {
                     const nextSelected = selectedFeatureIdsForCollection(displayCollection, selectedFeatureId);
@@ -1732,6 +2068,7 @@ export function MapLibreFastRenderer({
                 const mapLibreSetDataMs = now() - setDataStart;
                 if (!firstSetDataReportedRef.current) {
                     firstSetDataReportedRef.current = true;
+                    markMapStartup("first-feature", { count: displayCollection.features.length });
                     updateOpenMetrics({ firstSetDataMs: mapLibreSetDataMs });
                     requestAnimationFrame(() => {
                         if (!firstPaintReportedRef.current) {
@@ -1821,8 +2158,9 @@ export function MapLibreFastRenderer({
     return (
         <div
             ref={containerRef}
-            className="design-maplibre-fast"
+            className={`design-maplibre-fast ${shouldUsePersistentBasemap ? 'design-maplibre-fast--attached' : ''}`}
             data-testid="maplibre-fast-renderer"
+            data-map-attach-mode={shouldUsePersistentBasemap ? 'persistent-basemap' : 'owned'}
             data-basemap-state={basemapLoadState}
         >
             <FeatureOverlayCanvas

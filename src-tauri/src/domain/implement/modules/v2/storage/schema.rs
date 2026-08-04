@@ -1,8 +1,8 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 
-pub const CURRENT_SCHEMA_VERSION: i32 = 10;
-pub const CURRENT_SCHEMA_LABEL: &str = "10.0.0";
+pub const CURRENT_SCHEMA_VERSION: i32 = 11;
+pub const CURRENT_SCHEMA_LABEL: &str = "11.0.0";
 
 pub const BASE_SCHEMA_SQL: &str = r#"
     CREATE TABLE IF NOT EXISTS sys_config (
@@ -116,6 +116,8 @@ pub const BASE_SCHEMA_SQL: &str = r#"
         bbox_min_y REAL,
         bbox_max_x REAL,
         bbox_max_y REAL,
+        geom_ewkb BLOB,
+        srid INTEGER NOT NULL DEFAULT 4326,
         is_visible INTEGER NOT NULL DEFAULT 1 CHECK (is_visible IN (0, 1)),
         note TEXT,
         created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
@@ -928,6 +930,7 @@ pub fn apply_v2_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
     apply_base_schema(conn)?;
     apply_v9_schema(conn)?;
     apply_v10_schema(conn)?;
+    apply_v11_schema(conn)?;
     stamp_schema_version(conn)
 }
 
@@ -945,6 +948,11 @@ pub fn apply_v9_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
 
 pub fn apply_v10_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
     repair_feature_bbox_columns(conn)?;
+    ensure_feature_spatial_index(conn)
+}
+
+pub fn apply_v11_schema(conn: &Connection) -> Result<(), rusqlite::Error> {
+    ensure_feature_spatial_columns(conn)?;
     ensure_feature_spatial_index(conn)
 }
 
@@ -1045,6 +1053,8 @@ fn ensure_feature_spatial_columns(conn: &Connection) -> Result<(), rusqlite::Err
         ("bbox_min_y", "REAL"),
         ("bbox_max_x", "REAL"),
         ("bbox_max_y", "REAL"),
+        ("geom_ewkb", "BLOB"),
+        ("srid", "INTEGER NOT NULL DEFAULT 4326"),
     ] {
         if !column_exists(conn, "features", column)? {
             conn.execute(

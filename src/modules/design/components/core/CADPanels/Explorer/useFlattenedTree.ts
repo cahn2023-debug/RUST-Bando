@@ -4,6 +4,15 @@ import type { RegionState, LayerState, FeatureGroupState, FeatureState } from "@
 
 type TreeNodeData = RegionState | FeatureGroupState | FeatureState;
 
+export const ORPHAN_REGION_ID = 'virtual-orphan-region';
+const ORPHAN_REGION: RegionState = {
+    id: ORPHAN_REGION_ID,
+    parent_id: null,
+    name: 'Dữ liệu chưa phân nhóm',
+    description: null,
+    is_visible: true,
+};
+
 const getGroupKind = (group: FeatureGroupState): string =>
     group.group_type || group.type || 'default';
 
@@ -98,6 +107,9 @@ export function useFlattenedTree({
             if (regionId && !g.parent_id) {
                 if (!rGroupsMap[regionId]) rGroupsMap[regionId] = [];
                 rGroupsMap[regionId].push(g);
+            } else if (!regionId && !g.parent_id) {
+                if (!rGroupsMap[ORPHAN_REGION_ID]) rGroupsMap[ORPHAN_REGION_ID] = [];
+                rGroupsMap[ORPHAN_REGION_ID].push(g);
             }
 
             const parentId = g.parent_id || 'root';
@@ -112,7 +124,7 @@ export function useFlattenedTree({
             const meta = getParsedMetadata(f);
             const parentFeatureId = hasStringId(meta.parent_feature_id) ? meta.parent_feature_id : null;
 
-            if (parentFeatureId) {
+            if (parentFeatureId && featuresMap[parentFeatureId]) {
                 if (!fChildrenMap[parentFeatureId]) fChildrenMap[parentFeatureId] = [];
                 fChildrenMap[parentFeatureId].push(f);
             } else if (f.group_id && groupsMap[f.group_id]) {
@@ -121,15 +133,12 @@ export function useFlattenedTree({
             } else {
                 const regionId = lRegionMap[f.layer_id];
                 if (regionId) {
-                    // Restore: Automatic grouping for Intersections (Nút giao)
                     const displayInfo = getFeatureDisplayInfo(f);
                     if (displayInfo.isIntersection) {
                         const vGroupId = `virtual-intersection-${regionId}`;
                         if (!gFeaturesMap[vGroupId]) {
                             gFeaturesMap[vGroupId] = [];
-                            // Ensure the virtual group is added to the region's group list if not already there
                             if (!rGroupsMap[regionId]) rGroupsMap[regionId] = [];
-                            // Create a virtual group object
                             const virtualGroup = {
                                 id: vGroupId,
                                 name: "Danh sách Nút giao",
@@ -139,7 +148,7 @@ export function useFlattenedTree({
                                 is_virtual: true,
                                 metadata: ''
                             } satisfies FeatureGroupState;
-                            allGroupsMap[vGroupId] = virtualGroup; // Add to augmented map
+                            allGroupsMap[vGroupId] = virtualGroup;
                             if (!rGroupsMap[regionId].some(g => g.id === vGroupId)) {
                                 rGroupsMap[regionId].push(virtualGroup);
                             }
@@ -149,6 +158,9 @@ export function useFlattenedTree({
                         if (!rIndependentFeaturesMap[regionId]) rIndependentFeaturesMap[regionId] = [];
                         rIndependentFeaturesMap[regionId].push(f);
                     }
+                } else {
+                    if (!rIndependentFeaturesMap[ORPHAN_REGION_ID]) rIndependentFeaturesMap[ORPHAN_REGION_ID] = [];
+                    rIndependentFeaturesMap[ORPHAN_REGION_ID].push(f);
                 }
             }
         });
@@ -163,53 +175,55 @@ export function useFlattenedTree({
         };
     }, [layersMap, groupsMap, featuresMap, sortField, featureNumbers]);
 
+    const isDescendantOfIntersection = useCallback((f: FeatureState): boolean => {
+        const meta = getParsedMetadata(f);
+        const parentId = hasStringId(meta.parent_feature_id) ? meta.parent_feature_id : null;
+        if (!parentId) return false;
+        const parent = featuresMap[parentId];
+        if (!parent) return false;
+        if (getFeatureDisplayInfo(parent).isIntersection) return true;
+        return isDescendantOfIntersection(parent);
+    }, [featuresMap]);
+
+    const matchesFilter = useCallback((f: FeatureState): boolean => {
+        if (!filterType) return true;
+
+        if (filterType === 'INTERSECTION') {
+            if (getFeatureDisplayInfo(f).isIntersection || isDescendantOfIntersection(f)) {
+                return true;
+            }
+        }
+
+        const ownInfo = getFeatureDisplayInfo(f);
+        if (filterType === 'POLYLINE' && ownInfo.isLine) return true;
+        if (['CCTV', 'PTZ', 'SPEED', 'LPR'].includes(filterType) && ownInfo.label === filterType) return true;
+
+        const group = f.group_id ? allGroupsMap[f.group_id] || (f.group_id.startsWith('virtual-') ? allGroupsMap[f.group_id] : null) : null;
+        if (group) {
+            const gType = getGroupKind(group);
+            if (gType === filterType) return true;
+            const info = getFeatureDisplayInfo(f, gType, group.name);
+            if (filterType === 'POLYLINE' && info.isLine) return true;
+            if (['CCTV', 'PTZ', 'SPEED', 'LPR'].includes(filterType) && info.label === filterType) return true;
+        }
+        return false;
+    }, [filterType, isDescendantOfIntersection, allGroupsMap]);
+
+    const matchesFilterOrHasMatchingDescendant = useCallback((f: FeatureState): boolean => {
+        if (matchesFilter(f)) return true;
+        const children = featureChildrenMap[f.id] || [];
+        return children.some(child => matchesFilterOrHasMatchingDescendant(child));
+    }, [matchesFilter, featureChildrenMap]);
+
+    const matchesSearchOrHasMatchingDescendant = useCallback((f: FeatureState): boolean => {
+        if (matchesSearch(f)) return true;
+        const children = featureChildrenMap[f.id] || [];
+        return children.some(child => matchesSearchOrHasMatchingDescendant(child));
+    }, [matchesSearch, featureChildrenMap]);
+
     const groupVisibilityMap = useMemo(() => {
         const map: Record<string, boolean> = {};
         if (!treeSearchQuery?.trim() && !filterType) return null;
-
-        const isDescendantOfIntersection = (f: FeatureState): boolean => {
-            const meta = getParsedMetadata(f);
-            const parentId = hasStringId(meta.parent_feature_id) ? meta.parent_feature_id : null;
-            if (!parentId) return false;
-            const parent = featuresMap[parentId];
-            if (!parent) return false;
-            if (getFeatureDisplayInfo(parent).isIntersection) return true;
-            return isDescendantOfIntersection(parent);
-        };
-
-        const matchesFilter = (f: FeatureState): boolean => {
-            if (!filterType) return true;
-
-            if (filterType === 'INTERSECTION') {
-                return getFeatureDisplayInfo(f).isIntersection || isDescendantOfIntersection(f);
-            }
-
-            const ownInfo = getFeatureDisplayInfo(f);
-            if (filterType === 'POLYLINE' && ownInfo.isLine) return true;
-            if (['CCTV', 'PTZ', 'SPEED', 'LPR'].includes(filterType) && ownInfo.label === filterType) return true;
-
-            const group = f.group_id ? allGroupsMap[f.group_id] || (f.group_id.startsWith('virtual-') ? allGroupsMap[f.group_id] : null) : null;
-            if (group) {
-                const gType = getGroupKind(group);
-                if (gType === filterType) return true;
-                const info = getFeatureDisplayInfo(f, gType, group.name);
-                if (filterType === 'POLYLINE' && info.isLine) return true;
-                if (['CCTV', 'PTZ', 'SPEED', 'LPR'].includes(filterType) && info.label === filterType) return true;
-            }
-            return false;
-        };
-
-        const matchesFilterOrHasMatchingDescendant = (f: FeatureState): boolean => {
-            if (matchesFilter(f)) return true;
-            const children = featureChildrenMap[f.id] || [];
-            return children.some(child => matchesFilterOrHasMatchingDescendant(child));
-        };
-
-        const matchesSearchOrHasMatchingDescendant = (f: FeatureState): boolean => {
-            if (matchesSearch(f)) return true;
-            const children = featureChildrenMap[f.id] || [];
-            return children.some(child => matchesSearchOrHasMatchingDescendant(child));
-        };
 
         const checkGroup = (groupId: string): boolean => {
             if (map[groupId] !== undefined) return map[groupId];
@@ -241,87 +255,38 @@ export function useFlattenedTree({
 
         Object.keys(allGroupsMap).forEach(checkGroup);
         return map;
-    }, [allGroupsMap, groupFeaturesMap, groupParentMap, treeSearchQuery, filterType, matchesSearch, featureChildrenMap, featuresMap]);
+    }, [allGroupsMap, groupFeaturesMap, groupParentMap, treeSearchQuery, filterType, matchesSearch, matchesSearchOrHasMatchingDescendant, matchesFilterOrHasMatchingDescendant]);
 
     const filteredRegions = useMemo(() => {
-        let list = Object.values(regionsMap);
+        const hasOrphanContent = Boolean(
+            (regionGroupsMap[ORPHAN_REGION_ID] || []).length ||
+            (regionIndependentFeaturesMap[ORPHAN_REGION_ID] || []).length
+        );
+        let list = hasOrphanContent
+            ? [...Object.values(regionsMap), ORPHAN_REGION]
+            : Object.values(regionsMap);
         if (treeSearchQuery || filterType) {
-            const layerRegionMap: Record<string, string> = {};
-            Object.values(layersMap).forEach(layer => {
-                layerRegionMap[layer.id] = layer.region_id;
-            });
-
             list = list.filter(r => {
                 if (matchesSearch(r) && !filterType) return true;
                 const rGroups = regionGroupsMap[r.id] || [];
-                if (!groupVisibilityMap) return true;
-                const hasMatchingGroup = rGroups.some(g => groupVisibilityMap[g.id]);
-                if (hasMatchingGroup) return true;
+                if (groupVisibilityMap) {
+                    const hasMatchingGroup = rGroups.some(g => groupVisibilityMap[g.id]);
+                    if (hasMatchingGroup) return true;
+                }
 
-                return Object.values(featuresMap).filter(feature => !isNetworkLinkFeature(feature)).some(f => {
-                    if (layerRegionMap[f.layer_id] !== r.id) return false;
-                    if (!matchesSearch(f)) return false;
-                    if (!filterType) return true;
-                    const info = getFeatureDisplayInfo(f);
-                    return (filterType === 'INTERSECTION' && info.isIntersection) ||
-                        (filterType === 'POLYLINE' && info.isLine) ||
-                        info.label === filterType;
-                });
+                const rIndependentFeatures = regionIndependentFeaturesMap[r.id] || [];
+                return rIndependentFeatures.some(f =>
+                    matchesSearchOrHasMatchingDescendant(f) && matchesFilterOrHasMatchingDescendant(f)
+                );
             });
         }
         if (reverseOrder) list = [...list].reverse();
         return list;
-    }, [regionsMap, layersMap, featuresMap, treeSearchQuery, filterType, reverseOrder, regionGroupsMap, groupVisibilityMap, matchesSearch]);
+    }, [regionsMap, treeSearchQuery, filterType, reverseOrder, regionGroupsMap, regionIndependentFeaturesMap, groupVisibilityMap, matchesSearch, matchesSearchOrHasMatchingDescendant, matchesFilterOrHasMatchingDescendant]);
 
     const flattenedItems = useMemo(() => {
         const result: FlatTreeItem[] = [];
         const visited = new Set<string>();
-
-        const isDescendantOfIntersection = (f: FeatureState): boolean => {
-            const meta = getParsedMetadata(f);
-            const parentId = hasStringId(meta.parent_feature_id) ? meta.parent_feature_id : null;
-            if (!parentId) return false;
-            const parent = featuresMap[parentId];
-            if (!parent) return false;
-            if (getFeatureDisplayInfo(parent).isIntersection) return true;
-            return isDescendantOfIntersection(parent);
-        };
-
-        const matchesFilter = (f: FeatureState): boolean => {
-            if (!filterType) return true;
-            
-            if (filterType === 'INTERSECTION') {
-                if (getFeatureDisplayInfo(f).isIntersection || isDescendantOfIntersection(f)) {
-                    return true;
-                }
-            }
-
-            const ownInfo = getFeatureDisplayInfo(f);
-            if (filterType === 'POLYLINE' && ownInfo.isLine) return true;
-            if (['CCTV', 'PTZ', 'SPEED', 'LPR'].includes(filterType) && ownInfo.label === filterType) return true;
-
-            const group = f.group_id ? allGroupsMap[f.group_id] || (f.group_id.startsWith('virtual-') ? allGroupsMap[f.group_id] : null) : null;
-            if (group) {
-                const gType = getGroupKind(group);
-                if (gType === filterType) return true;
-                const info = getFeatureDisplayInfo(f, gType, group.name);
-                if (filterType === 'POLYLINE' && info.isLine) return true;
-                if (['CCTV', 'PTZ', 'SPEED', 'LPR'].includes(filterType) && info.label === filterType) return true;
-            }
-            return false;
-        };
-
-        const matchesFilterOrHasMatchingDescendant = (f: FeatureState): boolean => {
-            if (matchesFilter(f)) return true;
-            const children = featureChildrenMap[f.id] || [];
-            return children.some(child => matchesFilterOrHasMatchingDescendant(child));
-        };
-
-        const matchesSearchOrHasMatchingDescendant = (f: FeatureState): boolean => {
-            if (matchesSearch(f)) return true;
-            const children = featureChildrenMap[f.id] || [];
-            return children.some(child => matchesSearchOrHasMatchingDescendant(child));
-        };
 
         const collectFeatures = (featureList: FeatureState[], level: number, levelOffset: number) => {
             let currentFeats = featureList;
@@ -363,14 +328,14 @@ export function useFlattenedTree({
                 visited.add(group.id);
 
                 const groupFeatures = (groupFeaturesMap[group.id] || []);
-                const hasVisibleContent = groupFeatures.length > 0 || (groupParentMap[group.id] || []).length > 0;
+                const isGroupVisible = !groupVisibilityMap || !!groupVisibilityMap[group.id];
 
-                const searchMatch = !treeSearchQuery || matchesSearch(group);
-                if (!searchMatch && !hasVisibleContent) return;
+                if (!isGroupVisible) return;
 
                 result.push({ type: 'group', id: group.id, level, levelOffset: 0, data: group });
 
-                const shouldCollectGroup = expanded[group.id] || (!!groupVisibilityMap && groupVisibilityMap[group.id]);
+                const isSearchOrFilterActive = !!(treeSearchQuery && treeSearchQuery.trim()) || !!filterType;
+                const shouldCollectGroup = expanded[group.id] || (isSearchOrFilterActive && isGroupVisible);
                 if (shouldCollectGroup) {
                     collectGroups(group.id, level + 1);
                     collectFeatures(groupFeatures, level, 0);
@@ -379,10 +344,6 @@ export function useFlattenedTree({
         };
 
         filteredRegions.forEach(region => {
-            const searchMatch = !treeSearchQuery || matchesSearch(region);
-            const regionGroups = regionGroupsMap[region.id] || [];
-            if (!searchMatch && regionGroups.length === 0) return;
-
             result.push({ type: 'region', id: region.id, level: 0, levelOffset: 0, data: region });
 
             const shouldCollectRegion = expanded[region.id] || !!treeSearchQuery || !!filterType;
@@ -394,7 +355,7 @@ export function useFlattenedTree({
         });
 
         return result;
-    }, [filteredRegions, expanded, treeSearchQuery, filterType, reverseOrder, allGroupsMap, featureChildrenMap, groupParentMap, regionGroupsMap, regionIndependentFeaturesMap, groupFeaturesMap, matchesSearch, featuresMap, groupVisibilityMap]);
+    }, [filteredRegions, expanded, treeSearchQuery, filterType, reverseOrder, featureChildrenMap, groupParentMap, regionGroupsMap, regionIndependentFeaturesMap, groupFeaturesMap, matchesSearchOrHasMatchingDescendant, matchesFilterOrHasMatchingDescendant, groupVisibilityMap]);
 
     return {
         flattenedItems,

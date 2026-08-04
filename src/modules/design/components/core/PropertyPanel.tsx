@@ -1049,7 +1049,7 @@ export const PropertyPanel: React.FC = () => {
 
   if (selectionSet.size > 1) {
     return (
-      <aside className="w-full h-full bg-cad-surface border border-cad-border flex flex-col shadow-2xl text-cad-text-muted rounded-xl overflow-hidden">
+      <aside className="w-full h-full min-h-0 bg-cad-surface border border-cad-border flex flex-col shadow-2xl text-cad-text-muted rounded-xl overflow-hidden">
         <div className="flex items-center justify-between w-full p-3 border-b border-cad-border bg-cad-elevated drag-handle cursor-move" {...dragHandleProps}>
             <div className="flex items-center gap-2">
                 <Settings className="w-3.5 h-3.5 text-cad-text-muted" />
@@ -1089,7 +1089,7 @@ export const PropertyPanel: React.FC = () => {
 
   if (!feature) {
     return (
-      <aside className="w-full h-full bg-cad-surface border border-cad-border flex flex-col shadow-2xl text-cad-text-muted rounded-xl overflow-hidden">
+      <aside className="w-full h-full min-h-0 bg-cad-surface border border-cad-border flex flex-col shadow-2xl text-cad-text-muted rounded-xl overflow-hidden">
         <div className="flex items-center justify-between w-full p-3 border-b border-cad-border bg-cad-elevated drag-handle cursor-move" {...dragHandleProps}>
             <div className="flex items-center gap-2">
                 <Settings className="w-3.5 h-3.5 text-cad-text-muted" />

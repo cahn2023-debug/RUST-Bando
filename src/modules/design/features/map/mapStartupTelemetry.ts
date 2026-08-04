@@ -3,6 +3,7 @@ export type StartupMilestone =
   | "container-sized"
   | "constructor-start"
   | "constructor-end"
+  | "map-created"
   | "first-render"
   | "first-source-data"
   | "first-raster-tile"

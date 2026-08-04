@@ -17,15 +17,22 @@ export function ZoomExtendControl() {
         // Optional
     }
     const state = useDesignSync(s => s.state);
+    const projectId = useDesignSync(s => s.projectId);
     const visibleFeatures = useDesignSync(s => s.visibleFeatures);
     const isHydrating = useDesignSync(s => s.isHydrating);
     const isViewportLoading = useDesignSync(s => s.isViewportLoading);
     const zoomExtendTrigger = useDesignSync(s => s.zoomExtendTrigger);
     const lastTrigger = useRef(0);
+    const lastZoomedProjectId = useRef<string | null>(null);
     const rafRef = useRef(0);
 
     useEffect(() => {
-        if (!map || !state || zoomExtendTrigger === 0 || zoomExtendTrigger === lastTrigger.current) return;
+        if (!map || !state) return;
+
+        const isNewProjectLoad = projectId && projectId !== lastZoomedProjectId.current;
+        const isManualTrigger = zoomExtendTrigger > 0 && zoomExtendTrigger !== lastTrigger.current;
+
+        if (!isNewProjectLoad && !isManualTrigger) return;
 
         const { feature_groups, layers } = state;
         const features = state.isLargeProject ? visibleFeatures : state.features;
@@ -34,9 +41,6 @@ export function ZoomExtendControl() {
         if (featureValues.length === 0 && (isHydrating || isViewportLoading || (state.featureCount ?? 0) > 0)) {
             return;
         }
-
-        // Lock trigger immediately to prevent duplicate runs on subsequent re-renders
-        lastTrigger.current = zoomExtendTrigger;
 
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
         rafRef.current = requestAnimationFrame(() => {
@@ -99,8 +103,13 @@ export function ZoomExtendControl() {
                 console.log(`[ZoomExtend] Single-pass processed ${count} points.`);
                 const bounds = new maplibregl.LngLatBounds([minLng, minLat], [maxLng, maxLat]);
                 map.fitBounds(bounds, { padding: 50, maxZoom: 18 });
+                lastZoomedProjectId.current = projectId;
+                lastTrigger.current = zoomExtendTrigger;
             } else {
                 console.info("[ZoomExtend] No valid points found to zoom to.");
+                if (isManualTrigger) {
+                    lastTrigger.current = zoomExtendTrigger;
+                }
             }
         });
         return () => {
@@ -109,7 +118,7 @@ export function ZoomExtendControl() {
                 rafRef.current = 0;
             }
         };
-    }, [zoomExtendTrigger, state, visibleFeatures, isHydrating, isViewportLoading, map]);
+    }, [zoomExtendTrigger, projectId, state, visibleFeatures, isHydrating, isViewportLoading, map]);
 
     return null;
 }

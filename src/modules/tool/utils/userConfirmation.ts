@@ -1,6 +1,6 @@
-export const confirmUserAction = async (
+export const confirmUserAction = (
   _message: string,
   _options: { fallbackOnDialogError?: boolean } = {}
 ): Promise<boolean> => {
-  return true;
+  return Promise.resolve(true);
 };

@@ -1,10 +1,12 @@
 import React from "react";
-import { Search, PlusCircle } from "lucide-react";
+import { Search, PlusCircle, ChevronsUpDown, ChevronsDownUp } from "lucide-react";
 
 interface ExplorerHeaderProps {
     treeSearchQuery: string;
     setTreeSearchQuery: (query: string) => void;
     onCreateRegion: (e: React.MouseEvent) => void;
+    onExpandAll?: () => void;
+    onCollapseAll?: () => void;
     disabled?: boolean;
 }
 
@@ -12,6 +14,8 @@ export const ExplorerHeader = React.memo(({
     treeSearchQuery,
     setTreeSearchQuery,
     onCreateRegion,
+    onExpandAll,
+    onCollapseAll,
     disabled
 }: ExplorerHeaderProps) => {
     return (
@@ -37,6 +41,28 @@ export const ExplorerHeader = React.memo(({
                 )}
             </div>
 
+            {onExpandAll && (
+                <button
+                    onClick={disabled ? undefined : onExpandAll}
+                    className={`h-[22px] px-1.5 flex items-center justify-center bg-cad-bg border border-cad-border hover:border-cad-accent hover:text-cad-accent transition-all rounded-sm text-cad-text-primary ${disabled ? 'opacity-20 cursor-not-allowed' : ''}`}
+                    title={disabled ? "Đang đồng bộ..." : "Mở rộng tất cả"}
+                    disabled={disabled}
+                >
+                    <ChevronsUpDown size={12} />
+                </button>
+            )}
+
+            {onCollapseAll && (
+                <button
+                    onClick={disabled ? undefined : onCollapseAll}
+                    className={`h-[22px] px-1.5 flex items-center justify-center bg-cad-bg border border-cad-border hover:border-cad-accent hover:text-cad-accent transition-all rounded-sm text-cad-text-primary ${disabled ? 'opacity-20 cursor-not-allowed' : ''}`}
+                    title={disabled ? "Đang đồng bộ..." : "Thu gọn tất cả"}
+                    disabled={disabled}
+                >
+                    <ChevronsDownUp size={12} />
+                </button>
+            )}
+
             <button
                 onClick={disabled ? undefined : onCreateRegion}
                 className={`h-[22px] px-1.5 flex items-center justify-center bg-cad-bg border border-cad-border hover:border-cad-accent hover:text-cad-accent transition-all rounded-sm text-cad-text-primary ${disabled ? 'opacity-20 cursor-not-allowed' : ''}`}
@@ -48,3 +74,4 @@ export const ExplorerHeader = React.memo(({
         </div>
     );
 });
+

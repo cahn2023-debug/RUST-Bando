@@ -1,21 +1,25 @@
 import { useLayoutEffect, useRef } from 'react';
 import { createBasemapRuntime } from './BasemapRuntime';
 import { useBasemap } from './BasemapContext';
-import type { BasemapController, BasemapRuntimeConfig } from './types';
+import type { BasemapController, BasemapLifecycleState, BasemapRuntimeConfig } from './types';
+import './PersistentMapHost.css';
 
 interface PersistentBasemapHostProps {
     config?: Partial<BasemapRuntimeConfig>;
     className?: string;
     onFirstFrameRendered?: () => void;
+    onLifecycleState?: (state: BasemapLifecycleState) => void;
 }
 
 export function PersistentBasemapHost({
     config,
     className = 'persistent-map-host',
     onFirstFrameRendered,
+    onLifecycleState,
 }: PersistentBasemapHostProps) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const runtimeRef = useRef<BasemapController | null>(null);
+    const firstFrameReportedRef = useRef(false);
     const { setController } = useBasemap();
 
     if (!runtimeRef.current) runtimeRef.current = createBasemapRuntime();
@@ -26,7 +30,11 @@ export function PersistentBasemapHost({
         if (!container || !runtime) return;
 
         const unsubscribe = runtime.subscribeLifecycle(state => {
-            if (state === 'first-frame' || state === 'interactive') onFirstFrameRendered?.();
+            onLifecycleState?.(state);
+            if ((state === 'first-frame' || state === 'interactive') && !firstFrameReportedRef.current) {
+                firstFrameReportedRef.current = true;
+                onFirstFrameRendered?.();
+            }
         });
         setController(runtime);
         void runtime.initialize(container, config);

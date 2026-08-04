@@ -195,4 +195,31 @@ describe('fiberPolylineMaterializer', () => {
       expect(metadata.weight).toBe(12);
     }
   });
+
+  it('supports coordinates serialized as JSON string', () => {
+    const serializedLineFeature: FeatureState = {
+      id: 'serialized-line',
+      layer_id: 'layer-1',
+      group_id: null,
+      name: 'Serialized Line',
+      geom_type: 'LineString',
+      metadata: JSON.stringify({
+        infrastructure: {
+          type: 'SignalLine',
+          core_count: 24,
+          cable_type: '24F',
+        },
+      }),
+      properties: {},
+      coordinates: '[[106.1, 10.1], [106.2, 10.2]]' as any,
+    };
+
+    const result = buildFiberPolylineMaterializationEvents('project-1', {
+      'serialized-line': serializedLineFeature,
+    });
+
+    expect(result.cableCount).toBe(1);
+    expect(result.events).toHaveLength(2);
+    expect(result.events[1].type).toBe('FiberCableUpserted');
+  });
 });

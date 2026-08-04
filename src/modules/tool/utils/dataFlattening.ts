@@ -11,7 +11,7 @@ type FlattenFeatureOptions = {
  */
 export const safeTruncate = (val: any, limit: number = 30000) => {
   if (val === undefined || val === null) return 'N/A';
-  let str = typeof val === 'string' ? val : JSON.stringify(val);
+  const str = typeof val === 'string' ? val : JSON.stringify(val);
   if (str.length > limit) {
     return str.substring(0, limit) + "... (Dữ liệu quá dài)";
   }

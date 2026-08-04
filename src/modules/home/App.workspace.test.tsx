@@ -145,7 +145,12 @@ vi.mock("@IMPLEMENT/stores/useLayoutStore", () => ({
     selector({
       togglePalette: vi.fn(),
       paletteConfigs: {},
+      leftWidth: 280,
+      rightWidth: 320,
+      bottomHeight: 200,
     }),
+  selectRightWidth: (state: any) => state?.rightWidth ?? 320,
+  selectBottomHeight: (state: any) => state?.bottomHeight ?? 200,
 }));
 
 vi.mock("@IMPLEMENT/lib/tauri", () => ({

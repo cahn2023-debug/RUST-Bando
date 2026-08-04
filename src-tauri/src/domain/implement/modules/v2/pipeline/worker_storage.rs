@@ -717,6 +717,37 @@ fn generate_inverse_event_json(
     }
 }
 
+fn worker_extract_id(val: Option<&Value>) -> Option<String> {
+    match val? {
+        Value::String(s) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() || trimmed == "null" || trimmed == "undefined" {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        }
+        Value::Number(n) => Some(n.to_string()),
+        Value::Bool(b) => Some(b.to_string()),
+        _ => None,
+    }
+}
+
+fn worker_extract_string_text(val: Option<&Value>) -> Option<String> {
+    match val? {
+        Value::String(s) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() || trimmed == "null" || trimmed == "undefined" {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        }
+        Value::Number(n) => Some(n.to_string()),
+        _ => None,
+    }
+}
+
 fn worker_uuid_from_text_fallback(input: &str) -> String {
     let trimmed = input.trim();
     if let Ok(parsed) = uuid::Uuid::parse_str(trimmed) {
@@ -735,8 +766,8 @@ fn worker_rows_to_object_by_id(rows: Value) -> Value {
     let mut out = serde_json::Map::new();
     if let Some(items) = rows.as_array() {
         for row in items {
-            if let Some(id) = row.get("id").and_then(Value::as_str) {
-                out.insert(id.to_string(), row.clone());
+            if let Some(id) = worker_extract_id(row.get("id")) {
+                out.insert(id, row.clone());
             }
         }
     }
@@ -791,11 +822,11 @@ fn worker_bbox_value_to_state(value: Option<&Value>) -> Value {
 
 fn worker_feature_row_to_state(row: &Value) -> Value {
     json!({
-        "id": row.get("id").cloned().unwrap_or(Value::Null),
-        "layer_id": row.get("layer_id").cloned().unwrap_or(Value::Null),
-        "group_id": row.get("group_id").cloned().unwrap_or(Value::Null),
-        "name": row.get("name").cloned().unwrap_or_else(|| json!("Untitled Feature")),
-        "geom_type": row.get("geom_type").cloned().unwrap_or_else(|| json!("Point")),
+        "id": worker_extract_id(row.get("id")).map(Value::String).unwrap_or(Value::Null),
+        "layer_id": worker_extract_id(row.get("layer_id")).map(Value::String).unwrap_or(Value::Null),
+        "group_id": worker_extract_id(row.get("group_id")).map(Value::String).unwrap_or(Value::Null),
+        "name": worker_extract_string_text(row.get("name")).unwrap_or_else(|| "Untitled Feature".to_string()),
+        "geom_type": worker_extract_string_text(row.get("geom_type")).unwrap_or_else(|| "Point".to_string()),
         "coordinates": worker_parse_json_value(row.get("coordinates_json"), Value::Null),
         "properties": worker_parse_json_value(row.get("properties_json"), json!({})),
         "metadata": worker_normalize_metadata_to_string(row.get("metadata_json")),
@@ -804,35 +835,20 @@ fn worker_feature_row_to_state(row: &Value) -> Value {
 }
 
 fn worker_project_from_row(row: &Value, path: &str) -> Option<Value> {
-    let id = row.get("id")?.as_str()?.to_string();
-    let name = row
-        .get("title")
-        .or_else(|| row.get("name"))
-        .and_then(Value::as_str)
-        .unwrap_or("Untitled Project")
-        .to_string();
-    let description = worker_trim_to_option(
-        row.get("description")
-            .and_then(Value::as_str)
-            .map(|value| value.to_string()),
-    );
-    let status = row
-        .get("status")
-        .and_then(Value::as_str)
-        .map(|value| value.to_string())
+    let raw_id = worker_extract_id(row.get("id"))
+        .or_else(|| worker_extract_id(row.get("project_id")))?;
+    let name = worker_extract_string_text(row.get("title"))
+        .or_else(|| worker_extract_string_text(row.get("name")))
+        .unwrap_or_else(|| "Untitled Project".to_string());
+    let description = worker_trim_to_option(worker_extract_string_text(row.get("description")));
+    let status = worker_extract_string_text(row.get("status"))
         .unwrap_or_else(|| "active".to_string());
-    let created_at = row
-        .get("created_at")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_string();
-    let updated_at = row
-        .get("updated_at")
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_string();
+    let created_at = worker_extract_string_text(row.get("created_at"))
+        .unwrap_or_default();
+    let updated_at = worker_extract_string_text(row.get("updated_at"))
+        .unwrap_or_default();
     Some(json!({
-        "id": worker_uuid_from_text_fallback(&id),
+        "id": worker_uuid_from_text_fallback(&raw_id),
         "name": name,
         "title": name,
         "path": path,
@@ -864,7 +880,7 @@ impl StorageWorker {
         let path_str = path.to_string_lossy().to_string();
 
         let mut first_project = self.query(
-            "SELECT id, title, description, metadata_json, created_at, updated_at FROM projects ORDER BY created_at ASC LIMIT 1",
+            "SELECT id, name, title, description, metadata_json, created_at, updated_at FROM projects ORDER BY created_at ASC LIMIT 1",
             vec![],
         )?;
 
@@ -882,7 +898,7 @@ impl StorageWorker {
                 )
                 .map_err(|e| e.to_string())?;
             first_project = self.query(
-                "SELECT id, title, description, metadata_json, created_at, updated_at FROM projects WHERE id = ?1 LIMIT 1",
+                "SELECT id, name, title, description, metadata_json, created_at, updated_at FROM projects WHERE id = ?1 LIMIT 1",
                 vec![fallback_id],
             )?;
         }
@@ -1000,8 +1016,8 @@ impl StorageWorker {
             )?;
             if let Some(rows) = features.as_array() {
                 for row in rows {
-                    if let Some(id) = row.get("id").and_then(Value::as_str) {
-                        features_obj.insert(id.to_string(), worker_feature_row_to_state(row));
+                    if let Some(id) = worker_extract_id(row.get("id")) {
+                        features_obj.insert(id, worker_feature_row_to_state(row));
                     }
                 }
             }

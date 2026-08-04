@@ -5,6 +5,7 @@ import type {
     MapLibreLodPolicyInput,
     MapLibreRenderFeature,
     MapLibreRenderFeatureCollection,
+    MapLibreRenderFeatureProperties,
 } from './mapLibreFastTypes';
 import { getParsedCoordinates } from '@TOOL/utils/featureUtils';
 import { getFeatureDisplayInfo, isCameraIcon } from '@TOOL/utils/featureDisplay';
@@ -70,7 +71,12 @@ const styleValueFromMetadata = (feature: FeatureState, metadata: Record<string, 
 };
 
 const asColor = (value: unknown) => {
-    return typeof value === 'string' && value.trim().startsWith('#') ? value.trim() : null;
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (trimmed.startsWith('#') || trimmed.startsWith('rgb') || trimmed.startsWith('hsl') || /^[a-z]+$/i.test(trimmed)) {
+        return trimmed;
+    }
+    return null;
 };
 
 const asSize = (value: unknown) => {
@@ -100,23 +106,32 @@ const imageIdSafe = (value: unknown) => String(value ?? '')
 
 const isLineGeomType = (feature: FeatureState, metadata: Record<string, any>): boolean => {
     const geomType = String(feature.geom_type || '').trim().toLowerCase();
-    if (geomType === 'point' || geomType === '' || geomType === 'default' || geomType === 'polygon') {
-        return false;
-    }
+
+    // 1. Explicit line geom_types
     if (geomType === 'linestring' || geomType === 'polyline' || geomType === 'line' || geomType === 'signalline' || geomType === 'networklink') {
         return true;
     }
-    if (geomType.includes('line') || geomType.includes('polyline') || geomType.includes('cable') || geomType.includes('tuyen')) {
+    if (geomType.includes('line') || geomType.includes('polyline') || geomType.includes('cable') || geomType.includes('tuyen') || geomType.includes('route') || geomType.includes('network') || geomType.includes('multiline')) {
         return true;
     }
+
+    // 2. Metadata / Infrastructure type indicates a line
     const infraType = String(metadata?.infrastructure?.type || metadata?.type || '').toLowerCase();
-    if (infraType === 'signalline' || infraType === 'networklink' || infraType.includes('line')) {
+    if (infraType === 'signalline' || infraType === 'networklink' || infraType.includes('line') || infraType.includes('route') || infraType.includes('network') || infraType.includes('multiline')) {
         return true;
     }
-    const coords = getParsedCoordinates(feature);
-    if (Array.isArray(coords) && coords.length >= 2 && Array.isArray(coords[0])) {
+
+    // 3. Polygon types are not lines
+    if (geomType === 'polygon' || geomType === 'multipolygon') {
+        return false;
+    }
+
+    // 4. Coordinates parse to 2 or more valid points
+    const lineCoords = normalizeLine(getParsedCoordinates(feature));
+    if (lineCoords && lineCoords.length >= 2) {
         return true;
     }
+
     return false;
 };
 
@@ -379,21 +394,24 @@ const toRenderFeatures = (
 
     if (kind === 'line') {
         const dashArray = asDashArray(metadata.gis?.dashArray ?? metadata.dashArray);
+        const lineProps: MapLibreRenderFeatureProperties = {
+            id: childId,
+            parentFeatureId,
+            groupId: feature.group_id,
+            layerId: feature.layer_id,
+            name: feature.name,
+            geomType: 'line',
+            color: color || DEFAULT_COLOR,
+            size: Math.max(size || 3, selected ? 6 : 3),
+            selected,
+        };
+        if (dashArray && dashArray.length >= 2) {
+            lineProps.dashArray = dashArray;
+        }
         return [{
             type: 'Feature',
             geometry,
-            properties: {
-                id: childId,
-                parentFeatureId,
-                groupId: feature.group_id,
-                layerId: feature.layer_id,
-                name: feature.name,
-                geomType: 'line',
-                color,
-                size: Math.max(size, selected ? 6 : 3),
-                selected,
-                dashArray,
-            },
+            properties: lineProps,
         }];
     }
 
@@ -437,12 +455,21 @@ export const buildMapLibreFeatureCollection = ({
         if (feature.layer_id && hiddenIds.has(feature.layer_id)) return false;
 
         const metadata = getFeatureMetadataWithGroupPreview(feature, groupThemePreview);
-        const group = feature.group_id ? featureGroups[feature.group_id] : null;
-        const displayInfo = getFeatureDisplayInfo(feature, group?.type, group?.name, metadata);
+        const isLine = isLineGeomType(feature, metadata);
+        const geomTypeLower = String(feature.geom_type || '').trim().toLowerCase();
+        const isPolygon = geomTypeLower === 'polygon' || geomTypeLower === 'multipolygon';
+        const isPoint = !isLine && !isPolygon;
+
         if (focusIds && focusIds.size > 0 && focusIds.has(feature.id)) {
             return true;
         }
-        return zoom >= MAP_INTERSECTION_CHILD_MIN_ZOOM || !isMapIntersectionChild(feature, group, metadata, displayInfo);
+
+        if (isPoint) {
+            const group = feature.group_id ? featureGroups[feature.group_id] : null;
+            const displayInfo = getFeatureDisplayInfo(feature, group?.type, group?.name, metadata);
+            return zoom >= MAP_INTERSECTION_CHILD_MIN_ZOOM || !isMapIntersectionChild(feature, group, metadata, displayInfo);
+        }
+        return true;
     };
     const selectedRenderFeature = selected && canRenderFeature(selected)
         ? toRenderFeatures(selected, selectedFeatureId, featureGroups, featureNumberMap || {}, groupThemePreview)

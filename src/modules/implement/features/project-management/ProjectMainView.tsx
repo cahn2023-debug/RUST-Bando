@@ -15,6 +15,7 @@ import {
 } from '@CONTRACT/types';
 import { useTranslation } from 'react-i18next';
 import AnalyticsDashboard from '@ANALYTICS/AnalyticsDashboard';
+import { cn } from '@TOOL/utils/cn';
 
 type ViewMode =
   | 'tasks'
@@ -172,13 +173,18 @@ export const ProjectMainView: React.FC<ProjectMainViewProps> = ({
   };
 
   return (
-    <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden bg-cad-bg relative font-sans">
-      <Toolbar
-        activeTab={activeTab}
-        viewMode={toToolbarViewMode(viewMode)}
-        setViewMode={setViewMode}
-        onAddTask={() => {}}
-      />
+    <div className={cn(
+      "flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden relative font-sans",
+      activeTab === "DESIGN" ? "bg-transparent pointer-events-none" : "bg-cad-bg pointer-events-auto"
+    )}>
+      <div className="pointer-events-auto">
+        <Toolbar
+          activeTab={activeTab}
+          viewMode={toToolbarViewMode(viewMode)}
+          setViewMode={setViewMode}
+          onAddTask={() => {}}
+        />
+      </div>
 
       {renderContent()}
     </div>

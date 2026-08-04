@@ -906,6 +906,37 @@ fn trim_to_option(input: Option<String>) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
+fn v2_extract_id(val: Option<&Value>) -> Option<String> {
+    match val? {
+        Value::String(s) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() || trimmed == "null" || trimmed == "undefined" {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        }
+        Value::Number(n) => Some(n.to_string()),
+        Value::Bool(b) => Some(b.to_string()),
+        _ => None,
+    }
+}
+
+fn v2_extract_string_text(val: Option<&Value>) -> Option<String> {
+    match val? {
+        Value::String(s) => {
+            let trimmed = s.trim();
+            if trimmed.is_empty() || trimmed == "null" || trimmed == "undefined" {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        }
+        Value::Number(n) => Some(n.to_string()),
+        _ => None,
+    }
+}
+
 fn ensure_pmp_extension(path: &Path) -> Result<(), String> {
     if path
         .extension()
@@ -1572,30 +1603,15 @@ fn build_project_value(
 
 fn project_from_query_result(result: &Value, path: &str) -> Option<Value> {
     let row = result.as_array()?.first()?;
-    let id = row.get("id")?.as_str()?.to_string();
-    let name = row
-        .get("title")
-        .or_else(|| row.get("name"))
-        .and_then(|value| value.as_str())
-        .unwrap_or("Untitled Project")
-        .to_string();
-    let description = trim_to_option(
-        row.get("description")
-            .and_then(|value| value.as_str())
-            .map(|s| s.to_string()),
-    );
-    let status = row
-        .get("status")
-        .and_then(|value| value.as_str())
-        .map(|s| s.to_string());
-    let created_at = row
-        .get("created_at")
-        .and_then(|value| value.as_str())
-        .map(|s| s.to_string());
-    let updated_at = row
-        .get("updated_at")
-        .and_then(|value| value.as_str())
-        .map(|s| s.to_string());
+    let id = v2_extract_id(row.get("id"))
+        .or_else(|| v2_extract_id(row.get("project_id")))?;
+    let name = v2_extract_string_text(row.get("title"))
+        .or_else(|| v2_extract_string_text(row.get("name")))
+        .unwrap_or_else(|| "Untitled Project".to_string());
+    let description = trim_to_option(v2_extract_string_text(row.get("description")));
+    let status = v2_extract_string_text(row.get("status"));
+    let created_at = v2_extract_string_text(row.get("created_at"));
+    let updated_at = v2_extract_string_text(row.get("updated_at"));
     let metadata_json = row.get("metadata_json").cloned();
 
     Some(build_project_value(
@@ -1614,8 +1630,8 @@ fn rows_to_object_by_id(rows: Value) -> Value {
     let mut out = serde_json::Map::new();
     if let Some(items) = rows.as_array() {
         for row in items {
-            if let Some(id) = row.get("id").and_then(Value::as_str) {
-                out.insert(id.to_string(), row.clone());
+            if let Some(id) = v2_extract_id(row.get("id")) {
+                out.insert(id, row.clone());
             }
         }
     }
@@ -3216,7 +3232,7 @@ pub async fn load_pmp_file(
 
     let mut first_project = exec_query(
         &state,
-        "SELECT id, title, description, metadata_json, created_at, updated_at FROM projects ORDER BY created_at ASC LIMIT 1",
+        "SELECT id, name, title, description, metadata_json, created_at, updated_at FROM projects ORDER BY created_at ASC LIMIT 1",
         vec![],
     ).await?;
 
@@ -3240,7 +3256,7 @@ pub async fn load_pmp_file(
             .map_err(|e| format!("IPC Queue error: {}", e))?;
         first_project = exec_query(
             &state,
-            "SELECT id, title, description, metadata_json, created_at, updated_at FROM projects WHERE id = ? LIMIT 1",
+            "SELECT id, name, title, description, metadata_json, created_at, updated_at FROM projects WHERE id = ? LIMIT 1",
             vec![fallback_id],
         ).await?;
     }
@@ -3344,7 +3360,7 @@ pub async fn get_project_bootstrap_v2(
     .to_string();
     let res = exec_query(
         &state,
-        "SELECT id, title, description, metadata_json, created_at, updated_at FROM projects WHERE id = ? LIMIT 1",
+        "SELECT id, name, title, description, metadata_json, created_at, updated_at FROM projects WHERE id = ? LIMIT 1",
         vec![project_id.clone()],
     )
     .await?;
@@ -3380,14 +3396,14 @@ pub async fn get_active_project(state: State<'_, ActorState>) -> Result<Option<V
     let res = if let Some(project_id) = active_id {
         exec_query(
             &state,
-            "SELECT id, title, description, metadata_json, created_at, updated_at FROM projects WHERE id = ? LIMIT 1",
+            "SELECT id, name, title, description, metadata_json, created_at, updated_at FROM projects WHERE id = ? LIMIT 1",
             vec![project_id],
         )
         .await?
     } else {
         exec_query(
             &state,
-            "SELECT id, title, description, metadata_json, created_at, updated_at FROM projects ORDER BY created_at ASC LIMIT 1",
+            "SELECT id, name, title, description, metadata_json, created_at, updated_at FROM projects ORDER BY created_at ASC LIMIT 1",
             vec![],
         )
         .await?

@@ -123,7 +123,7 @@ export const FeatureItem = React.memo(({
               />
             )}
 
-            <div className="flex flex-1 items-center gap-0.5">
+            <div className="flex flex-1 min-w-0 items-center gap-0.5">
               {showCode && (
                 <div className="flex w-5 shrink-0 items-center justify-center">
                   <span

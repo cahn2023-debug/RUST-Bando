@@ -181,4 +181,49 @@ describe("useFlattenedTree - Direct Intersection Nesting", () => {
         expect(ids).toContain("device-1");
         expect(ids).not.toContain("network-link-1");
     });
+
+    it("should retain regions and auto-expand hierarchy when filterType is INTERSECTION", () => {
+        const regionsMap: Record<string, RegionState> = {
+            "region-1": { id: "region-1", name: "Dự án 269 Nút", parent_id: null, description: null, is_visible: true }
+        };
+        const layersMap: Record<string, LayerState> = {
+            "layer-1": { id: "layer-1", region_id: "region-1", name: "Lớp Nút giao", is_visible: true }
+        };
+        const groupsMap: Record<string, FeatureGroupState> = {};
+        const featuresMap: Record<string, FeatureState> = {
+            "intersection-1": {
+                id: "intersection-1",
+                layer_id: "layer-1",
+                group_id: null,
+                name: "Nút giao 269",
+                is_visible: true,
+                geom_type: "POINT",
+                coordinates: [105.8, 21.0],
+                properties: {},
+                metadata: JSON.stringify({ type: "INTERSECTION", display_order: 1 })
+            }
+        };
+
+        const { result } = renderHook(() => useFlattenedTree({
+            regionsMap,
+            layersMap,
+            groupsMap,
+            featuresMap,
+            expanded: {}, // Collapsed by default
+            treeSearchQuery: "",
+            filterType: "INTERSECTION",
+            reverseOrder: false,
+            sortField: "name"
+        }));
+
+        const items = result.current.flattenedItems;
+        const types = items.map(item => item.type);
+        const ids = items.map(item => item.id);
+
+        expect(types).toContain("region");
+        expect(types).toContain("group");
+        expect(types).toContain("feature");
+        expect(ids).toEqual(["region-1", "virtual-intersection-region-1", "intersection-1"]);
+    });
 });
+

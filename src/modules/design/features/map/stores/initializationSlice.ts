@@ -216,7 +216,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                 return;
             }
 
-            let activeProject = await invoke<any>('get_active_project').catch(() => null);
+            const activeProject = await invoke<any>('get_active_project').catch(() => null);
             const activeProjectId = activeProject?.id ? String(activeProject.id) : null;
             const needsLoad = !activeProject || activeProjectId !== projectId;
 

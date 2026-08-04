@@ -263,7 +263,7 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
             }
         }
 
-        let coords = getParsedCoordinates(feature);
+        const coords = getParsedCoordinates(feature);
         if (!coords) return;
 
         const isPolygon = (feature.geom_type || '').toLowerCase() === 'polygon';
@@ -305,7 +305,7 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
         if (!editingFeatureId || !state?.features[editingFeatureId]) return;
 
         const feature = state.features[editingFeatureId];
-        let coords = getParsedCoordinates(feature);
+        const coords = getParsedCoordinates(feature);
         if (!coords) return;
 
         const isPolygon = (feature.geom_type || '').toLowerCase() === 'polygon';

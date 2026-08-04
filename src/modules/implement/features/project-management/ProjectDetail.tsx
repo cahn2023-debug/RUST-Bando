@@ -4,7 +4,6 @@ import { ProjectSidebar } from "./ProjectSidebar";
 import { ProjectMainView } from "./ProjectMainView";
 import { ProjectOverlayLayer } from "./ProjectOverlayLayer";
 import { useProjectDetailLogic } from "@IMPLEMENT/hooks/useProjectDetailLogic";
-import { useResizablePanels } from "@IMPLEMENT/hooks/useResizablePanels";
 import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
 import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
 import { ResizeHandle } from "@DESIGN/components/ui/ResizeHandle";
@@ -59,11 +58,16 @@ export function ProjectDetail({
     handleProjectMetadataUpdate
   } = useProjectDetailLogic(project, onProjectUpdate);
 
-  const { leftWidth, handleLeftResize } = useResizablePanels();
+  const leftWidth = useLayoutStore(s => s.leftWidth);
+  const updateLeftWidth = useLayoutStore(s => s.updateLeftWidth);
   const { lowPowerMode } = useSettingsStore();
 
   const layoutColumns = useLayoutStore(s => s.layoutColumns);
   const paletteConfigs = useLayoutStore(s => s.paletteConfigs);
+
+  const handleLeftResize = (delta: number) => {
+    updateLeftWidth(Math.max(200, Math.min(600, leftWidth + delta)));
+  };
 
   const bottomHeight = useMemo(() => {
     const bottomPalettes = layoutColumns
@@ -84,11 +88,12 @@ export function ProjectDetail({
 
   return (
     <div className={cn(
-      "flex-1 min-h-0 min-w-0 flex overflow-hidden bg-cad-bg relative",
+      "flex-1 min-h-0 min-w-0 flex overflow-hidden relative",
+      activeTab === "DESIGN" ? "bg-transparent pointer-events-none" : "bg-cad-bg pointer-events-auto",
       lowPowerMode && "low-power-active"
     )}>
       <div 
-        className="border-r border-cad-border flex flex-col shrink-0 bg-cad-surface group/sidebar relative min-h-0" 
+        className="pointer-events-auto border-r border-cad-border flex flex-col shrink-0 bg-cad-surface group/sidebar relative min-h-0"
         style={{ 
           width: leftWidth,
           height: bottomHeight > 0 ? `calc(100% - ${bottomHeight}px)` : '100%'
@@ -107,7 +112,10 @@ export function ProjectDetail({
       </div>
 
       <div 
-        className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden relative"
+        className={cn(
+          "flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden relative",
+          activeTab === "DESIGN" ? "pointer-events-none" : "pointer-events-auto"
+        )}
         style={{ 
           height: bottomHeight > 0 ? `calc(100% - ${bottomHeight}px)` : '100%'
         }}
@@ -134,15 +142,17 @@ export function ProjectDetail({
         />
       </div>
 
-      <ProjectOverlayLayer
-        activeTab={activeTab}
-        selectedFile={selectedFile}
-        setSelectedFile={setSelectedFile}
-        fileContent={fileContent}
-        showRawFile={showRawFile}
-        setShowRawFile={setShowRawFile}
-        handleOpenExternally={handleOpenExternally}
-      />
+      <div className="contents pointer-events-auto">
+        <ProjectOverlayLayer
+          activeTab={activeTab}
+          selectedFile={selectedFile}
+          setSelectedFile={setSelectedFile}
+          fileContent={fileContent}
+          showRawFile={showRawFile}
+          setShowRawFile={setShowRawFile}
+          handleOpenExternally={handleOpenExternally}
+        />
+      </div>
     </div>
   );
 }

@@ -169,7 +169,7 @@ export const DeviceConfigPanel: React.FC = () => {
 
     if (!feature || !displayInfo) {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-cad-text-muted bg-cad-surface p-4 text-center border border-cad-border shadow-2xl font-mono">
+            <div className="flex flex-col items-center justify-center h-full w-full min-h-0 text-cad-text-muted bg-cad-surface p-4 text-center border border-cad-border shadow-2xl font-mono">
                 <div className="flex items-center justify-between w-full absolute top-0 p-3 border-b border-cad-border bg-cad-elevated drag-handle cursor-move" {...dragHandleProps}>
                     <div className="flex items-center gap-2">
                         <Settings className="w-3.5 h-3.5 text-cad-text-muted" />
@@ -187,7 +187,7 @@ export const DeviceConfigPanel: React.FC = () => {
     }
     if (selectionSet.size > 1) {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-cad-text-muted bg-cad-surface p-4 text-center opacity-70 border border-cad-border shadow-2xl font-mono">
+            <div className="flex flex-col items-center justify-center h-full w-full min-h-0 text-cad-text-muted bg-cad-surface p-4 text-center opacity-70 border border-cad-border shadow-2xl font-mono">
                 <Layers className="w-8 h-8 mb-4 text-cad-accent" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-primary">Chọn nhiều đối tượng</p>
                 <p className="text-[9px] mt-2 text-cad-text-secondary max-w-[200px]">
@@ -198,7 +198,7 @@ export const DeviceConfigPanel: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col h-full bg-cad-surface text-cad-text-primary font-mono select-none rounded-xl border border-cad-border shadow-2xl overflow-hidden">
+        <div className="flex flex-col h-full w-full min-h-0 bg-cad-surface text-cad-text-primary font-mono select-none rounded-xl border border-cad-border shadow-2xl overflow-hidden">
             {/* Header */}
             <div
                 {...dragHandleProps}

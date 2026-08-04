@@ -1,4 +1,4 @@
-export { BasemapProvider, useBasemap } from './BasemapContext';
+export { BasemapContext, BasemapProvider, useBasemap } from './BasemapContext';
 export { BasemapRuntime, createBasemapRuntime } from './BasemapRuntime';
 export { PersistentBasemapHost } from './PersistentBasemapHost';
 export {
