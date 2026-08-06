@@ -599,7 +599,7 @@ const ensureBasemapOverlayLayers = (map: maplibregl.Map, preset?: MapBasemapPres
         addMapLayer(map, {
             id: BASEMAP_HEAT_LAYER_ID,
             type: 'heatmap',
-            source: SOURCE_ID,
+            source: POINT_CLUSTER_SOURCE_ID,
             filter: ['all', POINT_GEOMETRY_FILTER, ['!', ['has', 'point_count']]] as unknown as maplibregl.FilterSpecification,
             layout: {
                 visibility: preset?.kind === 'heat' ? 'visible' : 'none',
@@ -684,12 +684,36 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
         });
     }
 
+    const existingClusterSource = map.getSource(POINT_CLUSTER_SOURCE_ID) as any;
+    const shouldBeClustered = clusterPoints;
+    if (existingClusterSource && Boolean(existingClusterSource.cluster) !== shouldBeClustered) {
+        [
+            POINT_CLUSTER_LAYER_ID,
+            POINT_CLUSTER_COUNT_LAYER_ID,
+            POINT_GLOW_LAYER_ID,
+            POINT_LAYER_ID,
+            POINT_ICON_LAYER_ID,
+            POINT_LABEL_LAYER_ID,
+        ].forEach(layerId => {
+            try {
+                if (map.getLayer(layerId)) map.removeLayer(layerId);
+            } catch {
+                // Ignore teardown races
+            }
+        });
+        try {
+            map.removeSource(POINT_CLUSTER_SOURCE_ID);
+        } catch {
+            // Ignore teardown races
+        }
+    }
+
     if (!map.getSource(POINT_CLUSTER_SOURCE_ID)) {
         map.addSource(POINT_CLUSTER_SOURCE_ID, {
             type: 'geojson',
             data: emptyCollection as any,
             promoteId: 'id',
-            cluster: true,
+            cluster: clusterPoints,
             clusterRadius: 48,
             clusterMaxZoom: MAP_POINT_CLUSTER_MAX_ZOOM,
         });
@@ -825,7 +849,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
         addMapLayer(map, {
             id: POINT_GLOW_LAYER_ID,
             type: 'circle',
-            source: SOURCE_ID,
+            source: POINT_CLUSTER_SOURCE_ID,
             filter: ['all', POINT_GEOMETRY_FILTER, ['!', ['has', 'point_count']]] as unknown as maplibregl.FilterSpecification,
             paint: {
                 'circle-color': ['case', ['boolean', ['feature-state', 'selected'], false], '#22d3ee', ['get', 'color']],
@@ -872,7 +896,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
         addMapLayer(map, {
             id: POINT_LAYER_ID,
             type: 'circle',
-            source: SOURCE_ID,
+            source: POINT_CLUSTER_SOURCE_ID,
             filter: ['all', POINT_GEOMETRY_FILTER, ['!', ['has', 'point_count']]] as unknown as maplibregl.FilterSpecification,
             paint: {
                 'circle-color': ['get', 'color'],
@@ -903,7 +927,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
         addMapLayer(map, {
             id: POINT_ICON_LAYER_ID,
             type: 'symbol',
-            source: SOURCE_ID,
+            source: POINT_CLUSTER_SOURCE_ID,
             filter: ['all', POINT_GEOMETRY_FILTER, ['!', ['has', 'point_count']], ['to-boolean', ['get', 'iconImageId']]] as unknown as maplibregl.FilterSpecification,
             layout: {
                 'icon-image': ['get', 'iconImageId'],
@@ -918,7 +942,7 @@ const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, showLab
         addMapLayer(map, {
             id: POINT_LABEL_LAYER_ID,
             type: 'symbol',
-            source: SOURCE_ID,
+            source: POINT_CLUSTER_SOURCE_ID,
             filter: ['all', POINT_GEOMETRY_FILTER, ['!', ['has', 'point_count']], ['!', ['to-boolean', ['get', 'iconImageId']]]] as unknown as maplibregl.FilterSpecification,
             layout: {
                 'text-field': ['get', 'labelIndex'],
@@ -1356,18 +1380,20 @@ export function MapLibreFastRenderer({
     ]);
     const applySelectedFeatureState = React.useCallback((nextSelected: Set<string>) => {
         const map = mapRef.current;
-        if (!map || !map.getSource(SOURCE_ID)) return;
+        if (!map) return;
 
         selectedFeatureRef.current.forEach(id => {
             try {
-                map.setFeatureState({ source: SOURCE_ID, id }, { selected: false });
+                if (map.getSource(SOURCE_ID)) map.setFeatureState({ source: SOURCE_ID, id }, { selected: false });
+                if (map.getSource(POINT_CLUSTER_SOURCE_ID)) map.setFeatureState({ source: POINT_CLUSTER_SOURCE_ID, id }, { selected: false });
             } catch {
                 // MapLibre may still be tearing down/rebuilding source state.
             }
         });
         nextSelected.forEach(id => {
             try {
-                map.setFeatureState({ source: SOURCE_ID, id }, { selected: true });
+                if (map.getSource(SOURCE_ID)) map.setFeatureState({ source: SOURCE_ID, id }, { selected: true });
+                if (map.getSource(POINT_CLUSTER_SOURCE_ID)) map.setFeatureState({ source: POINT_CLUSTER_SOURCE_ID, id }, { selected: true });
             } catch {
                 // MapLibre may still be tearing down/rebuilding source state.
             }
@@ -1376,7 +1402,7 @@ export function MapLibreFastRenderer({
     }, []);
     const scheduleSelectedFeatureState = React.useCallback((nextSelected: Set<string>, waitForSourceIdle: boolean) => {
         const map = mapRef.current;
-        if (!map || !map.getSource(SOURCE_ID)) return;
+        if (!map || (!map.getSource(SOURCE_ID) && !map.getSource(POINT_CLUSTER_SOURCE_ID))) return;
 
         const revision = ++featureStateRevisionRef.current;
         let applied = false;
@@ -1396,21 +1422,23 @@ export function MapLibreFastRenderer({
     }, [applySelectedFeatureState]);
     const applyHoverFeatureState = React.useCallback((nextHoverId: string | null) => {
         const map = mapRef.current;
-        if (!map || !map.getSource(SOURCE_ID)) return;
+        if (!map) return;
 
         const prevHoverId = hoveredFeatureRef.current;
         if (prevHoverId === nextHoverId) return;
 
         if (prevHoverId) {
             try {
-                map.setFeatureState({ source: SOURCE_ID, id: prevHoverId }, { hover: false });
+                if (map.getSource(SOURCE_ID)) map.setFeatureState({ source: SOURCE_ID, id: prevHoverId }, { hover: false });
+                if (map.getSource(POINT_CLUSTER_SOURCE_ID)) map.setFeatureState({ source: POINT_CLUSTER_SOURCE_ID, id: prevHoverId }, { hover: false });
             } catch {
                 // MapLibre may still be tearing down/rebuilding source state.
             }
         }
         if (nextHoverId) {
             try {
-                map.setFeatureState({ source: SOURCE_ID, id: nextHoverId }, { hover: true });
+                if (map.getSource(SOURCE_ID)) map.setFeatureState({ source: SOURCE_ID, id: nextHoverId }, { hover: true });
+                if (map.getSource(POINT_CLUSTER_SOURCE_ID)) map.setFeatureState({ source: POINT_CLUSTER_SOURCE_ID, id: nextHoverId }, { hover: true });
             } catch {
                 // MapLibre may still be tearing down/rebuilding source state.
             }
@@ -2100,7 +2128,8 @@ export function MapLibreFastRenderer({
                 const legacyDataKey = renderFlags.overlayEnabled && renderFlags.overlayPoints
                     ? stableJsonKey(displayCollection)
                     : renderCacheKey;
-                const clusterCollection = lodPolicy.clusterPoints ? onlyPointFeatures(displayCollection) : emptyCollection;
+                const mainCollection = withoutPointFeatures(displayCollection);
+                const clusterCollection = onlyPointFeatures(displayCollection);
                 const dataKey = `${legacyDataKey}::icons:${iconReadyRevision}`;
                 const clusterDataKey = `${dataKey}::cluster:${lodPolicy.clusterPoints ? 'points' : 'empty'}`;
                 const setDataStart = now();
@@ -2115,7 +2144,7 @@ export function MapLibreFastRenderer({
                     // Emit first-feature milestone + open metrics right after the first batch is handed to the source.
                     const onFirstBatch = () => {
                         const mapLibreSetDataMs = now() - setDataStart;
-                        const firstBatchFeatureCount = Math.min(displayCollection.features.length, FIRST_BATCH_SIZE);
+                        const firstBatchFeatureCount = Math.min(mainCollection.features.length, FIRST_BATCH_SIZE);
                         if (!firstSetDataReportedRef.current) {
                             firstSetDataReportedRef.current = true;
                             markMapStartup("first-feature", { count: firstBatchFeatureCount });
@@ -2137,7 +2166,7 @@ export function MapLibreFastRenderer({
                     // Batch progress is exposed via React state (Task 4.5) and consumed
                     // by a loading indicator / data attributes on the container.
                     renderFeaturesBatched({
-                        features: displayCollection.features,
+                        features: mainCollection.features,
                         setData: (collection) => {
                             // Guard: if a newer render epoch started, discard this stale batch write.
                             if (progressiveRenderEpochRef.current !== currentEpoch) return;

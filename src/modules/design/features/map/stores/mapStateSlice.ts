@@ -688,7 +688,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 let nextVisibleFeatures = { ...(cacheUpdates.visibleFeatures ?? s.visibleFeatures) };
                 let nextVisibleFeatureIds = [...(s.visibleFeatureIds)];
                 let featureDetailsCache = { ...(cacheUpdates.featureDetailsCache ?? s.featureDetailsCache) };
-                newLargeProjectFeatures.forEach((payload, id) => {
+                newLargeProjectFeatures.forEach((_payload, id) => {
                     const normalizedFeature = normalizedState.features?.[id];
                     if (normalizedFeature) {
                         const featureWithGroup = normalizeFeatureForDisplay(

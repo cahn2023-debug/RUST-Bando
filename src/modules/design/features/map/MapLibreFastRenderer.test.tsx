@@ -321,7 +321,7 @@ describe('MapLibreFastRenderer', () => {
             expect(lastMap?.layers.get('design-fast-points')?.filter).toEqual(expect.arrayContaining([
                 ['!', ['has', 'point_count']],
             ]));
-            const data = lastMap?.sources.get('design-fast-features')?.data;
+            const data = lastMap?.sources.get('design-fast-point-clusters-source')?.data;
             expect(data.features[0].properties).toEqual(expect.objectContaining({
                 id: 'camera-1',
                 iconKey: 'cctv',
@@ -359,7 +359,7 @@ describe('MapLibreFastRenderer', () => {
             const lastMap = mockMapState.getLastMap();
             const pointLayer = lastMap?.layers.get('design-fast-points');
             const labelLayer = lastMap?.layers.get('design-fast-point-labels');
-            const data = lastMap?.sources.get('design-fast-features')?.data;
+            const data = lastMap?.sources.get('design-fast-point-clusters-source')?.data;
 
             expect(pointLayer?.type).toBe('circle');
             expect(pointLayer?.filter).toEqual(expect.arrayContaining([['!', ['has', 'point_count']]]));
@@ -471,14 +471,14 @@ describe('MapLibreFastRenderer', () => {
         render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
 
         await waitFor(() => {
-            const data = mockMapState.getLastMap()?.sources.get('design-fast-features')?.data;
+            const data = mockMapState.getLastMap()?.sources.get('design-fast-point-clusters-source')?.data;
             expect(data.features[0].properties.iconImageId).toBe('');
         });
 
         deferredBitmap.resolve(bitmap);
 
         await waitFor(() => {
-            const data = mockMapState.getLastMap()?.sources.get('design-fast-features')?.data;
+            const data = mockMapState.getLastMap()?.sources.get('design-fast-point-clusters-source')?.data;
             expect(data.features[0].properties.iconImageId).toContain('design-point-cctv');
             expect(mockMapState.getLastMap()?.images.has(data.features[0].properties.iconImageId)).toBe(true);
         });
@@ -863,7 +863,7 @@ describe('MapLibreFastRenderer', () => {
         render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
 
         await waitFor(() => {
-            expect(mockMapState.getLastMap()?.sources.get('design-fast-features')?.data.features.length).toBe(1);
+            expect(mockMapState.getLastMap()?.sources.get('design-fast-point-clusters-source')?.data.features.length).toBe(1);
         });
 
         expect(queryVisibleFeaturesV2).not.toHaveBeenCalled();
@@ -884,7 +884,7 @@ describe('MapLibreFastRenderer', () => {
         render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
 
         await waitFor(() => {
-            const source = mockMapState.getLastMap()?.sources.get('design-fast-features');
+            const source = mockMapState.getLastMap()?.sources.get('design-fast-point-clusters-source');
             expect(source?.data.features.length).toBe(1);
             expect(source?.setData).toHaveBeenCalled();
         });
@@ -956,7 +956,7 @@ describe('MapLibreFastRenderer', () => {
             expect(heatLayer).toEqual(expect.objectContaining({
                 id: 'basemap-heat-overlay',
                 type: 'heatmap',
-                source: 'design-fast-features',
+                source: 'design-fast-point-clusters-source',
             }));
             expect(heatLayer?.layout?.visibility).toBe('visible');
             expect(heatLayer?.paint?.['heatmap-opacity']).toBe(0.72);
@@ -1010,7 +1010,7 @@ describe('MapLibreFastRenderer', () => {
 
         await waitFor(() => {
             const lastMap = mockMapState.getLastMap();
-            const data = lastMap?.sources.get('design-fast-features')?.data;
+            const data = lastMap?.sources.get('design-fast-point-clusters-source')?.data;
             expect(data.features.length).toBe(50);
             // Verify all features receive iconImageId after batch RAF update
             const sampleIconId = data.features[0].properties.iconImageId;
