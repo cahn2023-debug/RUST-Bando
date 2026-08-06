@@ -20,17 +20,41 @@ const FULL_FEATURE_LIMIT = 14000;
 const DEFAULT_COLOR = '#10b981';
 const SELECTED_COLOR = '#22d3ee';
 
+const parseObjectCache = new Map<string, Record<string, any>>();
 const parseObject = (value: unknown): Record<string, any> => {
     if (!value) return {};
     if (typeof value === 'string') {
+        if (parseObjectCache.has(value)) {
+            return parseObjectCache.get(value)!;
+        }
         try {
             const parsed = JSON.parse(value);
-            return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+            const res = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+            if (parseObjectCache.size > 2000) parseObjectCache.clear();
+            parseObjectCache.set(value, res);
+            return res;
         } catch {
             return {};
         }
     }
     return typeof value === 'object' && !Array.isArray(value) ? value as Record<string, any> : {};
+};
+
+const simplifyLineCoordinates = (points: [number, number][], tolerance: number): [number, number][] => {
+    if (points.length <= 2 || tolerance <= 0) return points;
+    const result: [number, number][] = [points[0]];
+    let prev = points[0];
+    for (let i = 1; i < points.length - 1; i++) {
+        const pt = points[i];
+        const dx = Math.abs(pt[0] - prev[0]);
+        const dy = Math.abs(pt[1] - prev[1]);
+        if (dx + dy >= tolerance) {
+            result.push(pt);
+            prev = pt;
+        }
+    }
+    result.push(points[points.length - 1]);
+    return result.length >= 2 ? result : points;
 };
 
 const getFeatureMetadataWithGroupPreview = (
@@ -258,7 +282,9 @@ const normalizeMultiPolygon = (coordinates: any): [number, number][][][] | null 
 const normalizeRenderableGeometry = (
     type: string,
     coordinates: unknown,
-    isLine: boolean
+    isLine: boolean,
+    simplifyVectors = false,
+    zoom = 16
 ): RenderableGeometry | null => {
     const geomType = type.trim().toLowerCase();
     if (!isLine && (geomType === 'point' || geomType === '' || geomType === 'default')) {
@@ -271,7 +297,10 @@ const normalizeRenderableGeometry = (
     }
     if (geomType === 'multilinestring') {
         const lines = normalizeMultiLine(coordinates);
-        return lines ? { type: 'MultiLineString', coordinates: lines } : null;
+        if (!lines) return null;
+        const tolerance = simplifyVectors ? (zoom < 14 ? 0.0001 : 0.00003) : 0;
+        const simplified = tolerance > 0 ? lines.map(line => simplifyLineCoordinates(line, tolerance)) : lines;
+        return { type: 'MultiLineString', coordinates: simplified };
     }
     if (geomType === 'multipolygon') {
         const polygon = normalizeMultiPolygon(coordinates);
@@ -279,7 +308,10 @@ const normalizeRenderableGeometry = (
     }
     if (isLine || geomType === 'linestring' || geomType === 'polyline' || geomType === 'line') {
         const line = normalizeLine(coordinates);
-        return line ? { type: 'LineString', coordinates: line } : null;
+        if (!line) return null;
+        const tolerance = simplifyVectors ? (zoom < 14 ? 0.0001 : 0.00003) : 0;
+        const simplified = tolerance > 0 ? simplifyLineCoordinates(line, tolerance) : line;
+        return { type: 'LineString', coordinates: simplified };
     }
     if (geomType === 'polygon') {
         const polygon = normalizePolygon(coordinates);
@@ -294,43 +326,62 @@ const renderGeomType = (geometry: RenderableGeometry) => {
     return 'polygon';
 };
 
+const featureRenderCache = new WeakMap<FeatureState, Map<string, MapLibreRenderFeature[]>>();
+
 const toRenderFeatures = (
     feature: FeatureState,
     selectedFeatureId: string | null | undefined,
     featureGroups: Record<string, any>,
     featureNumberMap: Record<string, string | number>,
     groupThemePreview?: Record<string, any> | null,
-    childPath: string[] = []
+    childPath: string[] = [],
+    simplifyVectors = false,
+    zoom = 16
 ): MapLibreRenderFeature[] => {
+    const selected = feature.id === selectedFeatureId;
+    const previewVersion = groupThemePreview ? (groupThemePreview._v ?? JSON.stringify(groupThemePreview)) : '';
+    const cacheKey = `${selected ? 1 : 0}:${featureNumberMap[feature.id] || ''}:${previewVersion}:${simplifyVectors ? 1 : 0}:${zoom < 14 ? 0 : 1}`;
+
+    let featureCache = featureRenderCache.get(feature);
+    if (!featureCache) {
+        featureCache = new Map();
+        featureRenderCache.set(feature, featureCache);
+    } else if (featureCache.has(cacheKey) && childPath.length === 0) {
+        return featureCache.get(cacheKey)!;
+    }
+
     const geometryInput = geometryInputForFeature(feature);
     const geomType = String(geometryInput.type || feature.geom_type || 'Point').toLowerCase();
-    const selected = feature.id === selectedFeatureId;
     const metadata = getFeatureMetadataWithGroupPreview(feature, groupThemePreview);
     const color = selected ? SELECTED_COLOR : (asColor(styleValueFromMetadata(feature, metadata, 'color')) || DEFAULT_COLOR);
     const size = selected ? Math.max(asSize(styleValueFromMetadata(feature, metadata, 'size')), 12) : asSize(styleValueFromMetadata(feature, metadata, 'size'));
     const isLine = isLineGeomType(feature, metadata);
-    const childId = childPath.length > 0 ? `${feature.id}::${childPath.join('.')}` : feature.id;
-    const parentFeatureId = childPath.length > 0 ? feature.id : undefined;
+    const childId = feature.id;
+    const parentFeatureId = childPath.length > 0 ? childPath[0] : (feature.id.includes('::') ? feature.id.split('::')[0] : undefined);
 
     if (geomType === 'geometrycollection') {
         const geometries = Array.isArray((geometryInput as any).geometries) ? (geometryInput as any).geometries : [];
-        return geometries.flatMap((geometry: any, index: number) => {
+        const result = geometries.flatMap((geometry: any, index: number) => {
             const childFeature = {
                 ...feature,
+                id: `${feature.id}::g${index}`,
                 geom_type: String(geometry?.type || ''),
                 coordinates: geometry,
             } as FeatureState;
-            const children = toRenderFeatures(childFeature, selectedFeatureId, featureGroups, featureNumberMap, groupThemePreview, [...childPath, `g${index}`]);
+            const children = toRenderFeatures(childFeature, selectedFeatureId, featureGroups, featureNumberMap, groupThemePreview, [feature.id, `g${index}`], simplifyVectors, zoom);
             if (children.length === 0) {
                 console.warn('[mapLibreFastAdapter] Skipped invalid GeometryCollection child:', feature.id, index);
             }
             return children;
         });
+        featureCache.set(cacheKey, result);
+        return result;
     }
 
-    const geometry = normalizeRenderableGeometry(geomType, (geometryInput as any).coordinates, isLine);
+    const geometry = normalizeRenderableGeometry(geomType, (geometryInput as any).coordinates, isLine, simplifyVectors, zoom);
     if (!geometry) {
         console.warn('[mapLibreFastAdapter] Skipped invalid geometry:', feature.id, geomType);
+        featureCache.set(cacheKey, []);
         return [];
     }
 
@@ -360,8 +411,8 @@ const toRenderFeatures = (
             ].join('-')
             : '';
         const isIntersectionChild = isMapIntersectionChild(feature, group, metadata, displayInfo);
-        return [{
-            type: 'Feature',
+        const res = [{
+            type: 'Feature' as const,
             geometry,
             properties: {
                 id: childId,
@@ -369,7 +420,7 @@ const toRenderFeatures = (
                 groupId: feature.group_id,
                 layerId: feature.layer_id,
                 name: feature.name,
-                geomType: 'point',
+                geomType: 'point' as const,
                 color,
                 size,
                 selected,
@@ -384,6 +435,8 @@ const toRenderFeatures = (
                 iconImageId,
             },
         }];
+        featureCache.set(cacheKey, res);
+        return res;
     }
 
     if (kind === 'line') {
@@ -402,15 +455,17 @@ const toRenderFeatures = (
         if (dashArray && dashArray.length >= 2) {
             lineProps.dashArray = dashArray;
         }
-        return [{
-            type: 'Feature',
+        const res = [{
+            type: 'Feature' as const,
             geometry,
             properties: lineProps,
         }];
+        featureCache.set(cacheKey, res);
+        return res;
     }
 
-    return [{
-        type: 'Feature',
+    const res = [{
+        type: 'Feature' as const,
         geometry,
         properties: {
             id: childId,
@@ -418,12 +473,14 @@ const toRenderFeatures = (
             groupId: feature.group_id,
             layerId: feature.layer_id,
             name: feature.name,
-            geomType: 'polygon',
+            geomType: 'polygon' as const,
             color,
             size,
             selected,
         },
     }];
+    featureCache.set(cacheKey, res);
+    return res;
 };
 
 export const buildMapLibreFeatureCollection = ({
@@ -442,51 +499,58 @@ export const buildMapLibreFeatureCollection = ({
     const lodPolicy = getMapLibreLodPolicy({ zoom, featureCount: features.length, selectedFeatureId });
     const selected = selectedFeatureId ? features.find(feature => feature.id === selectedFeatureId) : null;
     const featureGroups = featureGroupsInput || {};
-    const canRenderFeature = (feature: FeatureState) => {
-        if (focusIds && focusIds.size > 0 && !focusIds.has(feature.id)) return false;
-        if (hiddenIds.has(feature.id)) return false;
-        if (feature.group_id && hiddenIds.has(feature.group_id)) return false;
-        if (feature.layer_id && hiddenIds.has(feature.layer_id)) return false;
+    const hasFocus = Boolean(focusIds && focusIds.size > 0);
 
-        const metadata = getFeatureMetadataWithGroupPreview(feature, groupThemePreview);
-        const isLine = isLineGeomType(feature, metadata);
-        const geomTypeLower = String(feature.geom_type || '').trim().toLowerCase();
-        const isPolygon = geomTypeLower === 'polygon' || geomTypeLower === 'multipolygon';
-        const isPoint = !isLine && !isPolygon;
-
-        if (focusIds && focusIds.size > 0 && focusIds.has(feature.id)) {
-            return true;
-        }
-
-        if (isPoint) {
-            const group = feature.group_id ? featureGroups[feature.group_id] : null;
-            const displayInfo = getFeatureDisplayInfo(feature, group?.type, group?.name, metadata);
-            return zoom >= MAP_INTERSECTION_CHILD_MIN_ZOOM || !isMapIntersectionChild(feature, group, metadata, displayInfo);
-        }
-        return true;
-    };
-    const selectedRenderFeature = selected && canRenderFeature(selected)
-        ? toRenderFeatures(selected, selectedFeatureId, featureGroups, featureNumberMap || {}, groupThemePreview)
-        : [];
     const renderFeatures: MapLibreRenderFeature[] = [];
     let renderedPoints = 0;
 
-    for (const feature of features) {
-        if (feature.id === selectedFeatureId) continue;
-        if (!canRenderFeature(feature)) continue;
+    const processFeature = (feature: FeatureState, isSel: boolean) => {
+        const isFocused = hasFocus && focusIds!.has(feature.id);
+        if (hasFocus && !isFocused && !isSel) return;
+        if (hiddenIds.has(feature.id)) return;
+        if (feature.group_id && hiddenIds.has(feature.group_id)) return;
+        if (feature.layer_id && hiddenIds.has(feature.layer_id)) return;
 
-        const isFocused = Boolean(focusIds && focusIds.size > 0 && focusIds.has(feature.id));
-        const renderFeatureItems = toRenderFeatures(feature, selectedFeatureId, featureGroups, featureNumberMap || {}, groupThemePreview);
+        const renderFeatureItems = toRenderFeatures(
+            feature,
+            selectedFeatureId,
+            featureGroups,
+            featureNumberMap || {},
+            groupThemePreview,
+            [],
+            lodPolicy.simplifyVectors,
+            zoom
+        );
+
+        if (renderFeatureItems.length === 0) return;
+
+        // Intersection child check
+        const firstItem = renderFeatureItems[0];
+        if (firstItem && firstItem.properties.geomType === 'point' && firstItem.properties.isIntersectionChild) {
+            if (zoom < MAP_INTERSECTION_CHILD_MIN_ZOOM && !isFocused && !isSel) {
+                return;
+            }
+        }
+
         for (const renderFeature of renderFeatureItems) {
             if (renderFeature.geometry.type === 'Point' || renderFeature.geometry.type === 'MultiPoint') {
-                if (!isFocused && renderedPoints >= lodPolicy.maxFeatures) continue;
-                renderedPoints += 1;
+                if (!isSel) {
+                    if (!isFocused && renderedPoints >= lodPolicy.maxFeatures) continue;
+                    renderedPoints += 1;
+                }
             }
             renderFeatures.push(renderFeature);
         }
+    };
+
+    if (selected) {
+        processFeature(selected, true);
     }
 
-    if (selectedRenderFeature.length > 0) renderFeatures.unshift(...selectedRenderFeature);
+    for (const feature of features) {
+        if (feature.id === selectedFeatureId) continue;
+        processFeature(feature, false);
+    }
 
     return {
         collection: {
@@ -496,3 +560,4 @@ export const buildMapLibreFeatureCollection = ({
         lodPolicy,
     };
 };
+

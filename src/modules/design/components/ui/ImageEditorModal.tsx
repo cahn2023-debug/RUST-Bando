@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@TOOL/utils/cn';
 import { Button } from '@DESIGN/components/ui/Button';
+import { Modal } from '@DESIGN/components/ui/Modal';
 
 export interface ImageEditorSaveResult {
   dataUrl: string;
@@ -878,14 +879,15 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     setPendingTextPoint(null);
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-cad-modal bg-black/90 backdrop-blur-sm flex flex-col">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="image-editor-title"
-        className="h-full w-full bg-cad-surface border border-cad-border shadow-2xl flex flex-col overflow-hidden"
-      >
+  return (
+    <Modal
+      isOpen={true}
+      onClose={onCancel}
+      titleId="image-editor-title"
+      onEscDisabled={true}
+      initialFocusRef={initialFocusRef}
+      className="h-full w-full max-w-none border-none rounded-none p-0 flex flex-col overflow-hidden"
+    >
         {/* Header */}
         <div className="p-4 border-b border-cad-border flex items-center justify-between shrink-0">
           <div
@@ -1189,8 +1191,6 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
             {saveLabel}
           </Button>
         </div>
-      </div>
-    </div>,
-    document.body
+    </Modal>
   );
 };

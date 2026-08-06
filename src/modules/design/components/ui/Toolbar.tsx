@@ -3,12 +3,7 @@ import { ListTodo, Columns, CalendarDays, Plus, Settings, Layers, Eye } from 'lu
 import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { Button } from '@DESIGN/components/ui/Button';
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+import { cn } from '@TOOL/utils/cn';
 
 interface ToolbarProps {
   activeTab: string;
@@ -25,7 +20,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({ activeTab, viewMode, setViewMo
   if (activeTab === 'CONTRACT' || activeTab === 'DESIGN') return null;
 
   return (
-    <div className={`h-14 bg-cad-surface border-b border-cad-border flex justify-between items-center px-4 gap-2 z-cad-panel relative shadow-sm`}>
+    <div className={`h-10 bg-cad-surface border-b border-cad-border flex justify-between items-center px-4 gap-2 z-cad-panel relative shadow-sm`}>
 
       {/* Left side: View Toggle or Design Tools */}
       <div className="flex items-center gap-3">
@@ -101,7 +96,7 @@ function DesignToolbarTools({ togglePalette }: { togglePalette: (id: string) => 
         icon={Eye}
         label="DORI"
         tooltip={showDORILayers ? "Ẩn vùng phủ camera" : "Hiện vùng phủ camera"}
-        activeColorClass="text-orange-400 border-orange-400/30 bg-orange-400/10"
+        activeColorClass="text-cad-accent border-cad-accent/30 bg-cad-accent/10"
       />
 
       <div className="w-[1px] h-5 bg-cad-border mx-1"></div>

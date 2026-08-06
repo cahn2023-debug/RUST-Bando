@@ -552,15 +552,12 @@ const getPropertiesHash = (props: any): number => {
 };
 
 const featureListKey = (features: FeatureState[], mapRevision: number, viewportRevision: number) => {
-    let geoHash = 0;
-    for (let i = 0; i < features.length; i++) {
-        const f = features[i];
-        if (!f) continue;
-        geoHash = (geoHash + getCoordsHash(f.coordinates)) | 0;
-        geoHash = (geoHash + getMetadataHash(f.metadata)) | 0;
-        geoHash = (geoHash + getPropertiesHash(f.properties)) | 0;
-    }
-    return `${mapRevision}:${viewportRevision}:${features.length}:${geoHash}`;
+    const len = features.length;
+    if (len === 0) return `${mapRevision}:${viewportRevision}:0`;
+    const f0 = features[0];
+    const fLast = features[len - 1];
+    const sampleHash = (getCoordsHash(f0?.coordinates) + getCoordsHash(fLast?.coordinates)) | 0;
+    return `${mapRevision}:${viewportRevision}:${len}:${sampleHash}`;
 };
 
 const featureGroupsKey = (featureGroups: Record<string, any>) => Object.keys(featureGroups || {})
@@ -1354,7 +1351,6 @@ export function MapLibreFastRenderer({
         effectiveHiddenIds,
         reportCaptureFocusIds,
         renderCacheKey,
-        renderFeatureValues,
         renderZoom,
         showFeatureGroups,
     ]);

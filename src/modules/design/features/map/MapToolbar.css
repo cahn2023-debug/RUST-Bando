@@ -2,7 +2,7 @@
     position: absolute;
     top: 20px;
     left: 20px;
-    z-index: 1000;
+    z-index: var(--z-cad-map-control, 1000);
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -10,9 +10,9 @@
 }
 
 .map-toolbar-group {
-    background: rgba(255, 255, 255, 0.85);
+    background: var(--cad-surface);
     backdrop-filter: blur(8px);
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border: 1px solid var(--cad-border);
     border-radius: 10px;
     padding: 6px;
     display: flex;
@@ -27,7 +27,7 @@
     border-radius: 6px;
     border: none;
     background: transparent;
-    color: #444;
+    color: var(--cad-text-muted);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -36,37 +36,24 @@
 }
 
 .toolbar-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: #ff6b00; /* n8n orange */
+    background: var(--cad-elevated);
+    color: var(--cad-accent);
 }
 
 .toolbar-btn.active {
-    background: #ff6b00;
-    color: white;
-    box-shadow: 0 2px 8px rgba(255, 107, 0, 0.3);
+    background: var(--cad-accent);
+    color: #ffffff;
+    box-shadow: 0 2px 8px var(--cad-accent);
 }
 
 .toolbar-separator {
     height: 1px;
-    background: rgba(0, 0, 0, 0.08);
+    background: var(--cad-border);
     margin: 2px 4px;
 }
 
 .delete-btn:hover {
-    background: #fee2e2;
-    color: #dc2626;
+    background: var(--cad-elevated);
+    color: var(--cad-danger, #ef4444);
 }
 
-/* Dark mode support */
-[data-theme='dark'] .map-toolbar-group {
-    background: rgba(30, 30, 30, 0.85);
-    border-color: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme='dark'] .toolbar-btn {
-    color: #ccc;
-}
-
-[data-theme='dark'] .toolbar-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-}

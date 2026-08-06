@@ -469,7 +469,6 @@ describe('mapLibreFastAdapter', () => {
         ];
 
         const { collection } = buildMapLibreFeatureCollection({ features, zoom: 20 });
-        console.log('RENDERED FEATURE IDS:', collection.features.map(f => f.properties.id));
         const byId = Object.fromEntries(collection.features.map(feature => [feature.properties.id, feature]));
 
         expect(byId.point.geometry.type).toBe('Point');

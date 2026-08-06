@@ -80,7 +80,7 @@ function parseRawCoordinates(raw: unknown): ParsedCoordinates {
       return null;
     }
   }
-  if (Array.isArray(raw)) {
+  if (Array.isArray(raw) || typeof raw === 'object') {
     return raw as ParsedCoordinates;
   }
   return null;

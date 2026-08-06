@@ -4,6 +4,7 @@ import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getParsedMetadata, normalizeFeatureSymbolData, getObjectTypeForIcon } from '@TOOL/utils/featureUtils';
 import { confirmUserAction } from '@TOOL/utils/userConfirmation';
 import { Button } from '@DESIGN/components/ui/Button';
+import { Modal } from '@DESIGN/components/ui/Modal';
 import type { DesignEventType } from '@CONTRACT/designTypes';
 import type { FeatureGroupState, FeatureProperties, FeatureState } from '@CONTRACT/types';
 
@@ -488,13 +489,13 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
   };
 
   return (
-    <div className="fixed inset-0 z-cad-modal flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="group-theme-title"
-        className="bg-cad-surface border border-cad-border rounded-lg shadow-2xl w-full max-w-md overflow-hidden flex flex-col font-sans"
-      >
+    <Modal
+      isOpen={true}
+      onClose={handleCancel}
+      titleId="group-theme-title"
+      size="md"
+      className="overflow-hidden flex flex-col font-sans"
+    >
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-cad-border bg-cad-elevated">
@@ -692,7 +693,6 @@ export function ThemeModal({ groupId, groupName, onClose, targetFeatureIds }: Th
           </Button>
         </div>
 
-      </div>
-    </div>
+    </Modal>
   );
 }
