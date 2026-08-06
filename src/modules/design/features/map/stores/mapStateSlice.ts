@@ -542,6 +542,9 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         const deletedFeatureIds = new Set<string>();
         const updatedFeatureIds = new Set<string>();
         let shouldRefreshViewport = false;
+        // Track new feature payloads that should be injected into visibleFeatures immediately
+        // on large project (viewport-first mode) without waiting for the async queryVisibleFeaturesV2 IPC call.
+        const newLargeProjectFeatures = new Map<string, any>();
 
         const applySingle = (event: DesignEventType) => {
             const { type, payload } = event as any;
@@ -549,6 +552,18 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 case 'FeatureCreated':
                 case 'FeatureUpdated': {
                     if (type === 'FeatureCreated' && hasRenderableCoordinates(payload)) {
+                        shouldRefreshViewport = true;
+                        // On large project, directly inject new features into visibleFeatures
+                        // so they appear immediately without waiting for the async queryVisibleFeaturesV2 path.
+                        // Guard: only inject non-default features (default point placeholders are excluded).
+                        if (currentState.isLargeProject && !isDefaultPointProperties(payload.properties)) {
+                            newLargeProjectFeatures.set(payload.id, payload);
+                        }
+                    }
+                    if (type === 'FeatureUpdated' && currentState.isLargeProject) {
+                        // FeatureUpdated on large project: trigger viewport refresh so queryVisibleFeaturesV2
+                        // is called again. Also, syncUpdatedFeatureCaches (below) will update the feature
+                        // in visibleFeatures if it is already present there.
                         shouldRefreshViewport = true;
                     }
                     const currentFeature = resolveFeatureById(storeState, newState, payload.id);
@@ -662,12 +677,47 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         }
 
         const normalizedState = normalizeMapStateForDisplay(newState);
-        set((s) => ({
-            state: normalizedState,
-            ...(shouldRefreshViewport ? { viewportRevision: s.viewportRevision + 1 } : {}),
-            ...syncUpdatedFeatureCaches(s, updatedFeatureIds, normalizedState),
-            ...cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState)
-        }));
+        set((s) => {
+            const cacheUpdates = syncUpdatedFeatureCaches(s, updatedFeatureIds, normalizedState);
+            const deleteUpdates = cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState);
+
+            // On large project, inject newly created non-default features directly into visibleFeatures
+            // so they appear immediately without waiting for the async queryVisibleFeaturesV2 IPC path.
+            let injectUpdates: Partial<typeof s> = {};
+            if (newLargeProjectFeatures.size > 0) {
+                let nextVisibleFeatures = { ...(cacheUpdates.visibleFeatures ?? s.visibleFeatures) };
+                let nextVisibleFeatureIds = [...(s.visibleFeatureIds)];
+                let featureDetailsCache = { ...(cacheUpdates.featureDetailsCache ?? s.featureDetailsCache) };
+                newLargeProjectFeatures.forEach((payload, id) => {
+                    const normalizedFeature = normalizedState.features?.[id];
+                    if (normalizedFeature) {
+                        const featureWithGroup = normalizeFeatureForDisplay(
+                            normalizedFeature,
+                            undefined,
+                            normalizedState.feature_groups?.[normalizedFeature.group_id as string]
+                        );
+                        nextVisibleFeatures[id] = featureWithGroup;
+                        if (!nextVisibleFeatureIds.includes(id)) {
+                            nextVisibleFeatureIds = [...nextVisibleFeatureIds, id];
+                        }
+                        featureDetailsCache[id] = featureWithGroup;
+                    }
+                });
+                injectUpdates = {
+                    visibleFeatures: nextVisibleFeatures,
+                    visibleFeatureIds: nextVisibleFeatureIds,
+                    featureDetailsCache,
+                };
+            }
+
+            return {
+                state: normalizedState,
+                ...(shouldRefreshViewport ? { viewportRevision: s.viewportRevision + 1 } : {}),
+                ...cacheUpdates,
+                ...deleteUpdates,
+                ...injectUpdates,
+            };
+        });
         if (IS_DEV) {
             console.log(`[Sync] Patch applied for ${normalizedState.lastEventId}`);
         }

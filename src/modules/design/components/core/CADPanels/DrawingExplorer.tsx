@@ -396,12 +396,15 @@ export function DrawingExplorer() {
   };
 
   useEffect(() => {
-    if (selectedFeatureId && flattenedItems.length > 0 && virtuosoRef.current) {
-      const idx = flattenedItems.findIndex(item => item.type === 'feature' && item.id === selectedFeatureId);
-      if (idx !== -1) {
-        setTimeout(() => virtuosoRef.current?.scrollToIndex({ index: idx, align: 'center' }), 150);
-      }
-    }
+    if (!selectedFeatureId || flattenedItems.length === 0 || !virtuosoRef.current) return;
+    const idx = flattenedItems.findIndex(item => item.type === 'feature' && item.id === selectedFeatureId);
+    if (idx === -1) return;
+    // Use a slightly longer delay to allow the tree expand animation/re-render to settle
+    // before attempting the virtualized scroll, ensuring the item is visible in the list.
+    const timer = setTimeout(() => {
+      virtuosoRef.current?.scrollToIndex({ index: idx, align: 'center' });
+    }, 300);
+    return () => clearTimeout(timer);
   }, [selectedFeatureId, flattenedItems]);
 
   useEffect(() => {

@@ -51,6 +51,7 @@ export interface MapLibreRenderFeatureProperties {
     objectType?: string;
     isCamera?: boolean;
     isIntersection?: boolean;
+    isIntersectionChild?: boolean;
     rotation?: number;
     displaySize?: number;
     labelIndex?: string;

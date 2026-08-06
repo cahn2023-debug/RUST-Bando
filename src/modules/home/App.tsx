@@ -7,7 +7,7 @@ import { ProjectDetail } from "@IMPLEMENT/features/project-management/ProjectDet
 import { useProjectManager } from "@IMPLEMENT/hooks/useProjectManager";
 import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
-import { useLayoutStore, selectRightWidth, selectBottomHeight } from "@IMPLEMENT/stores/useLayoutStore";
+import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
 
 // Extracted components
 import { AppBootstrap } from "./AppBootstrap";
@@ -23,11 +23,10 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
 import { MapProvider } from "@DESIGN/features/map/MapContext";
-import { BasemapProvider, PersistentBasemapHost } from "@/core/basemap";
+import { BasemapProvider, PersistentBasemapHost, BasemapControls } from "@/core/basemap";
 import { markMapStartup } from "@DESIGN/features/map/mapStartupTelemetry";
 import type { BasemapLifecycleState } from "@/core/basemap";
-
-const PersistentMapHost = PersistentBasemapHost;
+import "./WorkspaceGrid.css";
 
 const mapStartupMilestoneByLifecycle: Partial<Record<BasemapLifecycleState, Parameters<typeof markMapStartup>[0]>> = {
   mounting: "host-mounted",
@@ -40,9 +39,6 @@ const mapStartupMilestoneByLifecycle: Partial<Record<BasemapLifecycleState, Para
 export default function App() {
   const { loadSettings } = useSettingsStore();
   const { logout } = useAuthStore();
-  const leftWidth = useLayoutStore((s) => s.leftWidth);
-  const rightWidth = useLayoutStore(selectRightWidth);
-  const bottomHeight = useLayoutStore(selectBottomHeight);
   const pendingSync = useDesignSync((state) => state.pendingSync);
   const syncStatus = useDesignSync((state) => state.syncStatus);
   const syncError = useDesignSync((state) => state.error);
@@ -303,60 +299,63 @@ export default function App() {
             onContractTypeChange={setContractType}
           />
 
-          <div className="flex-1 min-h-0 min-w-0 flex overflow-hidden relative">
-            {/* PersistentMapHost is mounted unconditionally on app launch and bounded inside central frame */}
+          <div className="flex-1 workspace-grid">
+            {/*
+              The basemap occupies the `center` grid cell. Because the docks are
+              real grid siblings, hiding a dock collapses its track and the map
+              grows into the freed space automatically — on every tab, not just
+              DESIGN. Nothing here computes an inset.
+            */}
             <div
-              className={`absolute z-0 transition-all duration-150 ease-out ${isMapSurfaceActive ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-              style={{
-                top: 0,
-                left: activeTab === 'DESIGN' ? `${leftWidth}px` : 0,
-                right: activeTab === 'DESIGN' ? `${rightWidth}px` : 0,
-                bottom: activeTab === 'DESIGN' ? `${bottomHeight}px` : 0,
-              }}
+              className={`workspace-center workspace-center--map ${isMapSurfaceActive ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
               aria-hidden={!isMapSurfaceActive}
             >
-              <PersistentMapHost
+              <PersistentBasemapHost
                 onLifecycleState={(state) => {
                   const milestone = mapStartupMilestoneByLifecycle[state];
                   if (milestone) markMapStartup(milestone, { source: "persistent-basemap" });
                 }}
               />
+              {isMapSurfaceActive && <BasemapControls />}
             </div>
 
-            <main className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden relative z-10 pointer-events-none">
-              {activeTab === "ADMIN" ? (
-                <div className="flex-1 min-h-0 pointer-events-auto"><AdminPanel /></div>
-              ) : selectedProject && activeTab !== "HOME" ? (
-                <div className={`flex-1 min-h-0 ${activeTab === "DESIGN" ? "pointer-events-none" : "pointer-events-auto"}`}>
-                  <ProjectDetail
-                    key={selectedProject.path}
-                    project={selectedProject}
-                    activeTab={activeTab}
-                    contractType={contractType}
-                    onProjectUpdate={refreshProject}
-                  />
-                </div>
-              ) : (
-                <div className="flex-1 min-h-0 pointer-events-auto">
-                  <HomeDashboard
-                    projects={projects}
-                    loadingProjects={loadingProjects}
-                    onOpenProject={handleOpenProject}
-                    onDeleteProject={(event, project) => {
-                      handleDeleteProject(event, project);
-                      return Promise.resolve();
-                    }}
-                    onSelectProject={async (project) => {
-                      setActiveTab("DESIGN");
-                      const success = await handleOpenProject(project.path);
-                      if (!success) setActiveTab("HOME");
-                    }}
-                    onShowCreate={() => setShowCreate(true)}
-                    onRestoreFromConfig={handleRestoreFromConfig}
-                  />
-                </div>
-              )}
-            </main>
+            {activeTab === "ADMIN" ? (
+              <main className="workspace-center workspace-center--content flex flex-col overflow-hidden">
+                <AdminPanel />
+              </main>
+            ) : selectedProject && activeTab !== "HOME" ? (
+              /*
+                ProjectDetail spreads its own children across the left/center/
+                right/bottom grid areas, so it must not introduce a box of its
+                own — hence the pass-through wrapper.
+              */
+              <ProjectDetail
+                key={selectedProject.path}
+                project={selectedProject}
+                activeTab={activeTab}
+                contractType={contractType}
+                onProjectUpdate={refreshProject}
+              />
+            ) : (
+              <main className="workspace-center workspace-center--content flex flex-col overflow-hidden">
+                <HomeDashboard
+                  projects={projects}
+                  loadingProjects={loadingProjects}
+                  onOpenProject={handleOpenProject}
+                  onDeleteProject={(event, project) => {
+                    handleDeleteProject(event, project);
+                    return Promise.resolve();
+                  }}
+                  onSelectProject={async (project) => {
+                    setActiveTab("DESIGN");
+                    const success = await handleOpenProject(project.path);
+                    if (!success) setActiveTab("HOME");
+                  }}
+                  onShowCreate={() => setShowCreate(true)}
+                  onRestoreFromConfig={handleRestoreFromConfig}
+                />
+              </main>
+            )}
           </div>
 
           <StatusBar />

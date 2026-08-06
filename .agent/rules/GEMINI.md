@@ -22,14 +22,14 @@ trigger: always_on
 
 ---
 
-## 🔄 2. PDCA CYCLE (Vòng đời quản trị)
+## 🔄 2. PDCA CYCLE (Vòng đời quản trị Sol-Advisor)
 
-Mọi tác vụ lớn (Feature/Refactor) phải tuân thủ nghiêm ngặt chu trình:
+Mọi tác vụ triển khai code (Feature/Refactor/Fix) BẮT BUỘC phải tuân thủ nghiêm ngặt chu trình Sol-Advisor:
 
-1. **PLAN**: Lập kế hoạch -> `/plan`
-2. **DO**: Thực thi bởi Specialist Agents.
-3. **CHECK**: Kiểm tra bởi `quality-inspector`.
-4. **ACT**: Tối ưu hóa & Phê duyệt.
+1. **PLAN (Bắt buộc)**: Lập kế hoạch kiến trúc 5 phần -> Skill `/getplan` (`docs/PLAN-{slug}.md`).
+2. **DO (Thực thi)**: Thực thi code từng bước (Terra Lane) theo đúng kế hoạch.
+3. **CHECK (Review độc lập)**: Kiểm tra tự động & soi diff độc lập (Fresh Sol Reviewer).
+4. **ACT (Nghiệm thu)**: Xác nhận trạng thái `[SHIP]` và báo cáo kết quả.
 
 ---
 

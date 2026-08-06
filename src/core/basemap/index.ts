@@ -1,6 +1,32 @@
-export { BasemapContext, BasemapProvider, useBasemap } from './BasemapContext';
+export { BasemapContext, BasemapProvider, useBasemap, useOptionalBasemapController } from './BasemapContext';
 export { BasemapRuntime, createBasemapRuntime } from './BasemapRuntime';
 export { PersistentBasemapHost } from './PersistentBasemapHost';
+export { BasemapControls } from './BasemapControls';
+export { MeasurePanel, formatArea, formatDistance, sphericalArea, totalLength } from './BasemapMeasure';
+export type { MeasureMode } from './BasemapMeasure';
+export { useBasemapCamera, useBasemapLifecycle, useBasemapPreset } from './useBasemapState';
+export {
+    BASEMAP_PREFERENCES_STORAGE_KEY,
+    loadStoredPreferences,
+    loadStoredPresetId,
+    storePreferences,
+} from './basemapStorage';
+export {
+    BASEMAP_TILE_PROTOCOL,
+    deriveTileSourceKey,
+    isTileCacheAvailable,
+    registerBasemapTileProtocol,
+    resetBasemapTileCacheRegistry,
+    shardTemplate,
+    toCachedTileUrls,
+} from './tileCache';
+export {
+    enumerateTiles,
+    prefetchBasemapTiles,
+    scheduleBasemapPrefetch,
+    VIETNAM_BOUNDS,
+} from './tilePrefetch';
+export type { PrefetchReport } from './tilePrefetch';
 export {
     BASEMAP_PRESETS,
     DEFAULT_BASEMAP_CAMERA,

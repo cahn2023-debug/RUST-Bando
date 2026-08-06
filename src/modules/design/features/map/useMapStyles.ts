@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
 import {
     BASEMAP_PRESETS,
     DEFAULT_BASEMAP_PREFERENCES,
     getBasemapPreset,
     getStyledBasemapTiles,
-    migrateBasemapPresetId,
+    useBasemapPreset,
     type BasemapPreset,
     type BasemapPresetId,
 } from '@/core/basemap';
@@ -26,55 +26,38 @@ export interface MapStyleSettings extends MapFeatures {
 
 export type MapBasemapPreset = BasemapPreset & { kind: MapBasemapKind };
 
-const MAP_FEATURES_STORAGE_KEY = 'design.map.features';
-
 export const MAP_BASEMAP_PRESETS = BASEMAP_PRESETS as ReadonlyArray<MapBasemapPreset>;
 
 const DEFAULT_BASEMAP_ID: MapBasemapId = DEFAULT_BASEMAP_PREFERENCES.presetId;
-const DEFAULT_MAP_FEATURES: MapFeatures = {
-    roads: DEFAULT_BASEMAP_PREFERENCES.roads,
-    roadNames: DEFAULT_BASEMAP_PREFERENCES.roadNames,
-    buildings: DEFAULT_BASEMAP_PREFERENCES.buildings,
-    pois: DEFAULT_BASEMAP_PREFERENCES.pois,
-    labels: DEFAULT_BASEMAP_PREFERENCES.labels
-};
 
 const getPreset = (basemapId: MapBasemapId) => getBasemapPreset(basemapId) as MapBasemapPreset;
 
-const getSavedMapSettings = (): MapStyleSettings => {
-    const defaults = { ...DEFAULT_MAP_FEATURES, basemapId: DEFAULT_BASEMAP_ID };
-    if (typeof window === 'undefined') return defaults;
-
-    try {
-        const savedFeatures = window.localStorage.getItem(MAP_FEATURES_STORAGE_KEY);
-        if (!savedFeatures) return defaults;
-
-        const parsedFeatures = JSON.parse(savedFeatures) as Partial<MapStyleSettings>;
-        return {
-            roads: typeof parsedFeatures.roads === 'boolean' ? parsedFeatures.roads : DEFAULT_MAP_FEATURES.roads,
-            roadNames: typeof parsedFeatures.roadNames === 'boolean' ? parsedFeatures.roadNames : DEFAULT_MAP_FEATURES.roadNames,
-            buildings: typeof parsedFeatures.buildings === 'boolean' ? parsedFeatures.buildings : DEFAULT_MAP_FEATURES.buildings,
-            pois: typeof parsedFeatures.pois === 'boolean' ? parsedFeatures.pois : DEFAULT_MAP_FEATURES.pois,
-            labels: typeof parsedFeatures.labels === 'boolean' ? parsedFeatures.labels : DEFAULT_MAP_FEATURES.labels,
-            basemapId: migrateBasemapPresetId(parsedFeatures.basemapId),
-        };
-    } catch {
-        return defaults;
-    }
-};
-
+/**
+ * Design-module view of the basemap selection.
+ *
+ * This used to hold its own copy of the selection in
+ * `localStorage['design.map.features']`, which meant the design module and the
+ * core runtime each believed they owned the basemap and could disagree — switch
+ * layers in one and the other kept its old answer. The selection now lives in
+ * `BasemapRuntime`, which persists it under `basemap.preferences`, and this hook
+ * is a thin adapter that keeps the existing call sites working.
+ *
+ * Kept as a separate hook rather than deleted so the design module retains its
+ * own vocabulary (`basemapId`, `mapFeatures`) and the `MapFeatures` shape its
+ * settings panel is built around.
+ */
 export function useMapStyles() {
-    const [settings, setSettings] = useState<MapStyleSettings>(getSavedMapSettings);
-    const basemapId = settings.basemapId;
-    const { basemapId: _localBasemapId, ...mapFeatures } = settings;
+    const { presetId, preferences, setPreset } = useBasemapPreset();
 
-    useEffect(() => {
-        try {
-            window.localStorage.setItem(MAP_FEATURES_STORAGE_KEY, JSON.stringify(settings));
-        } catch {
-            // localStorage can be unavailable in restricted browser contexts.
-        }
-    }, [settings]);
+    const basemapId = presetId ?? DEFAULT_BASEMAP_ID;
+
+    const mapFeatures = useMemo<MapFeatures>(() => ({
+        roads: preferences.roads,
+        roadNames: preferences.roadNames,
+        buildings: preferences.buildings,
+        pois: preferences.pois,
+        labels: preferences.labels,
+    }), [preferences.roads, preferences.roadNames, preferences.buildings, preferences.pois, preferences.labels]);
 
     const getStyledTiles = useCallback((targetBasemapId = basemapId) => (
         getStyledBasemapTiles(targetBasemapId, mapFeatures)
@@ -86,17 +69,19 @@ export function useMapStyles() {
     }, [basemapId, getStyledTiles]);
 
     const setMapFeatures = useCallback<Dispatch<SetStateAction<MapFeatures>>>((nextFeatures) => {
-        setSettings(prev => {
-            const resolved = typeof nextFeatures === 'function' ? nextFeatures(prev) : nextFeatures;
-            return { ...prev, ...resolved, basemapId: prev.basemapId };
-        });
-    }, []);
+        const resolved = typeof nextFeatures === 'function' ? nextFeatures(mapFeatures) : nextFeatures;
+        setPreset(basemapId, resolved);
+    }, [basemapId, mapFeatures, setPreset]);
 
     const setBasemapId = useCallback((nextBasemapId: MapBasemapId) => {
-        setSettings(prev => ({ ...prev, basemapId: nextBasemapId }));
-    }, []);
+        setPreset(nextBasemapId);
+    }, [setPreset]);
 
-    const mapKey = useMemo(() => JSON.stringify(settings), [settings]);
+    // Identity of the current styling, used by consumers to detect real changes.
+    const mapKey = useMemo(
+        () => JSON.stringify({ ...mapFeatures, basemapId }),
+        [basemapId, mapFeatures]
+    );
     const activeBasemapPreset = useMemo(() => getPreset(basemapId), [basemapId]);
 
     return {

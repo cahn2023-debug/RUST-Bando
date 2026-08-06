@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, startTransition } from "react";
 import { safeInvoke as invoke, safeOpenDialog, IS_REAL_TAURI } from "@IMPLEMENT/lib/tauri";
 import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
 import { Project } from "@CONTRACT/types";
 import { useTabStore } from "@IMPLEMENT/TabInProgram/useTabStore";
 import { backfillProjectPath } from "./projectPathUtils";
 import { openProjectBootstrap } from "@TOOL/utils/designIpc";
+import { invalidateAll } from "@DESIGN/features/map/coordinateCache";
 
 const normalizeProject = (project: Project | null | undefined): Project | null => {
     if (!project || !project.path) {
@@ -33,6 +34,19 @@ const isProjectLoadable = (project: Project | null | undefined): project is Proj
     !!project && !!project.id && !!project.path;
 
 const startupHydrationInFlight = new Set<string>();
+
+/**
+ * Creates a promise that rejects with a timeout error after `ms` milliseconds.
+ * The timer is cleared after rejection to avoid memory leaks.
+ * Use with `Promise.race` to enforce a hard deadline on async operations.
+ */
+const createTimeoutPromise = (ms: number): Promise<never> =>
+    new Promise<never>((_, reject) => {
+        const timer = setTimeout(() => {
+            clearTimeout(timer);
+            reject(new Error(`Bootstrap timed out after ${ms / 1000}s`));
+        }, ms);
+    });
 
 export function useProjectManager() {
     const [projects, setProjects] = useState<Project[]>([]);
@@ -87,6 +101,12 @@ export function useProjectManager() {
                 hydratedProject = activeProject;
             }
 
+            // Fire bootstrap early — do NOT await here so UI shell setup can proceed in parallel
+            const activePath = hydratedProject?.path;
+            const bootstrapPromise = activePath
+                ? openProjectBootstrap(activePath, requestId)
+                : Promise.resolve(null);
+
             let currentProjects: Project[] = [];
             if (recentProjectsResult.status === "fulfilled") {
                 currentProjects = (Array.isArray(recentProjectsResult.value) ? recentProjectsResult.value : [])
@@ -110,6 +130,8 @@ export function useProjectManager() {
 
             console.info("Final Hydrated Project:", hydratedProject?.name || "None");
             hydratedProject = backfillProjectPath(hydratedProject, currentProjects);
+
+            // Update recent projects and selectedProject state immediately — no need to wait for bootstrap
             setProjects(currentProjects);
 
             if (isProjectLoadable(hydratedProject)) {
@@ -124,12 +146,32 @@ export function useProjectManager() {
                 if (!isAlreadyLoaded && !startupHydrationInFlight.has(hydrationKey)) {
                     startupHydrationInFlight.add(hydrationKey);
                     try {
-                        const bootstrap = await openProjectBootstrap(hydratedProject.path, requestId);
+                        // Await the bootstrap promise that was fired early above, with a 30s timeout guard.
+                        // On timeout: log a warning, surface an error in the store, and return early —
+                        // do NOT rethrow so the timeout is not reported as a critical loadProjects failure.
+                        const bootstrap = await Promise.race([bootstrapPromise, createTimeoutPromise(30_000)]).catch((err: unknown) => {
+                            const isTimeout = err instanceof Error && err.message.startsWith('Bootstrap timed out');
+                            if (isTimeout) {
+                                console.warn('[useProjectManager] Bootstrap timed out after 30s for path:', activePath);
+                                currentSyncState.setError('Không thể nạp dữ liệu dự án do quá thời gian chờ (30s). Vui lòng thử lại.');
+                                return null;
+                            }
+                            throw err;
+                        });
                         if (requestId !== requestIdRef.current) {
                             console.warn("[useProjectManager] Startup bootstrap became stale; skipping initialize.");
                             return;
                         }
-                        await currentSyncState.initialize(hydratedProject.id, hydratedProject.path, { bootstrap });
+                        if (!bootstrap) {
+                            console.warn("[useProjectManager] Startup bootstrap failed/timed out; skipping initialize.");
+                            return;
+                        }
+                        // Invalidate coordinate cache before switching project data
+                        invalidateAll();
+                        // Wrap initialize() in startTransition so React can yield during this non-urgent update
+                        startTransition(() => {
+                            currentSyncState.initialize(hydratedProject!.id, hydratedProject!.path, { bootstrap });
+                        });
                     } catch (err) {
                         console.warn("[useProjectManager] Startup project bootstrap failed:", err);
                     } finally {
@@ -258,9 +300,30 @@ export function useProjectManager() {
 
             const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
 
+            // Check if project is already loaded — skip full bootstrap to avoid redundant IPC
+            const syncState = useDesignSync.getState();
+            const pathAlreadyActive = syncState.projectPath === selectedPath || syncState.projectKey === selectedPath;
+            if (pathAlreadyActive && syncState.state && !syncState.isLoading && !syncState.error) {
+                console.info(`[useProjectManager] Project already loaded at path, skipping bootstrap: ${selectedPath}`);
+                const existingProject = projectsRef.current.find(p => p.path === selectedPath);
+                if (existingProject) {
+                    applyOpenedProject(existingProject, false);
+                    return true;
+                }
+            }
+
             console.info(`[useProjectManager] Attempting to bootstrap PMP file: ${selectedPath}`);
             const bootstrapStart = performance.now();
-            const bootstrap = await openProjectBootstrap(selectedPath, requestId);
+            const bootstrap = await Promise.race([
+                openProjectBootstrap(selectedPath, requestId),
+                createTimeoutPromise(30_000),
+            ]).catch((err: unknown) => {
+                const isTimeout = err instanceof Error && err.message.startsWith('Bootstrap timed out');
+                if (isTimeout) {
+                    console.warn('[useProjectManager] Bootstrap timed out after 30s for path:', selectedPath);
+                }
+                throw err;
+            });
             if (!bootstrap) {
                 throw new Error("open_project_bootstrap returned no bootstrap data");
             }
@@ -302,9 +365,13 @@ export function useProjectManager() {
                 const isAlreadyLoaded = currentSyncState.projectId === project.id && currentSyncState.state && !currentSyncState.isLoading;
 
                 applyOpenedProject(project, true);
-                await currentSyncState.initialize(project.id, project.path, {
-                    forceReload: !isAlreadyLoaded,
-                    bootstrap
+                // Wrap initialize() in startTransition + defer to free the click handler immediately
+                // instead of blocking for the full initialize duration.
+                startTransition(() => {
+                    void currentSyncState.initialize(project.id, project.path, {
+                        forceReload: !isAlreadyLoaded,
+                        bootstrap
+                    });
                 });
                 scheduleProjectIndexing(project.id);
 

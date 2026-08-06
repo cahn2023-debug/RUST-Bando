@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
 import { useMapContext } from '../MapContext';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+import { getCoordinates } from '../coordinateCache';
 
 export const isValidLatLng = (lat: number, lng: number) => {
     return Math.abs(lat) > 0.0001 && Math.abs(lng) > 0.0001 &&
@@ -74,9 +75,7 @@ export function ZoomExtendControl() {
 
                 try {
                     const rawCoords = f.coordinates as any;
-                    const coords = typeof rawCoords === 'string'
-                        ? (rawCoords.trim().startsWith('[') ? JSON.parse(rawCoords) : null)
-                        : rawCoords;
+                    const coords = getCoordinates(f.id, rawCoords);
                     if (!coords) continue;
                     const type = (f.geom_type || 'Point').toUpperCase();
 

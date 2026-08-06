@@ -549,22 +549,17 @@ export const useLayoutStore = create<LayoutState>()(
     )
 );
 
-export const selectRightWidth = (state: { layoutColumns: string[][]; paletteConfigs: Record<string, PaletteConfig> }) => {
-    const rightColumns = state.layoutColumns
-        .map(column => column.filter(id => {
-            const config = state.paletteConfigs[id];
-            return config?.isVisible && !config?.isFloating && config?.dockPosition !== 'bottom';
-        }))
-        .filter(column => column.length > 0);
-    return PALETTE_SIDEBAR_WIDTH + rightColumns.reduce((sum, col) => sum + (state.paletteConfigs[col[0]]?.width || 350), 0);
-};
-
-export const selectBottomHeight = (state: { layoutColumns: string[][]; paletteConfigs: Record<string, PaletteConfig> }) => {
-    const bottomPalettes = state.layoutColumns
-        .flat()
-        .filter(id => {
-            const config = state.paletteConfigs[id];
-            return config?.dockPosition === 'bottom' && config?.isVisible && !config?.isFloating;
-        });
-    return bottomPalettes.reduce((sum, id) => sum + (state.paletteConfigs[id]?.height || 320), 0);
-};
+/*
+ * `selectRightWidth` and `selectBottomHeight` were removed deliberately.
+ *
+ * They existed only so the shell could inset the basemap by hand to fake the
+ * space docks occupy. Their arithmetic diverged from what PaletteSystem
+ * actually rendered (they guessed a column's width from its FIRST palette even
+ * when that palette was hidden, and ignored floating panels), which is why
+ * docks overhung the map. The shell now uses CSS Grid — see
+ * `src/modules/home/WorkspaceGrid.css` — so dock size is expressed once, by the
+ * docks themselves, and the basemap track resizes on its own.
+ *
+ * Do not reintroduce these: any consumer that needs to know a dock's size is a
+ * sign that something is being positioned outside the grid.
+ */

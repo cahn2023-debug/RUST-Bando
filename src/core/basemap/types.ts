@@ -67,6 +67,12 @@ export interface BasemapRuntimeConfig {
     tileRequestTimeoutMs: number;
     fallbackPresetId?: BasemapPresetId;
     pixelRatioLimit: number;
+    /**
+     * Seed the on-disk tile cache with low-zoom Vietnam coverage shortly after
+     * the first frame, so opening a project never faces an empty map. No-op
+     * outside the desktop shell, where there is no cache to seed.
+     */
+    warmCacheOnLaunch: boolean;
 }
 
 export interface CameraTransitionOptions {
@@ -92,7 +98,11 @@ export interface BasemapController {
     setCamera(camera: Partial<CameraState>, options?: CameraTransitionOptions): void;
     fitBounds(bounds: GeographicBounds, options?: FitBoundsOptions): void;
     setPreset(presetId: BasemapPresetId, preferences?: Partial<BasemapPreferences>): void;
+    getPresetId(): BasemapPresetId;
+    getPreferences(): BasemapPreferences;
+    zoomBy(delta: number): void;
     setVisibility(visible: boolean): void;
     subscribeCamera(listener: (snapshot: CameraSnapshot) => void): Unsubscribe;
     subscribeLifecycle(listener: (state: BasemapLifecycleState) => void): Unsubscribe;
+    subscribePreset(listener: (presetId: BasemapPresetId, preferences: BasemapPreferences) => void): Unsubscribe;
 }

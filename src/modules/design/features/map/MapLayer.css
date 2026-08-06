@@ -28,10 +28,6 @@
     outline: none;
 }
 
-.design-maplibre-fast .maplibregl-control-container {
-    display: none;
-}
-
 .design-maplibre-fast canvas,
 .design-basemap-tile {
     filter: none !important;

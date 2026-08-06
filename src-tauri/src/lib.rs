@@ -161,6 +161,10 @@ pub fn run() {
             crate::domain::implement::commands::gis_commands::st_transform,
             crate::domain::implement::commands::gis_commands::st_measure_feature,
             crate::domain::implement::commands::gis_commands::st_spatial_relate,
+            crate::domain::implement::modules::basemap::tile_cache::get_basemap_tile,
+            crate::domain::implement::modules::basemap::tile_cache::prefetch_basemap_tiles,
+            crate::domain::implement::modules::basemap::tile_cache::get_basemap_cache_stats,
+            crate::domain::implement::modules::basemap::tile_cache::clear_basemap_tile_cache,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

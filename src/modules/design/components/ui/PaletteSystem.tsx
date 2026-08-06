@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode, useEffect } from "react";
-import { PALETTE_SIDEBAR_WIDTH, useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
+import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
 import { PalettePanel } from "@DESIGN/features/map/Palette/PalettePanel";
 import { VerticalResizeHandle } from "@DESIGN/components/ui/VerticalResizeHandle";
 import { ResizeHandle } from "@DESIGN/components/ui/ResizeHandle";
@@ -123,14 +123,21 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
         .flat()
         .filter(id => paletteConfigs[id]?.dockPosition === 'bottom' && paletteConfigs[id]?.isVisible && !paletteConfigs[id]?.isFloating);
 
-    const bottomHeight = bottomPalettes.reduce((sum, id) => sum + (paletteConfigs[id]?.height || 320), 0);
+    const floatingPalettes = Object.keys(paletteConfigs).filter(id => {
+        return paletteConfigs[id].isFloating && paletteConfigs[id].isVisible;
+    });
 
     return (
         <>
-        <div
-            className="flex shrink-0 palette-container flex-row-reverse overflow-x-auto transition-all duration-150 ease-in-out pointer-events-auto h-full min-h-0"
-            style={{ height: bottomHeight > 0 ? `calc(100% - ${bottomHeight}px)` : '100%' }}
-        >
+        {/*
+          Right dock: a grid item in the shell's `right` area. Its width is the
+          sum of its columns' widths, and when no column is visible the element
+          is not rendered at all, so the track collapses and the basemap expands.
+          Previously the map's inset was computed separately from these same
+          configs and the two drifted apart.
+        */}
+        {rightLayoutColumns.length > 0 && (
+        <div className="workspace-right flex palette-container flex-row-reverse overflow-x-auto pointer-events-auto">
             {rightLayoutColumns.map((column, colIdx) => {
                 const visiblePalettes = column.filter(id => {
                     return paletteConfigs[id]?.isVisible && !paletteConfigs[id]?.isFloating && paletteConfigs[id]?.dockPosition !== 'bottom';
@@ -143,7 +150,7 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
                 return (
                     <div
                         key={colIdx}
-                        className="flex flex-col h-full min-h-0 border-l border-cad-border shrink-0 transition-[width] duration-150 ease-in-out overflow-hidden relative"
+                        className="flex flex-col h-full min-h-0 border-l border-cad-border shrink-0 overflow-hidden relative"
                         style={{ width: columnWidth }}
                     >
                         <ResizeHandle
@@ -181,21 +188,32 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
                     </div>
                 );
             })}
-
-            {Object.keys(paletteConfigs).filter(id => {
-                return paletteConfigs[id].isFloating && paletteConfigs[id].isVisible;
-            }).map(id => (
-                <PalettePanel key={id} id={id}>
-                    <div className="flex-1 min-h-0 overflow-hidden p-1.5 custom-scrollbar h-full flex flex-col w-full min-w-0">
-                        {renderPaletteContent(id)}
-                    </div>
-                </PalettePanel>
-            ))}
         </div>
+        )}
+
+        {/*
+          Floating palettes are `position: fixed` and deliberately overlay the
+          map — they are not part of any grid track.
+        */}
+        {floatingPalettes.map(id => (
+            <PalettePanel key={id} id={id}>
+                <div className="flex-1 min-h-0 overflow-hidden p-1.5 custom-scrollbar h-full flex flex-col w-full min-w-0">
+                    {renderPaletteContent(id)}
+                </div>
+            </PalettePanel>
+        ))}
+
         {bottomPalettes.length > 0 && (
+            /*
+              Explicit height here is the dock sizing *itself*, which the `auto`
+              grid row then reads. That is different from the old code, where the
+              map separately re-derived this number to inset itself by.
+              `fillDock` children use height:100%, so the row cannot be auto-sized
+              from content alone.
+            */
             <div
-                className="absolute left-0 bottom-0 z-cad-panel pointer-events-auto border-t border-cad-border bg-cad-surface flex flex-col min-h-0 overflow-hidden"
-                style={{ height: bottomHeight, right: PALETTE_SIDEBAR_WIDTH }}
+                className="workspace-bottom pointer-events-auto border-t border-cad-border bg-cad-surface flex flex-col overflow-hidden"
+                style={{ height: bottomPalettes.reduce((sum, id) => sum + (paletteConfigs[id]?.height || 320), 0) }}
             >
                 <VerticalResizeHandle
                     onResize={(deltaY) => {

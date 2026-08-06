@@ -29,6 +29,15 @@ vi.mock('./useMapStyles', () => ({
     }),
 }));
 
+vi.mock('@tauri-apps/api/core', () => ({
+    invoke: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('@tauri-apps/api/event', () => ({
+    emit: vi.fn().mockResolvedValue(undefined),
+    listen: vi.fn().mockResolvedValue(() => {}),
+}));
+
 vi.mock('@TOOL/utils/designIpc', () => ({
     queryVisibleFeaturesV2: vi.fn(),
 }));
@@ -538,6 +547,34 @@ describe('MapLibreFastRenderer', () => {
                 source: 'design-fast-point-clusters-source',
             }));
             expect(lastMap?.layers.get('design-fast-point-cluster-counts')?.layout['text-field']).toEqual(['get', 'point_count_abbreviated']);
+        });
+    });
+
+    it('excludes objects inside an intersection from the cluster source count', async () => {
+        useDesignSync.setState({
+            state: {
+                features: {
+                    'standalone-point': pointFeature('standalone-point'),
+                    'intersection-child-point': {
+                        ...pointFeature('intersection-child-point'),
+                        parent_feature_id: 'intersection-node-1',
+                    },
+                },
+                feature_groups: {
+                    'group-1': { type: 'NODE', name: 'Node' },
+                },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={13} />);
+
+        await waitFor(() => {
+            const lastMap = mockMapState.getLastMap();
+            const clusterSource = lastMap?.sources.get('design-fast-point-clusters-source');
+
+            expect(clusterSource?.data.features).toHaveLength(1);
+            expect(clusterSource?.data.features[0].properties.id).toBe('standalone-point');
         });
     });
 

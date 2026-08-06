@@ -1,7 +1,7 @@
 use crate::domain::implement::modules::v2::storage::audit::{audit_database, DatabaseAuditReport};
 use crate::domain::implement::modules::v2::storage::schema::{
     apply_base_schema, apply_v10_schema, apply_v11_schema, apply_v9_schema, ensure_runtime_schema_compatibility,
-    ensure_v8_compatibility, stamp_schema_version, CURRENT_SCHEMA_VERSION,
+    ensure_v8_compatibility, stamp_schema_version, CURRENT_SCHEMA_VERSION, MIN_COMPATIBLE_SCHEMA_VERSION,
 };
 use rusqlite::{backup::Backup, params, Connection, DatabaseName, OpenFlags, TransactionBehavior};
 use serde_json::json;
@@ -42,19 +42,20 @@ impl PmpDatabase {
             return Err(rusqlite::Error::SqliteFailure(
                 rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_ERROR),
                 Some(format!(
-                    "[V4 STRICT] Unsupported DB version {}. This build supports up to {}.",
-                    version, CURRENT_SCHEMA_VERSION
+                    "[V4 STRICT] Unsupported DB version {}. This build supports up to {} (min compatible: {}).",
+                    version, CURRENT_SCHEMA_VERSION, MIN_COMPATIBLE_SCHEMA_VERSION
                 )),
             ));
         }
 
         if version < CURRENT_SCHEMA_VERSION {
-            if version >= 8 {
+            if version >= MIN_COMPATIBLE_SCHEMA_VERSION {
                 repair_legacy_design_relations(&mut conn, &pmp_path)?;
                 let report = audit_database(&conn)?;
                 reject_blocking_audit(&report, false)?;
             }
 
+            let mut backup_info: Option<PathBuf> = None;
             if version > 0 {
                 conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;
                 let (backup_path, backup_sha256) =
@@ -65,6 +66,7 @@ impl PmpDatabase {
                     backup_path.display(),
                     backup_sha256
                 );
+                backup_info = Some(backup_path);
             }
 
             let transaction = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -84,6 +86,15 @@ impl PmpDatabase {
             let report = audit_database(&transaction)?;
             reject_blocking_audit(&report, false)?;
             transaction.commit()?;
+
+            if let Some(backup_path) = backup_info {
+                if backup_path.exists() {
+                    log::info!(
+                        "[Storage] Pre-migration backup verified and retained for safety: {}",
+                        backup_path.display()
+                    );
+                }
+            }
 
             if let Err(error) = conn.execute_batch("ANALYZE; PRAGMA optimize;") {
                 log::warn!("[Storage] Post-migration optimizer failed: {error}");

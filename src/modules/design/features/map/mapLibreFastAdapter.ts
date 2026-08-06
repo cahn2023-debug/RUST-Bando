@@ -7,6 +7,7 @@ import type {
     MapLibreRenderFeatureCollection,
     MapLibreRenderFeatureProperties,
 } from './mapLibreFastTypes';
+import { getCoordinates } from './coordinateCache';
 import { getParsedCoordinates } from '@TOOL/utils/featureUtils';
 import { getFeatureDisplayInfo, isCameraIcon } from '@TOOL/utils/featureDisplay';
 import { getFeatureMetadataValue, getParsedMetadata } from '@TOOL/utils/featureMetadata';
@@ -224,17 +225,8 @@ const normalizePolygon = (coordinates: any): [number, number][][] | null => {
 
 type RenderableGeometry = MapLibreRenderFeature['geometry'];
 
-const parseCoordinateValue = (value: unknown): unknown => {
-    if (typeof value !== 'string') return value;
-    try {
-        return JSON.parse(value);
-    } catch {
-        return value;
-    }
-};
-
 const geometryInputForFeature = (feature: FeatureState) => {
-    const rawCoordinates = parseCoordinateValue((feature as any).coordinates);
+    const rawCoordinates = getCoordinates(feature.id, (feature as any).coordinates);
     if (rawCoordinates && typeof rawCoordinates === 'object' && !Array.isArray(rawCoordinates)) {
         const rawType = (rawCoordinates as any).type;
         if (typeof rawType === 'string') return rawCoordinates as { type: string; coordinates?: unknown; geometries?: unknown[] };
@@ -367,6 +359,7 @@ const toRenderFeatures = (
                 imageIdSafe(rotation),
             ].join('-')
             : '';
+        const isIntersectionChild = isMapIntersectionChild(feature, group, metadata, displayInfo);
         return [{
             type: 'Feature',
             geometry,
@@ -384,6 +377,7 @@ const toRenderFeatures = (
                 objectType: displayInfo.objectType,
                 isCamera: displayInfo.isCamera,
                 isIntersection: displayInfo.isIntersection,
+                isIntersectionChild,
                 rotation,
                 displaySize,
                 labelIndex,

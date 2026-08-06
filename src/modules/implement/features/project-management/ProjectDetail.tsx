@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { Project } from "@CONTRACT/types";
 import { ProjectSidebar } from "./ProjectSidebar";
 import { ProjectMainView } from "./ProjectMainView";
@@ -62,19 +61,9 @@ export function ProjectDetail({
   const updateLeftWidth = useLayoutStore(s => s.updateLeftWidth);
   const { lowPowerMode } = useSettingsStore();
 
-  const layoutColumns = useLayoutStore(s => s.layoutColumns);
-  const paletteConfigs = useLayoutStore(s => s.paletteConfigs);
-
   const handleLeftResize = (delta: number) => {
     updateLeftWidth(Math.max(200, Math.min(600, leftWidth + delta)));
   };
-
-  const bottomHeight = useMemo(() => {
-    const bottomPalettes = layoutColumns
-      .flat()
-      .filter(id => paletteConfigs[id]?.dockPosition === 'bottom' && paletteConfigs[id]?.isVisible && !paletteConfigs[id]?.isFloating);
-    return bottomPalettes.reduce((sum, id) => sum + (paletteConfigs[id]?.height || 320), 0);
-  }, [layoutColumns, paletteConfigs]);
 
   const handleOpenExternally = async () => {
     if (selectedFile?.path) {
@@ -86,18 +75,23 @@ export function ProjectDetail({
     }
   };
 
+  const isDesign = activeTab === "DESIGN";
+
   return (
-    <div className={cn(
-      "flex-1 min-h-0 min-w-0 flex overflow-hidden relative",
-      activeTab === "DESIGN" ? "bg-transparent pointer-events-none" : "bg-cad-bg pointer-events-auto",
-      lowPowerMode && "low-power-active"
-    )}>
-      <div 
-        className="pointer-events-auto border-r border-cad-border flex flex-col shrink-0 bg-cad-surface group/sidebar relative min-h-0"
-        style={{ 
-          width: leftWidth,
-          height: bottomHeight > 0 ? `calc(100% - ${bottomHeight}px)` : '100%'
-        }}
+    /*
+      Pass-through: children below become grid items of the shell's
+      `.workspace-grid`, each claiming its own area. The bottom dock's height no
+      longer has to be subtracted from the siblings by hand — the grid rows do
+      it. Note `display: contents` means this element has no box, so the
+      low-power class goes on the child that actually paints.
+    */
+    <div className="workspace-pass">
+      <div
+        className={cn(
+          "workspace-left pointer-events-auto border-r border-cad-border flex flex-col bg-cad-surface group/sidebar relative",
+          lowPowerMode && "low-power-active"
+        )}
+        style={{ width: leftWidth }}
       >
         <ResizeHandle direction="left" onResize={handleLeftResize} />
         <ProjectSidebar
@@ -111,14 +105,17 @@ export function ProjectDetail({
         />
       </div>
 
-      <div 
+      {/*
+        On DESIGN the centre cell must let clicks reach the basemap beneath it,
+        so the container is click-through and interactive children opt back in.
+        On other tabs it owns its area outright and paints a background.
+      */}
+      <div
         className={cn(
-          "flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden relative",
-          activeTab === "DESIGN" ? "pointer-events-none" : "pointer-events-auto"
+          "workspace-center workspace-center--content flex flex-col overflow-hidden",
+          isDesign ? "bg-transparent pointer-events-none" : "bg-cad-bg pointer-events-auto",
+          lowPowerMode && "low-power-active"
         )}
-        style={{ 
-          height: bottomHeight > 0 ? `calc(100% - ${bottomHeight}px)` : '100%'
-        }}
       >
         <ProjectMainView
           project={project}
@@ -142,17 +139,15 @@ export function ProjectDetail({
         />
       </div>
 
-      <div className="contents pointer-events-auto">
-        <ProjectOverlayLayer
-          activeTab={activeTab}
-          selectedFile={selectedFile}
-          setSelectedFile={setSelectedFile}
-          fileContent={fileContent}
-          showRawFile={showRawFile}
-          setShowRawFile={setShowRawFile}
-          handleOpenExternally={handleOpenExternally}
-        />
-      </div>
+      <ProjectOverlayLayer
+        activeTab={activeTab}
+        selectedFile={selectedFile}
+        setSelectedFile={setSelectedFile}
+        fileContent={fileContent}
+        showRawFile={showRawFile}
+        setShowRawFile={setShowRawFile}
+        handleOpenExternally={handleOpenExternally}
+      />
     </div>
   );
 }

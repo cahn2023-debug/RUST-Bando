@@ -84,15 +84,19 @@ export function ZoomToHandler() {
                         const polygon = getPolygonCoordinates(f)?.[0];
 
                         if (point && isValidLatLng(point[1], point[0])) {
-                            console.log(`[Zoom] Zooming to feature ${id} at zoom level 20`);
-                            map.flyTo({ center: [point[0], point[1]], zoom: 20 });
+                            const currentZoom = map.getZoom();
+                            if (currentZoom >= 17) {
+                                // Already zoomed in enough — just pan smoothly to center the object.
+                                map.easeTo({ center: [point[0], point[1]], duration: 300 });
+                            } else {
+                                map.flyTo({ center: [point[0], point[1]], zoom: 18 });
+                            }
                         } else if (line && line.length > 0) {
                             const bounds = new maplibregl.LngLatBounds();
                             line.forEach((c) => {
                                 if (isValidLatLng(c[1], c[0])) bounds.extend([c[0], c[1]]);
                             });
                             if (!bounds.isEmpty()) {
-                                console.log(`[Zoom] Fitting bounds for feature ${id} at max zoom 20`);
                                 map.fitBounds(bounds, { padding: 50, maxZoom: 20 });
                             }
                         } else if (polygon && polygon.length > 0) {
@@ -101,7 +105,6 @@ export function ZoomToHandler() {
                                 if (isValidLatLng(c[1], c[0])) bounds.extend([c[0], c[1]]);
                             });
                             if (!bounds.isEmpty()) {
-                                console.log(`[Zoom] Fitting bounds for polygon ${id} at max zoom 20`);
                                 map.fitBounds(bounds, { padding: 50, maxZoom: 20 });
                             }
                         }

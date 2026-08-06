@@ -39,8 +39,6 @@ export const isMapIntersectionChild = (
     metadata: Record<string, any> = {},
     displayInfo?: { isIntersection?: boolean; iconKey?: string | null } | null
 ) => {
-    if (displayInfo?.isIntersection || displayInfo?.iconKey === 'intersection') return false;
-
     const properties = parseObject(feature.properties);
     const gis = parseObject(metadata.gis);
     const parentFeatureId =
@@ -49,5 +47,9 @@ export const isMapIntersectionChild = (
         gis.parent_feature_id ??
         properties.parent_feature_id;
 
-    return hasValue(parentFeatureId) || isIntersectionGroup(group);
+    if (hasValue(parentFeatureId)) return true;
+
+    if (displayInfo?.isIntersection || displayInfo?.iconKey === 'intersection') return false;
+
+    return isIntersectionGroup(group);
 };

@@ -1,6 +1,7 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 
+pub const MIN_COMPATIBLE_SCHEMA_VERSION: i32 = 8;
 pub const CURRENT_SCHEMA_VERSION: i32 = 11;
 pub const CURRENT_SCHEMA_LABEL: &str = "11.0.0";
 

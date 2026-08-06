@@ -16,7 +16,7 @@ export const PaletteSidebar: React.FC = () => {
     const { layoutColumns, paletteConfigs, activePaletteId, expandPalette, togglePalette } = useLayoutStore();
 
     return (
-        <div className="relative z-50 flex h-full shrink-0 flex-col overflow-visible border-l border-cad-border bg-cad-bg">
+        <div className="workspace-rail relative z-50 flex shrink-0 flex-col overflow-visible border-l border-cad-border bg-cad-bg pointer-events-auto">
             {/* Tab Container */}
             <div className="flex w-[36px] flex-col items-center gap-2 py-2">
                 {layoutColumns.flat().map((id) => {

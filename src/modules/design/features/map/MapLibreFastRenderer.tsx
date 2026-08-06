@@ -1,6 +1,7 @@
 import React from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import { useShallow } from 'zustand/react/shallow';
 import { useDesignSync, EMPTY_OBJ } from '@IMPLEMENT/stores/useDesignSync';
 import { useFeatureNumbering } from '@IMPLEMENT/hooks/useDesignFeatures';
 import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
@@ -21,7 +22,8 @@ import { useBasemap } from '@/core/basemap';
 import { getRenderableFeatureById } from './featureLookup';
 import { CameraBridge, DirtyFlag, FeatureOverlayCanvas, resolveMapRenderFlags, type FeatureOverlayCanvasHandle, type MapRenderFlags } from './render';
 import { saveBootstrapMetadata } from './bootstrapMetadata';
-import { markMapStartup } from './mapStartupTelemetry';
+import { markMapStartup, resetTelemetry } from './mapStartupTelemetry';
+import { FIRST_BATCH_SIZE, renderFeaturesBatched, type BatchProgress } from './progressiveRender';
 
 const SOURCE_ID = 'design-fast-features';
 const POINT_CLUSTER_SOURCE_ID = 'design-fast-point-clusters-source';
@@ -475,9 +477,13 @@ const onlyPointFeatures = (
     collection: MapLibreRenderFeatureCollection
 ): MapLibreRenderFeatureCollection => ({
     ...collection,
-    features: collection.features.filter(feature => (
-        feature.geometry.type === 'Point' || feature.geometry.type === 'MultiPoint'
-    )),
+    features: collection.features.filter(feature => {
+        const isPointGeom = feature.geometry.type === 'Point' || feature.geometry.type === 'MultiPoint';
+        const props = feature.properties as Record<string, any> | undefined;
+        const isLine = props?.geomType === 'line';
+        const isIntersectionChild = Boolean(props?.isIntersectionChild);
+        return isPointGeom && !isLine && !isIntersectionChild;
+    }),
 });
 
 const getCoordsHash = (coords: any): number => {
@@ -1183,34 +1189,56 @@ export function MapLibreFastRenderer({
     const basemapRetryTimersRef = React.useRef<ReturnType<typeof setTimeout>[]>([]);
     const basemapRetryAttemptRef = React.useRef(0);
     const fittedBootstrapBoundsKeyRef = React.useRef<string | null>(null);
-    const features = useDesignSync(s => s.visibleFeatures);
-    const rawFeatures = useDesignSync(s => s.state?.features || (EMPTY_OBJ as Record<string, FeatureState>));
-    const featureDetailsCache = useDesignSync(s => s.featureDetailsCache);
-    const mapState = useDesignSync(s => s.state);
-    const isLargeProject = useDesignSync(s => Boolean(s.state?.isLargeProject));
-    const featureGroups = useDesignSync(s => s.state?.feature_groups || (EMPTY_OBJ as Record<string, any>));
-    const projectId = useDesignSync(s => s.projectId);
-    const selectedFeatureId = useDesignSync(s => s.selectedFeatureId);
-    const hoverId = useDesignSync(s => s.hoverId);
-    const mapHiddenIds = useDesignSync(s => s.mapHiddenIds);
-    const groupThemePreview = useDesignSync(s => s.groupThemePreview);
-    const drawingMode = useDesignSync(s => s.drawingMode);
-    const editingFeatureId = useDesignSync(s => s.editingFeatureId);
-    const currentDrawingPoints = useDesignSync(s => s.currentDrawingPoints);
-    const snappedPoint = useDesignSync(s => s.snappedPoint);
-    const viewportFeatureLimit = useDesignSync(s => s.state?.viewportFeatureLimit || 10000);
-    const mapRevision = useDesignSync(s => s.state?.mapRevision || 0);
-    const initialBounds = useDesignSync(s => s.state?.initialBounds as BootstrapBounds);
-    const viewportRevision = useDesignSync(s => s.viewportRevision);
+    // Combined selector 1: fields used in rendering geometry
+    const renderSlice = useDesignSync(useShallow((s) => ({
+        features: s.visibleFeatures,
+        rawFeatures: s.state?.features || (EMPTY_OBJ as Record<string, FeatureState>),
+        featureDetailsCache: s.featureDetailsCache,
+        mapState: s.state,
+        isLargeProject: Boolean(s.state?.isLargeProject),
+        featureGroups: s.state?.feature_groups || (EMPTY_OBJ as Record<string, any>),
+        selectedFeatureId: s.selectedFeatureId,
+        hoverId: s.hoverId,
+        groupThemePreview: s.groupThemePreview,
+        showFeatureGroups: s.showFeatureGroups,
+        mapRevision: s.state?.mapRevision || 0,
+        initialBounds: s.state?.initialBounds as BootstrapBounds,
+        viewportRevision: s.viewportRevision,
+        viewportFeatureLimit: s.state?.viewportFeatureLimit || 10000,
+    })));
+
+    // Combined selector 2: fields for edit/draw UI
+    const editSlice = useDesignSync(useShallow((s) => ({
+        editingFeatureId: s.editingFeatureId,
+        drawingMode: s.drawingMode,
+        currentDrawingPoints: s.currentDrawingPoints,
+        snappedPoint: s.snappedPoint,
+    })));
+
+    // Combined selector 3: viewport/UI fields
+    const uiSlice = useDesignSync(useShallow((s) => ({
+        projectId: s.projectId,
+        zoomToTrigger: s.zoomToTrigger,
+        mapHiddenIds: s.mapHiddenIds,
+    })));
+
+    // Stable action selectors (Zustand actions are stable references — no useShallow needed)
     const selectFeature = useDesignSync(s => s.selectFeature);
     const setHoverId = useDesignSync(s => s.setHoverId);
     const setDrawingPoint = useDesignSync(s => s.setDrawingPoint);
     const insertDrawingPoint = useDesignSync(s => s.insertDrawingPoint);
-    const zoomToTrigger = useDesignSync(s => s.zoomToTrigger);
+    const zoomTo = useDesignSync(s => s.zoomTo);
     const setViewportFeatures = useDesignSync(s => s.setViewportFeatures);
     const setViewportLoading = useDesignSync(s => s.setViewportLoading);
     const setRenderMetrics = useDesignSync(s => s.setRenderMetrics);
     const updateOpenMetrics = useDesignSync(s => s.updateOpenMetrics);
+
+    // Destructure slices for use throughout the component
+    const { features, rawFeatures, featureDetailsCache, mapState, isLargeProject, featureGroups,
+        selectedFeatureId, hoverId, groupThemePreview, showFeatureGroups,
+        mapRevision, initialBounds, viewportRevision, viewportFeatureLimit } = renderSlice;
+    const { editingFeatureId, drawingMode, currentDrawingPoints, snappedPoint } = editSlice;
+    const { projectId, zoomToTrigger, mapHiddenIds } = uiSlice;
     const { performSnap, snapNow, clearSnap, snappedPointRef } = useSnap();
     const { getStyledTiles: getFallbackStyledTiles, mapKey: fallbackMapKey, activeBasemapPreset: fallbackBasemapPreset } = useMapStyles();
     const basemapTiles = React.useMemo(
@@ -1232,6 +1260,11 @@ export function MapLibreFastRenderer({
     const firstViewportQueryReportedRef = React.useRef(false);
     const firstSetDataReportedRef = React.useRef(false);
     const firstPaintReportedRef = React.useRef(false);
+    const bindCompleteReportedRef = React.useRef(false);
+    /** Cancellation token for the active progressive render chain. Increment to cancel previous chain. */
+    const progressiveRenderEpochRef = React.useRef(0);
+    /** Tracks progressive batch rendering progress exposed to the loading indicator. { rendered, total } (Task 4.5) */
+    const [batchProgress, setBatchProgress] = React.useState<BatchProgress>({ rendered: 0, total: 0 });
     const pendingLoadedIconsRef = React.useRef<Map<string, { image: MapLibreImageData; preloadMs: number }>>(new Map());
     const preparedPointImagesRef = React.useRef<{
         collection: MapLibreRenderFeatureCollection;
@@ -1304,8 +1337,14 @@ export function MapLibreFastRenderer({
             featureNumberMap,
             groupThemePreview,
         });
+        // showFeatureGroups toggle controls whether clustering is active.
+        // When disabled, force clusterPoints=false regardless of zoom level.
+        const lodPolicy = showFeatureGroups
+            ? result.lodPolicy
+            : { ...result.lodPolicy, clusterPoints: false };
         return {
             ...result,
+            lodPolicy,
             sourceBuildMs: now() - sourceStart,
         };
     }, [
@@ -1317,6 +1356,7 @@ export function MapLibreFastRenderer({
         renderCacheKey,
         renderFeatureValues,
         renderZoom,
+        showFeatureGroups,
     ]);
     const applySelectedFeatureState = React.useCallback((nextSelected: Set<string>) => {
         const map = mapRef.current;
@@ -1422,6 +1462,7 @@ export function MapLibreFastRenderer({
         selectFeature,
         setHoverId,
         isMeasureActive,
+        zoomTo,
     });
 
     React.useEffect(() => {
@@ -1441,6 +1482,7 @@ export function MapLibreFastRenderer({
             selectFeature,
             setHoverId,
             isMeasureActive,
+            zoomTo,
         };
     }, [
         drawingMode,
@@ -1458,6 +1500,7 @@ export function MapLibreFastRenderer({
         selectFeature,
         setHoverId,
         isMeasureActive,
+        zoomTo,
     ]);
 
     React.useEffect(() => {
@@ -1637,18 +1680,8 @@ export function MapLibreFastRenderer({
             if (!id) return;
             const lngLat = event.lngLat;
             latest.selectFeature(id, false, [lngLat.lat, lngLat.lng]);
-
-            // Pan map gently to clicked point if close to viewport boundaries
-            const pixel = event.point;
-            if (pixel) {
-                const containerRect = map.getContainer().getBoundingClientRect();
-                const padding = 100;
-                const nearEdge = pixel.x < padding || pixel.x > (containerRect.width - padding) ||
-                                 pixel.y < padding || pixel.y > (containerRect.height - padding);
-                if (nearEdge) {
-                    map.panTo(lngLat, { duration: 300 });
-                }
-            }
+            // Zoom to the clicked feature so the object is brought into focus.
+            latest.zoomTo(id, 'feature', [lngLat.lat, lngLat.lng]);
         });
         onMap('mousemove', interactiveLayers, (event: any) => {
             const id = resolveInteractiveFeatureId(event.features?.[0]?.properties as Record<string, any> | undefined);
@@ -1833,6 +1866,21 @@ export function MapLibreFastRenderer({
         }
     }, [center, zoom]);
 
+    // Reset per-project milestone guards when the active project changes.
+    const prevProjectIdRef = React.useRef<string | null | undefined>(null);
+    React.useEffect(() => {
+        if (prevProjectIdRef.current !== projectId) {
+            prevProjectIdRef.current = projectId;
+            firstSetDataReportedRef.current = false;
+            firstPaintReportedRef.current = false;
+            bindCompleteReportedRef.current = false;
+            lastSetDataKeyRef.current = null;
+            lastClusterSetDataKeyRef.current = null;
+            // Reset telemetry so the new project gets fresh timing measurements.
+            resetTelemetry();
+        }
+    }, [projectId]);
+
     React.useEffect(() => {
         const map = mapRef.current;
         const bounds = getValidBootstrapBounds(initialBounds);
@@ -1906,6 +1954,14 @@ export function MapLibreFastRenderer({
             });
     }, [isLargeProject, mapHiddenIds, mapRevision, projectId, setRenderMetrics, setViewportFeatures, setViewportLoading, updateOpenMetrics, viewportFeatureLimit, viewportTick]);
 
+    // Basemap tiles.
+    //
+    // When the persistent basemap owns the map, the tile URLs are the core
+    // runtime's business: it routes them through the on-disk tile cache, so
+    // writing raw upstream URLs onto the shared source here would silently
+    // replace the cached URLs and defeat the cache. In that mode this effect only
+    // maintains the design module's own overlay layers and leaves the raster
+    // source alone. The raw-URL path remains for the standalone fallback map.
     React.useEffect(() => {
         const map = mapRef.current;
         if (!map) return;
@@ -1913,8 +1969,10 @@ export function MapLibreFastRenderer({
         lastBasemapTilesKeyRef.current = basemapTilesKey;
 
         const updateTiles = () => {
-            if (!updateRasterSourceTiles(map, BASEMAP_SOURCE_ID, basemapTiles)) {
-                console.warn('[MapLibreFastRenderer] Basemap source does not support tile updates.');
+            if (!shouldUsePersistentBasemap) {
+                if (!updateRasterSourceTiles(map, BASEMAP_SOURCE_ID, basemapTiles)) {
+                    console.warn('[MapLibreFastRenderer] Basemap source does not support tile updates.');
+                }
             }
             basemapRetryTimersRef.current.forEach(timer => clearTimeout(timer));
             basemapRetryTimersRef.current = [];
@@ -1928,7 +1986,7 @@ export function MapLibreFastRenderer({
         } else {
             map.once('styledata', updateTiles);
         }
-    }, [activeBasemapPreset, basemapTiles, basemapTilesKey]);
+    }, [activeBasemapPreset, basemapTiles, basemapTilesKey, shouldUsePersistentBasemap]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -2052,9 +2110,58 @@ export function MapLibreFastRenderer({
                 const setDataStart = now();
                 let didSetData = false;
                 if (source && lastSetDataKeyRef.current !== dataKey) {
-                    source.setData(displayCollection as any);
+                    // --- Task 4.1: Progressive render — show first batch immediately ---
+                    // Increment epoch to cancel any previous progressive render chain.
+                    const currentEpoch = ++progressiveRenderEpochRef.current;
                     lastSetDataKeyRef.current = dataKey;
                     didSetData = true;
+
+                    // Emit first-feature milestone + open metrics right after the first batch is handed to the source.
+                    const onFirstBatch = () => {
+                        const mapLibreSetDataMs = now() - setDataStart;
+                        const firstBatchFeatureCount = Math.min(displayCollection.features.length, FIRST_BATCH_SIZE);
+                        if (!firstSetDataReportedRef.current) {
+                            firstSetDataReportedRef.current = true;
+                            markMapStartup("first-feature", { count: firstBatchFeatureCount });
+                            updateOpenMetrics({ firstSetDataMs: mapLibreSetDataMs });
+                        }
+                        if (!firstPaintReportedRef.current) {
+                            firstPaintReportedRef.current = true;
+                            const firstMapPaintMs = now() - frameStart;
+                            updateOpenMetrics({ firstMapPaintMs });
+                            console.info('[OpenPerf] First map paint complete', {
+                                ...(useDesignSync.getState().openMetrics || {}),
+                                firstSetDataMs: mapLibreSetDataMs,
+                                firstMapPaintMs,
+                                featureCount: firstBatchFeatureCount,
+                            });
+                        }
+                    };
+
+                    // Batch progress is exposed via React state (Task 4.5) and consumed
+                    // by a loading indicator / data attributes on the container.
+                    renderFeaturesBatched({
+                        features: displayCollection.features,
+                        setData: (collection) => {
+                            // Guard: if a newer render epoch started, discard this stale batch write.
+                            if (progressiveRenderEpochRef.current !== currentEpoch) return;
+                            // Re-fetch the source each call so a mid-batch map teardown is tolerated.
+                            const currentSource = mapRef.current?.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+                            currentSource?.setData(collection as any);
+                        },
+                        onFirstBatch,
+                        onProgress: setBatchProgress,
+                        onComplete: () => {
+                            // Guard: only report project-bind-complete once, for the latest epoch.
+                            if (progressiveRenderEpochRef.current !== currentEpoch) return;
+                            if (!bindCompleteReportedRef.current) {
+                                bindCompleteReportedRef.current = true;
+                                markMapStartup('project-bind-complete');
+                            }
+                        },
+                    });
+                } else if (source) {
+                    // Key unchanged — nothing to do for setData
                 }
                 if (clusterSource && lastClusterSetDataKeyRef.current !== clusterDataKey) {
                     clusterSource.setData(clusterCollection as any);
@@ -2066,24 +2173,6 @@ export function MapLibreFastRenderer({
                     overlayRef.current?.schedule(DirtyFlag.Geometry | DirtyFlag.Style);
                 }
                 const mapLibreSetDataMs = now() - setDataStart;
-                if (!firstSetDataReportedRef.current) {
-                    firstSetDataReportedRef.current = true;
-                    markMapStartup("first-feature", { count: displayCollection.features.length });
-                    updateOpenMetrics({ firstSetDataMs: mapLibreSetDataMs });
-                    requestAnimationFrame(() => {
-                        if (!firstPaintReportedRef.current) {
-                            firstPaintReportedRef.current = true;
-                            const firstMapPaintMs = now() - frameStart;
-                            updateOpenMetrics({ firstMapPaintMs });
-                            console.info('[OpenPerf] First map paint complete', {
-                                ...(useDesignSync.getState().openMetrics || {}),
-                                firstSetDataMs: mapLibreSetDataMs,
-                                firstMapPaintMs,
-                                featureCount: displayCollection.features.length,
-                            });
-                        }
-                    });
-                }
                 const newMetrics = buildRenderMetrics({
                     engine: 'maplibre-fast',
                     lodLevel: lodPolicy.level,
@@ -2162,6 +2251,8 @@ export function MapLibreFastRenderer({
             data-testid="maplibre-fast-renderer"
             data-map-attach-mode={shouldUsePersistentBasemap ? 'persistent-basemap' : 'owned'}
             data-basemap-state={basemapLoadState}
+            data-batch-rendered={batchProgress.rendered}
+            data-batch-total={batchProgress.total}
         >
             <FeatureOverlayCanvas
                 ref={overlayRef}

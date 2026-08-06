@@ -1,0 +1,283 @@
+/*
+ * Basemap control styling.
+ *
+ * Self-contained by design — no Tailwind classes and no `var(--cad-*)` tokens,
+ * because these controls must render correctly before the design module (and its
+ * theme) has loaded. Colours are literal so the controls can never appear
+ * invisible due to a missing token.
+ */
+
+.basemap-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.basemap-controls__group {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+  pointer-events: auto;
+  backdrop-filter: blur(6px);
+}
+
+.basemap-button {
+  display: flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: #1f2937;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.basemap-button + .basemap-button {
+  border-top: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.basemap-button:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.07);
+}
+
+.basemap-button:active:not(:disabled) {
+  background: rgba(15, 23, 42, 0.12);
+}
+
+.basemap-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.basemap-button:disabled {
+  cursor: default;
+  color: #9ca3af;
+}
+
+.basemap-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.basemap-button__rotator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 120ms ease;
+}
+
+.basemap-button--busy {
+  color: #2563eb;
+}
+
+.basemap-button--busy svg {
+  animation: basemap-pulse 1s ease-in-out infinite;
+}
+
+.basemap-button--active {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.basemap-button--active:hover:not(:disabled) {
+  background: rgba(37, 99, 235, 0.18);
+}
+
+@keyframes basemap-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Layer switcher ---------------------------------------------------------- */
+
+.basemap-layers {
+  position: relative;
+  display: flex;
+}
+
+.basemap-layers__menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  min-width: 132px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
+}
+
+.basemap-layers__item {
+  border: 0;
+  background: transparent;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1f2937;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 120ms ease;
+}
+
+.basemap-layers__item + .basemap-layers__item {
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.basemap-layers__item:hover {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.basemap-layers__item:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.basemap-layers__item--active {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+}
+
+/* Measuring tape ---------------------------------------------------------- */
+
+.basemap-measure {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 176px;
+  padding: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
+  pointer-events: auto;
+  backdrop-filter: blur(6px);
+}
+
+.basemap-measure__tabs {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 4px;
+}
+
+.basemap-measure__tab {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 5px 0;
+  font-size: 10px;
+  font-weight: 700;
+  color: #4b5563;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.basemap-measure__tab + .basemap-measure__tab {
+  border-left: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.basemap-measure__tab:hover {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.basemap-measure__tab--active {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+}
+
+.basemap-measure__value {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+}
+
+.basemap-measure__hint {
+  margin: 0;
+  font-size: 9px;
+  line-height: 1.35;
+  color: #6b7280;
+}
+
+.basemap-measure__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.basemap-measure__action {
+  flex: 1;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 4px;
+  background: #ffffff;
+  padding: 5px 0;
+  font-size: 10px;
+  font-weight: 700;
+  color: #1f2937;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.basemap-measure__action:hover {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.basemap-measure__action:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+/* Crosshair cursor while the tape is armed. */
+.basemap-measuring canvas.maplibregl-canvas {
+  cursor: crosshair;
+}
+
+/* Scale bar --------------------------------------------------------------- */
+
+.basemap-scale {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.88);
+  pointer-events: none;
+  user-select: none;
+}
+
+.basemap-scale__label {
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: #1f2937;
+  font-variant-numeric: tabular-nums;
+}
+
+.basemap-scale__bar {
+  height: 4px;
+  border: 1px solid #1f2937;
+  border-top: 0;
+  transition: width 120ms ease;
+}
