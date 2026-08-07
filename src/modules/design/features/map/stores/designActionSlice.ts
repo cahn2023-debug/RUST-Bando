@@ -79,14 +79,11 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
                     }
                 })
                 .catch((e: any) => {
-                    console.error("[Sync] Dispatch error, rolling back or re-hydrating:", e);
-                    set({ state: previousState });
-                    const now = Date.now();
-                    if (shouldRecoverByInitialize() && now - lastRecoveryInitializeAt > RECOVERY_INITIALIZE_COOLDOWN_MS) {
-                        tryRecoveryInitialize(get, projectId);
-                    } else {
-                        set({ error: "Sync đang lỗi liên tục. Đã tạm ngắt tự đồng bộ để tránh lặp. Vui lòng mở lại dự án." });
-                    }
+                    console.error("[Sync] Dispatch error, rolling back state:", e);
+                    set({
+                        state: previousState,
+                        error: `Lỗi đồng bộ sự kiện: ${e instanceof Error ? e.message : String(e)}`,
+                    });
                     throw e;
                 })
                 .finally(() => {
@@ -118,14 +115,11 @@ export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], Desi
                     }
                 })
                 .catch((e: any) => {
-                    console.error("[Sync] Batch dispatch error:", e);
-                    set({ state: previousState });
-                    const now = Date.now();
-                    if (shouldRecoverByInitialize() && now - lastRecoveryInitializeAt > RECOVERY_INITIALIZE_COOLDOWN_MS) {
-                        tryRecoveryInitialize(get, projectId);
-                    } else {
-                        set({ error: "Sync đang lỗi liên tục. Đã tạm ngắt tự đồng bộ để tránh lặp. Vui lòng mở lại dự án." });
-                    }
+                    console.error("[Sync] Batch dispatch error, rolling back state:", e);
+                    set({
+                        state: previousState,
+                        error: `Lỗi đồng bộ nhóm sự kiện: ${e instanceof Error ? e.message : String(e)}`,
+                    });
                     throw e;
                 })
                 .finally(() => {

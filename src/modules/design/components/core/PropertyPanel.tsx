@@ -4,7 +4,7 @@ import {
   Save, Camera, MapPin, Route,
   Info, Palette, Settings, Image as ImageIcon,
   Calculator, Phone, User as UserIcon, Loader2, X, Clock, Grid3X3, Sparkles, Briefcase, List, Edit3,
-  Layers, Zap, Radio, Construction, Pencil, RotateCw, Circle, Square, MoveUpRight
+  Layers, Zap, Radio, Construction, Pencil, RotateCw, Circle, Square, MoveUpRight, Plus, Minus
 } from "lucide-react";
 import { IconSelector } from '@DESIGN/components/ui/IconSelector';
 import { Button } from '@DESIGN/components/ui/Button';
@@ -477,11 +477,6 @@ export const PropertyPanel: React.FC = () => {
 
   const updateSymbolSize = useCallback((value: unknown) => {
     const nextSize = normalizeSymbolSize(value, isPolyline);
-    if (isPolyline) {
-      updateNestedMeta('gis.size', nextSize);
-      return;
-    }
-
     const currentGis = asRecord(localMeta.gis) || {};
     const next = {
       ...localMeta,
@@ -499,7 +494,7 @@ export const PropertyPanel: React.FC = () => {
     if (selectedFeatureId) {
       setPreview(selectedFeatureId, next, localName);
     }
-  }, [isPolyline, localMeta, localName, selectedFeatureId, setPreview, updateNestedMeta]);
+  }, [isPolyline, localMeta, localName, selectedFeatureId, setPreview]);
 
   const orderFieldLabel = useMemo(
     () => getOrderFieldLabel(localMeta as Record<string, unknown>, feature?.properties as FeatureProperties | undefined),
@@ -1402,19 +1397,95 @@ export const PropertyPanel: React.FC = () => {
                 />
               </div>
               <div>
-                <label htmlFor={`${uid}-size`} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">{isPolyline ? 'Stroke' : 'Size'}</label>
-                <input
-                  id={`${uid}-size`}
-                  type="number"
-                  min={isPolyline ? LINE_STROKE_SIZE_MIN : POINT_SYMBOL_SIZE_MIN}
-                  max={isPolyline ? LINE_STROKE_SIZE_MAX : POINT_SYMBOL_SIZE_MAX}
-                  step={1}
-                  className="w-full bg-cad-bg border border-cad-border rounded px-3 py-1.5 text-xs text-cad-text-primary mt-1 focus:border-cad-accent outline-none"
-                  value={normalizeSymbolSize(getMetaValue(isPolyline ? 'gis.size' : 'size', 'size'), isPolyline)}
-                  onChange={e => updateSymbolSize(e.target.value)}
-                />
+                <label htmlFor={`${uid}-size-number`} className="text-[9px] font-bold text-cad-text-muted uppercase tracking-tighter ml-1">
+                  {isPolyline ? 'Stroke (px)' : 'Size (px)'}
+                </label>
+                <div className="flex items-center gap-1 mt-1">
+                  <button
+                    type="button"
+                    aria-label="Decrease size"
+                    onClick={() => {
+                      const current = normalizeSymbolSize(getMetaValue(isPolyline ? 'gis.size' : 'size', 'size'), isPolyline);
+                      const min = isPolyline ? LINE_STROKE_SIZE_MIN : POINT_SYMBOL_SIZE_MIN;
+                      const step = isPolyline ? 1 : 2;
+                      updateSymbolSize(Math.max(min, current - step));
+                    }}
+                    className="p-1.5 bg-cad-bg border border-cad-border rounded text-cad-text-muted hover:text-cad-text-primary hover:border-cad-accent transition-colors"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <input
+                    id={`${uid}-size-number`}
+                    type="number"
+                    min={isPolyline ? LINE_STROKE_SIZE_MIN : POINT_SYMBOL_SIZE_MIN}
+                    max={isPolyline ? LINE_STROKE_SIZE_MAX : POINT_SYMBOL_SIZE_MAX}
+                    step={isPolyline ? 1 : 2}
+                    className="w-full bg-cad-bg border border-cad-border rounded px-2 py-1 text-xs text-cad-text-primary focus:border-cad-accent outline-none text-center font-bold"
+                    value={normalizeSymbolSize(getMetaValue(isPolyline ? 'gis.size' : 'size', 'size'), isPolyline)}
+                    onChange={e => updateSymbolSize(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Increase size"
+                    onClick={() => {
+                      const current = normalizeSymbolSize(getMetaValue(isPolyline ? 'gis.size' : 'size', 'size'), isPolyline);
+                      const max = isPolyline ? LINE_STROKE_SIZE_MAX : POINT_SYMBOL_SIZE_MAX;
+                      const step = isPolyline ? 1 : 2;
+                      updateSymbolSize(Math.min(max, current + step));
+                    }}
+                    className="p-1.5 bg-cad-bg border border-cad-border rounded text-cad-text-muted hover:text-cad-text-primary hover:border-cad-accent transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
+
+            {/* Slider & Presets */}
+            <div className="space-y-2 bg-cad-bg p-2.5 rounded border border-cad-border/60">
+              <div className="flex items-center justify-between text-[9px] font-bold text-cad-text-muted uppercase">
+                <span>{isPolyline ? 'Độ dày đường' : 'Kích thước biểu tượng'}</span>
+                <span className="font-mono text-cad-accent font-bold">
+                  {normalizeSymbolSize(getMetaValue(isPolyline ? 'gis.size' : 'size', 'size'), isPolyline)}px
+                </span>
+              </div>
+              <input
+                id={`${uid}-size-slider`}
+                aria-label={isPolyline ? 'Polyline stroke slider' : 'Symbol size slider'}
+                type="range"
+                min={isPolyline ? LINE_STROKE_SIZE_MIN : POINT_SYMBOL_SIZE_MIN}
+                max={isPolyline ? LINE_STROKE_SIZE_MAX : POINT_SYMBOL_SIZE_MAX}
+                step={isPolyline ? 1 : 2}
+                value={normalizeSymbolSize(getMetaValue(isPolyline ? 'gis.size' : 'size', 'size'), isPolyline)}
+                onChange={e => updateSymbolSize(e.target.value)}
+                className="w-full h-1.5 bg-cad-elevated rounded-lg appearance-none cursor-pointer accent-cad-accent"
+              />
+              <div className="flex items-center gap-1.5 pt-1">
+                <span className="text-[8px] font-bold text-cad-text-muted uppercase shrink-0">Presets:</span>
+                <div className="flex items-center gap-1 flex-1 overflow-x-auto">
+                  {(isPolyline ? [2, 4, 8, 12] : [16, 32, 48, 64]).map((presetVal) => {
+                    const currentVal = normalizeSymbolSize(getMetaValue(isPolyline ? 'gis.size' : 'size', 'size'), isPolyline);
+                    const isSelected = currentVal === presetVal;
+                    return (
+                      <button
+                        key={presetVal}
+                        type="button"
+                        onClick={() => updateSymbolSize(presetVal)}
+                        className={cn(
+                          "px-2 py-0.5 text-[9px] font-bold rounded border transition-all shrink-0",
+                          isSelected
+                            ? "bg-cad-accent/20 text-cad-accent border-cad-accent"
+                            : "bg-cad-elevated text-cad-text-muted border-cad-border hover:border-cad-accent/40 hover:text-cad-text-primary"
+                        )}
+                      >
+                        {presetVal}px
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
             {!isPolyline && (
               <IconSelector
                 value={((getMetaValue('icon', 'icon') as IconType) || (isIntersectionFeature ? 'intersection' : 'default'))}

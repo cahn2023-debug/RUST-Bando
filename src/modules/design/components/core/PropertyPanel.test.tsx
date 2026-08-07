@@ -334,7 +334,7 @@ describe('PropertyPanel clipboard images', () => {
       });
 
       render(<PropertyPanel />);
-      const sizeInput = await screen.findByLabelText('Size');
+      const sizeInput = await screen.findByLabelText(/^Size \(px\)$/);
       await waitFor(() => expect(sizeInput).toHaveValue(32));
 
       fireEvent.change(sizeInput, { target: { value: '255252' } });
@@ -1134,5 +1134,56 @@ describe('PropertyPanel clipboard images', () => {
     });
 
     Object.assign(selectedFeature, originalFeature);
+  });
+
+  it('adjusts symbol size using Stepper buttons and triggers setPreview', async () => {
+    const originalMetadata = selectedFeature.metadata;
+    selectedFeature.metadata = JSON.stringify({ size: 32 });
+
+    render(<PropertyPanel />);
+    const decreaseBtn = await screen.findByRole('button', { name: 'Decrease size' });
+    const increaseBtn = screen.getByRole('button', { name: 'Increase size' });
+
+    fireEvent.click(decreaseBtn);
+    expect(mocks.setPreview).toHaveBeenCalledWith(
+      selectedFeature.id,
+      expect.objectContaining({ size: 30 }),
+      'Camera A'
+    );
+
+    fireEvent.click(increaseBtn);
+    expect(mocks.setPreview).toHaveBeenCalledWith(
+      selectedFeature.id,
+      expect.objectContaining({ size: 32 }),
+      'Camera A'
+    );
+
+    selectedFeature.metadata = originalMetadata;
+  });
+
+  it('updates size via range slider and quick preset buttons', async () => {
+    const originalMetadata = selectedFeature.metadata;
+    selectedFeature.metadata = JSON.stringify({ size: 32 });
+
+    render(<PropertyPanel />);
+    const slider = await screen.findByLabelText('Symbol size slider');
+    expect(slider).toHaveValue('32');
+
+    fireEvent.change(slider, { target: { value: '48' } });
+    expect(mocks.setPreview).toHaveBeenCalledWith(
+      selectedFeature.id,
+      expect.objectContaining({ size: 48 }),
+      'Camera A'
+    );
+
+    const preset64Btn = screen.getByRole('button', { name: '64px' });
+    fireEvent.click(preset64Btn);
+    expect(mocks.setPreview).toHaveBeenCalledWith(
+      selectedFeature.id,
+      expect.objectContaining({ size: 64 }),
+      'Camera A'
+    );
+
+    selectedFeature.metadata = originalMetadata;
   });
 });

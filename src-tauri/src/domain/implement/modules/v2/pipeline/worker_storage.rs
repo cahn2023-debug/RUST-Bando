@@ -891,8 +891,18 @@ impl StorageWorker {
         viewport_first_limit: i64,
     ) -> Result<Value, String> {
         log::info!("[StorageWorker] Opening project bootstrap: {:?}", path);
+
+        // Release file handles on existing DB before opening/copying a new project
+        let _ = self.db.checkpoint_wal();
+        if let Some((ref temp_path, ref net_path)) = self.network_sync_target.take() {
+            let _ = crate::domain::implement::modules::v2::storage::connection::sync_local_temp_to_network(temp_path, net_path);
+        }
+        if let Ok(dummy_db) = PmpDatabase::open_or_create(PathBuf::from(":memory:")) {
+            self.db = dummy_db;
+        }
+
         let (effective_open_path, sync_target) = if crate::domain::implement::modules::v2::storage::connection::is_network_drive_path(&path) {
-            let temp_dir = self.db.base_dir.join("temp_network_pmps");
+            let temp_dir = std::env::temp_dir().join("antigravity_temp_pmps");
             match crate::domain::implement::modules::v2::storage::connection::prepare_network_pmp_local_copy(&path, &temp_dir) {
                 Ok(temp_path) => {
                     log::info!("[StorageWorker] Network path detected. Using local temp copy: {:?} (Original: {:?})", temp_path, path);

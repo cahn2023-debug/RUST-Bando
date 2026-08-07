@@ -298,12 +298,26 @@ pub fn prepare_network_pmp_local_copy(original_path: &Path, temp_dir: &Path) -> 
     let mut hasher = Sha256::new();
     hasher.update(original_path.to_string_lossy().as_bytes());
     let path_hash = format!("{:x}", hasher.finalize())[..12].to_string();
-    let temp_file_name = format!("{}_{}", path_hash, file_name);
-    let temp_path = temp_dir.join(temp_file_name);
+    let preferred_temp_name = format!("{}_{}", path_hash, file_name);
+    let preferred_temp_path = temp_dir.join(&preferred_temp_name);
 
-    log::info!("[NetworkPMP] Copying network file {} -> temp file {}", original_path.display(), temp_path.display());
-    std::fs::copy(original_path, &temp_path).map_err(|e| format!("Không thể sao chép tệp từ ổ đĩa mạng: {e}"))?;
-    Ok(temp_path)
+    if preferred_temp_path.exists() {
+        let _ = std::fs::remove_file(&preferred_temp_path);
+    }
+
+    log::info!("[NetworkPMP] Copying network file {} -> temp file {}", original_path.display(), preferred_temp_path.display());
+    match std::fs::copy(original_path, &preferred_temp_path) {
+        Ok(_) => Ok(preferred_temp_path),
+        Err(e) => {
+            log::warn!("[NetworkPMP] Failed to copy to preferred temp path ({:?}): {e}. Fallback to timestamped temp file.", preferred_temp_path);
+            let ts = chrono::Local::now().format("%Y%m%d_%H%M%S_%f").to_string();
+            let timestamped_temp_name = format!("{}_{}_{}", path_hash, ts, file_name);
+            let timestamped_temp_path = temp_dir.join(timestamped_temp_name);
+            std::fs::copy(original_path, &timestamped_temp_path)
+                .map_err(|err| format!("Không thể sao chép tệp từ ổ đĩa mạng (thử lại với tệp tạm mới thất bại: {err})"))?;
+            Ok(timestamped_temp_path)
+        }
+    }
 }
 
 pub fn sync_local_temp_to_network(local_temp_path: &Path, original_network_path: &Path) -> Result<(), String> {
