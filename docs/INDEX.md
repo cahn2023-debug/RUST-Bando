@@ -37,6 +37,7 @@ Thư mục: [`docs/guides/`](file:///d:/Code%20Antinigaty/RUST/docs/guides/)
 
 - **Hướng dẫn Đóng góp**: [CONTRIBUTING.md](file:///d:/Code%20Antinigaty/RUST/docs/guides/CONTRIBUTING.md), [CONTRIBUTING.vi.md](file:///d:/Code%20Antinigaty/RUST/docs/guides/CONTRIBUTING.vi.md)
 - **Hướng dẫn AI Agent**: [AGENTS_GUIDE.vi.md](file:///d:/Code%20Antinigaty/RUST/docs/guides/AGENTS_GUIDE.vi.md), [WORKFLOW_GUIDE.vi.md](file:///d:/Code%20Antinigaty/RUST/docs/guides/WORKFLOW_GUIDE.vi.md)
+- **Sol Advisor**: [SOL_ADVISOR_GUIDE.vi.md](file:///d:/Code%20Antinigaty/RUST/docs/guides/SOL_ADVISOR_GUIDE.vi.md)
 - **Vận hành & Khởi chạy**: [MASTER_OPERATIONS.vi.md](file:///d:/Code%20Antinigaty/RUST/docs/guides/MASTER_OPERATIONS.vi.md), [INSTALL_NPX_GUIDE.vi.md](file:///d:/Code%20Antinigaty/RUST/docs/guides/INSTALL_NPX_GUIDE.vi.md)
 
 ---
