@@ -1369,7 +1369,9 @@ export function MapLibreFastRenderer({
         resizeObserver?.observe(containerRef.current!);
 
         if (!ownsMap) {
-            markMapStartup("project-bind-start", { projectId });
+            if (projectId) {
+                markMapStartup("project-bind-start", { projectId });
+            }
             ensureCameraBridgeLayer(map, cameraBridgeRef.current, scheduleOverlay);
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setBasemapLoadState(navigator.onLine === false ? 'offline' : 'ready');
@@ -1682,6 +1684,9 @@ export function MapLibreFastRenderer({
             lastClusterSetDataKeyRef.current = null;
             // Reset telemetry so the new project gets fresh timing measurements.
             resetTelemetry();
+            if (projectId) {
+                markMapStartup("project-bind-start", { projectId });
+            }
         }
     }, [projectId]);
 

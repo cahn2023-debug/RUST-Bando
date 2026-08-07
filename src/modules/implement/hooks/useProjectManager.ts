@@ -6,6 +6,7 @@ import { useTabStore } from "@IMPLEMENT/TabInProgram/useTabStore";
 import { backfillProjectPath } from "./projectPathUtils";
 import { openProjectBootstrap } from "@TOOL/utils/designIpc";
 import { invalidateAll } from "@DESIGN/features/map/coordinateCache";
+import { resetTelemetry } from "@DESIGN/features/map/mapStartupTelemetry";
 
 const normalizeProject = (project: Project | null | undefined): Project | null => {
     if (!project || !project.path) {
@@ -300,6 +301,7 @@ export function useProjectManager() {
             }
             openingPathRef.current = selectedPath;
             selectedPathForCleanup = selectedPath;
+            resetTelemetry();
 
             const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
 
