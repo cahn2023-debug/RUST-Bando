@@ -20,13 +20,13 @@ const pointFeature = (
 
 describe('mapLibreFastAdapter', () => {
     it('uses summary LOD for low zoom or very large viewports', () => {
-        expect(getMapLibreLodPolicy({ zoom: 13, featureCount: 100 }).level).toBe('summary');
+        expect(getMapLibreLodPolicy({ zoom: 12, featureCount: 100 }).level).toBe('summary');
         expect(getMapLibreLodPolicy({ zoom: 18, featureCount: 9000 }).level).toBe('summary');
     });
 
-    it('clusters points only below zoom 15', () => {
-        expect(getMapLibreLodPolicy({ zoom: 14.9, featureCount: 100 }).clusterPoints).toBe(true);
-        expect(getMapLibreLodPolicy({ zoom: 15, featureCount: 100 }).clusterPoints).toBe(false);
+    it('clusters points only below zoom 13', () => {
+        expect(getMapLibreLodPolicy({ zoom: 12.9, featureCount: 100 }).clusterPoints).toBe(true);
+        expect(getMapLibreLodPolicy({ zoom: 13, featureCount: 100 }).clusterPoints).toBe(false);
         expect(getMapLibreLodPolicy({ zoom: 18, featureCount: 9000 }).clusterPoints).toBe(false);
     });
 
@@ -116,7 +116,7 @@ describe('mapLibreFastAdapter', () => {
         const { collection, lodPolicy } = buildMapLibreFeatureCollection({
             features: manyFeatures,
             selectedFeatureId: 'p2400',
-            zoom: 13,
+            zoom: 12,
         });
 
         expect(lodPolicy.level).toBe('summary');
@@ -173,7 +173,7 @@ describe('mapLibreFastAdapter', () => {
         expect(collection.features.map(feature => feature.properties.id)).toEqual(['route-1', 'intersection-1']);
     });
 
-    it('hides intersection children below zoom 17 while keeping the parent intersection', () => {
+    it('hides intersection children below zoom 15 while keeping the parent intersection', () => {
         const parent = pointFeature('intersection-parent', [105.8, 21.02], {
             group_id: 'junction-group',
             metadata: JSON.stringify({ icon: 'intersection' }),
@@ -186,12 +186,12 @@ describe('mapLibreFastAdapter', () => {
         const lowZoom = buildMapLibreFeatureCollection({
             features: [parent, child],
             featureGroups: { 'junction-group': { type: 'INTERSECTION', name: 'Nút giao' } },
-            zoom: 16,
+            zoom: 14,
         });
         const highZoom = buildMapLibreFeatureCollection({
             features: [parent, child],
             featureGroups: { 'junction-group': { type: 'INTERSECTION', name: 'Nút giao' } },
-            zoom: 17,
+            zoom: 15,
         });
 
         expect(lowZoom.collection.features.map(feature => feature.properties.id)).toEqual(['intersection-parent']);
@@ -368,7 +368,7 @@ describe('mapLibreFastAdapter', () => {
 
         const { collection, lodPolicy } = buildMapLibreFeatureCollection({
             features: [...manyPoints, legacyLine],
-            zoom: 13,
+            zoom: 12,
         });
 
         const renderedLine = collection.features.find(feature => feature.properties.id === 'legacy-line-after-points');

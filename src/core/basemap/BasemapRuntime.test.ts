@@ -98,10 +98,10 @@ describe('BasemapRuntime', () => {
         // When lifecycle is interactive, applyPreset() runs synchronously via setTiles.
         // No reload() call — spec task 7.3 explicitly forbids source.reload().
         expect(source.setTiles).toHaveBeenCalledWith([
-            'https://mt0.google.com/vt/lyrs=s&hl=vi&gl=vn&x={x}&y={y}&z={z}',
-            'https://mt1.google.com/vt/lyrs=s&hl=vi&gl=vn&x={x}&y={y}&z={z}',
-            'https://mt2.google.com/vt/lyrs=s&hl=vi&gl=vn&x={x}&y={y}&z={z}',
-            'https://mt3.google.com/vt/lyrs=s&hl=vi&gl=vn&x={x}&y={y}&z={z}',
+            'https://mt0.google.com/vt/lyrs=y&hl=vi&gl=vn&x={x}&y={y}&z={z}',
+            'https://mt1.google.com/vt/lyrs=y&hl=vi&gl=vn&x={x}&y={y}&z={z}',
+            'https://mt2.google.com/vt/lyrs=y&hl=vi&gl=vn&x={x}&y={y}&z={z}',
+            'https://mt3.google.com/vt/lyrs=y&hl=vi&gl=vn&x={x}&y={y}&z={z}',
         ]);
         expect(source.reload).not.toHaveBeenCalled();
         expect(mapState.getInstances()).toBe(1);

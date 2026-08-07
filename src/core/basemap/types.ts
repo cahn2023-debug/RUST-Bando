@@ -35,7 +35,7 @@ export interface BasemapPreset {
     label: string;
     title: string;
     kind: BasemapPresetKind;
-    tileLyr: 'm' | 's';
+    tileLyr: 'm' | 's' | 'y';
     tileUrls: string[];
     supportsApiStyle: boolean;
     apiStyleRules?: readonly string[];

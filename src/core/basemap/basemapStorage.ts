@@ -40,7 +40,7 @@ export function loadStoredPreferences(): BasemapPreferences | null {
         if (!raw) return null;
         const parsed = JSON.parse(raw) as Partial<BasemapPreferences>;
         return {
-            presetId: migrateBasemapPresetId(parsed.presetId),
+            presetId: migrateBasemapPresetId(parsed.presetId ?? (parsed as any).basemapId),
             roads: readBoolean(parsed.roads, defaults.roads),
             roadNames: readBoolean(parsed.roadNames, defaults.roadNames),
             buildings: readBoolean(parsed.buildings, defaults.buildings),
@@ -57,7 +57,10 @@ export function loadStoredPreferences(): BasemapPreferences | null {
 export function storePreferences(preferences: BasemapPreferences): void {
     if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
     try {
-        window.localStorage.setItem(BASEMAP_PREFERENCES_STORAGE_KEY, JSON.stringify(preferences));
+        window.localStorage.setItem(BASEMAP_PREFERENCES_STORAGE_KEY, JSON.stringify({
+            ...preferences,
+            basemapId: preferences.presetId,
+        }));
     } catch {
         // localStorage can be unavailable in restricted browser contexts.
     }

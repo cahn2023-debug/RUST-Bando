@@ -23,7 +23,9 @@ describe('core basemap style', () => {
         expect(street).toContain('https://mt0.google.com/vt/lyrs=m&hl=vi&gl=vn');
         expect(decodeURIComponent(street)).toContain('s.t:3|s.e:g|p.v:off');
         expect(decodeURIComponent(street)).toContain('s.t:8|p.v:off');
-        expect(satellite).toBe('https://mt0.google.com/vt/lyrs=s&hl=vi&gl=vn&x={x}&y={y}&z={z}');
+        expect(satellite).toContain('https://mt0.google.com/vt/lyrs=y&hl=vi&gl=vn');
+        expect(decodeURIComponent(satellite)).toContain('s.t:3|s.e:g|p.v:off');
+        expect(decodeURIComponent(satellite)).toContain('s.t:8|p.v:off');
     });
 
     it('migrates legacy preset ids without project metadata', () => {

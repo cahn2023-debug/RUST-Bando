@@ -522,7 +522,7 @@ describe('MapLibreFastRenderer', () => {
             } as any,
         } as any);
 
-        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={13} />);
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={12} />);
 
         await waitFor(() => {
             const lastMap = mockMapState.getLastMap();
@@ -535,7 +535,7 @@ describe('MapLibreFastRenderer', () => {
             expect(clusterSource).toEqual(expect.objectContaining({
                 cluster: true,
                 clusterRadius: 48,
-                clusterMaxZoom: 14,
+                clusterMaxZoom: 12,
             }));
             expect(source?.data.features.some((feature: any) => feature.geometry.type === 'LineString')).toBe(true);
             expect(clusterSource?.data.features).toHaveLength(1);
@@ -567,7 +567,7 @@ describe('MapLibreFastRenderer', () => {
             } as any,
         } as any);
 
-        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={13} />);
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={12} />);
 
         await waitFor(() => {
             const lastMap = mockMapState.getLastMap();
@@ -579,7 +579,7 @@ describe('MapLibreFastRenderer', () => {
     });
 
     it('zooms to a cluster expansion level when a cluster is clicked', async () => {
-        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={13} />);
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={12} />);
 
         await waitFor(() => {
             expect(mockMapState.getLastMap()?.layerHandlers.some((record: any) => (

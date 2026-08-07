@@ -1,0 +1,48 @@
+# Kế hoạch Sửa chữa Layer cho Bản đồ Vệ tinh (Google Hybrid Satellite)
+
+Sửa đổi phần cấu hình layer cho bản đồ vệ tinh (`satellite` basemap) để khi bật/tắt các lớp (Line, Label, Polygon, POI, Label/Visible) trên bảng điều khiển **MAP LAYERS**, thông tin nhãn/đường dẫn của layer tương ứng sẽ tự động ẩn/hiện trực tiếp trên nền ảnh vệ tinh.
+
+## User Review Required
+
+> [!IMPORTANT]
+> - **Chuyển đổi tile sang Satellite Hybrid (`lyrs=y`)**: Chế độ bản đồ vệ tinh sẽ sử dụng ảnh vệ tinh Google kết hợp lớp thông tin địa danh/đường xá (`lyrs=y`).
+> - **Áp dụng bộ lọc `apistyle`**: Bật `supportsApiStyle: true` cho preset `satellite` để các checkbox điều khiển (`roads`, `roadNames`, `buildings`, `pois`, `labels`) áp dụng quy tắc ẩn/hiện trực tiếp lên bản đồ vệ tinh.
+
+## Proposed Changes
+
+### Core Basemap Module
+
+#### [MODIFY] [presets.ts](file:///d:/Code%20Antinigaty/RUST/src/core/basemap/presets.ts)
+- Cập nhật preset `satellite`:
+  - Đổi `tileLyr: 's'` thành `tileLyr: 'y'` (Google Hybrid Satellite).
+  - Cập nhật `supportsApiStyle: true` để cho phép lọc tính năng bằng `apistyle`.
+
+#### [MODIFY] [style.ts](file:///d:/Code%20Antinigaty/RUST/src/core/basemap/style.ts)
+- Rà soát các quy tắc `getBasemapApiStyleRules`:
+  - `roads: false`: Ẩn hình học đường xá (`s.t:3|s.e:g|p.v:off`).
+  - `roadNames: false`: Ẩn tên đường (`s.t:3|s.e:l|p.v:off`).
+  - `buildings: false`: Ẩn công trình/tòa nhà (`s.t:2|p.v:off`, `s.t:5|p.v:off`).
+  - `pois: false`: Ẩn các điểm POI (`s.t:8|p.v:off`).
+  - `labels: false`: Ẩn tất cả nhãn văn bản (`s.t:1|s.e:l|p.v:off`, ...).
+
+### Tests
+
+#### [MODIFY] [useMapStyles.test.ts](file:///d:/Code%20Antinigaty/RUST/src/modules/design/features/map/useMapStyles.test.ts)
+- Cập nhật các test case liên quan đến `satellite` tile URL để kỳ vọng `lyrs=y` và có kèm tham số `apistyle`.
+
+#### [MODIFY] [basemapStyle.test.ts](file:///d:/Code%20Antinigaty/RUST/src/core/basemap/basemapStyle.test.ts)
+- Cập nhật các assertion test về tile vệ tinh đã hỗ trợ `apistyle`.
+
+## Verification Plan
+
+### Automated Tests
+- Chạy Vitest cho toàn bộ test suite của basemap & map features:
+  ```powershell
+  npx vitest run src/core/basemap/
+  npx vitest run src/modules/design/features/map/
+  ```
+
+### Manual Verification
+- Chạy dev server (`npm run dev`), chuyển sang tab bản đồ.
+- Chọn basemap **Vệ tinh**.
+- Thao tác bật/tắt các checkbox layer (Line, Label, Polygon, POI, Label/Visible) trong panel **MAP LAYERS** và kiểm tra các nhãn/đường dẫn trên bản đồ vệ tinh phản hồi chính xác theo trạng thái checkbox.

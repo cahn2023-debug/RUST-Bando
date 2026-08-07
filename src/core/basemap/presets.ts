@@ -31,7 +31,7 @@ const basePreset = (
 
 export const BASEMAP_PRESETS: ReadonlyArray<BasemapPreset> = [
     basePreset({ id: 'street', label: 'Duong pho', title: 'Duong pho', tileLyr: 'm', kind: 'raster', supportsApiStyle: true }),
-    basePreset({ id: 'satellite', label: 'Ve tinh', title: 'Ve tinh', tileLyr: 's', kind: 'raster', supportsApiStyle: false }),
+    basePreset({ id: 'satellite', label: 'Ve tinh', title: 'Ve tinh', tileLyr: 'y', kind: 'raster', supportsApiStyle: true }),
     basePreset({
         id: 'heat',
         label: 'Ban do nhiet',
@@ -66,7 +66,7 @@ export const BASEMAP_PRESETS: ReadonlyArray<BasemapPreset> = [
 ];
 
 export function createGoogleTileUrls(
-    tileLyr: 'm' | 's',
+    tileLyr: 'm' | 's' | 'y',
     preferences: Partial<BasemapPreferences> = {}
 ): string[] {
     const locale = preferences.locale || DEFAULT_BASEMAP_PREFERENCES.locale;

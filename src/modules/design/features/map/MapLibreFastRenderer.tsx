@@ -574,6 +574,7 @@ const featureNumberKey = (featureNumberMap: Record<string, string | number>) => 
     .join('|');
 
 const quantizeZoomBucket = (zoom: number) => {
+    if (zoom < 13) return 12;
     if (zoom < 15) return 14;
     if (zoom < 17) return 16;
     if (zoom < 19) return 18;
@@ -583,8 +584,8 @@ const quantizeZoomBucket = (zoom: number) => {
 const renderZoomForLodBucket = (zoom: number, featureCount: number) => {
     const quantized = quantizeZoomBucket(zoom);
     const policy = getMapLibreLodPolicy({ zoom: quantized, featureCount });
-    if (policy.level === 'summary') return 14;
-    if (policy.level === 'detail') return policy.showLabels ? 18 : 16;
+    if (policy.level === 'summary') return 12;
+    if (policy.level === 'detail') return policy.showLabels ? 16 : 14;
     return 20;
 };
 
@@ -2080,6 +2081,8 @@ export function MapLibreFastRenderer({
                     ensureBasemapOverlayLayers(map, reportCaptureScope?.active ? null : activeBasemapPreset);
                     ensureOverlayLayers(map);
                     layerSetupKeyRef.current = layerSetupKey;
+                    lastSetDataKeyRef.current = null;
+                    lastClusterSetDataKeyRef.current = null;
                 }
                 const iconKey = String(iconReadyRevision);
                 let displayCollection = preparedPointImagesRef.current?.collection === legacyCollection

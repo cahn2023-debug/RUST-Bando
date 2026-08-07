@@ -164,7 +164,7 @@ export const getMapLibreLodPolicy = ({
     zoom,
     featureCount,
 }: MapLibreLodPolicyInput): MapLibreLodPolicy => {
-    if (zoom < 15 || featureCount > DETAIL_FEATURE_LIMIT) {
+    if (zoom < 13 || featureCount > DETAIL_FEATURE_LIMIT) {
         return {
             level: 'summary',
             maxFeatures: SUMMARY_FEATURE_LIMIT,
@@ -178,7 +178,7 @@ export const getMapLibreLodPolicy = ({
         return {
             level: 'detail',
             maxFeatures: DETAIL_FEATURE_LIMIT,
-            showLabels: zoom >= 17,
+            showLabels: zoom >= 15,
             clusterPoints: zoom < MAP_POINT_CLUSTER_HIDE_AT_ZOOM,
             simplifyVectors: true,
         };

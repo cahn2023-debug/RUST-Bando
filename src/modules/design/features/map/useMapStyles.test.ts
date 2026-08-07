@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { useMapStyles } from './useMapStyles';
 
-const STORAGE_KEY = 'design.map.features';
+const STORAGE_KEY = 'basemap.preferences';
 
 describe('useMapStyles', () => {
     afterEach(() => {
@@ -58,7 +58,7 @@ describe('useMapStyles', () => {
         expect(result.current.activeBasemapPreset.id).toBe('dark');
     });
 
-    it('adds feature apistyle to street and dark tiles but not satellite tiles', () => {
+    it('adds feature apistyle to street, dark, and satellite tiles', () => {
         const { result } = renderHook(() => useMapStyles());
 
         act(() => {
@@ -81,7 +81,9 @@ describe('useMapStyles', () => {
         expect(darkTile).toContain('&apistyle=');
         expect(decodeURIComponent(darkTile)).toContain('p.c:#101318');
         expect(decodeURIComponent(darkTile)).toContain('s.t:3|s.e:g|p.v:off');
-        expect(satelliteTile).toBe('https://mt0.google.com/vt/lyrs=s&hl=vi&gl=vn&x={x}&y={y}&z={z}');
+        expect(satelliteTile).toContain('https://mt0.google.com/vt/lyrs=y&hl=vi&gl=vn');
+        expect(satelliteTile).toContain('&apistyle=');
+        expect(decodeURIComponent(satelliteTile)).toContain('s.t:3|s.e:g|p.v:off');
     });
 
     it('builds heat basemap tiles and exposes the heat preset kind', () => {

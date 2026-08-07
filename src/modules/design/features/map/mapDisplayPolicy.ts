@@ -1,8 +1,8 @@
 import type { FeatureState } from '@CONTRACT/types';
 
-export const MAP_POINT_CLUSTER_MAX_ZOOM = 14;
-export const MAP_POINT_CLUSTER_HIDE_AT_ZOOM = 15;
-export const MAP_INTERSECTION_CHILD_MIN_ZOOM = 17;
+export const MAP_POINT_CLUSTER_MAX_ZOOM = 12;
+export const MAP_POINT_CLUSTER_HIDE_AT_ZOOM = 13;
+export const MAP_INTERSECTION_CHILD_MIN_ZOOM = 15;
 export const MAP_FOV_MIN_ZOOM = 13;
 
 const parseObject = (value: unknown): Record<string, any> => {

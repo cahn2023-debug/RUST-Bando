@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useBasemap, useOptionalBasemapController } from './BasemapContext';
+import { loadStoredPreferences, loadStoredPresetId, storePreferences } from './basemapStorage';
 import { DEFAULT_BASEMAP_PREFERENCES } from './presets';
 import type { BasemapLifecycleState, BasemapPreferences, BasemapPresetId, CameraSnapshot } from './types';
 
@@ -34,8 +35,8 @@ export function useBasemapLifecycle(): BasemapLifecycleState {
  * its own copy, and the two could disagree.
  *
  * Provider-optional: without a `BasemapProvider` this reports the defaults and
- * `setPreset` is inert, so a component can render outside the app shell without
- * wrapping the hook in try/catch.
+ * `setPreset` updates stored preferences, so a component can render outside the
+ * app shell without wrapping the hook in try/catch.
  */
 export function useBasemapPreset(): {
     presetId: BasemapPresetId;
@@ -44,10 +45,10 @@ export function useBasemapPreset(): {
 } {
     const controller = useOptionalBasemapController();
     const [presetId, setPresetId] = useState<BasemapPresetId>(
-        () => controller?.getPresetId() ?? DEFAULT_BASEMAP_PREFERENCES.presetId
+        () => controller?.getPresetId() ?? loadStoredPresetId()
     );
     const [preferences, setPreferences] = useState<BasemapPreferences>(
-        () => controller?.getPreferences() ?? { ...DEFAULT_BASEMAP_PREFERENCES }
+        () => controller?.getPreferences() ?? loadStoredPreferences() ?? { ...DEFAULT_BASEMAP_PREFERENCES }
     );
 
     useEffect(() => {
@@ -61,7 +62,22 @@ export function useBasemapPreset(): {
     return {
         presetId,
         preferences,
-        setPreset: (next, nextPreferences) => controller?.setPreset(next, nextPreferences),
+        setPreset: (next, nextPreferences) => {
+            if (controller) {
+                controller.setPreset(next, nextPreferences);
+            } else {
+                const current = loadStoredPreferences() ?? { ...DEFAULT_BASEMAP_PREFERENCES };
+                const nextId = next;
+                const nextPrefs: BasemapPreferences = {
+                    ...current,
+                    presetId: nextId,
+                    ...(nextPreferences || {}),
+                };
+                storePreferences(nextPrefs);
+                setPresetId(nextId);
+                setPreferences(nextPrefs);
+            }
+        },
     };
 }
 
