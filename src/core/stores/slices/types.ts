@@ -35,4 +35,10 @@ export interface LayoutState {
     showPerformanceOverlay: boolean;
     setShowPerformanceOverlay: (show: boolean) => void;
     registerPalette: (config: Partial<PaletteConfig> & { id: string }) => void;
+    activeModalId?: string | null;
+    openModal?: (id: string) => void;
+    closeModal?: () => void;
+    activeProjectId?: string | null;
+    setActiveProjectId?: (id: string | null) => void;
 }
+

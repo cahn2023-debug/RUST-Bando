@@ -1,6 +1,8 @@
 pub mod gis_commands;
+pub mod modules;
 pub mod v2;
 pub mod v2_bridge;
+
 
 #[macro_export]
 macro_rules! register_tauri_commands {
