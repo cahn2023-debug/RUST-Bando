@@ -512,7 +512,7 @@ const getCoordsHash = (coords: any): number => {
     return 0;
 };
 
-const getMetadataHash = (meta: any): number => {
+export const getMetadataHash = (meta: any): number => {
     if (!meta) return 0;
     if (typeof meta === 'string') {
         let h = 0;
@@ -534,7 +534,7 @@ const getMetadataHash = (meta: any): number => {
     return 0;
 };
 
-const getPropertiesHash = (props: any): number => {
+export const getPropertiesHash = (props: any): number => {
     if (!props) return 0;
     if (typeof props === 'object') {
         const color = props.color ?? props.stroke;

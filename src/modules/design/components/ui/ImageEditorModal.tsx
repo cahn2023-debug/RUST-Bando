@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import {
   Pencil, Crop, RotateCw, Circle, Square, Type as TypeIcon, Minus, MoveUpRight,
   Undo2, Radio, Eraser, X, Check, RotateCcw

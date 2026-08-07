@@ -1,73 +1,47 @@
-# Documentation Index
+# 🗺️ Master Documentation Index (Chỉ mục Tài liệu Dự án)
 
-Last audited: 2026-08-05
+Tài liệu dự án Project Manager được gom nhóm theo các chuyên mục chuẩn hóa dưới đây:
 
-This is the primary documentation gateway for the repository. For any large task,
-read this file first, then open only the context-pack files and source docs that
-match the task.
+---
 
-## Read Order
+## 🏛️ 1. Architecture (Kiến trúc Hệ thống)
+Thư mục: [`docs/architecture/`](file:///d:/Code%20Antinigaty/RUST/docs/architecture/)
 
-1. `docs/context-pack/PROJECT_OVERVIEW.md`
-2. `docs/context-pack/ARCHITECTURE_MAP.md`
-3. `docs/context-pack/DIRECTORY_MAP.md`
-4. `docs/context-pack/SYSTEM_REGISTRY.md`
-5. `docs/context-pack/DOCUMENT_STATUS.md`
-6. Task-specific specs, plans, reports, or troubleshooting notes
+- **Tổng quan Kiến trúc**: [CORE_APP_CODE_WALKTHROUGH.md](file:///d:/Code%20Antinigaty/RUST/docs/architecture/CORE_APP_CODE_WALKTHROUGH.md)
+- **Frontend Code Layout**: [FRONTEND_CODE_LAYOUT.md](file:///d:/Code%20Antinigaty/RUST/docs/architecture/FRONTEND_CODE_LAYOUT.md)
+- **Cơ sở Dữ liệu & Storage**: [DATABASE_SUMMARY.md](file:///d:/Code%20Antinigaty/RUST/docs/architecture/DATABASE_SUMMARY.md), [DATABASE_REVIEW.md](file:///d:/Code%20Antinigaty/RUST/docs/architecture/DATABASE_REVIEW.md)
+- **Map & Render Feature**: [MAPLIBRE_GOOGLE_MAPS_RENDER_FEATURE.md](file:///d:/Code%20Antinigaty/RUST/docs/architecture/MAPLIBRE_GOOGLE_MAPS_RENDER_FEATURE.md), [UI_MAP_FEATURES_SUMMARY.md](file:///d:/Code%20Antinigaty/RUST/docs/architecture/UI_MAP_FEATURES_SUMMARY.md)
+- **V2 Architecture Deep Dive**: [V2_ARCHITECTURE_COMPLETE.md](file:///d:/Code%20Antinigaty/RUST/docs/architecture/V2_ARCHITECTURE_COMPLETE.md)
 
-Agent-specific guidance starts at `docs/AGENTS.md` and `docs/KNOWNS.md`.
+---
 
-## Current Truth
+## 📋 2. Plans (Kế hoạch Nâng cấp & Phát triển)
+Thư mục: [`docs/plans/`](file:///d:/Code%20Antinigaty/RUST/docs/plans/)
 
-- Product: Tauri v2 desktop app named `project-manager`.
-- Frontend: React 19, TypeScript, Vite, Tailwind CSS v4, Zustand.
-- Backend: Rust/Tauri, SQLite-backed `.pmp` project storage, event/snapshot pipeline.
-- Current map stack in source: persistent basemap host plus MapLibre-oriented rendering.
-- Important mismatch: several older docs still describe Leaflet-only or pre-basemap
-  architecture. Treat those as historical unless confirmed against source.
+- **Refactor Architecture & Docs**: [PLAN-refactor-architecture-docs.md](file:///d:/Code%20Antinigaty/RUST/docs/plans/PLAN-refactor-architecture-docs.md)
+- **System Standardization**: [PRODUCT_STANDARDIZATION_PLAN.md](file:///d:/Code%20Antinigaty/RUST/docs/plans/PRODUCT_STANDARDIZATION_PLAN.md)
+- **UI & Performance Fixes**: Các file `PLAN-*.md` theo từng tính năng cụ thể.
 
-## Context Pack
+---
 
-- `docs/context-pack/PROJECT_OVERVIEW.md` - concise project state.
-- `docs/context-pack/ARCHITECTURE_MAP.md` - current architecture and source alignment.
-- `docs/context-pack/DIRECTORY_MAP.md` - repository directory roles.
-- `docs/context-pack/SYSTEM_REGISTRY.md` - active subsystems and source anchors.
-- `docs/context-pack/ACTIVE_SKILLS.md` - active agent/project operating docs.
-- `docs/context-pack/KNOWN_ISSUES.md` - documentation and source/doc drift.
-- `docs/context-pack/CURRENT_PRIORITIES.md` - inferred active work areas.
-- `docs/context-pack/DOCUMENT_STATUS.md` - audit classification.
+## 📑 3. Specifications & Briefs (Đặc tả Tính năng & Hợp đồng)
+Thư mục: [`docs/specs/`](file:///d:/Code%20Antinigaty/RUST/docs/specs/)
 
-## Active Source Docs
+- **PMP & Sync Specs**: [SPEC_PMP_V2.md](file:///d:/Code%20Antinigaty/RUST/docs/specs/SPEC_PMP_V2.md), [SPEC_SYNC_ARCHITECTURE.md](file:///d:/Code%20Antinigaty/RUST/docs/specs/SPEC_SYNC_ARCHITECTURE.md)
+- **Box Selection & Field Mapping**: [SPEC_BoxSelection.md](file:///d:/Code%20Antinigaty/RUST/docs/specs/SPEC_BoxSelection.md), [BRIEF_FIELD_MAPPING.md](file:///d:/Code%20Antinigaty/RUST/docs/specs/BRIEF_FIELD_MAPPING.md)
 
-- `docs/KNOWNS.md`
-- `docs/AGENTS.md`
-- `docs/STYLE_GUIDE.md`
-- `docs/FRONTEND_CODE_LAYOUT.md`
-- `docs/MAPLIBRE_GOOGLE_MAPS_RENDER_FEATURE.md`
-- `docs/UI_MAP_FEATURES_SUMMARY.md`
-- `docs/UI_UX_DOCUMENTATION.md`
-- `docs/WORD_REPORT_EXPORT_FEATURE.md`
-- `specs/002-word-report-export/spec.md`
-- `docs/PLAN-map-ui-standardization.md`
-- `docs/PRODUCT_STANDARDIZATION_PLAN.md`
+---
 
-## Review Before Trusting
+## 📖 4. Guides & Operations (Hướng dẫn Vận hành & Phát triển)
+Thư mục: [`docs/guides/`](file:///d:/Code%20Antinigaty/RUST/docs/guides/)
 
-- `docs/README.md`, `docs/PROJECT_OVERVIEW.md`, and
-  `docs/architecture/system_overview.md` contain useful intent but also encoding
-  damage and architecture drift.
-- `docs/project_index.html` was previously documented as an SSOT, but this audit
-  establishes `docs/INDEX.md` as the readable gateway. Keep `project_index.html`
-  as a generated or historical artifact until it is revalidated.
-- Very large or generated docs such as `docs/NOTEBOOK_LM_*.md`,
-  `docs/udnl_upload.md`, and `docs/architecture/CODEBASE_MAP.md` should not be
-  loaded during normal task startup.
+- **Hướng dẫn Đóng góp**: [CONTRIBUTING.md](file:///d:/Code%20Antinigaty/RUST/docs/guides/CONTRIBUTING.md), [CONTRIBUTING.vi.md](file:///d:/Code%20Antinigaty/RUST/docs/guides/CONTRIBUTING.vi.md)
+- **Hướng dẫn AI Agent**: [AGENTS_GUIDE.vi.md](file:///d:/Code%20Antinigaty/RUST/docs/guides/AGENTS_GUIDE.vi.md), [WORKFLOW_GUIDE.vi.md](file:///d:/Code%20Antinigaty/RUST/docs/guides/WORKFLOW_GUIDE.vi.md)
+- **Vận hành & Khởi chạy**: [MASTER_OPERATIONS.vi.md](file:///d:/Code%20Antinigaty/RUST/docs/guides/MASTER_OPERATIONS.vi.md), [INSTALL_NPX_GUIDE.vi.md](file:///d:/Code%20Antinigaty/RUST/docs/guides/INSTALL_NPX_GUIDE.vi.md)
 
-## Status Vocabulary
+---
 
-- `ACTIVE`: aligned enough with current source to use as task context.
-- `NEEDS_REVIEW`: useful but must be verified against source before acting.
-- `STALE`: describes older implementation, solved issue, or obsolete direction.
-- `DUPLICATE`: substantially overlaps another doc; use the canonical path listed.
-- `ARCHIVE_CANDIDATE`: keep for history, but remove from normal task flow.
+## 📦 5. Archive (Kho lưu trữ Tài liệu cũ)
+Thư mục: [`docs/archive/`](file:///d:/Code%20Antinigaty/RUST/docs/archive/)
 
+- Chứa các kế hoạch, báo cáo và bản nháp đã hoàn thành trong các giai đoạn trước.

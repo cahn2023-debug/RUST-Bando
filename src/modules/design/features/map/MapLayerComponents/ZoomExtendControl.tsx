@@ -75,7 +75,7 @@ export function ZoomExtendControl() {
 
                 try {
                     const rawCoords = f.coordinates as any;
-                    const coords = getCoordinates(f.id, rawCoords);
+                    const coords = getCoordinates(f.id, rawCoords) as any;
                     if (!coords) continue;
                     const type = (f.geom_type || 'Point').toUpperCase();
 

@@ -59,14 +59,16 @@ const buildLargeProjectState = () => ({
     viewportFeatureLimit: 10000,
 });
 
+import type { FeatureCoordinates } from '../../../../contract/designTypes';
+
 /** Feature payload with in-viewport coordinates (HCM City area). */
-const makeFeaturePayload = (id: string, coordinates = [106.660172, 10.762622]) => ({
+const makeFeaturePayload = (id: string, coordinates: [number, number] = [106.660172, 10.762622]) => ({
     id,
     layer_id: 'layer-1',
     group_id: 'group-1',
     name: `Feature ${id}`,
     geom_type: 'POINT',
-    coordinates,
+    coordinates: coordinates as FeatureCoordinates,
     properties: { icon: 'camera', iconKey: 'camera', type: 'camera' },
     metadata: JSON.stringify({ specs: { hfov: 90 } }),
     is_visible: true,
@@ -79,10 +81,9 @@ const makeOutOfViewportPayload = (id: string) => ({
     group_id: 'group-1',
     name: `OOV Feature ${id}`,
     geom_type: 'POINT',
-    coordinates: [2.3522, 48.8566], // Paris — outside HCM City viewport
+    coordinates: [2.3522, 48.8566] as FeatureCoordinates, // Paris — outside HCM City viewport
     properties: { icon: 'default', iconKey: 'default', type: 'point' },
     metadata: JSON.stringify({}),
-    is_visible: true,
 });
 
 // ---------------------------------------------------------------------------
@@ -155,8 +156,8 @@ describe('Preservation 2.A — Non-Large Project: rawFeatures Remains Data Sourc
      */
     it('Preservation 2.A.2: FeatureUpdated on non-large project → updated feature in state.features (rawFeatures)', () => {
         const featureId = 'non-large-feature-update';
-        const originalCoords = [106.660172, 10.762622];
-        const updatedCoords = [106.670000, 10.770000];
+        const originalCoords: [number, number] = [106.660172, 10.762622];
+        const updatedCoords: [number, number] = [106.670000, 10.770000];
 
         // Pre-populate with an existing feature
         useDesignSync.setState({
@@ -174,7 +175,7 @@ describe('Preservation 2.A — Non-Large Project: rawFeatures Remains Data Sourc
             event_id: 'event-non-large-update-1',
             applied_event: {
                 type: 'FeatureUpdated',
-                payload: { id: featureId, coordinates: updatedCoords },
+                payload: { id: featureId, coordinates: updatedCoords as FeatureCoordinates },
             },
             side_effects: [],
         });
@@ -517,7 +518,6 @@ describe('Preservation 2.C — Out-of-Viewport Feature Stays Absent from visible
         }
 
         const storeAfter = useDesignSync.getState();
-        const visibleIds = Object.keys(storeAfter.visibleFeatures);
 
         const wronglyVisible = oovIds.filter(id => storeAfter.visibleFeatures[id]);
         expect(
@@ -674,7 +674,7 @@ describe('Preservation 2.E — Non-Feature Events: No Unintended Side Effects (V
             event_id: 'event-layer-create',
             applied_event: {
                 type: 'LayerCreated',
-                payload: { id: 'layer-2', region_id: 'region-1', name: 'New Layer', is_visible: true },
+                payload: { id: 'layer-2', region_id: 'region-1', name: 'New Layer' },
             },
             side_effects: [],
         });
@@ -707,7 +707,7 @@ describe('Preservation 2.E — Non-Feature Events: No Unintended Side Effects (V
             event_id: 'event-group-create',
             applied_event: {
                 type: 'FeatureGroupCreated',
-                payload: { id: 'group-2', layer_id: 'layer-1', name: 'New Group' },
+                payload: { id: 'group-2', layer_id: 'layer-1', name: 'New Group', group_type: 'default' },
             },
             side_effects: [],
         });
@@ -786,10 +786,9 @@ describe('Preservation 2.F — FOVLayer/DORIOverlay: Non-Large Project Uses rawF
                     group_id: 'group-1',
                     name: 'CCTV Non-Large',
                     geom_type: 'POINT',
-                    coordinates: [106.660172, 10.762622],
+                    coordinates: [106.660172, 10.762622] as FeatureCoordinates,
                     properties: { icon: 'cctv', iconKey: 'cctv', type: 'camera' },
                     metadata: JSON.stringify({ specs: { hfov: 90, vfov: 60, range: 50 } }),
-                    is_visible: true,
                 },
             },
             side_effects: [],

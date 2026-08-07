@@ -2,7 +2,7 @@ import { render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BasemapProvider } from './BasemapContext';
 import { PersistentBasemapHost } from './PersistentBasemapHost';
-import type { BasemapController, BasemapLifecycleState } from './types';
+import type { BasemapController, BasemapLifecycleState, BasemapPreferences, BasemapPresetId } from './types';
 
 const runtimeMock = vi.hoisted(() => {
     const listeners = new Set<(state: BasemapLifecycleState) => void>();
@@ -26,6 +26,18 @@ const runtimeMock = vi.hoisted(() => {
         setCamera: vi.fn(),
         fitBounds: vi.fn(),
         setPreset: vi.fn(),
+        getPresetId: vi.fn((): BasemapPresetId => 'street'),
+        getPreferences: vi.fn((): BasemapPreferences => ({
+            presetId: 'street' as BasemapPresetId,
+            roads: true,
+            roadNames: true,
+            buildings: true,
+            pois: true,
+            labels: true,
+            locale: 'vi',
+            region: 'VN',
+        })),
+        zoomBy: vi.fn(),
         setVisibility: vi.fn(),
         subscribeCamera: vi.fn(() => () => {}),
         subscribeLifecycle: vi.fn((listener: (state: BasemapLifecycleState) => void) => {
@@ -33,6 +45,7 @@ const runtimeMock = vi.hoisted(() => {
             listener('uninitialized');
             return () => listeners.delete(listener);
         }),
+        subscribePreset: vi.fn(() => () => {}),
     };
 
     return {

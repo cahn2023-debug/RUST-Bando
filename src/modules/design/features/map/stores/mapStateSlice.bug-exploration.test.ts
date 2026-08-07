@@ -43,16 +43,17 @@ const buildLargeProjectState = () => ({
  * A feature with in-viewport coordinates (Ho Chi Minh City area).
  * These coordinates are considered "in viewport" for the test scenario.
  */
-const makeFeaturePayload = (id: string, coordinates = [106.660172, 10.762622]) => ({
+import type { FeatureCoordinates } from '../../../../contract/designTypes';
+
+const makeFeaturePayload = (id: string, coordinates: [number, number] = [106.660172, 10.762622]) => ({
     id,
     layer_id: 'layer-1',
     group_id: 'group-1',
     name: `Feature ${id}`,
     geom_type: 'POINT',
-    coordinates,
+    coordinates: coordinates as FeatureCoordinates,
     properties: { icon: 'camera', iconKey: 'camera', type: 'camera' },
     metadata: JSON.stringify({ specs: { hfov: 90 } }),
-    is_visible: true,
 });
 
 // ---------------------------------------------------------------------------
@@ -97,7 +98,6 @@ describe('Bug Condition Exploration — Large Project Feature Visibility (Valida
      */
     it('Property 1a: FeatureCreated with in-viewport coordinates on large project → feature MUST be in visibleFeatures', () => {
         const featureId = 'feature-new-1';
-        const viewportRevisionBefore = useDesignSync.getState().viewportRevision;
 
         // Act: process FeatureCreated event
         useDesignSync.getState().applyPatchToState({
@@ -181,8 +181,8 @@ describe('Bug Condition Exploration — Large Project Feature Visibility (Valida
      */
     it('Property 1c: FeatureUpdated on large project → viewportRevision increments AND updated coordinates appear in visibleFeatures', () => {
         const featureId = 'feature-existing-1';
-        const originalCoordinates = [106.660172, 10.762622];
-        const updatedCoordinates = [106.670000, 10.770000];
+        const originalCoordinates: [number, number] = [106.660172, 10.762622];
+        const updatedCoordinates: [number, number] = [106.670000, 10.770000];
 
         // Pre-populate state with an existing feature in visibleFeatures
         useDesignSync.setState({
@@ -212,7 +212,7 @@ describe('Bug Condition Exploration — Large Project Feature Visibility (Valida
                 type: 'FeatureUpdated',
                 payload: {
                     id: featureId,
-                    coordinates: updatedCoordinates,
+                    coordinates: updatedCoordinates as FeatureCoordinates,
                 },
             },
             side_effects: [],
@@ -272,7 +272,7 @@ describe('Bug Condition Exploration — Large Project Feature Visibility (Valida
                 type: 'FeatureUpdated',
                 payload: {
                     id: featureId,
-                    coordinates: [106.680000, 10.780000],
+                    coordinates: [106.680000, 10.780000] as FeatureCoordinates,
                 },
             },
             side_effects: [],
@@ -308,7 +308,7 @@ describe('Bug Condition Exploration — Large Project Feature Visibility (Valida
      */
     it('Property 1d: Multiple FeatureCreated events on large project → all features must appear in visibleFeatures', () => {
         // Generate test cases with varied in-viewport coordinates (HCM City area)
-        const testFeatures = [
+        const testFeatures: Array<{ id: string; coordinates: [number, number] }> = [
             { id: 'multi-feature-1', coordinates: [106.660172, 10.762622] },
             { id: 'multi-feature-2', coordinates: [106.665000, 10.765000] },
             { id: 'multi-feature-3', coordinates: [106.670000, 10.770000] },
@@ -369,13 +369,12 @@ describe('Bug Condition Exploration — Large Project Feature Visibility (Valida
                     group_id: 'group-1',
                     name: 'CCTV Camera North',
                     geom_type: 'POINT',
-                    coordinates: [106.660172, 10.762622],
+                    coordinates: [106.660172, 10.762622] as FeatureCoordinates,
                     properties: { icon: 'cctv', iconKey: 'cctv', type: 'camera' },
                     metadata: JSON.stringify({
                         specs: { hfov: 90, vfov: 60, range: 50 },
                         parent_feature_id: null,
                     }),
-                    is_visible: true,
                 },
             },
             side_effects: [],

@@ -70,7 +70,7 @@ describe('buildFovFeatureCollection', () => {
         }));
     });
 
-    it('hides intersection child camera FOV below zoom 17 and shows it from zoom 17', () => {
+    it('hides intersection child camera FOV below zoom 15 and shows it from zoom 15', () => {
         const childCamera = cameraFeature('junction-camera', { parent_feature_id: 'junction-1' }, {
             group_id: 'junction-group',
         });
@@ -80,13 +80,13 @@ describe('buildFovFeatureCollection', () => {
             features: [childCamera],
             featureGroups,
             showFovTypes: ['cctv'],
-            currentZoom: 16.9,
+            currentZoom: 14.9,
         }).features).toHaveLength(0);
         expect(buildFovFeatureCollection({
             features: [childCamera],
             featureGroups,
             showFovTypes: ['cctv'],
-            currentZoom: 17,
+            currentZoom: 15,
         }).features).toHaveLength(1);
     });
 
