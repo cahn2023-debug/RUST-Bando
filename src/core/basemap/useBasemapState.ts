@@ -18,6 +18,7 @@ export function useBasemapLifecycle(): BasemapLifecycleState {
 
     useEffect(() => {
         if (!controller) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setState('uninitialized');
             return;
         }
@@ -97,6 +98,7 @@ export function useBasemapCamera(): CameraSnapshot | null {
 
     useEffect(() => {
         if (!controller) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSnapshot(null);
             return;
         }

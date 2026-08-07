@@ -489,6 +489,19 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
     return () => observer.disconnect();
   }, [canvasSize]);
 
+  const selectTool = (nextTool: ImageEditTool) => {
+    if (nextTool !== 'crop') {
+      if (rotationPreviewSourceRef.current) {
+        commitRotationPreviewSourceToUndo();
+        setCropRotation(0);
+      }
+      resetCropSelection();
+    }
+    setTool(nextTool);
+    pendingTextPointRef.current = null;
+    setPendingTextPoint(null);
+  };
+
   // Hotkeys handling (only when focused outside inputs)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -538,7 +551,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   }, [cropRect, tool, onCancel]);
 
   useEffect(() => {
-    if (tool !== 'crop') resetCropSelection();
+    if (tool !== 'crop') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      resetCropSelection();
+    }
   }, [tool]);
 
   const getCanvasPoint = (event: React.PointerEvent<HTMLCanvasElement>, canvas: HTMLCanvasElement): DragPoint => {
@@ -864,19 +880,6 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
       "focus-visible:ring-2 focus-visible:ring-cad-accent focus-visible:ring-offset-1 focus-visible:ring-offset-cad-surface",
       tool === candidate ? "bg-cad-accent border-cad-accent text-black" : "bg-cad-bg border-cad-border text-cad-text-secondary hover:text-cad-text-primary"
     );
-
-  const selectTool = (nextTool: ImageEditTool) => {
-    if (nextTool !== 'crop') {
-      if (rotationPreviewSourceRef.current) {
-        commitRotationPreviewSourceToUndo();
-        setCropRotation(0);
-      }
-      resetCropSelection();
-    }
-    setTool(nextTool);
-    pendingTextPointRef.current = null;
-    setPendingTextPoint(null);
-  };
 
   return (
     <Modal

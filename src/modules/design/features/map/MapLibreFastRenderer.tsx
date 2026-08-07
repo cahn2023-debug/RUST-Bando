@@ -1593,6 +1593,7 @@ export function MapLibreFastRenderer({
         if (!ownsMap) {
             markMapStartup("project-bind-start", { projectId });
             ensureCameraBridgeLayer(map, cameraBridgeRef.current, scheduleOverlay);
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setBasemapLoadState(navigator.onLine === false ? 'offline' : 'ready');
             setViewportTick(tick => tick + 1);
             scheduleOverlay(DirtyFlag.Camera | DirtyFlag.Geometry);
@@ -2284,6 +2285,7 @@ export function MapLibreFastRenderer({
         >
             <FeatureOverlayCanvas
                 ref={overlayRef}
+                // eslint-disable-next-line react-compiler/react-compiler, react-hooks/refs
                 camera={cameraBridgeRef.current.getSnapshot()}
                 designFeatures={renderCollectionResult.collection}
                 renderFlags={renderFlags}

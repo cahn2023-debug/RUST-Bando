@@ -334,7 +334,7 @@ export function DrawingExplorer() {
     treeSearchQuery, filterType, reverseOrder, sortField
   });
 
-  const { isVirtualDragging: _isVirtualDragging, handleVirtualDragStart } = useVirtualDrag({
+  const { handleVirtualDragStart } = useVirtualDrag({
     featuresRef, groupsRef, regionsRef: regionsRef as any, dispatchEvents, selectionSet, clearSelection
   });
 
@@ -838,6 +838,7 @@ export function DrawingExplorer() {
                 onChange={(e) => setCoordinateEditor(prev => prev ? { ...prev, value: e.target.value, error: null } : prev)}
                 className="h-24 w-full resize-none rounded border border-cad-border bg-cad-bg px-2 py-1.5 font-mono text-[10px] text-cad-text-primary outline-none focus:border-cad-accent"
                 placeholder={coordinateEditor.geomType.toLowerCase() === 'point' ? "105.871928, 21.046998" : "[[105.871928,21.046998],[105.872,21.047]]"}
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
               />
               <div className="text-[8px] text-cad-text-muted">

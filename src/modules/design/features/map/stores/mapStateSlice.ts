@@ -685,9 +685,9 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
             // so they appear immediately without waiting for the async queryVisibleFeaturesV2 IPC path.
             let injectUpdates: Partial<typeof s> = {};
             if (newLargeProjectFeatures.size > 0) {
-                let nextVisibleFeatures = { ...(cacheUpdates.visibleFeatures ?? s.visibleFeatures) };
+                const nextVisibleFeatures = { ...(cacheUpdates.visibleFeatures ?? s.visibleFeatures) };
                 let nextVisibleFeatureIds = [...(s.visibleFeatureIds)];
-                let featureDetailsCache = { ...(cacheUpdates.featureDetailsCache ?? s.featureDetailsCache) };
+                const featureDetailsCache = { ...(cacheUpdates.featureDetailsCache ?? s.featureDetailsCache) };
                 newLargeProjectFeatures.forEach((_payload, id) => {
                     const normalizedFeature = normalizedState.features?.[id];
                     if (normalizedFeature) {

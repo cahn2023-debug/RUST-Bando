@@ -96,6 +96,7 @@ export const PaletteSystem: React.FC<PaletteSystemProps> = React.memo(({
         const networkConfig = paletteConfigs['network-graph'];
 
         if (isIntersection && networkConfig && !networkConfig.isVisible && !networkConfig.userClosed) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             togglePalette('network-graph');
         }
     }, [paletteConfigs, selectedFeature, togglePalette]);

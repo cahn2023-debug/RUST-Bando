@@ -7,6 +7,7 @@ export const LanguageSwitcher = () => {
   const [currentLang, setCurrentLang] = useState<'vi' | 'en'>(getCurrentLanguage());
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentLang((i18n.language as 'vi' | 'en') || 'vi');
   }, [i18n.language]);
 

@@ -22,6 +22,7 @@ export function PersistentBasemapHost({
     const firstFrameReportedRef = useRef(false);
     const { setController } = useBasemap();
 
+    // eslint-disable-next-line react-hooks/refs
     if (!runtimeRef.current) runtimeRef.current = createBasemapRuntime();
 
     useLayoutEffect(() => {

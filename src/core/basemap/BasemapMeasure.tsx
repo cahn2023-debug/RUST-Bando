@@ -102,7 +102,10 @@ export function useMeasureTool(active: boolean, mode: MeasureMode) {
     }, []);
 
     useEffect(() => {
-        if (!active) reset();
+        if (!active) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            reset();
+        }
     }, [active, reset]);
 
     // Collect clicks.
@@ -229,6 +232,7 @@ export function useMeasureTool(active: boolean, mode: MeasureMode) {
 
     // Clean up when the tool unmounts entirely.
     const controllerRef = useRef(controller);
+    // eslint-disable-next-line react-hooks/refs
     controllerRef.current = controller;
     useEffect(
         () => () => {

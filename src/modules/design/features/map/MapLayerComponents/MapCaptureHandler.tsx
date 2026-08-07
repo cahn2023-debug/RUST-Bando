@@ -81,7 +81,7 @@ const canvasToJpegImage = (canvas: HTMLCanvasElement, quality = 0.82): Promise<M
         }
         resolve({ mimeType: 'image/jpeg', bytes, width: canvas.width, height: canvas.height });
       } catch (error) {
-        reject(error);
+        reject(error instanceof Error ? error : new Error(String(error)));
       }
       return;
     }

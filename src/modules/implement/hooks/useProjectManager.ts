@@ -101,9 +101,18 @@ export function useProjectManager() {
                 hydratedProject = activeProject;
             }
 
-            // Fire bootstrap early — do NOT await here so UI shell setup can proceed in parallel
+            const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
+            const currentSyncState = useDesignSync.getState();
+
+            const isAlreadyLoaded = hydratedProject
+                ? currentSyncState.projectId === hydratedProject.id
+                    && currentSyncState.state
+                    && !currentSyncState.isLoading
+                : false;
+
+            // Fire bootstrap early only if project is not already loaded into design sync
             const activePath = hydratedProject?.path;
-            const bootstrapPromise = activePath
+            const bootstrapPromise = activePath && !isAlreadyLoaded
                 ? openProjectBootstrap(activePath, requestId)
                 : Promise.resolve(null);
 
@@ -137,11 +146,6 @@ export function useProjectManager() {
             if (isProjectLoadable(hydratedProject)) {
                 selectedProjectRef.current = hydratedProject;
                 setSelectedProject(hydratedProject);
-                const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
-                const currentSyncState = useDesignSync.getState();
-                const isAlreadyLoaded = currentSyncState.projectId === hydratedProject.id
-                    && currentSyncState.state
-                    && !currentSyncState.isLoading;
                 const hydrationKey = `${hydratedProject.id}@${hydratedProject.path}`;
                 if (!isAlreadyLoaded && !startupHydrationInFlight.has(hydrationKey)) {
                     startupHydrationInFlight.add(hydrationKey);

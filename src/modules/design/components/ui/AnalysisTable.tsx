@@ -143,6 +143,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
 
     useEffect(() => {
         scrollContainerRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setRowContextMenu(null);
     }, [data.length, isStandalone]);
 
@@ -192,6 +193,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
     }, [getColumnIndex, navigableColumns, visibleRows.length]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setActiveCell(prev => normalizeCell(prev));
         setSelectedRange(prev => {
             if (!prev) return null;

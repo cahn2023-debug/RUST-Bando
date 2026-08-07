@@ -34,7 +34,9 @@ const removeMeasureLayers = (map: maplibregl.Map) => {
         if (map.getLayer(MEASURE_LINE_LAYER_ID)) map.removeLayer(MEASURE_LINE_LAYER_ID);
         if (map.getLayer(MEASURE_FILL_LAYER_ID)) map.removeLayer(MEASURE_FILL_LAYER_ID);
         if (map.getSource(MEASURE_SOURCE_ID)) map.removeSource(MEASURE_SOURCE_ID);
-    } catch (e) {}
+    } catch (_e) {
+        // Ignore teardown errors during unmount/style reloads
+    }
 };
 
 export function MapLibreMeasurementTool({ active, mode = 'distance', onDeactivate }: MeasurementToolProps) {

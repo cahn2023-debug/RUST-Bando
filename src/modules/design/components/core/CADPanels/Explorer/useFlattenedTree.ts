@@ -176,13 +176,16 @@ export function useFlattenedTree({
     }, [layersMap, groupsMap, featuresMap, sortField, featureNumbers]);
 
     const isDescendantOfIntersection = useCallback((f: FeatureState): boolean => {
-        const meta = getParsedMetadata(f);
-        const parentId = hasStringId(meta.parent_feature_id) ? meta.parent_feature_id : null;
-        if (!parentId) return false;
-        const parent = featuresMap[parentId];
-        if (!parent) return false;
-        if (getFeatureDisplayInfo(parent).isIntersection) return true;
-        return isDescendantOfIntersection(parent);
+        const check = (item: FeatureState): boolean => {
+            const meta = getParsedMetadata(item);
+            const parentId = hasStringId(meta.parent_feature_id) ? meta.parent_feature_id : null;
+            if (!parentId) return false;
+            const parent = featuresMap[parentId];
+            if (!parent) return false;
+            if (getFeatureDisplayInfo(parent).isIntersection) return true;
+            return check(parent);
+        };
+        return check(f);
     }, [featuresMap]);
 
     const matchesFilter = useCallback((f: FeatureState): boolean => {
@@ -210,15 +213,21 @@ export function useFlattenedTree({
     }, [filterType, isDescendantOfIntersection, allGroupsMap]);
 
     const matchesFilterOrHasMatchingDescendant = useCallback((f: FeatureState): boolean => {
-        if (matchesFilter(f)) return true;
-        const children = featureChildrenMap[f.id] || [];
-        return children.some(child => matchesFilterOrHasMatchingDescendant(child));
+        const check = (item: FeatureState): boolean => {
+            if (matchesFilter(item)) return true;
+            const children = featureChildrenMap[item.id] || [];
+            return children.some(child => check(child));
+        };
+        return check(f);
     }, [matchesFilter, featureChildrenMap]);
 
     const matchesSearchOrHasMatchingDescendant = useCallback((f: FeatureState): boolean => {
-        if (matchesSearch(f)) return true;
-        const children = featureChildrenMap[f.id] || [];
-        return children.some(child => matchesSearchOrHasMatchingDescendant(child));
+        const check = (item: FeatureState): boolean => {
+            if (matchesSearch(item)) return true;
+            const children = featureChildrenMap[item.id] || [];
+            return children.some(child => check(child));
+        };
+        return check(f);
     }, [matchesSearch, featureChildrenMap]);
 
     const groupVisibilityMap = useMemo(() => {

@@ -49,6 +49,9 @@
       ],
       "@ANALYTICS/*": [
         "src/modules/analytics/*"
+      ],
+      "@SHARED/*": [
+        "src/shared/*"
       ]
     }
   },

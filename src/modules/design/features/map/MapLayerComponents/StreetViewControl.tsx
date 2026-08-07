@@ -251,6 +251,7 @@ export function StreetViewControl() {
 
   useEffect(() => {
     if (!map || !location) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMarkerPoint(null);
       return;
     }
