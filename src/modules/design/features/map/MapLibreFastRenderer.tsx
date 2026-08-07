@@ -13,8 +13,7 @@ import { useMapStyles, type MapBasemapPreset } from './useMapStyles';
 import { buildMapLibreFeatureCollection, getMapLibreLodPolicy } from './mapLibreFastAdapter';
 import { MAP_INTERSECTION_CHILD_MIN_ZOOM, MAP_POINT_CLUSTER_HIDE_AT_ZOOM, MAP_POINT_CLUSTER_MAX_ZOOM } from './mapDisplayPolicy';
 import { buildRenderMetrics } from './mapRenderMetrics';
-import { getIconSvgString } from '@DESIGN/components/icons/MapIcons';
-import { buildPolylineSnapMarkers, type PolylineSnapMarker } from './polylineSnapMarkers';
+import { buildPolylineSnapMarkers } from './polylineSnapMarkers';
 import type { FeatureState } from '@CONTRACT/types';
 import type { MapLibreFastFeatureCollection, MapLibreRenderFeatureCollection } from './mapLibreFastTypes';
 import { useMapContext } from './MapContext';
@@ -24,6 +23,11 @@ import { CameraBridge, DirtyFlag, FeatureOverlayCanvas, resolveMapRenderFlags, t
 import { saveBootstrapMetadata } from './bootstrapMetadata';
 import { markMapStartup, resetTelemetry } from './mapStartupTelemetry';
 import { FIRST_BATCH_SIZE, renderFeaturesBatched, type BatchProgress } from './progressiveRender';
+import { preparePointImages, clearMapImageCache, loadSvgImage, iconSvgForFeature, type MapLibreImageData } from './services/mapImageService';
+import { buildDrawingOverlay, buildEditOverlay } from './services/mapOverlayBuilder';
+
+export { clearMapImageCache };
+
 
 const SOURCE_ID = 'design-fast-features';
 const POINT_CLUSTER_SOURCE_ID = 'design-fast-point-clusters-source';
@@ -139,16 +143,6 @@ const updateRasterSourceTiles = (map: maplibregl.Map, sourceId: string, tileUrls
     return true;
 };
 
-type MapLibreImageData = {
-    width: number;
-    height: number;
-    data: Uint8ClampedArray;
-};
-
-const MAX_IMAGE_CACHE_SIZE = 256;
-const MAX_ICON_LOADS_PER_RENDER = 96;
-const imageCache = new Map<string, Promise<MapLibreImageData>>();
-const imageLoadInFlight = new Set<string>();
 const REPORT_CAPTURE_EVENT = 'design-report-map-capture';
 
 type ReportCaptureScope = {
@@ -157,104 +151,6 @@ type ReportCaptureScope = {
     hiddenFeatureIds?: string[];
     requiredFeatureIds?: string[];
     captureKind?: 'preview' | 'export';
-};
-
-export const clearMapImageCache = () => {
-    imageCache.clear();
-    imageLoadInFlight.clear();
-};
-
-const escapeSvgText = (value: unknown) => (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? String(value) : '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-
-const svgBlob = (svg: string) => new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-
-const svgSize = (svg: string) => {
-    const width = Number(svg.match(/\bwidth="(\d+(?:\.\d+)?)"/)?.[1]);
-    const height = Number(svg.match(/\bheight="(\d+(?:\.\d+)?)"/)?.[1]);
-    return {
-        width: Number.isFinite(width) && width > 0 ? Math.ceil(width) : 24,
-        height: Number.isFinite(height) && height > 0 ? Math.ceil(height) : 24,
-    };
-};
-
-const loadSvgBitmap = (blob: Blob) => {
-    const loadWithImageElement = () => new Promise<CanvasImageSource>((resolve, reject) => {
-        const url = URL.createObjectURL(blob);
-        const image = new Image();
-        image.onload = () => {
-            URL.revokeObjectURL(url);
-            resolve(image);
-        };
-        image.onerror = () => {
-            URL.revokeObjectURL(url);
-            reject(new Error('Failed to load SVG image'));
-        };
-        image.src = url;
-    });
-
-    if (typeof createImageBitmap === 'function') {
-        return createImageBitmap(blob).catch(loadWithImageElement);
-    }
-
-    return loadWithImageElement();
-};
-
-const loadSvgImage = (id: string, svg: string) => {
-    const cached = imageCache.get(id);
-    if (cached) {
-        imageCache.delete(id);
-        imageCache.set(id, cached);
-        return cached;
-    }
-
-    const promise = (async (): Promise<MapLibreImageData> => {
-        const { width, height } = svgSize(svg);
-        const bitmap = await loadSvgBitmap(svgBlob(svg));
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const context = canvas.getContext('2d');
-        if (!context) throw new Error('Canvas 2D context is unavailable');
-        context.clearRect(0, 0, width, height);
-        context.drawImage(bitmap, 0, 0, width, height);
-        return context.getImageData(0, 0, width, height);
-    })();
-    imageCache.set(id, promise);
-    while (imageCache.size > MAX_IMAGE_CACHE_SIZE) {
-        const oldestKey = imageCache.keys().next().value;
-        if (!oldestKey) break;
-        imageCache.delete(oldestKey);
-    }
-    return promise;
-};
-
-const iconSvgForFeature = (properties: Record<string, any>) => {
-    const color = String(properties.color || '#6366f1');
-    const size = Number(properties.displaySize || properties.size || 24);
-    const labelIndex = escapeSvgText(properties.labelIndex || '');
-    if (properties.isIntersection) {
-        const textColor = ['#ffffff', 'white', '#fff'].includes(color.toLowerCase().trim()) ? '#111827' : '#ffffff';
-        return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">
-            <g transform="rotate(45 12 12)" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M8 2 L8 8 L2 8"/>
-                <path d="M16 2 L16 8 L22 8"/>
-                <path d="M22 16 L16 16 L16 22"/>
-                <path d="M8 22 L8 16 L2 16"/>
-            </g>
-            ${labelIndex ? `<text x="12" y="15" font-family="Arial, sans-serif" font-size="8" font-weight="900" text-anchor="middle" fill="${textColor}" stroke="rgba(0,0,0,0.7)" stroke-width="1" paint-order="stroke">${labelIndex}</text>` : ''}
-        </svg>`;
-    }
-    return getIconSvgString(
-        String(properties.iconKey || 'cctv'),
-        color,
-        size,
-        labelIndex,
-        Number(properties.rotation || 0)
-    );
 };
 
 const parseIconImageId = (imageId: string): Record<string, any> | null => {
@@ -278,65 +174,6 @@ const parseIconImageId = (imageId: string): Record<string, any> | null => {
     };
 };
 
-const preparePointImages = (
-    map: maplibregl.Map,
-    collection: MapLibreRenderFeatureCollection,
-    onImageReady: (imageId: string, image: MapLibreImageData, preloadMs: number) => void
-): MapLibreRenderFeatureCollection => {
-    const missingIconMap = new Map<string, Record<string, any>>();
-    for (let index = 0; index < collection.features.length; index += 1) {
-        const properties = collection.features[index].properties as Record<string, any>;
-        const imageId = properties?.iconImageId;
-        if (imageId && !map.hasImage(imageId)) {
-            if (!missingIconMap.has(imageId)) {
-                missingIconMap.set(imageId, properties);
-            }
-        }
-    }
-
-    if (missingIconMap.size === 0) return collection;
-
-    const nextFeatures = collection.features.map(feature => {
-        const imageId = (feature.properties as Record<string, any>)?.iconImageId;
-        if (imageId && missingIconMap.has(imageId)) {
-            return {
-                ...feature,
-                properties: {
-                    ...feature.properties,
-                    iconImageId: '',
-                },
-            };
-        }
-        return feature;
-    });
-
-    const nextCollection: MapLibreRenderFeatureCollection = {
-        ...collection,
-        features: nextFeatures,
-    };
-
-    let scheduledLoads = 0;
-    for (const [imageId, properties] of missingIconMap) {
-        if (imageLoadInFlight.has(imageId)) continue;
-        if (scheduledLoads >= MAX_ICON_LOADS_PER_RENDER) break;
-        scheduledLoads += 1;
-        imageLoadInFlight.add(imageId);
-        const svg = iconSvgForFeature(properties);
-        const preloadStart = now();
-        void loadSvgImage(imageId, svg)
-            .then(image => {
-                imageLoadInFlight.delete(imageId);
-                onImageReady(imageId, image, now() - preloadStart);
-            })
-            .catch(error => {
-                imageLoadInFlight.delete(imageId);
-                console.warn('[MapLibreFastRenderer] Failed to load point icon:', imageId, error);
-            });
-    }
-
-    return nextCollection;
-};
-
 const setGeoJsonData = (
     map: maplibregl.Map,
     sourceId: string,
@@ -358,65 +195,6 @@ const featureCoordinates = (feature: FeatureState | null): [number, number][] =>
     const isPolygon = feature.geom_type?.toLowerCase() === 'polygon';
     const coords = isPolygon ? (Array.isArray((parsed as any)[0]) ? (parsed as any)[0] : parsed) : parsed;
     return Array.isArray(coords) ? coords as [number, number][] : [];
-};
-
-const buildDrawingOverlay = (
-    currentDrawingPoints: [number, number][],
-    snappedPoint: { x: number; y: number; id?: string } | null
-): MapLibreFastFeatureCollection => {
-    const features: MapLibreFastFeatureCollection['features'] = [];
-    if (currentDrawingPoints.length >= 2) {
-        features.push({
-            type: 'Feature',
-            geometry: { type: 'LineString', coordinates: currentDrawingPoints },
-            properties: { kind: 'drawing-line' },
-        });
-    }
-    currentDrawingPoints.forEach((point, index) => {
-        features.push({
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: point },
-            properties: { kind: 'drawing-vertex', index },
-        });
-    });
-    if (snappedPoint) {
-        features.push({
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [snappedPoint.x, snappedPoint.y] },
-            properties: { kind: 'snap' },
-        });
-    }
-    return { type: 'FeatureCollection', features };
-};
-
-const buildEditOverlay = (
-    coords: [number, number][],
-    snapMarkers: PolylineSnapMarker[] = []
-): MapLibreFastFeatureCollection => {
-    const features: MapLibreFastFeatureCollection['features'] = [];
-    coords.forEach((point, index) => {
-        features.push({
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: point },
-            properties: { kind: 'vertex', index },
-        });
-    });
-    coords.slice(0, -1).forEach((point, index) => {
-        const next = coords[index + 1];
-        features.push({
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [(point[0] + next[0]) / 2, (point[1] + next[1]) / 2] },
-            properties: { kind: 'midpoint', index: index + 1 },
-        });
-    });
-    snapMarkers.forEach(marker => {
-        features.push({
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: marker.coordinate },
-            properties: { kind: 'snap-link', index: marker.index, targetId: marker.targetId },
-        });
-    });
-    return { type: 'FeatureCollection', features };
 };
 
 const moveLayerToTop = (map: maplibregl.Map, layerId: string) => {
