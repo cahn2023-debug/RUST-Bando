@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FeatureChunkPayload {
@@ -24,8 +23,8 @@ impl GisStreamWorker {
     pub fn spawn(
         mut rx: mpsc::Receiver<GisStreamCommand>,
         app_handle: Option<tauri::AppHandle>,
-    ) -> JoinHandle<()> {
-        tokio::spawn(async move {
+    ) -> tauri::async_runtime::JoinHandle<()> {
+        tauri::async_runtime::spawn(async move {
             log::info!("[GisStreamWorker] Started independent GIS Stream Tokio Task");
 
             while let Some(cmd) = rx.recv().await {

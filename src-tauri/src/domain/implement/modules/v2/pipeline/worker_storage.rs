@@ -26,15 +26,24 @@ const MAX_DESIGN_HISTORY_STEPS: usize = 50;
 pub struct StorageWorker {
     rx: mpsc::Receiver<StorageCommand>,
     db: PmpDatabase,
+    network_sync_target: Option<(PathBuf, PathBuf)>,
 }
 
 impl StorageWorker {
+    pub fn new(rx: mpsc::Receiver<StorageCommand>, db: PmpDatabase) -> Self {
+        Self {
+            rx,
+            db,
+            network_sync_target: None,
+        }
+    }
+
     pub fn spawn(
         rx: mpsc::Receiver<StorageCommand>,
         db: PmpDatabase,
     ) -> tauri::async_runtime::JoinHandle<()> {
         tauri::async_runtime::spawn(async move {
-            let mut worker = Self { rx, db };
+            let mut worker = Self::new(rx, db);
             while let Some(cmd) = worker.rx.recv().await {
                 let mut batch = vec![cmd];
                 while batch.len() < 100 {
@@ -244,6 +253,12 @@ impl StorageWorker {
                         .conn
                         .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
                         .map_err(|e| e.to_string())?;
+
+                    if let Some((ref temp_path, ref net_path)) = self.network_sync_target {
+                        if let Err(e) = crate::domain::implement::modules::v2::storage::connection::sync_local_temp_to_network(temp_path, net_path) {
+                            log::warn!("[StorageWorker] Sync back to network drive failed on SaveProject: {e}");
+                        }
+                    }
                     Ok(())
                 }))
                 .map_err(panic_to_string)
@@ -876,8 +891,30 @@ impl StorageWorker {
         viewport_first_limit: i64,
     ) -> Result<Value, String> {
         log::info!("[StorageWorker] Opening project bootstrap: {:?}", path);
-        self.db = PmpDatabase::open_or_create(path.clone()).map_err(|e| e.to_string())?;
+        let (effective_open_path, sync_target) = if crate::domain::implement::modules::v2::storage::connection::is_network_drive_path(&path) {
+            let temp_dir = self.db.base_dir.join("temp_network_pmps");
+            match crate::domain::implement::modules::v2::storage::connection::prepare_network_pmp_local_copy(&path, &temp_dir) {
+                Ok(temp_path) => {
+                    log::info!("[StorageWorker] Network path detected. Using local temp copy: {:?} (Original: {:?})", temp_path, path);
+                    (temp_path.clone(), Some((temp_path, path.clone())))
+                }
+                Err(err) => {
+                    log::warn!("[StorageWorker] Failed to copy network PMP to local temp: {err}. Opening original path directly.");
+                    (path.clone(), None)
+                }
+            }
+        } else {
+            (path.clone(), None)
+        };
+
+        self.network_sync_target = sync_target;
+        self.db = PmpDatabase::open_or_create(effective_open_path).map_err(|e| e.to_string())?;
         let path_str = path.to_string_lossy().to_string();
+
+        let db_path_copy = self.db.pmp_path.clone();
+        crate::domain::implement::modules::v2::pipeline::tile_server::start_local_tile_server(
+            std::sync::Arc::new(move || Some(db_path_copy.clone()))
+        );
 
         let mut first_project = self.query(
             "SELECT id, name, title, description, metadata_json, created_at, updated_at FROM projects ORDER BY created_at ASC LIMIT 1",
@@ -1036,6 +1073,13 @@ impl StorageWorker {
             "viewportFeatureLimit": viewport_first_limit
         });
 
+        let tile_port = crate::domain::implement::modules::v2::pipeline::tile_server::get_tile_server_port();
+        let tile_server_url = if tile_port > 0 {
+            format!("http://127.0.0.1:{tile_port}/tiles/{{z}}/{{x}}/{{y}}.pbf?project_id={project_id}")
+        } else {
+            String::new()
+        };
+
         Ok(json!({
             "project": project,
             "featureCount": feature_count,
@@ -1048,6 +1092,8 @@ impl StorageWorker {
             "initialState": initial_state,
             "streamingMode": use_viewport_first,
             "viewportFirst": use_viewport_first,
+            "tileServerUrl": tile_server_url,
+            "tileServerPort": tile_port,
             "cacheStatus": {
                 "cachedTiles": cached_tiles,
                 "state": if cached_tiles > 0 { "ready" } else { "missing" },
@@ -7499,7 +7545,7 @@ mod tests {
 
     fn storage_worker_for(db: PmpDatabase) -> StorageWorker {
         let (_tx, rx) = mpsc::channel(1);
-        StorageWorker { rx, db }
+        StorageWorker::new(rx, db)
     }
 
     #[test]
@@ -8681,7 +8727,7 @@ mod tests {
 
     fn make_worker(db: PmpDatabase) -> StorageWorker {
         let (_tx, rx) = mpsc::channel(1);
-        StorageWorker { rx, db }
+        StorageWorker::new(rx, db)
     }
 
     #[tokio::test]
@@ -9557,7 +9603,7 @@ mod tests {
         );
 
         let (_tx, rx) = mpsc::channel(1);
-        let worker = StorageWorker { rx, db };
+        let worker = StorageWorker::new(rx, db);
         let resolved = worker
             .resolve_media_asset(project_id, asset_id)
             .expect("resolve asset");
@@ -9634,7 +9680,7 @@ mod tests {
             .expect("snapshot");
 
         let (_tx, rx) = mpsc::channel(1);
-        let mut worker = StorageWorker { rx, db };
+        let mut worker = StorageWorker::new(rx, db);
         worker
             .auto_migrate_legacy_media_on_open()
             .expect("auto migrate");
@@ -9769,7 +9815,7 @@ mod tests {
             .expect("large event");
 
         let (_tx, rx) = mpsc::channel(1);
-        let mut worker = StorageWorker { rx, db };
+        let mut worker = StorageWorker::new(rx, db);
         let before = project_storage_summary(&worker.db.conn, &worker.db.pmp_path, project_id)
             .expect("before summary");
         assert!(
@@ -9901,7 +9947,7 @@ mod tests {
             .expect("break metadata link");
 
         let (_tx, rx) = mpsc::channel(1);
-        let mut worker = StorageWorker { rx, db };
+        let mut worker = StorageWorker::new(rx, db);
         worker
             .auto_migrate_legacy_media_on_open()
             .expect("repair links");
@@ -10000,7 +10046,7 @@ mod tests {
             .expect("feature media");
 
         let (_tx, rx) = mpsc::channel(1);
-        let worker = StorageWorker { rx, db };
+        let worker = StorageWorker::new(rx, db);
         let resolved = worker
             .resolve_media_asset(project_id, asset_id)
             .expect("resolve asset");
@@ -10085,7 +10131,7 @@ mod tests {
             .expect("feature media");
 
         let (_tx, rx) = mpsc::channel(1);
-        let worker = StorageWorker { rx, db };
+        let worker = StorageWorker::new(rx, db);
         let photos = worker
             .get_report_section_site_photos(&pmp_path, project_id, &[feature_id.to_string()])
             .expect("report photos");
@@ -10170,7 +10216,7 @@ mod tests {
             .expect("feature media");
 
         let (_tx, rx) = mpsc::channel(1);
-        let worker = StorageWorker { rx, db };
+        let worker = StorageWorker::new(rx, db);
         let photos = worker
             .get_report_section_site_photos(
                 &requested_pmp_path,
@@ -10196,7 +10242,7 @@ mod tests {
 
         let db = PmpDatabase::open_or_create(pmp_path).expect("open db");
         let (_tx, rx) = mpsc::channel(32);
-        let mut worker = StorageWorker { rx, db };
+        let mut worker = StorageWorker::new(rx, db);
 
         worker
             .db

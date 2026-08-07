@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BasemapStatusPayload {
@@ -20,8 +19,8 @@ impl BasemapWorker {
     pub fn spawn(
         mut rx: mpsc::Receiver<BasemapWorkerCommand>,
         app_handle: Option<tauri::AppHandle>,
-    ) -> JoinHandle<()> {
-        tokio::spawn(async move {
+    ) -> tauri::async_runtime::JoinHandle<()> {
+        tauri::async_runtime::spawn(async move {
             log::info!("[BasemapWorker] Started independent Basemap Tokio Task");
             
             // Emit initial ready status if app_handle is available

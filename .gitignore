@@ -37,7 +37,7 @@ src-tauri/gen/
 *.db
 *.pmp
 src-tauri/*.db
-src-tauri/*.log
+src-tauri/**/*.log
 
 # Temporary/Agent files
 ~

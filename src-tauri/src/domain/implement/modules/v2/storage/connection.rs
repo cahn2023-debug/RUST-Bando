@@ -31,11 +31,17 @@ impl PmpDatabase {
                 | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )?;
 
-        conn.pragma_update(None, "journal_mode", "DELETE")?;
+        conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
+        conn.pragma_update(None, "mmap_size", "268435456")?;
+        conn.pragma_update(None, "page_size", "4096")?;
         conn.pragma_update(None, "cache_size", "-64000")?;
-        conn.pragma_update(None, "busy_timeout", "5000")?;
+        conn.pragma_update(None, "busy_timeout", "15000")?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
+
+        if let Err(e) = crate::domain::implement::modules::v2::storage::gpkg::init_gpkg_tables(&conn) {
+            log::warn!("[Storage] GeoPackage RTree initialization warning: {e}");
+        }
 
         let version: i32 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;
         if version > CURRENT_SCHEMA_VERSION {
@@ -268,6 +274,55 @@ impl PmpDatabase {
         items.sort_by(|a, b| b["backupId"].as_str().cmp(&a["backupId"].as_str()));
         Ok(serde_json::Value::Array(items))
     }
+}
+
+pub fn is_network_drive_path(path: &Path) -> bool {
+    let s = path.to_string_lossy().to_lowercase();
+    s.starts_with("\\\\")
+        || s.contains("shared drives")
+        || s.contains("google drive")
+        || s.contains("onedrive")
+        || s.contains("my drive")
+}
+
+pub fn prepare_network_pmp_local_copy(original_path: &Path, temp_dir: &Path) -> Result<PathBuf, String> {
+    if !original_path.exists() {
+        return Err(format!("Tệp PMP không tồn tại: {}", original_path.display()));
+    }
+    std::fs::create_dir_all(temp_dir).map_err(|e| format!("Không thể tạo thư mục temp: {e}"))?;
+    let file_name = original_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("network_project.pmp");
+
+    let mut hasher = Sha256::new();
+    hasher.update(original_path.to_string_lossy().as_bytes());
+    let path_hash = format!("{:x}", hasher.finalize())[..12].to_string();
+    let temp_file_name = format!("{}_{}", path_hash, file_name);
+    let temp_path = temp_dir.join(temp_file_name);
+
+    log::info!("[NetworkPMP] Copying network file {} -> temp file {}", original_path.display(), temp_path.display());
+    std::fs::copy(original_path, &temp_path).map_err(|e| format!("Không thể sao chép tệp từ ổ đĩa mạng: {e}"))?;
+    Ok(temp_path)
+}
+
+pub fn sync_local_temp_to_network(local_temp_path: &Path, original_network_path: &Path) -> Result<(), String> {
+    if !local_temp_path.exists() {
+        return Err("Local temp PMP file missing".to_string());
+    }
+    log::info!("[NetworkPMP] Syncing local temp {} -> network file {}", local_temp_path.display(), original_network_path.display());
+
+    for attempt in 1..=3 {
+        match std::fs::copy(local_temp_path, original_network_path) {
+            Ok(_) => return Ok(()),
+            Err(err) if attempt < 3 => {
+                log::warn!("[NetworkPMP] Sync back attempt {attempt} failed: {err}. Retrying in 500ms...");
+                std::thread::sleep(Duration::from_millis(500));
+            }
+            Err(err) => return Err(format!("Lỗi khi đồng bộ dữ liệu về ổ mạng sau 3 lần thử: {err}")),
+        }
+    }
+    Ok(())
 }
 
 fn repair_legacy_design_relations(

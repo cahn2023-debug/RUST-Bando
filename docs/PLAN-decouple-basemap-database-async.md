@@ -1,55 +1,50 @@
-# 🛡️ Sol-Advisor Plan: Refactor Independent Parallel Startup for Basemap & Database Objects (`docs/PLAN-decouple-basemap-database-async.md`)
+# 🛡️ Sol-Advisor Plan: Modularizing MapLibreFastRenderer into Renderer Sub-Components (`docs/PLAN-decouple-basemap-database-async.md`)
 
 ## 1. Goal & Scope
-- **Mục tiêu**: Refactor toàn bộ hệ thống để **Bản đồ nền (Basemap)** và **Đối tượng Database (GIS Features)** khởi động & vận hành song song độc lập dưới dạng 2 Async Tasks (Backend Rust Tokio Tasks + Frontend Chunked Stream Collectors).
-- **Phạm vi tác động**:
-  - `src-tauri/src/lib.rs` & `src-tauri/src/domain/implement/modules/v2/`: Khởi tạo 2 Tokio Workers độc lập ngay tại boot (`BasemapWorker` & `GisStreamWorker`).
-  - `src-tauri/src/domain/implement/commands/modules/`: Thêm event emitters streaming (`gis:features-chunk`, `basemap:status-stream`).
-  - `src/core/basemap/`: Tách biệt hoàn toàn `BasemapRuntime` và `PersistentBasemapHost` khỏi vòng đời nạp dữ liệu dự án.
-  - `src/modules/design/features/map/`: Phân tách `MapLibreFastRenderer.tsx` thành thin controller sử dụng `useMapLayerRender.ts` & `mapFeatureService.ts` nạp dữ liệu chunked stream theo Spatial Bounding Box & LOD.
-  - `src/core/stores/`: Phân tách Zustand Slices (`mapSlice`, `projectSlice`, `layoutSlice`).
-- **Cam kết**: 0 Regression, tương thích ngược 100% với IPC legacy commands (`queryVisibleFeaturesV2`), 100% Typecheck & Cargo Check PASS.
+- **Mục tiêu**: Phân tách file monolithic `MapLibreFastRenderer.tsx` (~95KB, 2075 lines) thành **3 Sub-Components độc lập** nằm trong thư mục mới `src/modules/design/features/map/renderer/` kết nối qua `MapContext`:
+  1. `BasemapCanvasView.tsx`: Quản lý nền bản đồ, tile sources, camera snapshot & tile prefetching.
+  2. `DatabaseLayerContainer.tsx`: Quản lý dữ liệu đối tượng từ SQLite Database (points, polylines, polygons, clusters, labels, chunked stream updates).
+  3. `OverlayInteractionLayer.tsx`: Quản lý công cụ vẽ (drawing), điểm điều khiển (edit vertices), snap indicators, canvas FOV & DORI overlays.
+  4. `MapLibreFastRenderer.tsx`: Rút gọn thành Thin Facade Controller (<15KB).
+- **Cam kết**: 0 Regression, 100% Typecheck & Test PASS.
 
 ## 2. Component Boundaries & Decisions
 
-### Backend Layer (Rust / Tokio Tasks)
-- **Basemap Task (`src-tauri/src/domain/implement/modules/v2/basemap/mod.rs`)**:
-  - Độc lập quản lý raster/vector tile sources, local MBTiles/disk cache, prefetch tile policy.
-  - Phát event status/health cho basemap qua Tauri Event `basemap:status-stream`.
-- **GIS Database Stream Task (`src-tauri/src/domain/implement/modules/v2/gis/stream_worker.rs`)**:
-  - Độc lập kết nối `PmpDatabase` SQLite engine.
-  - Khi mở dự án hoặc thay đổi Viewport, thực thi spatial query không chặn UI thread, đóng gói chunk theo Spatial BBox & LOD level, rồi phát về Frontend qua Tauri Event `gis:features-chunk`.
-
-### Frontend Layer (React / Zustand / MapLibre)
-- **Basemap Host (`src/core/basemap/PersistentBasemapHost.tsx`)**:
-  - Độc lập boot MapLibre GL canvas ngay lập tức với neutral background + tile layers.
-- **GIS Stream Collector (`src/modules/design/features/map/services/mapFeatureService.ts`)**:
-  - Lắng nghe event `gis:features-chunk` và gom dữ liệu (chunking).
-  - Cập nhật từng phần (incremental `setData`) vào GeoJSON Sources của MapLibre mà không gây rác bộ nhớ hoặc khựng FPS.
-- **Store Facade (`src/core/stores/slices/`)**:
-  - `mapSlice.ts`: Quản lý trạng thái camera, zoom, basemap active style.
-  - `projectSlice.ts`: Quản lý dự án, SQLite DB connection state, chunk loading telemetry.
+### Sub-Folder `src/modules/design/features/map/renderer/`
+- **`BasemapCanvasView.tsx`**:
+  - Độc lập nạp `PersistentBasemapHost` và khởi tạo MapLibre GL canvas.
+  - Cung cấp Map instance qua `MapContext`.
+- **`DatabaseLayerContainer.tsx`**:
+  - Nhận `map` từ `useMapContext()`.
+  - Khởi tạo GeoJSON sources (`SOURCE_ID`, `POINT_CLUSTER_SOURCE_ID`) và mount các vector layers khi `map` ready và có project DB.
+  - Tích hợp `useGisStreamCollector` để nhận dữ liệu chunked từ `GisStreamWorker`.
+- **`OverlayInteractionLayer.tsx`**:
+  - Nhận `map` từ `useMapContext()`.
+  - Mount các drawing/edit layers (`DRAWING_SOURCE_ID`, `EDIT_SOURCE_ID`) và canvas overlays (`FeatureOverlayCanvas`, `DORIOverlay`, `FOVLayer`).
+- **Hooks Submodule**:
+  - `renderer/useMapLifecycle.ts`: Quản lý lifecycle & resize observer.
+  - `renderer/useMapLayerRender.ts`: Quản lý progressive batching & LOD rendering.
+  - `renderer/useMapInteractions.ts`: Quản lý hover, select, click, drag & mouse events.
 
 ---
 
 ## 3. Implementation Steps (Terra Lane)
 
-### Phase 1: Rust Backend Tokio Worker & Event Streams
-1. Tạo module `src-tauri/src/domain/implement/modules/v2/basemap/mod.rs` & `src-tauri/src/domain/implement/modules/v2/gis/stream_worker.rs`.
-2. Spawn 2 async tasks độc lập trong `lib.rs` tại thời điểm app start.
-3. Thêm Tauri Event Stream channels (`gis:features-chunk`, `basemap:status-stream`).
-4. Kiểm tra biên dịch Rust: `cd src-tauri; cargo check`.
+### Phase 1: Tạo Sub-folder Renderer & Tách Custom Hooks
+1. Tạo thư mục `src/modules/design/features/map/renderer/`.
+2. Chuyển logic lifecycle, layer render và mouse interactions sang `useMapLifecycle.ts`, `useMapLayerRender.ts`, và `useMapInteractions.ts`.
+3. Kiểm tra biên dịch Typecheck: `npm run typecheck`.
 
-### Phase 2: Frontend Async Basemap & Stream Collector Hooks
-1. Refactor `src/core/basemap/BasemapRuntime.ts` để boot độc lập 100% không phụ thuộc project state.
-2. Viết hook `useGisStreamCollector.ts` lắng nghe `gis:features-chunk` và thực hiện spatial chunking + LOD update.
-3. Tách Zustand Store thành 4 Slices trong `src/core/stores/slices/` (`mapSlice`, `layoutSlice`, `modalSlice`, `projectSlice`).
-4. Kiểm tra Typecheck: `npm run typecheck`.
+### Phase 2: Triển khai 3 Sub-Components Độc Lập
+1. Tạo `BasemapCanvasView.tsx` xử lý Basemap Host & MapContext publishing.
+2. Tạo `DatabaseLayerContainer.tsx` xử lý GeoJSON sources, vector layers & stream updates từ database.
+3. Tạo `OverlayInteractionLayer.tsx` xử lý drawing, edit handles, FOV & DORI overlays.
+4. Kiểm tra biên dịch Typecheck: `npm run typecheck`.
 
-### Phase 3: Map Renderer Decoupling & Incremental GeoJSON Updates
-1. Refactor `MapLibreFastRenderer.tsx` sử dụng `useGisStreamCollector` và `mapFeatureService`.
-2. Đảm bảo Basemap hiển thị ngay lập tức trong 100ms, dữ liệu DB đổ về mượt mà từng chunk.
-3. Chạy toàn bộ test suites: `npm run test:ci` và `cargo test`.
+### Phase 3: Rút Gọn `MapLibreFastRenderer.tsx` Thành Thin Controller
+1. Refactor `MapLibreFastRenderer.tsx` thành Facade Controller gọn nhẹ (<15KB) ghép nối 3 Sub-Components trên.
+2. Đảm bảo 100% props và callbacks legacy hoạt động không có regression.
+3. Chạy toàn bộ test suites: `npm run typecheck` & `npm run test:ci` & `cd src-tauri; cargo check`.
 
 ---
 
@@ -58,18 +53,12 @@
 ### Automated Tests
 - **Frontend Typecheck**: `npm run typecheck` (Yêu cầu 0 lỗi TS).
 - **Frontend Unit Tests**: `npm run test:ci` (Yêu cầu 100% PASS).
-- **Backend Cargo Check & Test**: `cd src-tauri; cargo check` và `cargo test` (Yêu cầu 0 lỗi).
-
-### Manual / Integration Verification
-- Mở ứng dụng ➔ Xác nhận Basemap hiển thị tức thì (UI responsive).
-- Mở dự án mẫu có 10,000+ features ➔ Xác nhận features được stream theo chunks, không giật lag.
-- Đổi basemap style ➔ Basemap đổi style lập tức mà không ảnh hưởng tới dữ liệu database layers đang render.
+- **Backend Cargo Check**: `cd src-tauri; cargo check` (Yêu cầu 0 lỗi).
 
 ---
 
 ## 5. Acceptance Criteria [SHIP]
-- [ ] Basemap khởi động độc lập hoàn toàn không chờ nạp SQLite DB.
-- [ ] Database Features được stream qua 2 Tokio Async Tasks bên Rust backend và nạp incremental chunked ở Frontend.
-- [ ] 100% TS typecheck & Rust cargo check PASS.
-- [ ] Tất cả unit tests đều PASS 100%.
-- [ ] Monolithic `MapLibreFastRenderer.tsx` được phân tách sạch sẽ, modular, đúng Layered Architecture.
+- [ ] `MapLibreFastRenderer.tsx` giảm kích thước từ 95KB xuống <15KB.
+- [ ] Thư mục `src/modules/design/features/map/renderer/` chứa 3 Sub-Components và 3 Hooks độc lập.
+- [ ] Basemap khởi động độc lập hoàn toàn với dữ liệu DB.
+- [ ] 100% TS typecheck, cargo check và unit tests PASS.

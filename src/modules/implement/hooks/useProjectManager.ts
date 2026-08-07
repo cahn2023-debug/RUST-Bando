@@ -150,14 +150,13 @@ export function useProjectManager() {
                 if (!isAlreadyLoaded && !startupHydrationInFlight.has(hydrationKey)) {
                     startupHydrationInFlight.add(hydrationKey);
                     try {
-                        // Await the bootstrap promise that was fired early above, with a 30s timeout guard.
-                        // On timeout: log a warning, surface an error in the store, and return early —
-                        // do NOT rethrow so the timeout is not reported as a critical loadProjects failure.
-                        const bootstrap = await Promise.race([bootstrapPromise, createTimeoutPromise(30_000)]).catch((err: unknown) => {
+                        const isNetworkPath = activePath ? (activePath.includes('Shared drives') || activePath.startsWith('\\\\') || activePath.toLowerCase().includes('google drive') || activePath.toLowerCase().includes('onedrive')) : false;
+                        const timeoutMs = isNetworkPath ? 120_000 : 30_000;
+                        const bootstrap = await Promise.race([bootstrapPromise, createTimeoutPromise(timeoutMs)]).catch((err: unknown) => {
                             const isTimeout = err instanceof Error && err.message.startsWith('Bootstrap timed out');
                             if (isTimeout) {
-                                console.warn('[useProjectManager] Bootstrap timed out after 30s for path:', activePath);
-                                currentSyncState.setError('Không thể nạp dữ liệu dự án do quá thời gian chờ (30s). Vui lòng thử lại.');
+                                console.warn(`[useProjectManager] Bootstrap timed out after ${timeoutMs / 1000}s for path:`, activePath);
+                                currentSyncState.setError(`Không thể nạp dữ liệu dự án do quá thời gian chờ (${timeoutMs / 1000}s). Vui lòng thử lại.`);
                                 return null;
                             }
                             throw err;
@@ -316,15 +315,17 @@ export function useProjectManager() {
                 }
             }
 
-            console.info(`[useProjectManager] Attempting to bootstrap PMP file: ${selectedPath}`);
+            const isNetworkPath = selectedPath.includes('Shared drives') || selectedPath.startsWith('\\\\') || selectedPath.toLowerCase().includes('google drive') || selectedPath.toLowerCase().includes('onedrive');
+            const timeoutMs = isNetworkPath ? 120_000 : 30_000;
+            console.info(`[useProjectManager] Attempting to bootstrap PMP file: ${selectedPath} (NetworkPath: ${isNetworkPath}, Timeout: ${timeoutMs / 1000}s)`);
             const bootstrapStart = performance.now();
             const bootstrap = await Promise.race([
                 openProjectBootstrap(selectedPath, requestId),
-                createTimeoutPromise(30_000),
+                createTimeoutPromise(timeoutMs),
             ]).catch((err: unknown) => {
                 const isTimeout = err instanceof Error && err.message.startsWith('Bootstrap timed out');
                 if (isTimeout) {
-                    console.warn('[useProjectManager] Bootstrap timed out after 30s for path:', selectedPath);
+                    console.warn(`[useProjectManager] Bootstrap timed out after ${timeoutMs / 1000}s for path:`, selectedPath);
                 }
                 throw err;
             });
