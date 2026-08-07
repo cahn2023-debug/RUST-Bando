@@ -28,6 +28,18 @@ const getSystemTheme = (): 'light' | 'dark' => {
   return 'dark';
 };
 
+const syncTauriTheme = async (resolvedTheme: 'light' | 'dark') => {
+  try {
+    const { getCurrentWindow } = await import('@tauri-apps/api/window');
+    const win = getCurrentWindow();
+    if (win && 'setTheme' in win && typeof (win as any).setTheme === 'function') {
+      await (win as any).setTheme(resolvedTheme);
+    }
+  } catch (e) {
+    // Ignore error in web environments
+  }
+};
+
 const applyThemeToDOM = (resolvedTheme: 'light' | 'dark') => {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
@@ -39,6 +51,7 @@ const applyThemeToDOM = (resolvedTheme: 'light' | 'dark') => {
     root.classList.add('dark');
     root.classList.remove('light');
   }
+  void syncTauriTheme(resolvedTheme);
 };
 
 export const useThemeStore = create<ThemeState>((set, get) => ({

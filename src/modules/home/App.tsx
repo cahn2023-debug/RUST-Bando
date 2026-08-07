@@ -8,6 +8,8 @@ import { useProjectManager } from "@IMPLEMENT/hooks/useProjectManager";
 import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
+import { AppMenu } from "@DESIGN/components/ui/AppMenu";
+import { useKeytips } from "@DESIGN/hooks/useKeytips";
 
 // Extracted components
 import { AppBootstrap } from "./AppBootstrap";
@@ -46,6 +48,57 @@ export default function App() {
   const [showCreate, setShowCreate] = useState(false);
   const [activeTab, setActiveTab] = useState("HOME");
   const [contractType, setContractType] = useState<"INVESTOR" | "SUBCONTRACTOR" | "FINANCE">("INVESTOR");
+  const [isAppMenuOpen, setIsAppMenuOpen] = useState(false);
+  const { keytipsActive, dismissKeytips } = useKeytips();
+
+  useEffect(() => {
+    if (!keytipsActive) return;
+
+    const handleKeytipTrigger = (e: KeyboardEvent) => {
+      const key = e.key.toUpperCase();
+      switch (key) {
+        case "F":
+          setIsAppMenuOpen((prev) => !prev);
+          dismissKeytips();
+          break;
+        case "H":
+          setActiveTab("HOME");
+          dismissKeytips();
+          break;
+        case "D":
+          setActiveTab("DESIGN");
+          dismissKeytips();
+          break;
+        case "I":
+          setActiveTab("IMPLEMENT");
+          dismissKeytips();
+          break;
+        case "C":
+          setActiveTab("CONTRACT");
+          dismissKeytips();
+          break;
+        case "R":
+          setActiveTab("RESOURCES");
+          dismissKeytips();
+          break;
+        case "Y":
+          setActiveTab("ANALYTICS");
+          dismissKeytips();
+          break;
+        case "A":
+          setActiveTab("ADMIN");
+          dismissKeytips();
+          break;
+        case "1":
+          handleSaveProject();
+          dismissKeytips();
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeytipTrigger);
+    return () => window.removeEventListener("keydown", handleKeytipTrigger);
+  }, [keytipsActive, dismissKeytips]);
 
   const {
     projects,
@@ -264,6 +317,8 @@ export default function App() {
             onSave={handleSaveProject}
             onUndo={() => announce("Undo action triggered")}
             onRedo={() => announce("Redo action triggered")}
+            onOpenAppMenu={() => setIsAppMenuOpen((prev) => !prev)}
+            keytipsActive={keytipsActive}
           />
 
           {selectedProject && (
@@ -297,6 +352,21 @@ export default function App() {
             onForceSave={handleForceSave}
             contractType={contractType}
             onContractTypeChange={setContractType}
+            keytipsActive={keytipsActive}
+          />
+
+          <AppMenu
+            isOpen={isAppMenuOpen}
+            onClose={() => setIsAppMenuOpen(false)}
+            projects={projects}
+            selectedProject={selectedProject}
+            onSave={handleSaveProject}
+            onForceSave={handleForceSave}
+            onOpenProject={handleOpenProject}
+            onShowCreate={() => setShowCreate(true)}
+            onNavigateTab={handleTabChange}
+            onLogout={logout}
+            keytipsActive={keytipsActive}
           />
 
           <div className="flex-1 workspace-grid">

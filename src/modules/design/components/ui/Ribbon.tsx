@@ -17,6 +17,8 @@ import { cn } from "@TOOL/utils/cn";
 import { exportProjectData } from "@IMPLEMENT/services/exportService";
 import { announce, moveFocus } from "@TOOL/utils/accessibility";
 
+import { KeytipBadge } from "./KeytipBadge";
+
 interface RibbonProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
@@ -24,9 +26,10 @@ interface RibbonProps {
   onForceSave?: () => void;
   contractType?: 'INVESTOR' | 'SUBCONTRACTOR' | 'FINANCE';
   onContractTypeChange?: (type: 'INVESTOR' | 'SUBCONTRACTOR' | 'FINANCE') => void;
+  keytipsActive?: boolean;
 }
 
-export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractType, onContractTypeChange }: RibbonProps) {
+export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractType, onContractTypeChange, keytipsActive = false }: RibbonProps) {
   const { t } = useTranslation();
   const undo = useDesignSync(s => s.undo);
   const redo = useDesignSync(s => s.redo);
@@ -105,17 +108,16 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
   }, [enableAi]);
 
   const tabs = [
-    { id: "HOME", label: t('project.newProject'), icon: Layout },
-    { id: "DESIGN", label: t('project.design'), icon: FileText },
-    { id: "IMPLEMENT", label: t('project.operate'), icon: Briefcase },
-    { id: "CONTRACT", label: t('project.contracts'), icon: Activity },
-    { id: "RESOURCES", label: t('project.resources'), icon: Layers },
-    { id: "ANALYTICS", label: "ANALYTICS", icon: BarChart3 },
+    { id: "HOME", label: t('project.newProject'), icon: Layout, keytip: "H" },
+    { id: "DESIGN", label: t('project.design'), icon: FileText, keytip: "D" },
+    { id: "IMPLEMENT", label: t('project.operate'), icon: Briefcase, keytip: "I" },
+    { id: "CONTRACT", label: t('project.contracts'), icon: Activity, keytip: "C" },
+    { id: "RESOURCES", label: t('project.resources'), icon: Layers, keytip: "R" },
+    { id: "ANALYTICS", label: "ANALYTICS", icon: BarChart3, keytip: "Y" },
   ];
 
-
   if (isAdmin) {
-    tabs.push({ id: "ADMIN", label: "ADMIN", icon: ShieldCheck });
+    tabs.push({ id: "ADMIN", label: "ADMIN", icon: ShieldCheck, keytip: "A" });
   }
 
   /** Keyboard navigation for ribbon tabs — arrow keys move between tabs. */
@@ -192,6 +194,11 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
                 aria-hidden="true"
               />
               {tab.label}
+              {keytipsActive && (
+                <div className="absolute -bottom-2.5 right-2">
+                  <KeytipBadge label={tab.keytip} />
+                </div>
+              )}
             </div>
             {activeTab === tab.id && <div className="absolute -bottom-[1px] left-0 right-0 h-[1px] bg-cad-elevated" aria-hidden="true" />}
           </button>
