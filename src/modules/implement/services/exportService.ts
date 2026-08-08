@@ -2,12 +2,11 @@ import JSZip from 'jszip';
 import { MapState, FeatureState, Project, FeatureMetadata as TypesFeatureMetadata } from '@CONTRACT/types';
 import { format } from 'date-fns';
 
-import { save } from '@tauri-apps/plugin-dialog';
-import { invoke } from '@tauri-apps/api/core';
+import { fileApi, save } from '@/contracts/tauri-api';
 import { useExportStore } from '@IMPLEMENT/stores/useExportStore';
 import { resolveMediaAsset } from '@IMPLEMENT/services/mediaAssetService';
-import { logger } from '@TOOL/utils/logger';
-import { rowsToCsv } from '@TOOL/utils/csv';
+import { logger } from '@SHARED/utils/logger';
+import { rowsToCsv } from '@SHARED/utils/csv';
 
 /**
  * Escapes special characters for XML/KML
@@ -135,10 +134,7 @@ export const exportProjectData = async (projectState: MapState, projectName: str
     updateProgress(95, `Đang lưu file vào hệ thống (Size: ${(finalContent.length / (1024 * 1024)).toFixed(2)} MB)...`);
     console.log(`[Export] ZIP generated, size: ${finalContent.length} bytes. Saving to ${filePath}...`);
 
-    await invoke('save_binary_file', {
-      path: filePath,
-      data: finalContent
-    });
+    await fileApi.saveBinary(filePath, finalContent);
 
     updateProgress(100, 'Hoàn tất! Cấu trúc ZIP phân cấp đã được lưu.');
     console.log(`[Export] Successfully saved to ${filePath}`);
@@ -391,10 +387,7 @@ export const exportGroupToKML = async (state: MapState, groupId: string, groupNa
     const arrayBuffer = await blob.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
 
-    await invoke('save_binary_file', {
-      path: filePath,
-      data: uint8Array
-    });
+    await fileApi.saveBinary(filePath, uint8Array);
 
     console.log(`[Export] Successfully exported ${groupFeatures.length} features to ${filePath}`);
   } catch (error: unknown) {
@@ -460,10 +453,7 @@ export const exportGroupToKMZ = async (state: MapState, groupId: string, groupNa
     // Generate and save KMZ
     const kmzContent = await kmzZip.generateAsync({ type: 'uint8array' });
 
-    await invoke('save_binary_file', {
-      path: filePath,
-      data: kmzContent
-    });
+    await fileApi.saveBinary(filePath, kmzContent);
 
     console.log(`[Export] Successfully exported ${groupFeatures.length} features to KMZ: ${filePath}`);
   } catch (error: unknown) {

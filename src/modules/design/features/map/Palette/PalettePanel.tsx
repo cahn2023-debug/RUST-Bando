@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
-import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
-import { cn } from '@TOOL/utils/cn';
+import { useLayoutStore } from '@CORE/stores/useLayoutStore';
+import { cn } from '@SHARED/utils/cn';
 import { PaletteProvider } from '@DESIGN/features/map/Palette/PaletteContext';
 
 interface PalettePanelProps {
@@ -185,7 +185,7 @@ export const PalettePanel = React.memo(({ id, children, fillDock = false }: Pale
             <div
                 ref={containerRef}
                 className={cn(
-                    "bg-cad-surface border border-cad-border flex flex-col overflow-hidden transition-shadow duration-300 ease-in-out z-cad-floating will-change-layout",
+                    "bg-cad-surface border border-cad-border flex flex-col overflow-hidden transition-shadow duration-200 ease-in-out z-cad-floating",
                     isFloating ? "fixed shadow-2xl rounded-sm" : "relative transition-all",
                     !isFloating && isBottomDocked ? "border-t" : "border-l",
                     !isFloating && !isPinned ? "shadow-2xl" : "",

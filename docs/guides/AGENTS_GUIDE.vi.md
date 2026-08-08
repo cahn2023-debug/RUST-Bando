@@ -66,3 +66,9 @@ Khác với chat thông thường, các Agent này biết **"chia sẻ não bộ
 4.  Cuối cùng **Test Engineer** sẽ vào kiểm tra xem mọi thứ có chạy đúng không.
 
 > **Điều này đảm bảo code của bạn luôn có cấu trúc chặt chẽ, không bị "đầu voi đuôi chuột".**
+
+## 3. Mandatory handoff checks
+
+Every implementation handoff must report the result of `npm run check:encoding`,
+`npm run typecheck`, `npm run lint`, `npm run test:ci`, and the relevant Rust checks.
+Agents must preserve existing command names, persisted keys, and project file formats.

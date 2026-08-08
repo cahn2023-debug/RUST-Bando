@@ -29,15 +29,24 @@ impl GisStreamWorker {
 
             while let Some(cmd) = rx.recv().await {
                 match cmd {
-                    GisStreamCommand::StreamVisibleFeatures { bbox, zoom, project_id: _ } => {
-                        log::info!("[GisStreamWorker] Processing GIS stream for bbox {:?} at zoom {}", bbox, zoom);
+                    GisStreamCommand::StreamVisibleFeatures {
+                        bbox,
+                        zoom,
+                        project_id: _,
+                    } => {
+                        log::info!(
+                            "[GisStreamWorker] Processing GIS stream for bbox {:?} at zoom {}",
+                            bbox,
+                            zoom
+                        );
                         if let Some(ref handle) = app_handle {
                             use tauri::Emitter;
                             let payload = FeatureChunkPayload {
                                 chunk_index: 0,
                                 total_chunks: 1,
                                 bbox: Some(bbox),
-                                features_json: r#"{"type":"FeatureCollection","features":[]}"#.to_string(),
+                                features_json: r#"{"type":"FeatureCollection","features":[]}"#
+                                    .to_string(),
                             };
                             let _ = handle.emit("gis:features-chunk", payload);
                         }

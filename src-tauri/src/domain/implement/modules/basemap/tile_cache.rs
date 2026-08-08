@@ -270,7 +270,10 @@ fn store(
     )
     .map_err(|error| format!("Failed to store tile: {error}"))?;
 
-    if WRITE_COUNTER.fetch_add(1, Ordering::Relaxed) % PRUNE_CHECK_INTERVAL == 0 {
+    if WRITE_COUNTER
+        .fetch_add(1, Ordering::Relaxed)
+        .is_multiple_of(PRUNE_CHECK_INTERVAL)
+    {
         prune(pool);
     }
     Ok(())

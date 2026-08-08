@@ -1,6 +1,7 @@
 console.log("[Trace] useAuthStore.ts: Loading local auth dependencies...");
 import { create } from 'zustand';
 import { safeInvoke } from '@IMPLEMENT/lib/tauri';
+import { getCurrentWindow } from '@/contracts/tauri-api/runtime';
 
 export interface LocalUser {
   id: string;
@@ -117,7 +118,6 @@ export const initAuth = () => {
   initPromise = new Promise((resolve) => {
     const runInit = async () => {
       try {
-        const { getCurrentWindow } = await import('@tauri-apps/api/window');
         const win = getCurrentWindow();
         if (win) {
           const isStandalone = win.label !== 'main';

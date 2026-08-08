@@ -36,7 +36,7 @@ export function PrintPreview({
         }} />
 
       <div
-        className="bg-white shadow-[0_30px_60px_rgba(0,0,0,0.5)] relative flex flex-col overflow-hidden transition-all duration-500"
+        className="bg-white shadow-[0_30px_60px_rgba(0,0,0,0.5)] relative flex flex-col overflow-hidden transition-all duration-200"
         style={{
           width: paperSize === 'A4' ? '420px' : paperSize === 'A3' ? '580px' : '720px',
           aspectRatio: '0.707', // Portrait A4 orientation in preview
@@ -67,7 +67,7 @@ export function PrintPreview({
               {previewImage ? (
                 <img
                   src={previewImage}
-                  className="w-full h-full object-cover animate-in fade-in zoom-in-95 duration-500"
+                  className="w-full h-full object-cover animate-in fade-in zoom-in-95 duration-200"
                   alt="Map Preview"
                 />
               ) : (

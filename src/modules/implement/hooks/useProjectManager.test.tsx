@@ -28,7 +28,7 @@ vi.mock("@IMPLEMENT/lib/tauri", () => ({
   IS_REAL_TAURI: true,
 }));
 
-vi.mock("@IMPLEMENT/stores/useSettingsStore", () => ({
+vi.mock("@CORE/stores/useSettingsStore", () => ({
   useSettingsStore: () => ({
     loadSettings: mockLoadSettings,
   }),

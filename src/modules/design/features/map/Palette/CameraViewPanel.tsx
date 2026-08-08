@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { confirmUserAction } from '@TOOL/utils/userConfirmation';
+import { confirmUserAction } from '@SHARED/utils/userConfirmation';
 import {
     Settings, Save,
     Video, Ruler, Activity, ChevronDown, ChevronRight, Map as MapIcon, Layers
@@ -18,12 +18,12 @@ import {
     mapRotationToHeading,
     mapHeadingToRotation,
     calculateDORIDistance
-} from '@TOOL/utils/cameraMath';
+} from '@SHARED/utils/cameraMath';
 import { RecognitionSimulator } from '@DESIGN/features/map/Palette/RecognitionSimulator';
 import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
 import { X } from 'lucide-react';
-import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore';
-import { cn } from '@TOOL/utils/cn';
+import { useSettingsStore } from '@CORE/stores/useSettingsStore';
+import { cn } from '@SHARED/utils/cn';
 import { DORILegend } from '@DESIGN/features/map/MapLayerComponents/DORILegend';
 import { Button } from '@DESIGN/components/ui/Button';
 import { InteractiveStreetViewPreview } from './InteractiveStreetViewPreview';
@@ -521,7 +521,7 @@ export const CameraViewPanel: React.FC = () => {
                                                                                 strokeWidth: 1,
                                                                                 cursor: 'pointer'
                                                                             }}
-                                                                            className="transition-all duration-300"
+                                                                            className="transition-all duration-200"
                                                                         />
                                                                         {/* DORI Markers at the top */}
                                                                         <line x1={p1} y1={camY - 5} x2={p1} y2="90" stroke={range.color} strokeWidth="0.5" strokeDasharray="1, 2" opacity="0.3" />

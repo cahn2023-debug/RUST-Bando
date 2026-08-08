@@ -4,7 +4,7 @@ import {
     Eye, EyeOff, Check, ChevronDown, Sliders, Maximize2,
     Layers, Camera, Video, Monitor, Info
 } from 'lucide-react';
-import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore';
+import { useSettingsStore } from '@CORE/stores/useSettingsStore';
 import { useDesignSync, DesignEventType } from '@IMPLEMENT/stores/useDesignSync';
 import { getFeatureDisplayInfo } from '@TOOL/utils/featureUtils';
 import { Button } from '@DESIGN/components/ui/Button';

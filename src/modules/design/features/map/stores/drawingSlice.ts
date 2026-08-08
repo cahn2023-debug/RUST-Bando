@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 import { DrawingSlice, DesignSyncStore } from './types';
-import { emit } from '@tauri-apps/api/event';
+import { emit } from '@/contracts/tauri-api/runtime';
 import { getParsedCoordinates, getParsedMetadata, getPointCoordinates } from '../../../../tool/utils/featureUtils';
 import type { LineStringCoordinates, PolygonCoordinates, FeatureState } from '@CONTRACT/types';
 import { buildSnapLinks, isPolylineEndpointIndex } from '../network/networkTopology';

@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '@/contracts/tauri-api/runtime';
 import { FeatureMetadata, IconType } from '@CONTRACT/types';
 
 const AI_MODEL = 'all-MiniLM-L6-v2';

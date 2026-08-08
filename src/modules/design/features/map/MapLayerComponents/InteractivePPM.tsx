@@ -7,7 +7,7 @@ import {
     getEffectiveCameraSpecs,
     getFeatureMetadataValue
 } from '@TOOL/utils/featureUtils';
-import { calculatePPMAtPoint, SENSOR_SIZES, calculateHFOV, getDORICategory } from '@TOOL/utils/cameraMath';
+import { calculatePPMAtPoint, SENSOR_SIZES, calculateHFOV, getDORICategory } from '@SHARED/utils/cameraMath';
 import { createPortal } from 'react-dom';
 import { getRenderableFeatureById } from '../featureLookup';
 

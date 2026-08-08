@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { cn } from '@TOOL/utils/cn';
+import { cn } from '@SHARED/utils/cn';
 
 interface VerticalResizeHandleProps {
   onResize: (delta: number) => void;
@@ -53,7 +53,7 @@ export const VerticalResizeHandle: React.FC<VerticalResizeHandleProps> = ({ onRe
     <div
       onMouseDown={startResizing}
       className={cn(
-        "h-1.5 w-full cursor-row-resize z-50 group flex items-center justify-center transition-all relative",
+        "h-1.5 w-full cursor-row-resize z-cad-panel group flex items-center justify-center transition-all relative",
         isResizing ? "bg-cad-accent/40" : "hover:bg-cad-accent/20",
         className
       )}

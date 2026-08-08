@@ -1,5 +1,5 @@
 import { X, FileIcon, Maximize2, FileText } from "lucide-react";
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { convertFileSrc } from "@/contracts/tauri-api/runtime";
 import Editor from "@monaco-editor/react";
 
 interface Props {
@@ -16,7 +16,7 @@ interface Props {
 
 export function FilePreview({ selectedFile, fileContent, onClose, onOpenExternally, onEditorMount }: Props) {
   return (
-    <div className="fixed inset-10 z-[100] overflow-hidden rounded-md border border-cad-border bg-cad-surface shadow-[0_0_50px_rgba(0,0,0,0.35)] flex flex-col">
+    <div className="fixed inset-10 z-cad-modal overflow-hidden rounded-md border border-cad-border bg-cad-surface shadow-[0_0_50px_rgba(0,0,0,0.35)] flex flex-col">
       <div className="cad-toolbar">
         <div className="flex items-center gap-2">
           <FileIcon size={14} className="text-cad-accent" />

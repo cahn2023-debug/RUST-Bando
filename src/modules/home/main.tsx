@@ -6,7 +6,7 @@ import ReactDOM from "react-dom/client";
 import "@DESIGN/index.css";
 import "@/modules/i18n"; // Initialize i18n
 import { ErrorBoundary } from "@DESIGN/components/ui/ErrorBoundary";
-import { lazyWithRetry } from "@TOOL/utils/lazyWithRetry";
+import { lazyWithRetry } from "@SHARED/utils/lazyWithRetry";
 import App from "./App";
 
 // Lazy load components to optimize per-window bundle usage

@@ -1,4 +1,4 @@
-import { safeInvoke as invoke } from '../../modules/implement/lib/tauri';
+import { invoke } from '@/contracts/tauri-api/runtime';
 import {
   GisValidationReport,
   GeometryType,

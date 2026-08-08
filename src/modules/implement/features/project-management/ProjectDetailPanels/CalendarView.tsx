@@ -1,6 +1,6 @@
 import { format, isSameMonth, subMonths, addMonths, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 import { Task } from "@CONTRACT/types";
 
 interface CalendarViewProps {

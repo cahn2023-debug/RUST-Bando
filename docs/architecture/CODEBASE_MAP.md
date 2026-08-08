@@ -1,4 +1,4 @@
-﻿# Project Codebase Map
+# Project Codebase Map
 Generated on: 2026-04-09 21:34:06
 
 
@@ -75,7 +75,7 @@ function FilePreviewCard({ file }: { file: FileItemData }) {
             <div className="h-40 w-full relative bg-[#1a1c23] overflow-hidden flex items-center justify-center pointer-events-none">
                 {error || !previewUrl ? (
                     <div className="text-cad-text-muted text-xs flex flex-col items-center gap-2">
-                        <span className="text-2xl">ðŸ“„</span>
+                        <span className="text-2xl">📄</span>
                         <span>No Preview</span>
                     </div>
                 ) : isHtmlPreview ? (
@@ -151,13 +151,13 @@ export function CADCanvas() {
 
     if (drawingMode === 'point' || drawingMode === 'image') {
       if (!selectedGroupId) {
-        alert("Vui lÃ²ng chá»n má»™t nhÃ³m trÆ°á»›c khi thÃªm Ä‘á»‘i tÆ°á»£ng.");
+        alert("Vui lòng chọn một nhóm trước khi thêm đối tượng.");
         setDrawingMode('none');
         return;
       }
 
       const id = crypto.randomUUID();
-      const name = drawingMode === 'point' ? "Äiá»ƒm Kháº£o SÃ¡t Má»›i" : "áº¢nh Hiá»‡n TrÆ°á»ng Má»›i";
+      const name = drawingMode === 'point' ? "Điểm Khảo Sát Mới" : "Ảnh Hiện Trường Mới";
 
       const metadata: any = {
         icon: drawingMode === 'image' ? 'camera' : 'default',
@@ -196,12 +196,12 @@ export function CADCanvas() {
 
   const finalizePolyline = async () => {
     if (currentDrawingPoints.length < 2) {
-      alert("Cáº§n Ã­t nháº¥t 2 Ä‘iá»ƒm Ä‘á»ƒ táº¡o Ä‘Æ°á»ng.");
+      alert("Cần ít nhất 2 điểm để tạo đường.");
       return;
     }
 
     if (!selectedGroupId) {
-      alert("Vui lÃ²ng chá»n má»™t nhÃ³m trÆ°á»›c khi lÆ°u.");
+      alert("Vui lòng chọn một nhóm trước khi lưu.");
       return;
     }
 
@@ -224,7 +224,7 @@ export function CADCanvas() {
         id,
         layer_id: group.layer_id,
         group_id: selectedGroupId,
-        name: "ÄÆ°á»ng Kháº£o SÃ¡t Má»›i",
+        name: "Đường Khảo Sát Mới",
         geom_type: 'LineString',
         coordinates: JSON.stringify(currentDrawingPoints),
         metadata: JSON.stringify({
@@ -285,7 +285,7 @@ export function CADCanvas() {
       <div className="absolute bottom-4 right-4 flex flex-col gap-1 z-30 pointer-events-auto">
         <button
           onClick={handleLocateMe}
-          title="XÃ¡c Ä‘á»‹nh vá»‹ trÃ­"
+          title="Xác định vị trí"
           className="p-2 border backdrop-blur-sm transition-all rounded-sm mb-2 bg-cad-surface/80 border-cad-border text-cad-text-secondary hover:text-cyan-400 hover:border-cyan-400 hover:bg-cad-elevated"
         >
           <Crosshair size={14} />
@@ -333,7 +333,7 @@ export function CoordinatePanel() {
         </div>
         <input 
           type="text" 
-          placeholder="TÃŒM KIáº¾M Tá»ŒA Äá»˜ HOáº¶C Äá»ŠA DANH..."
+          placeholder="TÌM KIẾM TỌA ĐỘ HOẶC ĐỊA DANH..."
           className="bg-transparent border-none outline-none text-[11px] text-cad-text font-medium w-full py-2.5 placeholder:text-cad-text-muted/40 uppercase tracking-widest font-mono"
         />
         <div className="px-3 border-l border-cad-border/50 text-[9px] text-cad-text-muted/50 font-black tracking-tighter bg-cad-elevated/30">
@@ -478,9 +478,9 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
       const padding = fontSize;
       const lineHeight = fontSize * 1.5;
       const lines = [
-        targetCoords ? `ðŸ“ Tá»a Ä‘á»™: ${targetCoords[0].toFixed(6)}, ${targetCoords[1].toFixed(6)}` : null,
-        `â° Thá»i gian: ${timestamp}`,
-        `ðŸ¢ Äá»‘i tÆ°á»£ng: ${name || 'N/A'}`
+        targetCoords ? `📍 Tọa độ: ${targetCoords[0].toFixed(6)}, ${targetCoords[1].toFixed(6)}` : null,
+        `⏰ Thời gian: ${timestamp}`,
+        `🏢 Đối tượng: ${name || 'N/A'}`
       ].filter(Boolean);
 
       const boxWidth = Math.min(canvas.width * 0.8, 600);
@@ -596,7 +596,7 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
       <div className="p-4 border-b bg-gray-50 flex justify-between items-center shrink-0">
         <h2 className="font-bold text-gray-800 flex items-center gap-2">
           {feature.geom_type === 'LineString' ? <Route className="w-4 h-4 text-emerald-500" /> : <MapPin className="w-4 h-4 text-blue-500" />}
-          Cáº¥u hÃ¬nh {feature.geom_type === 'LineString' ? 'Tuyáº¿n' : 'Äiá»ƒm'}
+          Cấu hình {feature.geom_type === 'LineString' ? 'Tuyến' : 'Điểm'}
         </h2>
         <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full transition-all"><X className="w-5 h-5" /></button>
       </div>
@@ -620,24 +620,24 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
 
         <div className="space-y-4">
           <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">TÃªn Ä‘á»‘i tÆ°á»£ng</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Tên đối tượng</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full mt-1 p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100" />
           </div>
 
           <div>
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">MÃ´ táº£ tá»•ng quÃ¡t</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Mô tả tổng quát</label>
             <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className="w-full mt-1 p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none resize-none" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">MÃ u sáº¯c</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Màu sắc</label>
               <div className="mt-1 flex items-center gap-2">
                 <input type="color" value={color} onChange={e => setColor(e.target.value)} className="h-10 w-full rounded-xl cursor-pointer border-0 p-0" />
               </div>
             </div>
             <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{feature.geom_type === 'Point' ? 'KÃ­ch thÆ°á»›c' : 'Äá»™ dÃ y'}</label>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">{feature.geom_type === 'Point' ? 'Kích thước' : 'Độ dày'}</label>
               <div className="mt-1 flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl px-3 h-10">
                 <input
                   type="number"
@@ -659,8 +659,8 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
           {feature.geom_type === 'LineString' && (
             <div className="space-y-3">
               <div className="flex justify-between items-center px-1">
-                <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Danh sÃ¡ch Ä‘iá»ƒm chá»‘t</label>
-                <span className="text-[9px] font-bold text-slate-300 uppercase">{coords.length} Ä‘iá»ƒm</span>
+                <label className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Danh sách điểm chốt</label>
+                <span className="text-[9px] font-bold text-slate-300 uppercase">{coords.length} điểm</span>
               </div>
 
               <div className="max-h-80 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
@@ -681,7 +681,7 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
                             #{idx + 1}
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold text-slate-700">Äiá»ƒm chá»‘t {idx + 1}</p>
+                            <p className="text-[10px] font-bold text-slate-700">Điểm chốt {idx + 1}</p>
                             <p className="text-[9px] font-mono text-slate-400">{c[0].toFixed(5)}, {c[1].toFixed(5)}</p>
                           </div>
                         </div>
@@ -705,11 +705,11 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
                           <div className="h-px bg-emerald-100 mx-2" />
 
                           <div className="space-y-2">
-                            <label className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1.5"><MessageSquare className="w-3 h-3" /> Ghi chÃº cho Ä‘iá»ƒm nÃ y</label>
+                            <label className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1.5"><MessageSquare className="w-3 h-3" /> Ghi chú cho điểm này</label>
                             <textarea
                               value={meta.description || ''}
                               onChange={(e) => setVertexMetadata(v => ({ ...v, [idx]: { ...(v[idx] || {}), description: e.target.value } }))}
-                              placeholder="Nháº­p ná»™i dung quan sÃ¡t táº¡i Ä‘iá»ƒm..."
+                              placeholder="Nhập nội dung quan sát tại điểm..."
                               className="w-full p-3 bg-white border border-emerald-100 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-200 resize-none"
                               rows={2}
                             />
@@ -717,12 +717,12 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
 
                           <div className="space-y-2">
                             <div className="flex justify-between items-center">
-                              <label className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1.5"><ImageIcon className="w-3 h-3" /> HÃ¬nh áº£nh hiá»‡n trÆ°á»ng</label>
+                              <label className="text-[9px] font-black text-emerald-600 uppercase flex items-center gap-1.5"><ImageIcon className="w-3 h-3" /> Hình ảnh hiện trường</label>
                               <button
                                 onClick={(e) => { e.stopPropagation(); startCamera(idx); }}
                                 className="flex items-center gap-1 text-[9px] font-black text-white bg-emerald-600 px-2 py-1 rounded-lg hover:bg-emerald-700 transition-colors"
                               >
-                                <Camera className="w-3 h-3" /> Chá»¥p áº£nh
+                                <Camera className="w-3 h-3" /> Chụp ảnh
                               </button>
                             </div>
 
@@ -742,7 +742,7 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
                               </div>
                             ) : (
                               <div className="py-4 border-2 border-dashed border-emerald-100 rounded-xl text-center">
-                                <p className="text-[9px] font-bold text-slate-300 uppercase">ChÆ°a cÃ³ áº£nh cho Ä‘iá»ƒm nÃ y</p>
+                                <p className="text-[9px] font-bold text-slate-300 uppercase">Chưa có ảnh cho điểm này</p>
                               </div>
                             )}
                           </div>
@@ -757,8 +757,8 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
 
           <div className="pt-4 border-t border-slate-100">
             <div className="flex justify-between items-center px-1 mb-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">áº¢nh dá»± Ã¡n / Hiá»‡n trÆ°á»ng chung ({imageUrls.length})</label>
-              <button onClick={() => startCamera('main')} className="text-[10px] font-black text-indigo-600 uppercase flex items-center gap-1 hover:underline"><Plus className="w-3 h-3" /> ThÃªm áº£nh</button>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ảnh dự án / Hiện trường chung ({imageUrls.length})</label>
+              <button onClick={() => startCamera('main')} className="text-[10px] font-black text-indigo-600 uppercase flex items-center gap-1 hover:underline"><Plus className="w-3 h-3" /> Thêm ảnh</button>
             </div>
 
             {imageUrls.length > 0 ? (
@@ -775,7 +775,7 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
                           <button onClick={() => downloadImage(url)} className="p-2 bg-white text-slate-600 rounded-lg hover:scale-110 transition-transform"><Download className="w-4 h-4" /></button>
                         </div>
                         <div className="flex gap-2">
-                          {!isMain && <button onClick={() => setImageUrl(url)} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-indigo-700">LÃ m áº£nh chÃ­nh</button>}
+                          {!isMain && <button onClick={() => setImageUrl(url)} className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-indigo-700">Làm ảnh chính</button>}
                           <button onClick={() => {
                             setDeleteModalConfig({ isOpen: true, type: 'image', targetIdx: idx });
                           }} className="p-2 bg-red-500 text-white rounded-lg hover:scale-110 transition-transform"><Trash className="w-4 h-4" /></button>
@@ -788,7 +788,7 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
             ) : (
               <button onClick={() => startCamera('main')} className="w-full aspect-video bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-indigo-500 hover:border-indigo-300 transition-all">
                 <Camera className="w-8 h-8" />
-                <span className="text-[10px] font-black uppercase tracking-widest">ThÃªm áº£nh tá»•ng quÃ¡t</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Thêm ảnh tổng quát</span>
               </button>
             )}
           </div>
@@ -796,19 +796,19 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
       </div>
 
       <div className="p-4 border-t bg-slate-50 flex justify-between gap-3 shrink-0">
-        <button onClick={handleDelete} className="px-5 py-2 text-xs font-black text-red-500 uppercase hover:bg-red-50 rounded-xl transition-all">XÃ³a</button>
-        <button onClick={handleSave} className="flex-1 py-4 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-600 shadow-xl transition-all flex items-center justify-center gap-2 active:scale-95"><Save className="w-4 h-4" /> LÆ°u cáº¥u hÃ¬nh</button>
+        <button onClick={handleDelete} className="px-5 py-2 text-xs font-black text-red-500 uppercase hover:bg-red-50 rounded-xl transition-all">Xóa</button>
+        <button onClick={handleSave} className="flex-1 py-4 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-600 shadow-xl transition-all flex items-center justify-center gap-2 active:scale-95"><Save className="w-4 h-4" /> Lưu cấu hình</button>
       </div>
       <DeleteConfirmationModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
-        title="XÃ¡c nháº­n xÃ³a Ä‘á»‘i tÆ°á»£ng"
+        title="Xác nhận xóa đối tượng"
         itemName={name}
-        message="Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a Ä‘á»‘i tÆ°á»£ng nÃ y khá»i báº£n váº½? HÃ nh Ä‘á»™ng nÃ y khÃ´ng thá»ƒ hoÃ n tÃ¡c."
+        message="Bạn có chắc chắn muốn xóa đối tượng này khỏi bản vẽ? Hành động này không thể hoàn tác."
       />
 
-      {/* ThÃªm state cho viá»‡c xÃ³a áº£nh riÃªng láº» náº¿u cáº§n, nhÆ°ng táº¡m thá»i dÃ¹ng modal chung cho object */}
+      {/* Thêm state cho việc xóa ảnh riêng lẻ nếu cần, nhưng tạm thời dùng modal chung cho object */}
       <DeleteConfirmationModal
         isOpen={deleteModalConfig.isOpen && deleteModalConfig.type === 'image'}
         onClose={() => setDeleteModalConfig({ isOpen: false, type: null, targetIdx: null })}
@@ -820,9 +820,9 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
           if (imageUrl === imageUrls[deleteModalConfig.targetIdx]) setImageUrl(newImgs[0] || '');
           setDeleteModalConfig({ isOpen: false, type: null, targetIdx: null });
         }}
-        title="XÃ¡c nháº­n xÃ³a hÃ¬nh áº£nh"
-        itemName="HÃ¬nh áº£nh hiá»‡n trÆ°á»ng"
-        message="Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a hÃ¬nh áº£nh nÃ y?"
+        title="Xác nhận xóa hình ảnh"
+        itemName="Hình ảnh hiện trường"
+        message="Bạn có chắc chắn muốn xóa hình ảnh này?"
       />
     </div>
   );
@@ -950,7 +950,7 @@ export const PropertyPanel: React.FC = () => {
           return Array.isArray(coords) && coords.length > 0 ? coords[0] : undefined;
         } catch (e) { return undefined; }
       })(),
-      label: localName || 'Äá»‘i tÆ°á»£ng kháº£o sÃ¡t'
+      label: localName || 'Đối tượng khảo sát'
     }
   });
 
@@ -961,11 +961,11 @@ export const PropertyPanel: React.FC = () => {
         const meta = typeof feature.metadata === 'string' ? JSON.parse(feature.metadata || '{}') : (feature.metadata || {});
         const normalized = normalizeMetadataObject(meta);
 
-        // Cáº­p nháº­t tÃªn (lÃ m sáº¡ch STT náº¿u cÃ³)
+        // Cập nhật tên (làm sạch STT nếu có)
         const sttValue = normalized.display_order || normalized.stt || normalized.STT || '';
         setLocalName(getCleanName(feature, sttValue));
 
-        // Cáº­p nháº­t metadata
+        // Cập nhật metadata
         setLocalMeta(normalized);
       } catch (e) {
         setLocalName(safeString(feature.name) || '');
@@ -1004,7 +1004,7 @@ export const PropertyPanel: React.FC = () => {
       setPreview(null, null);
     } catch (error) {
       console.error("Save failed:", error);
-      alert("Lá»—i khi lÆ°u dá»¯ liá»‡u. Vui lÃ²ng thá»­ láº¡i.");
+      alert("Lỗi khi lưu dữ liệu. Vui lòng thử lại.");
     } finally {
       setIsSaving(false);
     }
@@ -1021,16 +1021,16 @@ export const PropertyPanel: React.FC = () => {
 
       if (['xls', 'xlsx', 'csv'].includes(ext)) {
         const headers = await getExcelHeaders(file.name);
-        if (headers.length === 0) { alert('File Excel rá»—ng hoáº·c khÃ´ng Ä‘á»c Ä‘Æ°á»£c.'); return; }
+        if (headers.length === 0) { alert('File Excel rỗng hoặc không đọc được.'); return; }
         const datasetId = await importFromExcel(file.name);
-        alert(`âœ… ÄÃ£ báº¯t Ä‘áº§u import Excel/CSV: ${file.name}\nID Task: ${datasetId}`);
+        alert(`✅ Đã bắt đầu import Excel/CSV: ${file.name}\nID Task: ${datasetId}`);
       } else if (['kml', 'kmz'].includes(ext)) {
         const datasetId = await importFromKML(file.name);
-        alert(`âœ… ÄÃ£ báº¯t Ä‘áº§u import KML/KMZ: ${file.name}\nID Task: ${datasetId}`);
+        alert(`✅ Đã bắt đầu import KML/KMZ: ${file.name}\nID Task: ${datasetId}`);
       } else if (['gpx'].includes(ext)) {
-        alert('Äá»‹nh dáº¡ng GPX sáº½ Ä‘Æ°á»£c há»— trá»£ trong phiÃªn báº£n tiáº¿p theo.');
+        alert('Định dạng GPX sẽ được hỗ trợ trong phiên bản tiếp theo.');
       } else {
-        alert('Äá»‹nh dáº¡ng file khÃ´ng Ä‘Æ°á»£c há»— trá»£. Vui lÃ²ng chá»n Excel, KML, hoáº·c KMZ.');
+        alert('Định dạng file không được hỗ trợ. Vui lòng chọn Excel, KML, hoặc KMZ.');
       }
 
       // Auto-select the target group to expand it in sidebar
@@ -1038,7 +1038,7 @@ export const PropertyPanel: React.FC = () => {
       setPreview(null, null);
     } catch (err: any) {
       console.error('Import error:', err);
-      alert('Lá»—i import: ' + (err.message || err));
+      alert('Lỗi import: ' + (err.message || err));
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -1107,7 +1107,7 @@ export const PropertyPanel: React.FC = () => {
   const linkBudget = isPolyline ? designLogic.calculateFiberLinkBudget(distance) : 0;
 
   // Detect polyline type for specific metadata
-  const polyType = getMetaValue('infrastructure.type') || (safeString(feature.name).toLowerCase().includes('Ä‘iá»‡n') ? 'PowerLine' : safeString(feature.name).toLowerCase().includes('cÃ¡p') ? 'SignalLine' : '');
+  const polyType = getMetaValue('infrastructure.type') || (safeString(feature.name).toLowerCase().includes('điện') ? 'PowerLine' : safeString(feature.name).toLowerCase().includes('cáp') ? 'SignalLine' : '');
 
   return (
     <aside
@@ -1167,7 +1167,7 @@ export const PropertyPanel: React.FC = () => {
                   ? "bg-amber-500/20 text-amber-400 border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.2)]"
                   : "hover:bg-[#333] text-cad-text-muted border-transparent"
               )}
-              title="Chá»‰nh sá»­a Ä‘iá»ƒm (Vertex Editing)"
+              title="Chỉnh sửa điểm (Vertex Editing)"
             >
               <div className="flex items-center gap-1">
                 <Pencil className={cn("w-3 h-3", editingFeatureId === feature.id ? "animate-pulse" : "")} />
@@ -1213,7 +1213,7 @@ export const PropertyPanel: React.FC = () => {
                 />
                 <div className="space-y-2 p-3 bg-orange-500/5 border border-orange-500/10 rounded-md">
                   <p className="text-[9px] font-black text-orange-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                    <Grid3X3 size={12} /> Báº£ng Ä‘iá»u khiá»ƒn NÃºt giao
+                    <Grid3X3 size={12} /> Bảng điều khiển Nút giao
                   </p>
                   <button
                     onClick={() => fileInputRef.current?.click()}
@@ -1221,31 +1221,31 @@ export const PropertyPanel: React.FC = () => {
                     className="w-full flex items-center justify-center gap-2 py-2.5 px-3 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 disabled:opacity-60 text-white rounded-md transition-all text-[10px] font-bold uppercase tracking-wider shadow-lg shadow-orange-500/20 group"
                   >
                     {isImporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />}
-                    {isImporting ? 'Äang import...' : 'Upload dá»¯ liá»‡u (Excel/KML/KMZ)'}
+                    {isImporting ? 'Đang import...' : 'Upload dữ liệu (Excel/KML/KMZ)'}
                   </button>
                   <p className="text-[7px] text-[#555] px-1 leading-relaxed">
-                    Há»— trá»£: .xlsx, .xls, .csv, .kml, .kmz
+                    Hỗ trợ: .xlsx, .xls, .csv, .kml, .kmz
                   </p>
                   <div className="h-px bg-orange-500/10 my-1" />
-                  <p className="text-[8px] text-[#666] uppercase tracking-wider font-bold mb-1">ThÃªm thá»§ cÃ´ng:</p>
+                  <p className="text-[8px] text-[#666] uppercase tracking-wider font-bold mb-1">Thêm thủ công:</p>
                   <div className="grid grid-cols-1 gap-1.5">
                     <button
                       onClick={() => { setDrawingMode('point'); setSelectedGroup(feature.group_id); setActiveParentFeature(feature.id); }}
                       className="flex items-center gap-2 py-1.5 px-3 bg-[#252525] hover:bg-indigo-600 text-white rounded text-[8px] font-bold uppercase transition-all"
                     >
-                      <MapPin size={10} className="text-indigo-400" /> ThÃªm Äiá»ƒm Kháº£o SÃ¡t
+                      <MapPin size={10} className="text-indigo-400" /> Thêm Điểm Khảo Sát
                     </button>
                     <button
                       onClick={() => { setDrawingMode('polyline'); setSelectedGroup(feature.group_id); setActiveParentFeature(feature.id); }}
                       className="flex items-center gap-2 py-1.5 px-3 bg-[#252525] hover:bg-emerald-600 text-white rounded text-[8px] font-bold uppercase transition-all"
                     >
-                      <Route size={10} className="text-emerald-400" /> ThÃªm Tuyáº¿n/CÃ¡p
+                      <Route size={10} className="text-emerald-400" /> Thêm Tuyến/Cáp
                     </button>
                     <button
                       onClick={() => { setDrawingMode('image'); setSelectedGroup(feature.group_id); setActiveParentFeature(feature.id); }}
                       className="flex items-center gap-2 py-1.5 px-3 bg-[#252525] hover:bg-amber-600 text-white rounded text-[8px] font-bold uppercase transition-all"
                     >
-                      <ImageIcon size={10} className="text-amber-400" /> ThÃªm áº¢nh Hiá»‡n TrÆ°á»ng
+                      <ImageIcon size={10} className="text-amber-400" /> Thêm Ảnh Hiện Trường
                     </button>
                   </div>
                 </div>
@@ -1349,9 +1349,9 @@ export const PropertyPanel: React.FC = () => {
                 onChange={e => updateNestedMeta('infrastructure.type', e.target.value)}
               >
                 <option value="">Select Type...</option>
-                <option value="PowerLine">Power Line (LÆ°á»›i Ä‘iá»‡n)</option>
-                <option value="SignalLine">Signal / Fiber (ThÃ´ng tin)</option>
-                <option value="TrenchLine">Trench / Pipe (MÆ°Æ¡ng cÃ¡p)</option>
+                <option value="PowerLine">Power Line (Lưới điện)</option>
+                <option value="SignalLine">Signal / Fiber (Thông tin)</option>
+                <option value="TrenchLine">Trench / Pipe (Mương cáp)</option>
               </select>
             </div>
 
@@ -1553,8 +1553,8 @@ export const PropertyPanel: React.FC = () => {
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
-        title="XÃ³a Äá»‘i TÆ°á»£ng"
-        message={`Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a Ä‘á»‘i tÆ°á»£ng "${localName || feature.id}"? HÃ nh Ä‘á»™ng nÃ y khÃ´ng thá»ƒ hoÃ n tÃ¡c.`}
+        title="Xóa Đối Tượng"
+        message={`Bạn có chắc chắn muốn xóa đối tượng "${localName || feature.id}"? Hành động này không thể hoàn tác.`}
         itemName={localName || feature.id}
       />
     </aside >
@@ -2360,10 +2360,10 @@ export function DrawingExplorer() {
         // V18: Only prioritize expansion up to Level 2 (Folders)
         const next: Record<string, boolean> = {};
         regionIds.forEach(rId => {
-          next[rId] = true; // Expand Project (Báº­c 1)
+          next[rId] = true; // Expand Project (Bậc 1)
           const topGroups = regionGroupsMap[rId] || [];
           topGroups.forEach((g: any) => {
-            next[g.id] = true; // Expand Folder (Báº­c 2)
+            next[g.id] = true; // Expand Folder (Bậc 2)
           });
         });
         return next;
@@ -2568,7 +2568,7 @@ export function DrawingExplorer() {
     if (!parentGroupId) {
       group_type = 'FOLDER';
     } else {
-      const typeChoice = prompt("Chá»n loáº¡i nhÃ³m:\n1. NÃºt giao (Intersection)\n2. Tuyáº¿n (Polyline)\n3. CCTV\n4. PTZ\n5. Speed\n6. LPR\n7. ThÆ° má»¥c (Folder)\n8. Máº·c Ä‘á»‹nh (Default)", "1");
+      const typeChoice = prompt("Chọn loại nhóm:\n1. Nút giao (Intersection)\n2. Tuyến (Polyline)\n3. CCTV\n4. PTZ\n5. Speed\n6. LPR\n7. Thư mục (Folder)\n8. Mặc định (Default)", "1");
       if (typeChoice === '1') group_type = 'INTERSECTION';
       else if (typeChoice === '2') group_type = 'POLYLINE';
       else if (typeChoice === '3') group_type = 'CCTV';
@@ -2578,7 +2578,7 @@ export function DrawingExplorer() {
       else if (typeChoice === '7') group_type = 'FOLDER';
     }
 
-    const name = prompt("TÃªn nhÃ³m má»›i:", group_type === 'INTERSECTION' ? 'NÃºt giao má»›i' : 'NhÃ³m má»›i');
+    const name = prompt("Tên nhóm mới:", group_type === 'INTERSECTION' ? 'Nút giao mới' : 'Nhóm mới');
     if (!name) return;
 
     const id = crypto.randomUUID();
@@ -2590,7 +2590,7 @@ export function DrawingExplorer() {
 
   const handleCreateRegion = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const name = prompt("TÃªn dá»± Ã¡n má»›i:");
+    const name = prompt("Tên dự án mới:");
     if (!name) return;
 
     const id = crypto.randomUUID();
@@ -2642,17 +2642,17 @@ export function DrawingExplorer() {
               }
             }));
             await store.dispatchEvents(events);
-            alert(`ÄÃ£ import thÃ nh cÃ´ng ${records.length} Ä‘á»‘i tÆ°á»£ng tá»« ${fileName}`);
+            alert(`Đã import thành công ${records.length} đối tượng từ ${fileName}`);
           }
         } catch (err) {
-          alert(`KhÃ´ng thá»ƒ Ä‘á»c dá»¯ liá»‡u tá»« tá»‡p ${ext.toUpperCase()}.`);
+          alert(`Không thể đọc dữ liệu từ tệp ${ext.toUpperCase()}.`);
         }
       } else {
-        alert('Äá»‹nh dáº¡ng tá»‡p khÃ´ng há»— trá»£.');
+        alert('Định dạng tệp không hỗ trợ.');
       }
     } catch (err) {
       console.error("Import error details:", err);
-      alert('CÃ³ lá»—i xáº£y ra khi chá»n file hoáº·c import.');
+      alert('Có lỗi xảy ra khi chọn file hoặc import.');
     }
   };
 
@@ -2693,11 +2693,11 @@ export function DrawingExplorer() {
       });
 
       await store.dispatchEvents(events);
-      alert(`ÄÃ£ import thÃ nh cÃ´ng ${records.length} Ä‘á»‘i tÆ°á»£ng tá»« ${filename}`);
+      alert(`Đã import thành công ${records.length} đối tượng từ ${filename}`);
       setMappingData(null);
     } catch (err) {
       console.error("Import conversion error:", err);
-      alert('CÃ³ lá»—i xáº£y ra khi chuyá»ƒn Ä‘á»•i dá»¯ liá»‡u mapping.');
+      alert('Có lỗi xảy ra khi chuyển đổi dữ liệu mapping.');
     }
   };
 
@@ -2740,7 +2740,7 @@ export function DrawingExplorer() {
         };
         reader.readAsDataURL(file);
       }
-      alert(`Äang xá»­ lÃ½ upload ${files.length} tá»‡p tin...`);
+      alert(`Đang xử lý upload ${files.length} tệp tin...`);
     };
     input.click();
   };
@@ -2753,7 +2753,7 @@ export function DrawingExplorer() {
           <Trash2 size={24} className="text-red-500" />
         </div>
         <div className="space-y-1">
-          <h3 className="text-sm font-bold text-red-400 uppercase tracking-tight">Lá»—i Náº¡p Dá»¯ Liá»‡u</h3>
+          <h3 className="text-sm font-bold text-red-400 uppercase tracking-tight">Lỗi Nạp Dữ Liệu</h3>
           <p className="text-[10px] text-cad-text-muted max-w-[200px] leading-relaxed">
             {error}
           </p>
@@ -2762,7 +2762,7 @@ export function DrawingExplorer() {
           onClick={() => projectId && initialize(projectId, projectPath || undefined)}
           className="mt-2 px-4 py-1.5 bg-cad-accent text-black text-[10px] font-black uppercase rounded hover:bg-white transition-all flex items-center gap-2"
         >
-          <RefreshCw size={12} /> Thá»­ Láº¡i
+          <RefreshCw size={12} /> Thử Lại
         </button>
       </div>
     );
@@ -2774,7 +2774,7 @@ export function DrawingExplorer() {
         <RefreshCw size={24} className="text-cad-accent animate-spin" />
         <div className="space-y-2">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cad-accent">
-            Äang Äá»“ng Bá»™...
+            Đang Đồng Bộ...
           </p>
           <div className="w-32 h-1 bg-cad-border rounded-full overflow-hidden">
             <div className="h-full bg-cad-accent animate-[loading_2s_ease-in-out_infinite]" />
@@ -2801,7 +2801,7 @@ export function DrawingExplorer() {
               type="text"
               value={treeSearchQuery}
               onChange={(e) => setTreeSearchQuery(e.target.value)}
-              placeholder="Lá»c tÃªn..."
+              placeholder="Lọc tên..."
               className="w-full bg-transparent text-[9px] font-mono py-1 pr-2 text-cad-text-primary placeholder:text-cad-text-muted outline-none uppercase"
             />
             {treeSearchQuery && (
@@ -2817,7 +2817,7 @@ export function DrawingExplorer() {
           <button
             onClick={handleCreateRegion}
             className="h-[22px] px-1.5 flex items-center justify-center bg-cad-bg border border-cad-border hover:border-cad-accent hover:text-cad-accent transition-all rounded-sm text-cad-text-muted"
-            title="ThÃªm dá»± Ã¡n má»›i (+)"
+            title="Thêm dự án mới (+)"
           >
             <PlusCircle size={12} />
           </button>
@@ -2831,9 +2831,9 @@ export function DrawingExplorer() {
               "flex-1 h-6 flex items-center justify-center rounded-sm text-[8px] font-black uppercase transition-all tracking-tighter whitespace-nowrap",
               !showNotes ? "bg-cad-accent text-black shadow-sm" : "bg-cad-surface border border-cad-border text-cad-text-muted hover:border-cad-accent/50"
             )}
-            title="Báº­t/Táº¯t hiá»ƒn thá»‹ Ghi chÃº trong danh sÃ¡ch"
+            title="Bật/Tắt hiển thị Ghi chú trong danh sách"
           >
-            {!showNotes ? "áº¨N GHI CHÃš" : "HIá»†N GHI CHÃš"}
+            {!showNotes ? "ẨN GHI CHÚ" : "HIỆN GHI CHÚ"}
           </button>
 
           <button
@@ -2842,9 +2842,9 @@ export function DrawingExplorer() {
               "flex-1 h-6 flex items-center justify-center rounded-sm text-[8px] font-black uppercase transition-all tracking-tighter whitespace-nowrap",
               !showQr ? "bg-cad-accent text-black shadow-sm" : "bg-cad-surface border border-cad-border text-cad-text-muted hover:border-cad-accent/50"
             )}
-            title="Báº­t/Táº¯t hiá»ƒn thá»‹ mÃ£ QR trong danh sÃ¡ch"
+            title="Bật/Tắt hiển thị mã QR trong danh sách"
           >
-            {!showQr ? "áº¨N QR" : "HIá»†N QR"}
+            {!showQr ? "ẨN QR" : "HIỆN QR"}
           </button>
 
           <button
@@ -2853,9 +2853,9 @@ export function DrawingExplorer() {
               "flex-1 h-6 flex items-center justify-center rounded-sm text-[8px] font-black uppercase transition-all tracking-tighter whitespace-nowrap",
               !showCode ? "bg-cad-accent text-black shadow-sm" : "bg-cad-surface border border-cad-border text-cad-text-muted hover:border-cad-accent/50"
             )}
-            title="Báº­t/Táº¯t hiá»ƒn thá»‹ MÃ£ hiá»‡u/STT trong danh sÃ¡ch"
+            title="Bật/Tắt hiển thị Mã hiệu/STT trong danh sách"
           >
-            {!showCode ? "áº¨N MÃƒ HIá»†U" : "HIá»†N MÃƒ HIá»†U"}
+            {!showCode ? "ẨN MÃ HIỆU" : "HIỆN MÃ HIỆU"}
           </button>
         </div>
 
@@ -2865,14 +2865,14 @@ export function DrawingExplorer() {
             onChange={(e) => setFilterType(e.target.value || null)}
             className="flex-1 bg-cad-surface border border-cad-border text-[8px] font-mono py-0.5 px-1 outline-none text-cad-text-muted focus:border-cad-accent rounded-sm"
           >
-            <option value="">Táº¤T Cáº¢ LOáº I</option>
+            <option value="">TẤT CẢ LOẠI</option>
             <option value="INTERSECTION">NÃšT GIAO</option>
-            <option value="POLYLINE">TUYáº¾N</option>
+            <option value="POLYLINE">TUYẾN</option>
             <option value="CCTV">CAMERA CCTV</option>
             <option value="PTZ">CAMERA PTZ</option>
             <option value="SPEED">CAMERA SPEED</option>
             <option value="LPR">CAMERA LPR</option>
-            <option value="FOLDER">THÆ¯ Má»¤C</option>
+            <option value="FOLDER">THƯ MỤC</option>
           </select>
 
           <div className="flex items-center gap-0.5 ml-auto">
@@ -2882,7 +2882,7 @@ export function DrawingExplorer() {
                 "p-1 border border-cad-border rounded-sm transition-all flex items-center gap-1 text-[8px] font-mono h-6",
                 sortField === 'stt' ? "bg-cad-accent text-black border-cad-accent" : "hover:border-cad-accent text-cad-text-muted"
               )}
-              title="Sáº¯p xáº¿p theo TÃªn/STT"
+              title="Sắp xếp theo Tên/STT"
             >
               <Type size={10} />
               {sortField === 'stt' ? "STT" : "NAME"}
@@ -2894,7 +2894,7 @@ export function DrawingExplorer() {
                 "p-1 border border-cad-border rounded-sm transition-all flex items-center gap-1 text-[8px] font-mono h-6",
                 reverseOrder ? "bg-cad-accent text-black border-cad-accent" : "hover:border-cad-accent text-cad-text-muted"
               )}
-              title="Äáº£o ngÆ°á»£c thá»© tá»±"
+              title="Đảo ngược thứ tự"
             >
               <RefreshCw size={10} className={cn(reverseOrder && "rotate-180")} />
               {reverseOrder ? "DESC" : "ASC"}
@@ -2911,7 +2911,7 @@ export function DrawingExplorer() {
           <div className="py-20 flex flex-col items-center justify-center opacity-20 text-center gap-3">
             <MapIcon size={40} strokeWidth={1} />
             <p className="text-[9px] uppercase font-black tracking-[0.2em] leading-tight">
-              {treeSearchQuery ? "KhÃ´ng tÃ¬m tháº¥y" : "No Projects"}
+              {treeSearchQuery ? "Không tìm thấy" : "No Projects"}
             </p>
           </div>
         )}
@@ -2945,14 +2945,14 @@ export function DrawingExplorer() {
                       <button
                         onClick={(e) => handleCreateGroup(region.id, e)}
                         className="p-0.5 hover:bg-cad-accent hover:text-black rounded transition-colors"
-                        title="ThÃªm NhÃ³m (ThÆ° má»¥c, NÃºt giao...)"
+                        title="Thêm Nhóm (Thư mục, Nút giao...)"
                       >
                         <FolderPlus size={10} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDelete('region', region.id, region.name); }}
                         className="p-0.5 hover:bg-red-500 hover:text-white rounded transition-colors"
-                        title="XÃ³a Dá»± Ã¡n"
+                        title="Xóa Dự án"
                       >
                         <Trash2 size={10} />
                       </button>
@@ -3003,7 +3003,7 @@ export function DrawingExplorer() {
                       <button
                         onClick={(e) => { e.stopPropagation(); setThemeGroupId(group.id); }}
                         className="p-0.5 hover:bg-cad-accent hover:text-black rounded transition-colors"
-                        title="Theme NhÃ³m"
+                        title="Theme Nhóm"
                       >
                         <Palette size={10} />
                       </button>
@@ -3011,7 +3011,7 @@ export function DrawingExplorer() {
                         <button
                           onClick={(e) => { e.stopPropagation(); handleCreateGroup(group.layer_id, e, group.id); }}
                           className="p-0.5 hover:bg-cad-accent hover:text-black rounded transition-colors"
-                          title="ThÃªm nhÃ³m con"
+                          title="Thêm nhóm con"
                         >
                           <PlusCircle size={10} />
                         </button>
@@ -3020,14 +3020,14 @@ export function DrawingExplorer() {
                       <button
                         onClick={(e) => { e.stopPropagation(); handleImportToGroup(group.id); }}
                         className="p-0.5 rounded hover:bg-blue-500 hover:text-white transition-colors"
-                        title="Import dá»¯ liá»‡u"
+                        title="Import dữ liệu"
                       >
                         <FileUp size={10} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDelete('group', group.id, group.name); }}
                         className="p-0.5 hover:bg-red-500 hover:text-white rounded transition-colors"
-                        title="XÃ³a NhÃ³m"
+                        title="Xóa Nhóm"
                       >
                         <Trash2 size={10} />
                       </button>
@@ -3129,7 +3129,7 @@ export function DrawingExplorer() {
               className="px-3 py-2 text-left text-[9px] font-bold text-cad-text-primary hover:bg-cad-accent hover:text-black transition-all flex items-center gap-2.5 uppercase group"
               onClick={() => {
                 if (contextMenu) {
-                  const newName = prompt("Nháº­p tÃªn má»›i:", contextMenu.data?.name || "");
+                  const newName = prompt("Nhập tên mới:", contextMenu.data?.name || "");
                   if (newName) handleRename(contextMenu.type as any, contextMenu.id, newName, contextMenu.data);
                 }
                 setContextMenu(null);
@@ -3180,8 +3180,8 @@ export function DrawingExplorer() {
         isOpen={deleteModal.isOpen}
         onClose={() => setDeleteModal(prev => ({ ...prev, isOpen: false }))}
         onConfirm={confirmDelete}
-        title={`XÃ³a ${deleteModal.type === 'feature' ? 'Äá»‘i tÆ°á»£ng' : deleteModal.type === 'region' ? 'Dá»± Ã¡n' : 'NhÃ³m'}`}
-        message={`Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a ${deleteModal.type === 'feature' ? 'Ä‘á»‘i tÆ°á»£ng' : 'thÆ° má»¥c'} "${deleteModal.name}"${deleteModal.type !== 'feature' ? ' vÃ  toÃ n bá»™ ná»™i dung bÃªn trong' : ''}? HÃ nh Ä‘á»™ng nÃ y khÃ´ng thá»ƒ hoÃ n tÃ¡c.`}
+        title={`Xóa ${deleteModal.type === 'feature' ? 'Đối tượng' : deleteModal.type === 'region' ? 'Dự án' : 'Nhóm'}`}
+        message={`Bạn có chắc chắn muốn xóa ${deleteModal.type === 'feature' ? 'đối tượng' : 'thư mục'} "${deleteModal.name}"${deleteModal.type !== 'feature' ? ' và toàn bộ nội dung bên trong' : ''}? Hành động này không thể hoàn tác.`}
         itemName={deleteModal.name}
       />
     </div >
@@ -3409,7 +3409,7 @@ export const FeatureItem = React.memo(({
             <span className="w-3 shrink-0 flex items-center justify-center -ml-1">
               {hasChildren && (
                 <span className="text-white text-[9px] font-bold text-center">
-                  {expanded ? 'â–¼' : 'â–¶'}
+                  {expanded ? '▼' : '▶'}
                 </span>
               )}
             </span>
@@ -3477,7 +3477,7 @@ export const FeatureItem = React.memo(({
                 "p-0.5 rounded transition-colors",
                 visible ? "hover:bg-cad-accent hover:text-black" : "text-cad-accent hover:bg-cad-accent/20"
               )}
-              title={visible ? "áº¨n trÃªn báº£n Ä‘á»“" : "Hiá»‡n trÃªn báº£n Ä‘á»“"}
+              title={visible ? "Ẩn trên bản đồ" : "Hiện trên bản đồ"}
             >
               {visible ? <Eye size={10} /> : <EyeOff size={10} className="opacity-80" />}
             </button>
@@ -3485,7 +3485,7 @@ export const FeatureItem = React.memo(({
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
             className="p-0.5 hover:bg-red-500 hover:text-white rounded transition-colors"
-            title="XÃ³a Feature"
+            title="Xóa Feature"
           >
             <Trash2 size={10} />
           </button>
@@ -3527,15 +3527,15 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
       const lower = h.toLowerCase().trim();
       const includes = (terms: string[]) => terms.some(t => lower.includes(t.toLowerCase()));
 
-      if (includes(["tÃªn", "name", "Ä‘á»‘i tÆ°á»£ng", "label"])) {
+      if (includes(["tên", "name", "đối tượng", "label"])) {
         autoMapping.name_column = h;
-      } else if (includes(["lat", "latitude", "vÄ© Ä‘á»™"]) || lower === "x") {
+      } else if (includes(["lat", "latitude", "vĩ độ"]) || lower === "x") {
         autoMapping.lat_column = h;
-      } else if (includes(["lng", "longitude", "kinh Ä‘á»™", "long"]) || lower === "y") {
+      } else if (includes(["lng", "longitude", "kinh độ", "long"]) || lower === "y") {
         autoMapping.lng_column = h;
-      } else if (includes(["mÃ´ táº£", "description", "ghi chÃº"])) {
+      } else if (includes(["mô tả", "description", "ghi chú"])) {
         autoMapping.description_column = h;
-      } else if (includes(["stt", "mÃ£ hiá»‡u", "mÃ£", "index", "order", "sá»‘ tt"]) || lower === "id") {
+      } else if (includes(["stt", "mã hiệu", "mã", "index", "order", "số tt"]) || lower === "id") {
         autoMapping.order_column = h;
       }
     });
@@ -3565,7 +3565,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
               <FileSpreadsheet size={18} className="text-cad-accent" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Mapping Dá»¯ liá»‡u Excel</h2>
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Mapping Dữ liệu Excel</h2>
               <p className="text-[10px] text-cad-text-muted truncate max-w-[240px] mt-0.5">{filename}</p>
             </div>
           </div>
@@ -3582,7 +3582,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex gap-3">
             <AlertCircle size={16} className="text-blue-400 shrink-0 mt-0.5" />
             <p className="text-[11px] text-blue-200 leading-relaxed">
-              Vui lÃ²ng chá»n cÃ¡c cá»™t tÆ°Æ¡ng á»©ng tá»« file Excel cá»§a báº¡n. CÃ¡c cá»™t khÃ´ng Ä‘Æ°á»£c chá»n sáº½ tá»± Ä‘á»™ng Ä‘Æ°á»£c Ä‘Æ°a vÃ o pháº§n <b>ThÃ´ng tin bá»• sung</b> (Properties).
+              Vui lòng chọn các cột tương ứng từ file Excel của bạn. Các cột không được chọn sẽ tự động được đưa vào phần <b>Thông tin bổ sung</b> (Properties).
             </p>
           </div>
 
@@ -3591,7 +3591,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] uppercase tracking-widest font-black text-cad-text-muted">Cá»™t TÃªn / NhÃ£n</label>
+                  <label className="text-[10px] uppercase tracking-widest font-black text-cad-text-muted">Cột Tên / Nhãn</label>
                   {mapping.name_column && <span className="text-[9px] text-cad-accent flex items-center gap-1 font-bold"><CheckCircle2 size={10} /></span>}
                 </div>
                 <select 
@@ -3599,7 +3599,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMapping(prev => ({ ...prev, name_column: e.target.value }))}
                   className="w-full bg-[#2A2A2A] border border-cad-border rounded-lg p-2.5 text-xs text-white outline-none focus:border-cad-accent transition-all ring-cad-accent/20 focus:ring-4"
                 >
-                  <option value="">-- Chá»n cá»™t --</option>
+                  <option value="">-- Chọn cột --</option>
                   {headers.map(h => <option key={h} value={h}>{h}</option>)}
                 </select>
               </div>
@@ -3607,7 +3607,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
               {/* Order Column - NEW */}
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] uppercase tracking-widest font-black text-cad-text-muted">MÃ£ hiá»‡u (STT)</label>
+                  <label className="text-[10px] uppercase tracking-widest font-black text-cad-text-muted">Mã hiệu (STT)</label>
                   {mapping.order_column && <span className="text-[9px] text-cad-accent flex items-center gap-1 font-bold"><CheckCircle2 size={10} /></span>}
                 </div>
                 <select 
@@ -3615,7 +3615,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMapping(prev => ({ ...prev, order_column: e.target.value }))}
                   className="w-full bg-[#2A2A2A] border border-cad-border rounded-lg p-2.5 text-xs text-white outline-none focus:border-cad-accent transition-all ring-cad-accent/20 focus:ring-4"
                 >
-                  <option value="">-- KhÃ´ng sá»­ dá»¥ng --</option>
+                  <option value="">-- Không sử dụng --</option>
                   {headers.map(h => <option key={h} value={h}>{h}</option>)}
                 </select>
               </div>
@@ -3624,26 +3624,26 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
             <div className="grid grid-cols-2 gap-4">
               {/* Latitude Column */}
               <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest font-black text-cad-text-muted">VÄ© Ä‘á»™ (Latitude / X)</label>
+                <label className="text-[10px] uppercase tracking-widest font-black text-cad-text-muted">Vĩ độ (Latitude / X)</label>
                 <select 
                   value={mapping.lat_column}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMapping(prev => ({ ...prev, lat_column: e.target.value }))}
                   className="w-full bg-[#2A2A2A] border border-cad-border rounded-lg p-2.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
                 >
-                  <option value="">-- Chá»n cá»™t --</option>
+                  <option value="">-- Chọn cột --</option>
                   {headers.map(h => <option key={h} value={h}>{h}</option>)}
                 </select>
               </div>
 
               {/* Longitude Column */}
               <div className="space-y-1.5">
-                <label className="text-[10px] uppercase tracking-widest font-black text-cad-text-muted">Kinh Ä‘á»™ (Longitude / Y)</label>
+                <label className="text-[10px] uppercase tracking-widest font-black text-cad-text-muted">Kinh độ (Longitude / Y)</label>
                 <select 
                   value={mapping.lng_column}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMapping(prev => ({ ...prev, lng_column: e.target.value }))}
                   className="w-full bg-[#2A2A2A] border border-cad-border rounded-lg p-2.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
                 >
-                  <option value="">-- Chá»n cá»™t --</option>
+                  <option value="">-- Chọn cột --</option>
                   {headers.map(h => <option key={h} value={h}>{h}</option>)}
                 </select>
               </div>
@@ -3651,13 +3651,13 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
 
             {/* Description Column */}
             <div className="space-y-1.5">
-              <label className="text-[10px] uppercase tracking-widest font-black text-cad-text-muted">MÃ´ táº£ (TÃ¹y chá»n)</label>
+              <label className="text-[10px] uppercase tracking-widest font-black text-cad-text-muted">Mô tả (Tùy chọn)</label>
               <select 
                 value={mapping.description_column}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setMapping(prev => ({ ...prev, description_column: e.target.value }))}
                 className="w-full bg-[#2A2A2A] border border-cad-border rounded-lg p-2.5 text-xs text-white outline-none focus:border-cad-accent transition-all"
               >
-                <option value="">-- KhÃ´ng sá»­ dá»¥ng --</option>
+                <option value="">-- Không sử dụng --</option>
                 {headers.map(h => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
@@ -3670,7 +3670,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
             onClick={onClose}
             className="px-5 py-2.5 rounded-lg text-xs font-bold text-cad-text-secondary hover:text-white hover:bg-white/5 transition-all"
           >
-            Há»§y bá»
+            Hủy bỏ
           </button>
           <button 
             onClick={handleConfirm}
@@ -3678,7 +3678,7 @@ export function MappingDialog({ headers, filename, onConfirm, onClose }: Mapping
             className="px-6 py-2.5 rounded-lg text-xs font-black bg-cad-accent text-black hover:bg-cad-accent/90 transition-all flex items-center gap-2 disabled:opacity-30 disabled:grayscale cursor-pointer shadow-lg shadow-cad-accent/10 active:scale-95"
           >
             <CheckCircle2 size={14} />
-            HoÃ n táº¥t Mapping
+            Hoàn tất Mapping
           </button>
         </div>
 
@@ -3789,7 +3789,7 @@ export const TreeItem = React.memo(({
 
           <div className="flex-1 flex items-center gap-0.5 min-w-0" style={{ paddingLeft: level * 16 }}>
             <span className="text-white text-[9px] transition-transform w-3 font-bold shrink-0 text-center -ml-1">
-              {children ? (expanded ? 'â–¼' : 'â–¶') : ''}
+              {children ? (expanded ? '▼' : '▶') : ''}
             </span>
 
             {onToggleCheck && (
@@ -4319,7 +4319,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
     data,
     columns,
     projectId,
-    title = "PhÃ¢n tÃ­ch dá»¯ liá»‡u",
+    title = "Phân tích dữ liệu",
     isStandalone = false,
     onClose,
     onUpdate: _onUpdate, // Mark as unused to avoid TS error
@@ -4440,7 +4440,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                             onClick={onAddColumn}
                             className="flex items-center gap-2 px-4 py-2 bg-cad-accent/10 border border-cad-accent/30 text-cad-accent rounded-lg text-xs font-bold hover:bg-cad-accent hover:text-white transition-all tracking-tight uppercase"
                         >
-                            <Plus size={14} /> ThÃªm cá»™t
+                            <Plus size={14} /> Thêm cột
                         </button>
                     )}
 
@@ -4456,12 +4456,12 @@ export function AnalysisTable<TData extends { id: string | number }>({
                             onClick={() => setOpenVisibilityMenu(!openVisibilityMenu)}
                         >
                             <Eye size={14} className="opacity-70 group-hover:opacity-100" />
-                            Cá»™t hiá»ƒn thá»‹
+                            Cột hiển thị
                         </button>
 
                         {openVisibilityMenu && (
                             <div className="absolute right-0 top-full mt-2 w-56 bg-cad-elevated border border-cad-border rounded-lg shadow-xl z-[9999] p-2 flex flex-col gap-1 max-h-[400px] overflow-y-auto custom-scrollbar animate-in zoom-in-95 duration-150">
-                                <div className="px-2 py-1 text-[10px] font-bold text-cad-text-muted border-b border-cad-border mb-1 uppercase tracking-wider">Chá»n cá»™t hiá»ƒn thá»‹</div>
+                                <div className="px-2 py-1 text-[10px] font-bold text-cad-text-muted border-b border-cad-border mb-1 uppercase tracking-wider">Chọn cột hiển thị</div>
                                 {table.getAllLeafColumns().map(column => {
                                     if (column.id === 'select' || column.id === 'index_stt') return null;
                                     return (
@@ -4488,7 +4488,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                             type="text"
                             value={globalFilter}
                             onChange={e => setGlobalFilter(e.target.value)}
-                            placeholder="TÃ¬m kiáº¿m..."
+                            placeholder="Tìm kiếm..."
                             className="bg-cad-surface border border-cad-border rounded-lg pl-10 pr-4 py-2 text-sm w-48 focus:w-80 focus:ring-4 focus:ring-cad-accent/10 focus:border-cad-accent outline-none transition-all font-medium text-cad-text-primary"
                         />
                     </div>
@@ -4531,7 +4531,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                     <div className="h-12 bg-cad-accent/10 border-b border-cad-accent/30 px-6 flex items-center gap-4 shrink-0 animate-in slide-in-from-top-2 duration-200">
                         <div className="flex items-center gap-2">
                             <CheckSquare size={14} className="text-cad-accent" />
-                            <span className="text-xs font-bold text-cad-accent">{selectedCount} Ä‘Ã£ chá»n</span>
+                            <span className="text-xs font-bold text-cad-accent">{selectedCount} đã chọn</span>
                         </div>
                         <div className="h-5 w-[1px] bg-cad-accent/30" />
                         <select
@@ -4539,7 +4539,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                             onChange={e => setBatchField(e.target.value)}
                             className="bg-cad-surface border border-cad-border rounded px-2 py-1 text-xs font-medium text-cad-text-primary outline-none focus:border-cad-accent"
                         >
-                            <option value="">-- Chá»n trÆ°á»ng --</option>
+                            <option value="">-- Chọn trường --</option>
                             {batchFields.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                         </select>
 
@@ -4549,7 +4549,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                                 onChange={e => setBatchValue(e.target.value)}
                                 className="bg-cad-surface border border-cad-border rounded px-2 py-1 text-xs font-medium text-cad-text-primary outline-none focus:border-cad-accent"
                             >
-                                <option value="">-- Chá»n giÃ¡ trá»‹ --</option>
+                                <option value="">-- Chọn giá trị --</option>
                                 {batchFields.find(f => f.value === batchField)?.options?.map(opt => (
                                     <option key={opt} value={opt}>{opt}</option>
                                 ))}
@@ -4559,7 +4559,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                                 type="text"
                                 value={batchValue}
                                 onChange={e => setBatchValue(e.target.value)}
-                                placeholder="Nháº­p giÃ¡ trá»‹..."
+                                placeholder="Nhập giá trị..."
                                 className="bg-cad-surface border border-cad-border rounded px-2 py-1 text-xs font-medium text-cad-text-primary outline-none focus:border-cad-accent w-48"
                             />
                         )}
@@ -4569,14 +4569,14 @@ export function AnalysisTable<TData extends { id: string | number }>({
                             disabled={!batchField || !batchValue}
                             className="px-4 py-1 bg-cad-accent text-black text-[10px] font-black rounded uppercase hover:brightness-110 disabled:opacity-50 transition-all flex items-center gap-2"
                         >
-                            Cáº­p nháº­t hÃ ng loáº¡t
+                            Cập nhật hàng loạt
                         </button>
 
                         <button
                             onClick={() => setRowSelection({})}
                             className="text-[10px] font-bold text-cad-text-muted hover:text-cad-accent uppercase tracking-widest pl-2"
                         >
-                            Bá» chá»n
+                            Bỏ chọn
                         </button>
                     </div>
                 )}
@@ -4652,7 +4652,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <div className="flex flex-col items-center opacity-20">
                                 <ListFilter size={48} className="mb-4 text-cad-text-muted" />
-                                <span className="text-xs font-black uppercase tracking-[0.2em] text-cad-text-muted">KhÃ´ng cÃ³ dá»¯ liá»‡u</span>
+                                <span className="text-xs font-black uppercase tracking-[0.2em] text-cad-text-muted">Không có dữ liệu</span>
                             </div>
                         </div>
                     )}
@@ -4690,7 +4690,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
 
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2 mr-2">
-                            <span className="text-[10px] font-bold text-cad-text-muted uppercase">HÃ ng má»—i trang:</span>
+                            <span className="text-[10px] font-bold text-cad-text-muted uppercase">Hàng mỗi trang:</span>
                             <select
                                 value={table.getState().pagination.pageSize}
                                 onChange={e => {
@@ -4711,7 +4711,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                                 onClick={() => onExport(table)}
                                 className="flex items-center gap-2 px-4 py-1.5 bg-cad-elevated border border-cad-border text-cad-text-secondary hover:text-white hover:bg-cad-bg rounded text-[10px] font-black uppercase tracking-widest transition-all"
                             >
-                                <FileDown size={14} /> Xuáº¥t Excel
+                                <FileDown size={14} /> Xuất Excel
                             </button>
                         )}
                         {onImport && (
@@ -4719,7 +4719,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
                                 onClick={onImport}
                                 className="flex items-center gap-2 px-4 py-1.5 bg-cad-elevated border border-cad-border text-cad-text-secondary hover:text-white hover:bg-cad-bg rounded text-[10px] font-black uppercase tracking-widest transition-all"
                             >
-                                <Download size={14} /> Nháº­p Excel
+                                <Download size={14} /> Nhập Excel
                             </button>
                         )}
                     </div>
@@ -4781,8 +4781,8 @@ export function DeleteConfirmationModal({
   isOpen,
   onClose,
   onConfirm,
-  title = "XÃ¡c nháº­n xÃ³a dá»¯ liá»‡u",
-  message = "Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a má»¥c nÃ y khÃ´ng? HÃ nh Ä‘á»™ng nÃ y khÃ´ng thá»ƒ hoÃ n tÃ¡c vÃ  dá»¯ liá»‡u sáº½ máº¥t vÄ©nh viá»…n.",
+  title = "Xác nhận xóa dữ liệu",
+  message = "Bạn có chắc chắn muốn xóa mục này không? Hành động này không thể hoàn tác và dữ liệu sẽ mất vĩnh viễn.",
   itemName,
 }: DeleteConfirmationModalProps) {
   if (!isOpen) return null;
@@ -4853,7 +4853,7 @@ export function DeleteConfirmationModal({
             onClick={onClose}
             className="flex-1 py-3 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all border border-white/5"
           >
-            Há»§y bá»
+            Hủy bỏ
           </button>
           <button
             onClick={() => {
@@ -4863,7 +4863,7 @@ export function DeleteConfirmationModal({
             className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-black text-[10px] font-black uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-red-500/20 hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
           >
             <Trash2 size={14} strokeWidth={3} />
-            XÃ¡c nháº­n xÃ³a
+            Xác nhận xóa
           </button>
         </div>
       </div>
@@ -4958,7 +4958,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
             
             <div className="bg-cad-bg p-3 flex justify-center border-t border-cad-border">
-              <span className="text-[9px] font-mono text-cad-text-muted uppercase tracking-widest">Antigravity Design Engine v4.0.2 â€¢ Debug Mode Active</span>
+              <span className="text-[9px] font-mono text-cad-text-muted uppercase tracking-widest">Antigravity Design Engine v4.0.2 • Debug Mode Active</span>
             </div>
           </div>
         </div>
@@ -4990,8 +4990,8 @@ export const ExportProgressModal: React.FC = () => {
             <FileDown className="text-cad-accent" size={24} />
           </div>
           <div>
-            <h3 className="text-sm font-black uppercase tracking-widest text-cad-text-primary">Äang xuáº¥t dá»¯ liá»‡u</h3>
-            <p className="text-[10px] text-cad-text-muted font-mono uppercase">Vui lÃ²ng khÃ´ng Ä‘Ã³ng pháº§n má»m</p>
+            <h3 className="text-sm font-black uppercase tracking-widest text-cad-text-primary">Đang xuất dữ liệu</h3>
+            <p className="text-[10px] text-cad-text-muted font-mono uppercase">Vui lòng không đóng phần mềm</p>
           </div>
         </div>
 
@@ -5012,13 +5012,13 @@ export const ExportProgressModal: React.FC = () => {
               <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-sm mt-4">
                 <XCircle className="text-red-500 shrink-0" size={16} />
                 <div className="flex-1 min-w-0">
-                   <p className="text-[10px] text-red-500 font-bold uppercase">Lá»—i quÃ¡ trÃ¬nh:</p>
+                   <p className="text-[10px] text-red-500 font-bold uppercase">Lỗi quá trình:</p>
                    <p className="text-[10px] text-cad-text-primary mt-1 break-words">{error}</p>
                    <button 
                      onClick={() => useExportStore.setState({ isExporting: false })}
                      className="mt-3 px-3 py-1 bg-red-500 text-white text-[9px] font-bold uppercase rounded-sm hover:bg-red-600 transition-colors"
                    >
-                     ÄÃ³ng & Thá»­ láº¡i
+                     Đóng & Thử lại
                    </button>
                 </div>
               </div>
@@ -5026,7 +5026,7 @@ export const ExportProgressModal: React.FC = () => {
               <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-sm mt-4 animate-in fade-in slide-in-from-bottom-2">
                  <CheckCircle2 className="text-green-500" size={16} />
                  <p className="text-[10px] text-green-500 font-bold uppercase text-center flex-1">
-                   Xuáº¥t thÃ nh cÃ´ng!
+                   Xuất thành công!
                  </p>
               </div>
           ) : (
@@ -5095,17 +5095,17 @@ interface IconSelectorProps {
 
 export const IconSelector: React.FC<IconSelectorProps> = ({ value, onChange, className }) => {
   const icons: { id: IconType; label: string; component: React.ElementType }[] = [
-    { id: 'default', label: 'Máº·c Ä‘á»‹nh', component: MapPin },
-    { id: 'intersection', label: 'NÃºt giao', component: Intersection },
+    { id: 'default', label: 'Mặc định', component: MapPin },
+    { id: 'intersection', label: 'Nút giao', component: Intersection },
     { id: 'cctv', label: 'CCTV', component: CameraCCTV },
     { id: 'ptz', label: 'PTZ', component: CameraPTZ },
-    { id: 'speed', label: 'Tá»‘c Ä‘á»™', component: CameraSpeed },
-    { id: 'lpr', label: 'Biá»ƒn sá»‘', component: CameraLPR },
+    { id: 'speed', label: 'Tốc độ', component: CameraSpeed },
+    { id: 'lpr', label: 'Biển số', component: CameraLPR },
   ];
 
   return (
     <div className={`space-y-2 ${className || ''}`}>
-      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Biá»ƒu tÆ°á»£ng</label>
+      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Biểu tượng</label>
       <div className="grid grid-cols-5 gap-2">
         {icons.map((item) => (
           <button
@@ -5272,7 +5272,7 @@ export const PerformanceOverlay: React.FC = () => {
                     <button
                         onClick={() => setShowPerformanceOverlay(false)}
                         className="text-white/40 hover:text-white transition-colors cursor-pointer pointer-events-auto"
-                        title="Táº¯t báº£ng hiá»‡u nÄƒng"
+                        title="Tắt bảng hiệu năng"
                     >
                         <X size={12} />
                     </button>
@@ -5728,7 +5728,7 @@ export const DesignRibbonTools = ({
                     onClick={() => setShowSystemConfig(!showSystemConfig)}
                     active={showSystemConfig}
                     icon={Settings}
-                    label="Cáº¤U HÃŒNH"
+                    label="CẤU HÌNH"
                 />
                 {showSystemConfig && (
                     <div className="absolute top-[calc(100%+8px)] left-0 z-[2000] shadow-2xl max-h-[calc(100vh-140px)] flex flex-col min-w-[450px]">
@@ -5744,17 +5744,17 @@ export const DesignRibbonTools = ({
                     </div>
                 )}
             </div>
-            <ToolButton onClick={() => togglePalette('spec-panel')} active={activePaletteId === 'spec-panel'} icon={Sliders} label="THÃ”NG Sá»" />
-            <ToolButton onClick={() => togglePalette('device-config')} active={activePaletteId === 'device-config'} icon={Camera} label="THIáº¾T Bá»Š" />
+            <ToolButton onClick={() => togglePalette('spec-panel')} active={activePaletteId === 'spec-panel'} icon={Sliders} label="THÔNG SỐ" />
+            <ToolButton onClick={() => togglePalette('device-config')} active={activePaletteId === 'device-config'} icon={Camera} label="THIẾT BỊ" />
             <ToolButton onClick={() => togglePalette('camera-view')} active={activePaletteId === 'camera-view'} icon={Video} label="GÃ“C NHÃŒN" />
-            <ToolButton onClick={() => togglePalette('summary-panel')} active={activePaletteId === 'summary-panel'} icon={Calculator} label="Tá»”NG Há»¢P" />
+            <ToolButton onClick={() => togglePalette('summary-panel')} active={activePaletteId === 'summary-panel'} icon={Calculator} label="TỔNG HỢP" />
         </ToolGroup>
         <RibbonSeparator />
         <ToolGroup label="DRAWING TOOLS">
-            <ToolButton onClick={() => setDrawingMode('none')} active={drawingMode === 'none'} icon={MousePointer2} label="CHá»ŒN" />
-            <ToolButton onClick={() => setDrawingMode('move')} active={drawingMode === 'move'} icon={Move} label="DI CHUYá»‚N" />
+            <ToolButton onClick={() => setDrawingMode('none')} active={drawingMode === 'none'} icon={MousePointer2} label="CHỌN" />
+            <ToolButton onClick={() => setDrawingMode('move')} active={drawingMode === 'move'} icon={Move} label="DI CHUYỂN" />
             <ToolButton onClick={() => setDrawingMode('intersection')} active={drawingMode === 'intersection'} disabled={!selectedGroupId} icon={Intersection} label="NÃšT GIAO" />
-            <ToolButton onClick={() => setDrawingMode('point')} active={drawingMode === 'point'} disabled={!selectedGroupId} icon={MapPin} label="ÄIá»‚M" />
+            <ToolButton onClick={() => setDrawingMode('point')} active={drawingMode === 'point'} disabled={!selectedGroupId} icon={MapPin} label="ĐIỂM" />
             <ToolButton onClick={() => setDrawingMode('polyline')} active={drawingMode === 'polyline'} disabled={!selectedGroupId} icon={PolylineIcon} label="POLYLINE" />
             <ToolButton onClick={() => setDrawingMode('image')} active={drawingMode === 'image'} disabled={!selectedGroupId} icon={Camera} label="CAMERA" />
         </ToolGroup>
@@ -5764,7 +5764,7 @@ export const DesignRibbonTools = ({
         </ToolGroup>
         <RibbonSeparator />
         <ToolGroup label="GIS">
-            <ToolButton onClick={toggleCoordinatePanel} active={isCoordinatePanelOpen} icon={Globe} label="Tá»ŒA Äá»˜" />
+            <ToolButton onClick={toggleCoordinatePanel} active={isCoordinatePanelOpen} icon={Globe} label="TỌA ĐỘ" />
         </ToolGroup>
         <RibbonSeparator />
         <ToolGroup label="DATA">
@@ -6002,7 +6002,7 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
       // 2. Filter features: Only apply to direct features of this group, 
       // AND skip any features that belong to a subgroup of type INTERSECTION
       // Note: The current structure might need a more robust check if features are deeply nested.
-      // For now, based on user request: "Ä‘á»‘i tÆ°á»£ng Ã¡p dá»¥ng chá»‰ cÃ¹ng lá»›p (KhÃ´ng chá»‰nh sá»­a cÃ¡c Ä‘á»‘i tÆ°á»£ng con trong nÃºt giao)"
+      // For now, based on user request: "đối tượng áp dụng chỉ cùng lớp (Không chỉnh sửa các đối tượng con trong nút giao)"
 
       const featuresInGroup = Object.values(state.features).filter(f => {
         // Must be in the current group
@@ -6010,7 +6010,7 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
 
         // Skip if this is a feature belonging to an intersection (check metadata)
         // Usually, features in intersections have parent_feature_id or similar.
-        // User said: "cÃ¡c Ä‘á»‘i tÆ°á»£ng Ã¡p dá»¥ng chá»‰ cÃ¹ng lá»›p (KhÃ´ng chá»‰nh sá»­a cÃ¡c Ä‘á»‘i tÆ°á»£ng con trong nÃºt giao)"
+        // User said: "các đối tượng áp dụng chỉ cùng lớp (Không chỉnh sửa các đối tượng con trong nút giao)"
         // If a feature's metadata has parent_feature_id, it is likely a child.
         const meta = getParsedMetadata(f);
         if (meta.parent_feature_id) return false;
@@ -6090,20 +6090,20 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
         <div className="p-4 space-y-5 text-sm text-cad-text-primary">
 
           <div className="space-y-2">
-            <label className="block text-[11px] uppercase tracking-wider font-semibold text-cad-text-muted">Biá»ƒu tÆ°á»£ng (Icon)</label>
+            <label className="block text-[11px] uppercase tracking-wider font-semibold text-cad-text-muted">Biểu tượng (Icon)</label>
             <div className="relative">
               <select
                 value={iconType}
                 onChange={e => setIconType(e.target.value)}
                 className="w-full bg-[#2A2A2A] border border-cad-border rounded p-2 pl-9 text-white outline-none focus:border-cad-accent appearance-none transition-colors"
               >
-                <option value="default">(Giá»¯ nguyÃªn)</option>
+                <option value="default">(Giữ nguyên)</option>
                 <option value="cctv">Camera CCTV</option>
                 <option value="ptz">Camera PTZ</option>
-                <option value="speed">Camera Báº¯n Tá»‘c Äá»™</option>
-                <option value="lpr">Camera Nháº­n Diá»‡n Biá»ƒn Sá»‘</option>
-                <option value="intersection">NÃºt giao (Cross)</option>
-                <option value="point_circle">Cháº¥m trÃ²n</option>
+                <option value="speed">Camera Bắn Tốc Độ</option>
+                <option value="lpr">Camera Nhận Diện Biển Số</option>
+                <option value="intersection">Nút giao (Cross)</option>
+                <option value="point_circle">Chấm tròn</option>
               </select>
               <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-cad-accent">
                 {/* Preview current icon */}
@@ -6111,7 +6111,7 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
                 {iconType === 'ptz' && <div className="w-4 h-4 rounded-full border-2 border-current"></div>}
                 {iconType === 'speed' && <div className="w-4 h-4 bg-current rounded-sm flex items-center justify-center text-[6px] text-[#1A1A1A] font-black">S</div>}
                 {iconType === 'lpr' && <div className="w-4 h-4 border-2 border-current skew-x-[-12deg] flex items-center justify-center text-[6px] font-black">L</div>}
-                {iconType === 'intersection' && <div className="text-sm scale-125">âœ–</div>}
+                {iconType === 'intersection' && <div className="text-sm scale-125">✖</div>}
                 {iconType === 'point_circle' && <div className="w-2.5 h-2.5 rounded-full bg-current mx-auto shadow-[0_0_5px_currentColor]"></div>}
                 {iconType === 'default' && <Settings2 size={14} />}
               </div>
@@ -6122,7 +6122,7 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
           </div>
 
           <div className="space-y-3">
-            <label className="block text-[11px] uppercase tracking-wider font-semibold text-cad-text-muted">MÃ u sáº¯c (Color)</label>
+            <label className="block text-[11px] uppercase tracking-wider font-semibold text-cad-text-muted">Màu sắc (Color)</label>
             <div className="flex flex-wrap gap-2">
               {presetColors.map(c => (
                 <div
@@ -6145,7 +6145,7 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-[11px] uppercase tracking-wider font-semibold text-cad-text-muted">KÃ­ch thÆ°á»›c (Size)</label>
+            <label className="block text-[11px] uppercase tracking-wider font-semibold text-cad-text-muted">Kích thước (Size)</label>
             <div className="flex items-center gap-3">
               <input
                 type="range"
@@ -6159,7 +6159,7 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
               <span className="font-mono text-xs bg-[#2A2A2A] px-3 py-1 rounded border border-cad-border">{size}px</span>
             </div>
             <p className="text-[10px] text-cad-text-muted italic opacity-70">
-              * KÃ­ch thÆ°á»›c 1-10px phÃ¹ há»£p cho Ä‘á»™ dÃ y Ä‘Æ°á»ng Polyline/Line.
+              * Kích thước 1-10px phù hợp cho độ dày đường Polyline/Line.
             </p>
           </div>
 
@@ -6172,7 +6172,7 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
             className="px-4 py-2 rounded text-xs font-semibold text-cad-text-secondary hover:text-white transition-colors"
             disabled={isApplying}
           >
-            Há»§y
+            Hủy
           </button>
           <button
             onClick={handleApply}
@@ -6180,11 +6180,11 @@ export function ThemeModal({ groupId, groupName, onClose }: ThemeModalProps) {
             className="px-4 py-2 rounded text-xs font-bold bg-cad-accent text-black hover:bg-cad-accent/90 transition-colors flex items-center gap-1.5 disabled:opacity-50"
           >
             {isApplying ? (
-              <span className="animate-pulse">Äang Ã¡p dá»¥ng...</span>
+              <span className="animate-pulse">Đang áp dụng...</span>
             ) : (
               <>
                 <Play size={12} fill="currentColor" />
-                Ãp dá»¥ng
+                Áp dụng
               </>
             )}
           </button>
@@ -6444,8 +6444,8 @@ function DesignToolbarTools({ togglePalette }: { togglePalette: (id: string) => 
         active={showFeatureGroups}
         onClick={() => setShowFeatureGroups(!showFeatureGroups)}
         icon={Layers}
-        label="Gom nhÃ³m"
-        tooltip={showFeatureGroups ? "Táº¯t gom nhÃ³m (Show all)" : "Báº­t gom nhÃ³m (Cluster)"}
+        label="Gom nhóm"
+        tooltip={showFeatureGroups ? "Tắt gom nhóm (Show all)" : "Bật gom nhóm (Cluster)"}
       />
 
       <ToolbarButton
@@ -6453,7 +6453,7 @@ function DesignToolbarTools({ togglePalette }: { togglePalette: (id: string) => 
         onClick={() => setShowDORILayers(!showDORILayers)}
         icon={Eye}
         label="DORI"
-        tooltip={showDORILayers ? "áº¨n vÃ¹ng phá»§ camera" : "Hiá»‡n vÃ¹ng phá»§ camera"}
+        tooltip={showDORILayers ? "Ẩn vùng phủ camera" : "Hiện vùng phủ camera"}
         activeColorClass="text-orange-400 border-orange-400/30 bg-orange-400/10"
       />
 
@@ -6651,7 +6651,7 @@ export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing }: Ma
                         attribution="&copy; Google"
                     />
                 </LayersControl.BaseLayer>
-                <LayersControl.BaseLayer name="Google Satellite (Tráº¯ng Ä‘en)">
+                <LayersControl.BaseLayer name="Google Satellite (Trắng đen)">
                     <TileLayer
                         className="grayscale-tile"
                         key={`sbw-${mapKey}`}
@@ -6669,34 +6669,34 @@ export function MapLayer({ center, zoom, onLocationChange, onFinishDrawing }: Ma
                     />
                 </LayersControl.BaseLayer>
 
-                <LayersControl.Overlay name="Cháº¿ Ä‘á»™ Äen Tráº¯ng (ToÃ n bá»™)">
+                <LayersControl.Overlay name="Chế độ Đen Trắng (Toàn bộ)">
                     <TileLayer url="" eventHandlers={{ add: () => setIsGrayscale(true), remove: () => setIsGrayscale(false) }} />
                 </LayersControl.Overlay>
             </LayersControl>
 
             <MapSettingsPortal>
                 <div className="map-settings-control-inner">
-                    <div className="settings-header">CHI TIáº¾T Ná»€N</div>
+                    <div className="settings-header">CHI TIẾT NỀN</div>
                     <div className="settings-content">
-                        <label title="Báº­t/táº¯t nÃ©t váº½ cá»§a cÃ¡c con Ä‘Æ°á»ng">
+                        <label title="Bật/tắt nét vẽ của các con đường">
                             <input type="checkbox" checked={mapFeatures.roads} onChange={(e) => setMapFeatures(p => ({ ...p, roads: e.target.checked }))} />
-                            ÄÆ°á»ng xÃ¡ (NÃ©t)
+                            Đường xá (Nét)
                         </label>
-                        <label title="Báº­t/táº¯t tÃªn hiá»ƒn thá»‹ cá»§a cÃ¡c con Ä‘Æ°á»ng">
+                        <label title="Bật/tắt tên hiển thị của các con đường">
                             <input type="checkbox" checked={mapFeatures.roadNames} onChange={(e) => setMapFeatures(p => ({ ...p, roadNames: e.target.checked }))} />
-                            TÃªn Ä‘Æ°á»ng
+                            Tên đường
                         </label>
-                        <label title="Báº­t/táº¯t cÃ¡c khá»‘i nhÃ ">
+                        <label title="Bật/tắt các khối nhà">
                             <input type="checkbox" checked={mapFeatures.buildings} onChange={(e) => setMapFeatures(p => ({ ...p, buildings: e.target.checked }))} />
-                            CÃ´ng trÃ¬nh
+                            Công trình
                         </label>
-                        <label title="Báº­t/táº¯t cÃ¡c Ä‘á»‹a Ä‘iá»ƒm dá»‹ch vá»¥ (Tráº¡m xÃ¡, trÆ°á»ng há»c...)">
+                        <label title="Bật/tắt các địa điểm dịch vụ (Trạm xá, trường học...)">
                             <input type="checkbox" checked={mapFeatures.pois} onChange={(e) => setMapFeatures(p => ({ ...p, pois: e.target.checked }))} />
-                            Tiá»‡n Ã­ch (POI)
+                            Tiện ích (POI)
                         </label>
-                        <label title="Báº­t/táº¯t toÃ n bá»™ nhÃ£n hÃ nh chÃ­nh (Tá»‰nh, huyá»‡n...)">
+                        <label title="Bật/tắt toàn bộ nhãn hành chính (Tỉnh, huyện...)">
                             <input type="checkbox" checked={mapFeatures.labels} onChange={(e) => setMapFeatures(p => ({ ...p, labels: e.target.checked }))} />
-                            NhÃ£n/TÃªn (Chung)
+                            Nhãn/Tên (Chung)
                         </label>
                     </div>
                 </div>
@@ -6784,7 +6784,7 @@ export function BoxSelectionHandler() {
     let selectionBox: HTMLDivElement | null = null;
     let isDragging = false;
 
-    // Láº¯ng nghe trá»±c tiáº¿p trÃªn container cá»§a báº£n Ä‘á»“ Ä‘á»ƒ trÃ¡nh bá»‹ Layer cháº·n sá»± kiá»‡n
+    // Lắng nghe trực tiếp trên container của bản đồ để tránh bị Layer chặn sự kiện
     const container = map.getContainer();
 
     const onMouseDown = (e: MouseEvent) => {
@@ -6793,7 +6793,7 @@ export function BoxSelectionHandler() {
       if (!e.shiftKey) return;
 
       isDragging = true;
-      // Chuyá»ƒn tá»a Ä‘á»™ chuá»™t sang tá»a Ä‘á»™ container báº£n Ä‘á»“
+      // Chuyển tọa độ chuột sang tọa độ container bản đồ
       const rect = container.getBoundingClientRect();
       startPoint = L.point(e.clientX - rect.left, e.clientY - rect.top);
 
@@ -6813,7 +6813,7 @@ export function BoxSelectionHandler() {
 
       container.appendChild(selectionBox);
 
-      // NgÄƒn cháº·n sá»± kiá»‡n máº·c Ä‘á»‹nh cá»§a trÃ¬nh duyá»‡t
+      // Ngăn chặn sự kiện mặc định của trình duyệt
       e.preventDefault();
       e.stopPropagation();
     };
@@ -6841,12 +6841,12 @@ export function BoxSelectionHandler() {
       const rect = container.getBoundingClientRect();
       const currentPoint = L.point(e.clientX - rect.left, e.clientY - rect.top);
 
-      // Chuyá»ƒn tá»a Ä‘á»™ box sang LatLngBounds
+      // Chuyển tọa độ box sang LatLngBounds
       const p1 = map.containerPointToLatLng(startPoint);
       const p2 = map.containerPointToLatLng(currentPoint);
       const bounds = L.latLngBounds(p1, p2);
 
-      // Dá»n dáº¹p UI
+      // Dọn dẹp UI
       if (selectionBox.parentNode) {
         selectionBox.parentNode.removeChild(selectionBox);
       }
@@ -6865,7 +6865,7 @@ export function BoxSelectionHandler() {
 
       if (!state) return;
 
-      // Cho phÃ©p UI xÃ³a box vÃ  cáº­p nháº­t fitBounds trÆ°á»›c khi tÃ­nh toÃ¡n náº·ng
+      // Cho phép UI xóa box và cập nhật fitBounds trước khi tính toán nặng
       setTimeout(() => {
         console.time("[BoxSelection] Heavy Task");
         try {
@@ -6898,7 +6898,7 @@ export function BoxSelectionHandler() {
 
             if (intersectsBounds(featureBounds, selectionBounds)) {
               intersectedFeatures.push({ feature, group });
-              const dType = group.type || 'KHÃC';
+              const dType = group.type || 'KHÁC';
               stats[dType] = (stats[dType] || 0) + 1;
             }
           }
@@ -6911,13 +6911,13 @@ export function BoxSelectionHandler() {
             return;
           }
 
-          // Phase 2: Normalization (Chá»‰ normalize tá»‘i Ä‘a 1000 má»¥c Ä‘á»ƒ hiá»‡n list chi tiáº¿t nhanh)
+          // Phase 2: Normalization (Chỉ normalize tối đa 1000 mục để hiện list chi tiết nhanh)
           const itemsToProcess = intersectedFeatures.slice(0, 1000).map(f =>
             normalizeFeatureForSummary(f.feature, f.group.type, f.group.name)
           );
 
           // Update Store
-          // count vÃ  byType pháº£i láº¥y tá»« dá»¯ liá»‡u Gá»C (intersectedFeatures) Ä‘á»ƒ Ä‘áº£m báº£o 100% chÃ­nh xÃ¡c
+          // count và byType phải lấy từ dữ liệu GỐC (intersectedFeatures) để đảm bảo 100% chính xác
           selectFeature(null);
           setBoxSelection({
             count: intersectedFeatures.length,
@@ -6931,7 +6931,7 @@ export function BoxSelectionHandler() {
         } finally {
           console.timeEnd("[BoxSelection] Heavy Task");
         }
-      }, 50); // Delay 50ms Ä‘á»ƒ báº£n Ä‘á»“ á»•n Ä‘á»‹nh vÃ  xÃ³a selection box UI
+      }, 50); // Delay 50ms để bản đồ ổn định và xóa selection box UI
     };
 
     const onMapClick = (e: L.LeafletMouseEvent) => {
@@ -6967,7 +6967,7 @@ export function BoxSelectionHandler() {
       }
     };
 
-    // ÄÄƒng kÃ½ sá»± kiá»‡n trá»±c tiáº¿p trÃªn DOM Container
+    // Đăng ký sự kiện trực tiếp trên DOM Container
     container.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
@@ -7112,7 +7112,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
   const items = boxSelection.items || [];
   const totalCount = boxSelection.count || items.length;
 
-  // Breakdown by type - Æ¯u tiÃªn dÃ¹ng stats tá»« store (chÃ­nh xÃ¡c 100%)
+  // Breakdown by type - Ưu tiên dùng stats từ store (chính xác 100%)
   const typeCounts = boxSelection.byType || items.reduce((acc, item) => {
     acc[item.displayType] = (acc[item.displayType] || 0) + 1;
     return acc;
@@ -7170,13 +7170,13 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
 
   const handleDeleteSelected = () => {
     if (selectionSet.size > 0) {
-      setItemToDelete({ id: 'batch', name: `${selectionSet.size} Ä‘á»‘i tÆ°á»£ng Ä‘Ã£ chá»n`, isBatch: true });
+      setItemToDelete({ id: 'batch', name: `${selectionSet.size} đối tượng đã chọn`, isBatch: true });
       setShowDeleteModal(true);
     }
   };
 
   const handleExport = () => {
-    const headers = ["STT", "Ná»˜I DUNG", "LOáº I", "X (Kinh Ä‘á»™)", "Y (VÄ© Ä‘á»™)", "GHI CHÃš"];
+    const headers = ["STT", "NỘI DUNG", "LOẠI", "X (Kinh độ)", "Y (Vĩ độ)", "GHI CHÚ"];
     const rows = items.map((item, idx) => {
       return [
         idx + 1,
@@ -7189,7 +7189,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
     });
     const tsvContent = [headers.join("\t"), ...rows].join("\n");
     navigator.clipboard.writeText(tsvContent);
-    alert("ÄÃ£ sao chÃ©p " + totalCount + " Ä‘á»‘i tÆ°á»£ng vÃ o bá»™ nhá»› táº¡m (Äá»‹nh dáº¡ng Excel TSV).");
+    alert("Đã sao chép " + totalCount + " đối tượng vào bộ nhớ tạm (Định dạng Excel TSV).");
   };
 
   return (
@@ -7252,11 +7252,11 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
         {/* Explanatory text as in image */}
         <div className="px-4 py-2 bg-cad-elevated/20 flex justify-between items-center">
           <p className="text-[8px] text-cad-text-muted/60 leading-relaxed uppercase tracking-widest italic">
-            Dá»¯ liá»‡u bao gá»“m cÃ¡c thÃ´ng sá»‘ ká»¹ thuáº­t, tá»a Ä‘á»™ WGS84 vÃ  ghi chÃº kháº£o sÃ¡t cá»§a toÃ n bá»™ {totalCount} Ä‘á»‘i tÆ°á»£ng.
+            Dữ liệu bao gồm các thông số kỹ thuật, tọa độ WGS84 và ghi chú khảo sát của toàn bộ {totalCount} đối tượng.
           </p>
           {totalCount > 500 && (
             <span className="text-[8px] text-amber-500 font-bold uppercase tracking-tighter bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
-              Chá»‰ hiá»ƒn thá»‹ 500 dÃ²ng Ä‘áº§u tiÃªn
+              Chỉ hiển thị 500 dòng đầu tiên
             </span>
           )}
         </div>
@@ -7278,43 +7278,43 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
                 <th className="px-1 py-2.5 text-[9px] font-black text-cad-text-muted uppercase tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50 w-[30px]">STT</th>
 
                 <th className="relative px-2 py-2.5 text-[9px] font-black text-cad-text-muted uppercase tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50" style={{ width: columnWidths.content }}>
-                  Ná»™i dung
-                  <div onMouseDown={(e) => onMouseDown(e, 'content')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="KÃ©o Ä‘á»ƒ chá»‰nh Ä‘á»™ rá»™ng">
+                  Nội dung
+                  <div onMouseDown={(e) => onMouseDown(e, 'content')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
                     <div className="absolute right-0 top-0 h-full w-[1px] bg-cad-border/30 group-hover:bg-cad-accent" />
                   </div>
                 </th>
 
                 <th className="relative px-1 py-2.5 text-[9px] font-black text-cad-text-muted uppercase tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50" style={{ width: columnWidths.type }}>
-                  Loáº¡i
-                  <div onMouseDown={(e) => onMouseDown(e, 'type')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="KÃ©o Ä‘á»ƒ chá»‰nh Ä‘á»™ rá»™ng">
+                  Loại
+                  <div onMouseDown={(e) => onMouseDown(e, 'type')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
                     <div className="absolute right-0 top-0 h-full w-[1px] bg-cad-border/30 group-hover:bg-cad-accent" />
                   </div>
                 </th>
 
                 <th className="relative px-1 py-2.5 text-[9px] font-black text-cad-text-muted uppercase tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50" style={{ width: columnWidths.lng }}>
-                  X (Kinh Ä‘á»™)
-                  <div onMouseDown={(e) => onMouseDown(e, 'lng')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="KÃ©o Ä‘á»ƒ chá»‰nh Ä‘á»™ rá»™ng">
+                  X (Kinh độ)
+                  <div onMouseDown={(e) => onMouseDown(e, 'lng')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
                     <div className="absolute right-0 top-0 h-full w-[1px] bg-cad-border/30 group-hover:bg-cad-accent" />
                   </div>
                 </th>
 
                 <th className="relative px-1 py-2.5 text-[9px] font-black text-cad-text-muted uppercase tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50" style={{ width: columnWidths.lat }}>
-                  Y (VÄ© Ä‘á»™)
-                  <div onMouseDown={(e) => onMouseDown(e, 'lat')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="KÃ©o Ä‘á»ƒ chá»‰nh Ä‘á»™ rá»™ng">
+                  Y (Vĩ độ)
+                  <div onMouseDown={(e) => onMouseDown(e, 'lat')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
                     <div className="absolute right-0 top-0 h-full w-[1px] bg-cad-border/30 group-hover:bg-cad-accent" />
                   </div>
                 </th>
 
                 <th className="relative px-2 py-2.5 text-[9px] font-black text-cad-text-muted uppercase tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50" style={{ width: columnWidths.note }}>
-                  Ghi chÃº
-                  <div onMouseDown={(e) => onMouseDown(e, 'note')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="KÃ©o Ä‘á»ƒ chá»‰nh Ä‘á»™ rá»™ng">
+                  Ghi chú
+                  <div onMouseDown={(e) => onMouseDown(e, 'note')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
                     <div className="absolute right-0 top-0 h-full w-[1px] bg-cad-border/30 group-hover:bg-cad-accent" />
                   </div>
                 </th>
 
                 <th className="relative px-2 py-2.5 text-[9px] font-black text-cad-text-muted uppercase tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50" style={{ width: columnWidths.actions }}>
-                  Thao tÃ¡c
-                  <div onMouseDown={(e) => onMouseDown(e, 'actions')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="KÃ©o Ä‘á»ƒ chá»‰nh Ä‘á»™ rá»™ng">
+                  Thao tác
+                  <div onMouseDown={(e) => onMouseDown(e, 'actions')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
                     <div className="absolute right-0 top-0 h-full w-[1px] bg-cad-border/30 group-hover:bg-cad-accent" />
                   </div>
                 </th>
@@ -7385,7 +7385,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
                           <EditableText
                             value={item.note || ""}
                             onSave={(val: any) => handleUpdate(item.id, 'note', val)}
-                            placeholder="Ghi chÃº..."
+                            placeholder="Ghi chú..."
                           />
                         </div>
                       </td>
@@ -7396,7 +7396,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
                               onClick={(e) => handleToggleView(e, item.id)}
                               className="px-2 py-0.5 bg-indigo-500/20 hover:bg-indigo-500/40 text-indigo-400 text-[8px] font-black uppercase rounded border border-indigo-500/20 transition-all"
                             >
-                              {isExpanded ? 'áº¨n' : 'View'}
+                              {isExpanded ? 'Ẩn' : 'View'}
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleDelete(item.id, item.name || item.id); }}
@@ -7418,24 +7418,24 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
                                 <div className="space-y-3">
                                   <label className="text-[9px] font-black text-cad-accent uppercase tracking-[0.2em] flex items-center gap-2">
                                     <div className="w-1 h-3 bg-cad-accent rounded-full"></div>
-                                    Tá»a Ä‘á»™ chi tiáº¿t (WGS84)
+                                    Tọa độ chi tiết (WGS84)
                                   </label>
                                   <div className="bg-black/40 p-3 rounded-lg border border-cad-border/20 shadow-inner space-y-2">
                                     <div className="flex justify-between items-center text-[10px] font-mono">
-                                      <span className="text-cad-text-muted">Kinh Ä‘á»™ (Longitude):</span>
-                                      <span className="text-emerald-400 font-bold tracking-wider">{item.lng.toFixed(8)}Â°</span>
+                                      <span className="text-cad-text-muted">Kinh độ (Longitude):</span>
+                                      <span className="text-emerald-400 font-bold tracking-wider">{item.lng.toFixed(8)}°</span>
                                     </div>
                                     <div className="flex justify-between items-center text-[10px] font-mono">
-                                      <span className="text-cad-text-muted">VÄ© Ä‘á»™ (Latitude):</span>
-                                      <span className="text-emerald-400 font-bold tracking-wider">{item.lat.toFixed(8)}Â°</span>
+                                      <span className="text-cad-text-muted">Vĩ độ (Latitude):</span>
+                                      <span className="text-emerald-400 font-bold tracking-wider">{item.lat.toFixed(8)}°</span>
                                     </div>
                                   </div>
                                 </div>
                                 <div className="space-y-3">
-                                  <label className="text-[9px] font-black text-cad-text-muted uppercase tracking-[0.2em]">ThÃ´ng tin kháº£o sÃ¡t</label>
+                                  <label className="text-[9px] font-black text-cad-text-muted uppercase tracking-[0.2em]">Thông tin khảo sát</label>
                                   <div className="bg-black/20 p-3 rounded-lg border border-cad-border/10 min-h-[50px] flex items-center">
                                     <p className="text-[10px] text-cad-text-secondary leading-relaxed italic">
-                                      {safeString(item.note) || "KhÃ´ng cÃ³ dá»¯ liá»‡u kháº£o sÃ¡t bá»• sung cho Ä‘á»‘i tÆ°á»£ng nÃ y."}
+                                      {safeString(item.note) || "Không có dữ liệu khảo sát bổ sung cho đối tượng này."}
                                     </p>
                                   </div>
                                 </div>
@@ -7604,12 +7604,12 @@ export const DesignFeatures = () => {
                     <Popup>
                         <div className="p-1 max-w-[200px]">
                             <div className="font-bold text-cyan-700 text-sm mb-1">{searchResultMarker.name}</div>
-                            <div className="text-[10px] text-gray-500 mb-2 italic">Äá»‹a chá»‰ tá»« tÃ¬m kiáº¿m</div>
+                            <div className="text-[10px] text-gray-500 mb-2 italic">Địa chỉ từ tìm kiếm</div>
                             <button
                                 onClick={() => setSearchResultMarker(null)}
                                 className="w-full py-1 text-[10px] bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100 transition-colors"
                             >
-                                XÃ³a marker nÃ y
+                                Xóa marker này
                             </button>
                         </div>
                     </Popup>
@@ -7884,7 +7884,7 @@ export const FOVLayer = React.memo(({
                 const isInsideIntersection =
                     groupType === 'INTERSECTION' ||
                     groupType === 'NUT_GIAO' ||
-                    groupName.includes('nÃºt giao') ||
+                    groupName.includes('nút giao') ||
                     groupName.includes('intersection') ||
                     hasParent;
 
@@ -8125,7 +8125,7 @@ export const MapSearchBar: React.FC = () => {
                 <input
                     type="text"
                     className="w-full pl-2 pr-10 py-2.5 text-sm outline-none bg-transparent text-slate-900"
-                    placeholder="TÃ¬m Ä‘á»‹a chá»‰, camera, nÃºt giao..."
+                    placeholder="Tìm địa chỉ, camera, nút giao..."
                     value={query}
                     onChange={(e) => {
                         setQuery(e.target.value);
@@ -8154,14 +8154,14 @@ export const MapSearchBar: React.FC = () => {
                     {loading && results.length === 0 ? (
                         <div className="px-4 py-8 text-center text-slate-500 text-sm">
                             <Loader2 size={24} className="animate-spin mx-auto mb-2 text-blue-400" />
-                            Äang tÃ¬m kiáº¿m...
+                            Đang tìm kiếm...
                         </div>
                     ) : (
                         <>
                             {localResults.length > 0 && (
                                 <div className="py-1">
                                     <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
-                                        Káº¿t quáº£ báº£n Ä‘á»“
+                                        Kết quả bản đồ
                                     </div>
                                     {localResults.map(result => (
                                         <button
@@ -8177,7 +8177,7 @@ export const MapSearchBar: React.FC = () => {
                                                     {result.name}
                                                 </div>
                                                 <div className="text-[11px] text-slate-500 truncate">
-                                                    {result.subType} â€¢ {result.id.slice(0, 8)}
+                                                    {result.subType} • {result.id.slice(0, 8)}
                                                 </div>
                                             </div>
                                         </button>
@@ -8188,7 +8188,7 @@ export const MapSearchBar: React.FC = () => {
                             {externalResults.length > 0 && (
                                 <div className="py-1 border-t border-slate-100">
                                     <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
-                                        Äá»‹a chá»‰ & Vá»‹ trÃ­
+                                        Địa chỉ & Vị trí
                                     </div>
                                     {externalResults.map(result => (
                                         <button
@@ -8214,7 +8214,7 @@ export const MapSearchBar: React.FC = () => {
 
                             {results.length === 0 && !loading && (
                                 <div className="px-4 py-6 text-center text-slate-400 text-sm italic">
-                                    KhÃ´ng tÃ¬m tháº¥y káº¿t quáº£ phÃ¹ há»£p
+                                    Không tìm thấy kết quả phù hợp
                                 </div>
                             )}
                         </>
@@ -8246,7 +8246,7 @@ import { getParsedMetadata, FeaturePopupContent } from '@DESIGN/features/map/Map
 const EMPTY_OBJ = {};
 
 // -------------------------------------------------------------------
-// SelectedFeaturePopupManager â€” unchanged API, same as before
+// SelectedFeaturePopupManager — unchanged API, same as before
 // -------------------------------------------------------------------
 export const SelectedFeaturePopupManager = ({
     visibleFeatures,
@@ -8383,7 +8383,7 @@ const createNativeIcon = (
 }
 
 // -------------------------------------------------------------------
-// PointLayer â€” native Leaflet MarkerClusterGroup, no React children
+// PointLayer — native Leaflet MarkerClusterGroup, no React children
 // -------------------------------------------------------------------
 export const PointLayer = React.memo(({
     features,
@@ -8462,7 +8462,7 @@ export const PointLayer = React.memo(({
         };
     }, [map]); // Remove clusterGroupRef from dependencies as it's a stable object from parent anyway
 
-    // Main Sync Effect â€” Unified Population & Group Management
+    // Main Sync Effect — Unified Population & Group Management
     useEffect(() => {
         const clusterGroup = nativeGroupRef.current;
         const moveGroup = moveToolGroupRef.current;
@@ -8606,7 +8606,7 @@ export const PointLayer = React.memo(({
 
     }, [features, showFeatureGroups, drawingMode]); // Minimal dependencies for O(N)
 
-    // 3. Selective Sync â€” O(1) for Selection & Preview updates (Fast while editing)
+    // 3. Selective Sync — O(1) for Selection & Preview updates (Fast while editing)
     useEffect(() => {
         const marker = selectedFeatureId ? markersMapRef.current.get(selectedFeatureId) : null;
         if (!marker) return;
@@ -8810,21 +8810,21 @@ export const FeaturePopupContent = React.memo(({ f, metadata, displayType, index
             </div>
             <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between items-center text-gray-500">
-                    <span>Loáº¡i:</span>
+                    <span>Loại:</span>
                     <span className="font-medium bg-gray-100 px-2 py-0.5 rounded text-xs text-gray-700">{displayType}</span>
                 </div>
 
                 {!isPoint && metadata.gis?.lengthKm && (
                     <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-gray-500">Chiá»u dÃ i:</span>
+                        <span className="text-gray-500">Chiều dài:</span>
                         <span className="font-mono">{(metadata.gis.lengthKm).toFixed(3)} KM</span>
                     </div>
                 )}
 
                 {!isPoint && metadata.gis?.areaKm2 && (
                     <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-gray-500">Diá»‡n tÃ­ch:</span>
-                        <span className="font-mono">{(metadata.gis.areaKm2).toFixed(4)} KMÂ²</span>
+                        <span className="text-gray-500">Diện tích:</span>
+                        <span className="font-mono">{(metadata.gis.areaKm2).toFixed(4)} KM²</span>
                     </div>
                 )}
 
@@ -8833,11 +8833,11 @@ export const FeaturePopupContent = React.memo(({ f, metadata, displayType, index
                 {isPoint && Array.isArray(coords) && coords.length >= 2 && (
                     <div className="grid grid-cols-2 gap-2 mt-2">
                         <div className="bg-cyan-50 p-1.5 rounded">
-                            <div className="text-[10px] text-cyan-600 uppercase font-bold">Kinh Ä‘á»™</div>
+                            <div className="text-[10px] text-cyan-600 uppercase font-bold">Kinh độ</div>
                             <div className="font-mono text-xs">{(coords[0] as number).toFixed(5)}</div>
                         </div>
                         <div className="bg-cyan-50 p-1.5 rounded">
-                            <div className="text-[10px] text-cyan-600 uppercase font-bold">VÄ© Ä‘á»™</div>
+                            <div className="text-[10px] text-cyan-600 uppercase font-bold">Vĩ độ</div>
                             <div className="font-mono text-xs">{(coords[1] as number).toFixed(5)}</div>
                         </div>
                     </div>
@@ -8997,7 +8997,7 @@ const SURVIVOR_SYNC_SCRIPT = `
       } catch(e) {}
     };
 
-    // âš”ï¸ TITLE HIJACKING: Báº¯t cÃ³c thuá»™c tÃ­nh title Ä‘á»ƒ ngÄƒn Google ghi Ä‘Ã¨
+    // ⚔️ TITLE HIJACKING: Bắt cóc thuộc tính title để ngăn Google ghi đè
     try {
       if (!document.__titleHijacked) {
         let currentTitle = document.title;
@@ -9006,7 +9006,7 @@ const SURVIVOR_SYNC_SCRIPT = `
           set: function(val) {
             const payload = window._SURVIVOR_PAYLOAD || "";
             currentTitle = payload ? (payload + " | " + val.replace(/SYNC_POS:[^ ]+/, "").trim()) : val;
-            // Cáº­p nháº­t DOM thá»±c táº¿
+            // Cập nhật DOM thực tế
             const t = document.querySelector('title');
             if (t) t.innerText = currentTitle;
           },
@@ -9016,7 +9016,7 @@ const SURVIVOR_SYNC_SCRIPT = `
       }
     } catch(e) {}
 
-    // ðŸ›¡ï¸ TITLE SYNC & CLEAN TITLE
+    // 🛡️ TITLE SYNC & CLEAN TITLE
     setInterval(syncToTitle, 1000);
     setInterval(() => {
       document.querySelectorAll('.gm-style-cc, .gmnoprint').forEach(el => (el.style.display = 'none'));
@@ -9064,7 +9064,7 @@ export function StreetViewControl() {
 
   const injectSurvivorSync = useCallback(async (label: string) => {
     const now = Date.now();
-    if (now - lastInjectionRef.current < 8000) return; // Cool-down 8s trÃ¡nh spam
+    if (now - lastInjectionRef.current < 8000) return; // Cool-down 8s tránh spam
     lastInjectionRef.current = now;
 
     try {
@@ -9078,7 +9078,7 @@ export function StreetViewControl() {
   const openStreetViewWindow = useCallback(async (lat: number, lng: number) => {
     try {
       const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-      // Thá»‘ng nháº¥t label Ä‘á»ƒ trÃ¡nh lá»—i má»Ÿ cá»­a sá»• trÃ¹ng ID hoáº·c khÃ´ng tÃ¬m tháº¥y
+      // Thống nhất label để tránh lỗi mở cửa sổ trùng ID hoặc không tìm thấy
       const label = 'street-view-window';
 
       const feature = selectedFeatureId ? state?.features?.[selectedFeatureId] : null;
@@ -9089,10 +9089,10 @@ export function StreetViewControl() {
       if (feature) {
         const meta = getParsedMetadata(feature);
         const rotation = parseFloat(meta?.gis?.rotation ?? meta.rotation ?? 0);
-        // Chuyá»ƒn Ä‘á»•i Rotation (CAD) sang Heading (Compass)
+        // Chuyển đổi Rotation (CAD) sang Heading (Compass)
         nextHeading = mapRotationToHeading(rotation);
 
-        // Há»— trá»£ Pano ID náº¿u cÃ³ trong metadata
+        // Hỗ trợ Pano ID nếu có trong metadata
         panoId = meta?.gis?.pano_id ?? meta.pano_id ?? '';
 
         const specs = getEffectiveCameraSpecs(feature, state?.settings, meta);
@@ -9108,25 +9108,25 @@ export function StreetViewControl() {
 
       let webview = await WebviewWindow.getByLabel(label);
 
-      // ðŸ”’ Ãp Ä‘áº·t rÃ ng buá»™c gÃ³c nhÃ¬n: Heading 0-270, Pitch 0 (NhÃ¬n ngang)
+      // 🔒 Áp đặt ràng buộc góc nhìn: Heading 0-270, Pitch 0 (Nhìn ngang)
       const h = Math.max(0, Math.min(270, nextHeading || 0));
       const p = 0; // Fixed horizontal
       const f = nextFov || 90;
 
-      // ðŸŒ Cáº¥u trÃºc Link Public chuáº©n Google Street View (Æ¯u tiÃªn pano náº¿u cÃ³)
+      // 🌐 Cấu trúc Link Public chuẩn Google Street View (Ưu tiên pano nếu có)
       const panoParam = panoId ? `&pano=${panoId}` : '';
       const publicUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}${panoParam}&heading=${h}&pitch=${p}&fov=${f}`;
 
       if (webview) {
-        // ðŸ”„ Cáº­p nháº­t tá»a Ä‘á»™ cho cá»­a sá»• Ä‘ang má»Ÿ (Sá»­ dá»¥ng Rust Bridge)
+        // 🔄 Cập nhật tọa độ cho cửa sổ đang mở (Sử dụng Rust Bridge)
         await invoke('navigate_webview', { label, url: publicUrl });
         await webview.setFocus();
         await webview.show();
 
-        // ðŸ’‰ Re-inject after navigation (wait briefly for load)
+        // 💉 Re-inject after navigation (wait briefly for load)
         setTimeout(() => injectSurvivorSync(label), 3000);
       } else {
-        // âœ¨ Táº¡o má»›i cá»­a sá»• Street View vá»›i cáº¥u trÃºc link chuáº©n
+        // ✨ Tạo mới cửa sổ Street View với cấu trúc link chuẩn
         const projectTitle = (state as any)?.project?.name || 'Street View';
         let newWebview = new WebviewWindow(label, {
           url: publicUrl,
@@ -9144,7 +9144,7 @@ export function StreetViewControl() {
 
         newWebview.once('tauri://created', async () => {
           console.log('[StreetView] Public window created.');
-          // ðŸ”’ Survivor-Sync: Initial injection
+          // 🔒 Survivor-Sync: Initial injection
           setTimeout(() => injectSurvivorSync(label), 3000);
         });
 
@@ -9157,7 +9157,7 @@ export function StreetViewControl() {
     }
   }, [selectedFeatureId, state, pegmanState.heading, pegmanState.fov, setPegmanState]);
 
-  // ðŸ›°ï¸ Survivor Watcher: Optimized for CPU performance
+  // 🛰️ Survivor Watcher: Optimized for CPU performance
   useEffect(() => {
     if (!isActive) return;
 
@@ -9223,7 +9223,7 @@ export function StreetViewControl() {
           const hDiff = Math.abs(heading - (current.heading || 0));
           const fDiff = Math.abs(fov - (current.fov || 90));
 
-          // Threshold cá»±c nháº¡y nhÆ°ng cÃ³ guard Ä‘á»ƒ trÃ¡nh re-render thá»«a
+          // Threshold cực nhạy nhưng có guard để tránh re-render thừa
           if (dist > 0.00000001 || hDiff > 0.01 || fDiff > 0.1) {
             setPegmanState({ location: [lat, lng], heading, fov });
           }
@@ -9315,7 +9315,7 @@ export function StreetViewControl() {
       {isActive && !pegmanState.location && (
         <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[5000] bg-[#1C1D21] border border-emerald-500/30 text-emerald-400 px-6 py-2 rounded-full shadow-2xl text-[10px] uppercase font-bold tracking-widest backdrop-blur-md flex items-center gap-3">
           <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          Chá»n vá»‹ trÃ­ trÃªn Ä‘Æ°á»ng mÃ u xanh Ä‘á»ƒ xem Street View
+          Chọn vị trí trên đường màu xanh để xem Street View
         </div>
       )}
     </>
@@ -9338,7 +9338,7 @@ const StreetViewPage: React.FC = () => {
     const [heading, setHeading] = useState<number>(0);
     const [fov, setFov] = useState<number>(90);
 
-    // ðŸ” Google Maps Style URL Parser: /@lat,lng,fov'y',heading't'
+    // 🔍 Google Maps Style URL Parser: /@lat,lng,fov'y',heading't'
     const parseGoogleMapsUrl = (path: string) => {
         // Pattern: /@lat,lng,fov'y',heading't'
         const match = path.match(/@([-?\d.]+),([-?\d.]+)(?:,([\d.]+)y)?(?:,([\d.]+)t)?/);
@@ -9886,7 +9886,7 @@ function cn(...inputs: ClassValue[]) {
 const CAMERA_TYPES = [
     { id: 'cctv', label: 'CCTV / Camera', icon: Camera },
     { id: 'ptz', label: 'Camera PTZ', icon: Video },
-    { id: 'speed', label: 'Camera Tá»‘c Ä‘á»™', icon: Monitor },
+    { id: 'speed', label: 'Camera Tốc độ', icon: Monitor },
     { id: 'lpr', label: 'Camera LPR', icon: Info },
 ];
 
@@ -10029,13 +10029,13 @@ export const VisibilityTool: React.FC = () => {
                                 onClick={() => setShowFovTypes(CAMERA_TYPES.map(t => t.id))}
                                 className="flex-1 flex items-center justify-center gap-2 px-2 py-2 text-[9px] font-black text-cad-text-primary hover:bg-cad-accent hover:text-black rounded transition-all border border-cad-border/30 uppercase"
                             >
-                                <Eye size={12} /> Báº­t táº¥t cáº£
+                                <Eye size={12} /> Bật tất cả
                             </button>
                             <button
                                 onClick={() => setShowFovTypes([])}
                                 className="flex-1 flex items-center justify-center gap-2 px-2 py-2 text-[9px] font-black text-cad-text-primary hover:bg-cad-accent hover:text-black rounded transition-all border border-cad-border/30 uppercase"
                             >
-                                <EyeOff size={12} /> Táº¯t táº¥t cáº£
+                                <EyeOff size={12} /> Tắt tất cả
                             </button>
                         </div>
 
@@ -10065,14 +10065,14 @@ export const VisibilityTool: React.FC = () => {
                         <div className="m-1 p-2 bg-black/40 rounded border border-cad-border/20 space-y-3">
                             <div className="flex items-center gap-1.5 text-blue-400">
                                 <Sliders size={12} />
-                                <span className="text-[8px] font-black uppercase tracking-wider">Cáº¥u hÃ¬nh hÃ ng loáº¡t</span>
+                                <span className="text-[8px] font-black uppercase tracking-wider">Cấu hình hàng loạt</span>
                             </div>
 
                             <div className="space-y-3">
                                 <div className="space-y-1">
                                     <div className="flex justify-between text-[8px] font-bold text-cad-text-muted uppercase">
-                                        <span>GÃ³c má»Ÿ (FOV)</span>
-                                        <span className="text-cad-accent">{bulkAngle}Â°</span>
+                                        <span>Góc mở (FOV)</span>
+                                        <span className="text-cad-accent">{bulkAngle}°</span>
                                     </div>
                                     <input
                                         type="range"
@@ -10086,7 +10086,7 @@ export const VisibilityTool: React.FC = () => {
 
                                 <div className="space-y-1">
                                     <div className="flex justify-between text-[8px] font-bold text-cad-text-muted uppercase">
-                                        <span>Táº§m nhÃ¬n (m)</span>
+                                        <span>Tầm nhìn (m)</span>
                                         <span className="text-cad-accent">{bulkRadius}m</span>
                                     </div>
                                     <input
@@ -10106,7 +10106,7 @@ export const VisibilityTool: React.FC = () => {
                                 className="w-full py-2 bg-cad-accent hover:bg-white disabled:opacity-50 text-black text-[9px] font-black uppercase rounded transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-cad-accent/10 mt-1"
                             >
                                 <Maximize2 size={12} />
-                                {isApplying ? 'Äang cáº­p nháº­t...' : 'Ãp dá»¥ng cho cameras'}
+                                {isApplying ? 'Đang cập nhật...' : 'Áp dụng cho cameras'}
                             </button>
                         </div>
 
@@ -10131,7 +10131,7 @@ export const VisibilityTool: React.FC = () => {
                             >
                                 <div className="flex items-center gap-2">
                                     <Layers size={14} />
-                                    <span>GOM NHÃ“M Äá»I TÆ¯á»¢NG</span>
+                                    <span>GOM NHÓM ĐỐI TƯỢNG</span>
                                 </div>
                                 {showFeatureGroups && <Check size={14} />}
                             </button>
@@ -10147,7 +10147,7 @@ export const VisibilityTool: React.FC = () => {
                             >
                                 <div className="flex items-center gap-2">
                                     <Eye size={14} />
-                                    <span>VÃ™NG PHá»¦ DORI</span>
+                                    <span>VÙNG PHỦ DORI</span>
                                 </div>
                                 {showDORILayers && <Check size={14} />}
                             </button>
@@ -10155,7 +10155,7 @@ export const VisibilityTool: React.FC = () => {
 
                         <div className="p-3 bg-cad-surface/50 mt-1">
                             <p className="text-[8px] text-cad-text-muted italic leading-relaxed text-center">
-                                * Sá»­ dá»¥ng phÃ­m táº¯t <span className="text-cad-accent font-bold">V</span> Ä‘á»ƒ chuyá»ƒn Ä‘á»•i nhanh cÃ¡c cháº¿ Ä‘á»™ hiá»ƒn thá»‹.
+                                * Sử dụng phím tắt <span className="text-cad-accent font-bold">V</span> để chuyển đổi nhanh các chế độ hiển thị.
                             </p>
                         </div>
                     </div>
@@ -10449,7 +10449,7 @@ export const BulkEditPanel: React.FC = () => {
             .reduce((acc, [key, data]) => ({ ...acc, [key]: data.value }), {} as any);
 
         if (Object.keys(activeFields).length === 0) {
-            alert("Vui lÃ²ng chá»n Ã­t nháº¥t má»™t trÆ°á»ng Ä‘á»ƒ cáº­p nháº­t.");
+            alert("Vui lòng chọn ít nhất một trường để cập nhật.");
             return;
         }
 
@@ -10501,11 +10501,11 @@ export const BulkEditPanel: React.FC = () => {
 
             if (updates.length > 0) {
                 await queueEvents(updates as any);
-                alert(`ÄÃ£ cáº­p nháº­t thÃ nh cÃ´ng ${updates.length} thiáº¿t bá»‹.`);
+                alert(`Đã cập nhật thành công ${updates.length} thiết bị.`);
             }
         } catch (err) {
             console.error("Bulk update failed:", err);
-            alert("Lá»—i khi cáº­p nháº­t hÃ ng loáº¡t.");
+            alert("Lỗi khi cập nhật hàng loạt.");
         } finally {
             setIsApplying(false);
         }
@@ -10516,10 +10516,10 @@ export const BulkEditPanel: React.FC = () => {
             <div className="p-8 flex flex-col items-center justify-center text-center opacity-50 h-full">
                 <Layers className="w-12 h-12 text-cad-text-muted mb-4" />
                 <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted">
-                    Cháº¿ Ä‘á»™ chá»‰nh sá»­a hÃ ng loáº¡t
+                    Chế độ chỉnh sửa hàng loạt
                 </p>
                 <p className="text-[9px] mt-2 text-cad-text-muted">
-                    Vui lÃ²ng chá»n tá»« 2 thiáº¿t bá»‹ trá»Ÿ lÃªn trÃªn báº£n Ä‘á»“ Ä‘á»ƒ báº¯t Ä‘áº§u.
+                    Vui lòng chọn từ 2 thiết bị trở lên trên bản đồ để bắt đầu.
                 </p>
             </div>
         );
@@ -10535,7 +10535,7 @@ export const BulkEditPanel: React.FC = () => {
                 <div className="flex items-center gap-2">
                     <Layers className="w-3.5 h-3.5 text-cad-accent" />
                     <span className="text-[10px] font-bold tracking-wider uppercase text-gray-300">
-                        Chá»‰nh sá»­a hÃ ng loáº¡t
+                        Chỉnh sửa hàng loạt
                     </span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -10560,21 +10560,21 @@ export const BulkEditPanel: React.FC = () => {
                 <div className="flex items-center gap-3 p-3 bg-cad-accent/5 border border-cad-accent/20 rounded">
                     <Layers className="text-cad-accent w-4 h-4 shrink-0" />
                     <div>
-                        <p className="text-[10px] font-black text-white uppercase tracking-tight leading-none">Äang chá»‰nh sá»­a {selectedCount} thiáº¿t bá»‹</p>
-                        <p className="text-[8px] text-cad-accent font-bold uppercase tracking-[0.2em] mt-1">Sáºµn sÃ ng Ã¡p dá»¥ng</p>
+                        <p className="text-[10px] font-black text-white uppercase tracking-tight leading-none">Đang chỉnh sửa {selectedCount} thiết bị</p>
+                        <p className="text-[8px] text-cad-accent font-bold uppercase tracking-[0.2em] mt-1">Sẵn sàng áp dụng</p>
                     </div>
                 </div>
 
                 <div className="space-y-6">
                     <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
                         <Camera className="w-3.5 h-3.5 text-blue-400" />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">ThÃ´ng sá»‘ Camera</span>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Thông số Camera</span>
                         <div className="flex-1 h-[1px] bg-[#333] ml-2" />
                     </div>
 
                     <div className="space-y-4 px-1">
                         <BulkField
-                            label="Chiá»u cao láº¯p Ä‘áº·t (m)"
+                            label="Chiều cao lắp đặt (m)"
                             icon={<Ruler size={12} />}
                             active={fields.install_height.active}
                             onToggle={() => toggleField('install_height')}
@@ -10584,7 +10584,7 @@ export const BulkEditPanel: React.FC = () => {
                         />
 
                         <BulkField
-                            label="GÃ³c xoay (360Â°)"
+                            label="Góc xoay (360°)"
                             icon={<Settings size={12} />}
                             active={fields.rotation.active}
                             onToggle={() => toggleField('rotation')}
@@ -10594,7 +10594,7 @@ export const BulkEditPanel: React.FC = () => {
                         />
 
                         <BulkField
-                            label="TiÃªu cá»± (mm)"
+                            label="Tiêu cự (mm)"
                             icon={<Camera size={12} />}
                             active={fields.focal_length.active}
                             onToggle={() => toggleField('focal_length')}
@@ -10604,7 +10604,7 @@ export const BulkEditPanel: React.FC = () => {
                         />
 
                         <BulkField
-                            label="Cáº£m biáº¿n (inch)"
+                            label="Cảm biến (inch)"
                             icon={<Maximize size={12} />}
                             active={fields.sensor_size.active}
                             onToggle={() => toggleField('sensor_size')}
@@ -10651,7 +10651,7 @@ export const BulkEditPanel: React.FC = () => {
                     className="w-full py-3 bg-cad-accent hover:bg-white text-black text-[10px] font-black uppercase tracking-widest rounded transition-all flex items-center justify-center gap-2 shadow-lg shadow-cad-accent/10 active:scale-95 disabled:opacity-50 disabled:grayscale"
                 >
                     {isApplying ? <LoaderIcon className="animate-spin" /> : <Save size={14} />}
-                    ÃP Dá»¤NG({selectedCount})
+                    ÁP DỤNG({selectedCount})
                 </button>
             </div>
         </div>
@@ -10923,9 +10923,9 @@ export const CameraViewPanel: React.FC = () => {
                     <button onClick={onClose} className="p-1 text-gray-500 hover:bg-red-500 hover:text-white transition-all rounded"><X size={12} /></button>
                 </div>
                 <Video className="w-10 h-10 mb-4 text-cad-text-muted/30 animate-pulse" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted">ChÆ°a chá»n thiáº¿t bá»‹</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted">Chưa chọn thiết bị</p>
                 <p className="text-[9px] mt-2 text-cad-text-muted max-w-[200px]">
-                    Vui lÃ²ng chá»n má»™t camera Ä‘á»ƒ xem mÃ´ phá»ng hÃ¬nh áº£nh táº¡i vá»‹ trÃ­ láº¯p Ä‘áº·t.
+                    Vui lòng chọn một camera để xem mô phỏng hình ảnh tại vị trí lắp đặt.
                 </p>
             </div>
         );
@@ -10978,7 +10978,7 @@ export const CameraViewPanel: React.FC = () => {
                             onClick={handleSave}
                             disabled={isSaving}
                             className="p-1 hover:bg-blue-500/20 text-blue-400 rounded transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="LÆ°u thay Ä‘á»•i"
+                            title="Lưu thay đổi"
                         >
                             <Save className="w-3.5 h-3.5" />
                         </button>
@@ -11005,7 +11005,7 @@ export const CameraViewPanel: React.FC = () => {
                 <section className="space-y-4">
                     <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
                         <Settings className="w-3.5 h-3.5 text-cad-accent" />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">ThÃ´ng sá»‘ ká»¹ thuáº­t</span>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Thông số kỹ thuật</span>
                         <div className="flex-1 h-[1px] bg-[#333] ml-2" />
                         <button onClick={() => toggleSection('specs')} className="p-1 hover:bg-white/5 rounded">
                             {expandedSections.specs ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -11015,7 +11015,7 @@ export const CameraViewPanel: React.FC = () => {
                     {expandedSections.specs && (
                         <div className="grid grid-cols-2 gap-x-4 gap-y-4 px-1">
                             <div className="space-y-1">
-                                <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Äá»™ phÃ¢n giáº£i</label>
+                                <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Độ phân giải</label>
                                 <select
                                     value={resolutionX}
                                     onChange={(e) => updateNestedMeta('specs.resolution_x', parseInt(e.target.value))}
@@ -11028,7 +11028,7 @@ export const CameraViewPanel: React.FC = () => {
                                 </select>
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Cáº£m biáº¿n</label>
+                                <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Cảm biến</label>
                                 <select
                                     value={sensorSize}
                                     onChange={(e) => updateNestedMeta('specs.sensor_size', e.target.value)}
@@ -11038,7 +11038,7 @@ export const CameraViewPanel: React.FC = () => {
                                 </select>
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">TiÃªu cá»± (mm)</label>
+                                <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Tiêu cự (mm)</label>
                                 <input
                                     type="number"
                                     step="0.1"
@@ -11048,7 +11048,7 @@ export const CameraViewPanel: React.FC = () => {
                                 />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Äá»™ cao láº¯p (m)</label>
+                                <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Độ cao lắp (m)</label>
                                 <input
                                     type="number"
                                     step="0.5"
@@ -11058,9 +11058,9 @@ export const CameraViewPanel: React.FC = () => {
                                 />
                             </div>
                             <div className="col-span-2 flex justify-between items-center py-2 px-1 border-t border-[#333] mt-2 group">
-                                <span className="text-[9px] text-cad-text-secondary uppercase font-bold">GÃ³c nhÃ¬n ngang (HFOV)</span>
+                                <span className="text-[9px] text-cad-text-secondary uppercase font-bold">Góc nhìn ngang (HFOV)</span>
                                 <span className="text-xs font-mono font-bold text-cad-accent transition-transform group-hover:scale-110">
-                                    {hfov.toFixed(1)}Â°
+                                    {hfov.toFixed(1)}°
                                 </span>
                             </div>
                         </div>
@@ -11071,7 +11071,7 @@ export const CameraViewPanel: React.FC = () => {
                 <section className="space-y-4">
                     <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
                         <MapIcon className="w-3.5 h-3.5 text-green-400" />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">MÃ´ phá»ng GÃ³c nhÃ¬n</span>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Mô phỏng Góc nhìn</span>
                         <div className="flex-1 h-[1px] bg-[#333] ml-2" />
                         <button onClick={() => toggleSection('simulation')} className="p-1 hover:bg-white/5 rounded">
                             {expandedSections.simulation ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -11081,7 +11081,7 @@ export const CameraViewPanel: React.FC = () => {
                     {expandedSections.simulation && (
                         <div className="space-y-3 px-1">
                             <div className="flex justify-between items-center">
-                                <span className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Cháº¿ Ä‘á»™</span>
+                                <span className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Chế độ</span>
                                 <div className="flex items-center bg-[#252525] rounded p-0.5 border border-[#333]">
                                     <button
                                         onClick={() => setSimMode('streetview')}
@@ -11102,7 +11102,7 @@ export const CameraViewPanel: React.FC = () => {
                                 {!GOOGLE_MAPS_API_KEY ? (
                                     <div className="flex flex-col items-center justify-center h-full text-cad-text-secondary gap-2 p-4">
                                         <Wand2 className="w-6 h-6 opacity-20" />
-                                        <p className="text-[10px] text-center px-4 leading-relaxed">ChÆ°a cáº¥u hÃ¬nh API Key Ä‘á»ƒ xem mÃ´ phá»ng trá»±c tiáº¿p.</p>
+                                        <p className="text-[10px] text-center px-4 leading-relaxed">Chưa cấu hình API Key để xem mô phỏng trực tiếp.</p>
                                     </div>
                                 ) : coords ? (
                                     simMode === 'streetview' ? (
@@ -11142,14 +11142,14 @@ export const CameraViewPanel: React.FC = () => {
                                     )
                                 ) : (
                                     <div className="flex items-center justify-center h-full text-[10px] text-cad-text-secondary italic bg-[#161616]">
-                                        Thiáº¿u dá»¯ liá»‡u tá»a Ä‘á»™ camera
+                                        Thiếu dữ liệu tọa độ camera
                                     </div>
                                 )}
                                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 pointer-events-none">
                                     <div className="text-[9px] text-white/90 font-medium flex justify-between items-center">
                                         <span className="italic flex items-center gap-1.5">
                                             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: dori.color }} />
-                                            {ppm < 25 ? 'KhÃ´ng Ä‘áº¡t' : ppm < 125 ? 'Tá»•ng quan' : 'Chi tiáº¿t'}
+                                            {ppm < 25 ? 'Không đạt' : ppm < 125 ? 'Tổng quan' : 'Chi tiết'}
                                         </span>
                                     </div>
                                 </div>
@@ -11162,7 +11162,7 @@ export const CameraViewPanel: React.FC = () => {
                 <section className="space-y-4">
                     <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
                         <Activity className="w-3.5 h-3.5 text-purple-400" />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Cháº¥t lÆ°á»£ng Nháº­n diá»‡n</span>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Chất lượng Nhận diện</span>
                         <div className="flex-1 h-[1px] bg-[#333] ml-2" />
                         <button onClick={() => toggleSection('recognition')} className="p-1 hover:bg-white/5 rounded">
                             {expandedSections.recognition ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -11173,7 +11173,7 @@ export const CameraViewPanel: React.FC = () => {
                         <div className="space-y-6 px-1">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Má»¥c tiÃªu (m)</label>
+                                    <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Mục tiêu (m)</label>
                                     <input
                                         type="number"
                                         step="0.1"
@@ -11193,7 +11193,7 @@ export const CameraViewPanel: React.FC = () => {
                             <div className="space-y-2">
                                 <div className="flex justify-between items-end">
                                     <label className="text-[9px] text-cad-text-secondary uppercase font-bold flex items-center gap-1">
-                                        <Ruler className="w-3 h-3" /> Khoáº£ng cÃ¡ch
+                                        <Ruler className="w-3 h-3" /> Khoảng cách
                                     </label>
                                     <div className="text-[10px] font-mono text-cad-text-secondary">
                                         {targetDistance}m
@@ -11210,7 +11210,7 @@ export const CameraViewPanel: React.FC = () => {
                             {/* 2D Cross Section */}
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
-                                    <label className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Máº·t cáº¯t dá»c</label>
+                                    <label className="text-[9px] text-gray-400 uppercase font-bold tracking-wider">Mặt cắt dọc</label>
                                     <button
                                         onClick={() => setShowDORILayers(!showDORILayers)}
                                         className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase transition-all border ${showDORILayers ? 'bg-purple-500/20 border-purple-500/50 text-purple-400' : 'bg-transparent border-[#333] text-gray-500'}`}
@@ -11333,7 +11333,7 @@ export const CameraViewPanel: React.FC = () => {
                                 {lowPowerMode ? (
                                     <div className="flex items-center gap-2 p-2 bg-white/5 rounded text-[9px] text-cad-text-muted italic">
                                         <Activity className="w-3 h-3 text-cad-accent" />
-                                        MÃ´ phá»ng nháº­n diá»‡n Ä‘Ã£ Ä‘Æ°á»£c Ä‘Æ¡n giáº£n hÃ³a trong cháº¿ Ä‘á»™ tiáº¿t kiá»‡m Ä‘iá»‡n.
+                                        Mô phỏng nhận diện đã được đơn giản hóa trong chế độ tiết kiệm điện.
                                     </div>
                                 ) : (
                                     <RecognitionSimulator ppm={ppm} />
@@ -11432,9 +11432,9 @@ export const DeviceConfigPanel: React.FC = () => {
                     <button onClick={onClose} className="p-1 text-gray-500 hover:bg-red-500 hover:text-white transition-all rounded"><X size={12} /></button>
                 </div>
                 <Compass className="w-10 h-10 mb-4 text-cad-text-muted/30 animate-pulse" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted">ChÆ°a chá»n thiáº¿t bá»‹</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted">Chưa chọn thiết bị</p>
                 <p className="text-[9px] mt-2 text-cad-text-muted max-w-[200px]">
-                    Vui lÃ²ng chá»n má»™t thiáº¿t bá»‹ trÃªn báº£n Ä‘á»“ hoáº·c trong cÃ¢y thÆ° má»¥c Ä‘á»ƒ chá»‰nh sá»­a hÆ°á»›ng vÃ  thÃ´ng sá»‘ GIS.
+                    Vui lòng chọn một thiết bị trên bản đồ hoặc trong cây thư mục để chỉnh sửa hướng và thông số GIS.
                 </p>
             </div>
         );
@@ -11514,9 +11514,9 @@ export const DeviceConfigPanel: React.FC = () => {
         return (
             <div className="flex flex-col items-center justify-center h-full text-cad-text-secondary bg-cad-bg-secondary p-4 text-center opacity-50">
                 <Layers className="w-8 h-8 mb-4 text-cad-accent" />
-                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted">Chá»n nhiá»u Ä‘á»‘i tÆ°á»£ng</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted">Chọn nhiều đối tượng</p>
                 <p className="text-[9px] mt-2 text-cad-text-muted max-w-[200px]">
-                    Vui lÃ²ng sá»­ dá»¥ng tÃ­nh nÄƒng <strong>Chá»‰nh sá»­a hÃ ng loáº¡t</strong> Ä‘á»ƒ thay Ä‘á»•i thÃ´ng sá»‘ cho nhiá»u thiáº¿t bá»‹.
+                    Vui lòng sử dụng tính năng <strong>Chỉnh sửa hàng loạt</strong> để thay đổi thông số cho nhiều thiết bị.
                 </p>
             </div>
         );
@@ -11542,7 +11542,7 @@ export const DeviceConfigPanel: React.FC = () => {
                             onClick={handleSave}
                             disabled={isSaving}
                             className="p-1 hover:bg-blue-500/20 text-blue-400 rounded transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="LÆ°u thay Ä‘á»•i"
+                            title="Lưu thay đổi"
                         >
                             <Save className="w-3.5 h-3.5" />
                         </button>
@@ -11569,7 +11569,7 @@ export const DeviceConfigPanel: React.FC = () => {
                 <section className="space-y-4">
                     <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
                         <Compass className="w-3.5 h-3.5 text-blue-400" />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Tá»a Ä‘á»™ & HÆ°á»›ng</span>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Tọa độ & Hướng</span>
                         <div className="flex-1 h-[1px] bg-[#333] ml-2" />
                         <button onClick={() => toggleSection('gis')} className="p-1 hover:bg-white/5 rounded">
                             {expandedSections.gis ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -11604,8 +11604,8 @@ export const DeviceConfigPanel: React.FC = () => {
 
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
-                                    <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">GÃ³c xoay (360Â°)</label>
-                                    <span className="text-[10px] font-mono text-cad-orange font-bold">{rotation}Â°</span>
+                                    <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Góc xoay (360°)</label>
+                                    <span className="text-[10px] font-mono text-cad-orange font-bold">{rotation}°</span>
                                 </div>
                                 <div className="flex gap-3 px-1">
                                     <input
@@ -11617,7 +11617,7 @@ export const DeviceConfigPanel: React.FC = () => {
                                     <button
                                         onClick={handleAutoOrient}
                                         className="p-1.5 bg-[#252525] border border-[#333] rounded hover:border-cad-orange transition-colors"
-                                        title="Tá»± Ä‘á»™ng hÆ°á»›ng theo Ä‘Æ°á»ng"
+                                        title="Tự động hướng theo đường"
                                     >
                                         <Wand2 className="w-3.5 h-3.5" />
                                     </button>
@@ -11628,8 +11628,8 @@ export const DeviceConfigPanel: React.FC = () => {
                             <div className="pt-2 space-y-4 border-t border-[#333]/50">
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">GÃ³c nhÃ¬n (FOV)</label>
-                                        <span className="text-[10px] font-mono text-blue-400 font-bold">{getMetaValue('gis.fov_angle', 90)}Â°</span>
+                                        <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Góc nhìn (FOV)</label>
+                                        <span className="text-[10px] font-mono text-blue-400 font-bold">{getMetaValue('gis.fov_angle', 90)}°</span>
                                     </div>
                                     <div className="px-1">
                                         <input
@@ -11643,7 +11643,7 @@ export const DeviceConfigPanel: React.FC = () => {
 
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Táº§m nhÃ¬n (Radius)</label>
+                                        <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Tầm nhìn (Radius)</label>
                                         <span className="text-[10px] font-mono text-purple-400 font-bold">{getMetaValue('gis.fov_radius', 100)}m</span>
                                     </div>
                                     <div className="px-1">
@@ -11709,7 +11709,7 @@ export const Earth3DView: React.FC<Earth3DViewProps> = ({
     useEffect(() => {
         (window as any).gm_authFailure = () => {
             console.error("[Earth3D] Auth failure detected.");
-            setErrorMsg("Lá»—i xÃ¡c thá»±c API Key. Báº¡n cÃ³ thá»ƒ cáº§n báº­t Maps JS API hoáº·c Billing.");
+            setErrorMsg("Lỗi xác thực API Key. Bạn có thể cần bật Maps JS API hoặc Billing.");
             setStatus('error');
         };
         return () => {
@@ -11728,7 +11728,7 @@ export const Earth3DView: React.FC<Earth3DViewProps> = ({
             // Use centralized loader to ensure API key is always present
             const ok = initGoogleMaps(apiKey);
             if (!ok) {
-                setErrorMsg('API Key khÃ´ng há»£p lá»‡. Kiá»ƒm tra .env');
+                setErrorMsg('API Key không hợp lệ. Kiểm tra .env');
                 setStatus('error');
                 return;
             }
@@ -11811,7 +11811,7 @@ export const Earth3DView: React.FC<Earth3DViewProps> = ({
                     onClick={() => setUseEmbed(false)}
                     className="absolute top-2 left-2 px-2 py-1 bg-black/60 hover:bg-black/80 text-[8px] text-white/70 rounded border border-white/10 uppercase font-bold backdrop-blur-sm"
                 >
-                    Quay láº¡i mÃ´ phá»ng
+                    Quay lại mô phỏng
                 </button>
             </div>
         );
@@ -11824,7 +11824,7 @@ export const Earth3DView: React.FC<Earth3DViewProps> = ({
             {status !== 'ready' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#050505]/95 backdrop-blur-sm z-20 p-6 text-center">
                     <div className="w-6 h-6 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin mb-4" />
-                    <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold">Náº¡p báº£n Ä‘á»“ 3D...</div>
+                    <div className="text-[10px] text-white/50 uppercase tracking-widest font-bold">Nạp bản đồ 3D...</div>
                 </div>
             )}
 
@@ -11836,13 +11836,13 @@ export const Earth3DView: React.FC<Earth3DViewProps> = ({
                         onClick={() => setUseEmbed(true)}
                         className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold rounded-full shadow-lg border border-blue-400/30 uppercase transition-all"
                     >
-                        Hiá»‡n khÃ´ng xem Ä‘Æ°á»£c? DÃ¹ng Cháº¿ Ä‘á»™ Tin cáº­y (2D)
+                        Hiện không xem được? Dùng Chế độ Tin cậy (2D)
                     </button>
                     <button
                         onClick={() => setShowDiagnostics(!showDiagnostics)}
                         className="text-[9px] text-white/40 hover:text-white/60 underline decoration-white/20"
                     >
-                        Táº¡i sao mÃ n hÃ¬nh bá»‹ Ä‘en?
+                        Tại sao màn hình bị đen?
                     </button>
                 </div>
             </div>
@@ -11851,17 +11851,17 @@ export const Earth3DView: React.FC<Earth3DViewProps> = ({
             {showDiagnostics && (
                 <div className="absolute inset-0 bg-black/95 z-30 p-4 overflow-y-auto pointer-events-auto">
                     <div className="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
-                        <span className="text-white font-bold text-[10px] uppercase tracking-wider text-orange-400">ðŸ“‹ Cháº©n Ä‘oÃ¡n lá»—i Map SDK</span>
-                        <button onClick={() => setShowDiagnostics(false)} className="text-white/50 hover:text-white">âœ•</button>
+                        <span className="text-white font-bold text-[10px] uppercase tracking-wider text-orange-400">📋 Chẩn đoán lỗi Map SDK</span>
+                        <button onClick={() => setShowDiagnostics(false)} className="text-white/50 hover:text-white">✕</button>
                     </div>
 
                     <div className="space-y-4 text-left">
                         <div className="p-3 bg-red-500/10 rounded border border-red-500/20">
-                            <p className="text-[10px] text-white/90 mb-1 font-bold">Náº¿u báº¡n tháº¥y mÃ n hÃ¬nh Ä‘en, hÃ£y kiá»ƒm tra:</p>
+                            <p className="text-[10px] text-white/90 mb-1 font-bold">Nếu bạn thấy màn hình đen, hãy kiểm tra:</p>
                             <ul className="text-[9px] text-white/60 list-disc ml-4 space-y-1">
-                                <li><strong>Báº­t Services</strong>: Truy cáº­p Google Cloud Console vÃ  cháº¯c cháº¯n Ä‘Ã£ báº­t <span className="text-white/80 italic">"Maps JavaScript API"</span>.</li>
-                                <li><strong>KÃ­ch hoáº¡t Billing</strong>: Google yÃªu cáº§u tÃ i khoáº£n pháº£i cÃ³ tháº» tÃ­n dá»¥ng (cho dÃ¹ dÃ¹ng miá»…n phÃ­).</li>
-                                <li><strong>Cáº¥p quyá»n Domain</strong>: ThÃªm <code className="bg-white/5 px-1 rounded text-orange-300">tauri:/localhost</code> vÃ o danh sÃ¡ch "Website restrictions" cá»§a API Key.</li>
+                                <li><strong>Bật Services</strong>: Truy cập Google Cloud Console và chắc chắn đã bật <span className="text-white/80 italic">"Maps JavaScript API"</span>.</li>
+                                <li><strong>Kích hoạt Billing</strong>: Google yêu cầu tài khoản phải có thẻ tín dụng (cho dù dùng miễn phí).</li>
+                                <li><strong>Cấp quyền Domain</strong>: Thêm <code className="bg-white/5 px-1 rounded text-orange-300">tauri:/localhost</code> vào danh sách "Website restrictions" của API Key.</li>
                             </ul>
                         </div>
 
@@ -11876,14 +11876,14 @@ export const Earth3DView: React.FC<Earth3DViewProps> = ({
                                 onClick={() => { setUseEmbed(true); setShowDiagnostics(false); }}
                                 className="w-full py-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 rounded text-[9px] font-bold uppercase"
                             >
-                                Bá» qua lá»—i vÃ  dÃ¹ng Iframe Embed (KhuyÃªn dÃ¹ng)
+                                Bỏ qua lỗi và dùng Iframe Embed (Khuyên dùng)
                             </button>
                             <a
                                 href="https://console.cloud.google.com/google/maps-apis/overview"
                                 target="_blank"
                                 className="w-full py-2 bg-white/5 hover:bg-white/10 text-white/70 border border-white/10 rounded text-[9px] font-bold uppercase text-center"
                             >
-                                Má»Ÿ Trang quáº£n trá»‹ Google Cloud â†—
+                                Mở Trang quản trị Google Cloud ↗
                             </a>
                         </div>
                     </div>
@@ -11981,17 +11981,17 @@ export const GoogleEarthIframe: React.FC<GoogleEarthIframeProps> = ({
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm z-10">
                     <div className="w-10 h-10 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin mb-4" />
                     <div className="text-[10px] text-white/50 font-bold uppercase tracking-widest animate-pulse">
-                        Äang káº¿t ná»‘i Google Earth...
+                        Đang kết nối Google Earth...
                     </div>
                 </div>
             )}
 
             {hasError && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-950/20 backdrop-blur-md z-20 p-6 text-center">
-                    <div className="text-3xl mb-2">ðŸ”­</div>
-                    <div className="text-[12px] text-red-400 font-bold uppercase mb-1">KhÃ´ng thá»ƒ nhÃºng Google Earth</div>
+                    <div className="text-3xl mb-2">🔭</div>
+                    <div className="text-[12px] text-red-400 font-bold uppercase mb-1">Không thể nhúng Google Earth</div>
                     <div className="text-[10px] text-white/60 leading-relaxed max-w-[250px]">
-                        TrÃ¬nh duyá»‡t hoáº·c cáº¥u hÃ¬nh há»‡ thá»‘ng Ä‘Ã£ cháº·n viá»‡c hiá»ƒn thá»‹ trá»±c tiáº¿p. Vui lÃ²ng sá»­ dá»¥ng tÃ­nh nÄƒng "Má»Ÿ trÃªn Web" Ä‘á»ƒ xem 3D.
+                        Trình duyệt hoặc cấu hình hệ thống đã chặn việc hiển thị trực tiếp. Vui lòng sử dụng tính năng "Mở trên Web" để xem 3D.
                     </div>
                 </div>
             )}
@@ -12006,7 +12006,7 @@ export const GoogleEarthIframe: React.FC<GoogleEarthIframeProps> = ({
                         LNG: {lng.toFixed(5)}
                     </div>
                     <div className="px-2 py-1 bg-black/60 backdrop-blur-md border border-white/20 rounded text-[9px] text-orange-400 font-mono font-bold">
-                        HDG: {Math.round(heading)}Â°
+                        HDG: {Math.round(heading)}°
                     </div>
                 </div>
             )}
@@ -12378,7 +12378,7 @@ export const RecognitionSimulator: React.FC<RecognitionSimulatorProps> = ({ ppm 
         <div className="space-y-2 mt-4">
             <div className="flex justify-between items-center px-1">
                 <label className="text-[10px] text-gray-300 uppercase font-black tracking-wider flex items-center gap-1.5">
-                    <Scan className="w-3 h-3 text-cyan-400" /> MÃ´ phá»ng Nháº­n diá»‡n AI
+                    <Scan className="w-3 h-3 text-cyan-400" /> Mô phỏng Nhận diện AI
                 </label>
                 <div className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${isRecognized ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/30'}`}>
                     {isRecognized ? (isId ? 'Level: Identification' : 'Level: Recognition') : 'Level: Observation/Low'}
@@ -12484,13 +12484,13 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const panoramaRef = useRef<any>(null);
-    const initialHeadingRef = useRef<number>(heading); // ðŸ”’ Store starting heading
-    const isExternalUpdate = useRef(false); // ðŸ›¡ï¸ Infinite Loop Guard
+    const initialHeadingRef = useRef<number>(heading); // 🔒 Store starting heading
+    const isExternalUpdate = useRef(false); // 🛡️ Infinite Loop Guard
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const trimmedApiKey = apiKey.trim();
 
-    // ðŸ•µï¸ Stealth Mode: Hide Watermarks aggressively
+    // 🕵️ Stealth Mode: Hide Watermarks aggressively
     useEffect(() => {
         const style = document.createElement('style');
         style.innerHTML = `
@@ -12521,7 +12521,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
         };
     }, []);
 
-    // ðŸ“ Smart Snapping Logic
+    // 📍 Smart Snapping Logic
     const findNearestPano = async (lat: number, lng: number): Promise<{ lat: number, lng: number } | null> => {
         return new Promise((resolve) => {
             if (typeof google === 'undefined') return resolve(null);
@@ -12550,7 +12550,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
 
         windowWithGoogle.gm_authFailure = () => {
             if (disposed) return;
-            setError('Google Maps Auth Failed. Vui lÃ²ng kiá»ƒm tra Billing.');
+            setError('Google Maps Auth Failed. Vui lòng kiểm tra Billing.');
         };
 
         if (!trimmedApiKey) {
@@ -12589,7 +12589,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
                 });
 
                 panoramaRef.current = panorama;
-                initialHeadingRef.current = heading; // Set the baseline for 180Â° rotation
+                initialHeadingRef.current = heading; // Set the baseline for 180° rotation
 
                 const updateBrowserUrl = (l: number, g: number, h: number, f: number) => {
                     const cleanLat = l.toFixed(7);
@@ -12611,7 +12611,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
                     return diff;
                 };
 
-                // ðŸ”„ Sync Pegman Position (Map -> View)
+                // 🔄 Sync Pegman Position (Map -> View)
                 panorama.addListener('position_changed', () => {
                     if (isExternalUpdate.current) return;
 
@@ -12632,7 +12632,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
                     }
                 });
 
-                // ðŸ”„ Sync POV (View -> Map) + ðŸ”’ Rotation Lock (180 deg) + ðŸ”’ Pitch Lock (0 deg)
+                // 🔄 Sync POV (View -> Map) + 🔒 Rotation Lock (180 deg) + 🔒 Pitch Lock (0 deg)
                 panorama.addListener('pov_changed', () => {
                     if (isExternalUpdate.current) return;
 
@@ -12644,7 +12644,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
 
                     let constrainedHeading = currentHeading;
 
-                    // Check Heading Constraint (Â±90 degrees = 180 total)
+                    // Check Heading Constraint (±90 degrees = 180 total)
                     if (Math.abs(angleDiff) > 90) {
                         constrainedHeading = normalizeHeading(initialHeadingRef.current + (angleDiff > 0 ? 90 : -90));
                     }
@@ -12676,7 +12676,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
                 panorama.addListener('status_changed', () => {
                     const s = panorama.getStatus();
                     if (s !== 'OK' && s !== 'INITIALIZING') {
-                        setError(`Khu vá»±c nÃ y hiá»‡n chÆ°a cÃ³ dá»¯ liá»‡u Street View.`);
+                        setError(`Khu vực này hiện chưa có dữ liệu Street View.`);
                     } else if (s === 'OK') {
                         setError(null);
                         emit('panorama-ready');
@@ -12693,7 +12693,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
                 }, 1000);
 
             } catch (sdkError: any) {
-                setError('Há»‡ thá»‘ng báº£n Ä‘á»“ gáº·p sá»± cá»‘. Vui lÃ²ng thá»­ láº¡i.');
+                setError('Hệ thống bản đồ gặp sự cố. Vui lòng thử lại.');
             } finally {
                 setLoading(false);
             }
@@ -12717,7 +12717,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
         if (!panoramaRef.current) return;
 
         const updatePos = async () => {
-            isExternalUpdate.current = true; // ðŸ›¡ï¸ Start Guard
+            isExternalUpdate.current = true; // 🛡️ Start Guard
 
             try {
                 const currentPos = panoramaRef.current.getPosition();
@@ -12731,7 +12731,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
                     panoramaRef.current.setPosition(nearest || { lat, lng });
                 }
 
-                panoramaRef.current.setPov({ heading, pitch: 0 }); // ðŸ›¡ï¸ Force Horizontal Lock
+                panoramaRef.current.setPov({ heading, pitch: 0 }); // 🛡️ Force Horizontal Lock
                 const zoom = Math.max(0, Math.log2(180 / Math.max(1, fov)));
                 panoramaRef.current.setZoom(zoom);
             } finally {
@@ -12759,7 +12759,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
                 className="absolute top-0 left-0 right-0 h-10 z-[1000] cursor-move active:cursor-grabbing flex justify-between items-center px-4"
             >
                 <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest pointer-events-none">
-                    Street View 180Â° Perspective
+                    Street View 180° Perspective
                 </div>
 
                 <button
@@ -12795,14 +12795,14 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
                         onClick={() => window.location.reload()}
                         className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-sm text-xs font-bold transition-all uppercase tracking-widest shadow-lg active:scale-95"
                     >
-                        Thá»­ láº¡i
+                        Thử lại
                     </button>
                 </div>
             )}
             {/* Perspective Shield Indicator */}
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-black/60 backdrop-blur-md rounded-full border border-white/5 text-[9px] text-gray-400 font-medium tracking-[0.2em] uppercase pointer-events-none z-50 flex items-center gap-2">
                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                180Â° Horizontal Lock Active
+                180° Horizontal Lock Active
             </div>
         </div>
     );
@@ -12958,7 +12958,7 @@ const CAMERA_TYPES = [
     { id: 'ptz', label: 'PTZ Camera', icon: <Camera size={12} /> },
     { id: 'speed', label: 'Speed Camera', icon: <Camera size={12} /> },
     { id: 'lpr', label: 'LPR Camera', icon: <Camera size={12} /> },
-    { id: 'default', label: 'Loáº¡i khÃ¡c', icon: <Camera size={12} /> },
+    { id: 'default', label: 'Loại khác', icon: <Camera size={12} /> },
 ];
 
 export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose: propOnClose }) => {
@@ -13007,7 +13007,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                 <div className="flex items-center gap-2">
                     <Settings className="w-3.5 h-3.5 text-cad-accent" />
                     <span className="text-[10px] font-bold tracking-wider uppercase text-gray-300">
-                        Cáº¥u hÃ¬nh há»‡ thá»‘ng
+                        Cấu hình hệ thống
                     </span>
                 </div>
                 <div className="flex items-center gap-1">
@@ -13032,26 +13032,26 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                 <section className="space-y-4">
                     <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
                         <Ruler className="w-3.5 h-3.5 text-blue-400" />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">ThÃ´ng sá»‘ máº·c Ä‘á»‹nh dá»± Ã¡n</span>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Thông số mặc định dự án</span>
                         <div className="flex-1 h-[1px] bg-[#333] ml-2" />
                     </div>
 
                     <div className="px-1 space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Chiá»u cao láº¯p Ä‘áº·t máº·c Ä‘á»‹nh (m)</label>
+                            <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Chiều cao lắp đặt mặc định (m)</label>
                             <input
                                 type="number"
                                 value={localSettings.default_install_height}
                                 onChange={(e) => setLocalSettings(p => ({ ...p, default_install_height: Number(e.target.value) }))}
                                 className="w-full bg-transparent border-b border-[#333] focus:border-cad-accent px-1 py-1.5 text-xs text-white outline-none transition-colors font-mono"
-                                placeholder="Nháº­p chiá»u cao (m)..."
+                                placeholder="Nhập chiều cao (m)..."
                             />
                         </div>
 
                         <div className="flex items-start gap-2 p-2 rounded border border-cad-accent/20 bg-cad-accent/5">
                             <Info size={12} className="text-cad-accent mt-0.5 shrink-0" />
                             <p className="text-[10px] text-cad-text-secondary leading-relaxed">
-                                ThÃ´ng sá»‘ nÃ y sáº½ Ä‘Æ°á»£c Ã¡p dá»¥ng tá»± Ä‘á»™ng khi báº¡n táº¡o thiáº¿t bá»‹ má»›i náº¿u khÃ´ng chá»‰ Ä‘á»‹nh rÃµ.
+                                Thông số này sẽ được áp dụng tự động khi bạn tạo thiết bị mới nếu không chỉ định rõ.
                             </p>
                         </div>
                     </div>
@@ -13061,7 +13061,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                 <section className="space-y-4">
                     <div className="flex items-center gap-2 px-1 text-cad-text-secondary">
                         <Camera className="w-3.5 h-3.5 text-green-400" />
-                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">ThÃ´ng sá»‘ ká»¹ thuáº­t máº«u</span>
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Thông số kỹ thuật mẫu</span>
                         <div className="flex-1 h-[1px] bg-[#333] ml-2" />
                     </div>
 
@@ -13077,7 +13077,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
 
                                 <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                                     <div className="space-y-1">
-                                        <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">TiÃªu cá»± (mm)</label>
+                                        <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Tiêu cự (mm)</label>
                                         <input
                                             type="number"
                                             step="0.1"
@@ -13087,7 +13087,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Cáº£m biáº¿n (inch)</label>
+                                        <label className="text-[9px] text-cad-text-secondary uppercase font-bold tracking-tight">Cảm biến (inch)</label>
                                         <input
                                             type="text"
                                             value={localSettings.camera_presets[type.id]?.sensor_size || ''}
@@ -13128,7 +13128,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                         onClick={onClose}
                         className="flex-1 bg-transparent border border-[#444] hover:border-gray-400 text-gray-400 hover:text-white py-2 rounded text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95"
                     >
-                        Há»§y
+                        Hủy
                     </button>
                 )}
                 <button
@@ -13137,7 +13137,7 @@ export const SystemConfigPanel: React.FC<{ onClose?: () => void }> = ({ onClose:
                     className="flex-[2] flex items-center justify-center gap-2 bg-cad-accent hover:bg-white disabled:opacity-50 text-black py-2 rounded text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-cad-accent/10"
                 >
                     <Save size={14} />
-                    {isSaving ? 'Äang lÆ°u...' : 'LÆ°u cáº¥u hÃ¬nh'}
+                    {isSaving ? 'Đang lưu...' : 'Lưu cấu hình'}
                 </button>
             </div>
         </div>
@@ -13170,21 +13170,21 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
   const isStandalone = typeof window !== 'undefined' && window.location.search.includes('view=');
   const { drawingMode, setDrawingMode, printArea, setPrintArea, state } = useDesignSync();
   const projectId = useDesignSync.getState().projectId;
-  const [printTitle, setPrintTitle] = useState('Báº¢N Äá»’ THIáº¾T Káº¾ CÃ”NG TRÃŒNH');
+  const [printTitle, setPrintTitle] = useState('BẢN ĐỒ THIẾT KẾ CÔNG TRÌNH');
   const [paperSize, setPaperSize] = useState('A4');
   const [capturing, setCapturing] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
 
-  // Äá»“ng bá»™ tráº¡ng thÃ¡i Maximize vá»›i Tauri window
+  // Đồng bộ trạng thái Maximize với Tauri window
   useEffect(() => {
     if (isStandalone) {
       import('@tauri-apps/api/webviewWindow').then(m => {
         const win = m.getCurrentWebviewWindow();
 
-        // Kiá»ƒm tra tráº¡ng thÃ¡i ban Ä‘áº§u
+        // Kiểm tra trạng thái ban đầu
         win.isMaximized().then(setIsMaximized);
 
-        // Láº¯ng nghe sá»± kiá»‡n thay Ä‘á»•i
+        // Lắng nghe sự kiện thay đổi
         const unlisten = win.onResized(async () => {
           const maximized = await win.isMaximized();
           setIsMaximized(prev => prev !== maximized ? maximized : prev);
@@ -13257,7 +13257,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
 
   const features = useMemo(() => Object.values(state?.features || {}), [state?.features]);
 
-  // Tá»± Ä‘á»™ng táº¡o Legend dá»±a trÃªn cÃ¡c feature trong vÃ¹ng in
+  // Tự động tạo Legend dựa trên các feature trong vùng in
   const dynamicLegend = useMemo(() => {
     if (!printArea || features.length === 0 || !state?.feature_groups) return [];
 
@@ -13300,7 +13300,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
 
   const handlePrint = async () => {
     if (!printArea) {
-      alert("Vui lÃ²ng chá»n vÃ¹ng in trÃªn báº£n Ä‘á»“ trÆ°á»›c!");
+      alert("Vui lòng chọn vùng in trên bản đồ trước!");
       return;
     }
 
@@ -13350,7 +13350,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
         mapCanvas = img;
       } else {
         const mapContainer = document.querySelector('.leaflet-container') as HTMLElement;
-        if (!mapContainer) throw new Error("KhÃ´ng tÃ¬m tháº¥y báº£n Ä‘á»“");
+        if (!mapContainer) throw new Error("Không tìm thấy bản đồ");
 
         mapCanvas = await html2canvas(mapContainer, {
           useCORS: true,
@@ -13436,7 +13436,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
 
     } catch (error) {
       console.error("Print error:", error);
-      alert("Lá»—i chá»¥p áº£nh: " + (error instanceof Error ? error.message : String(error)));
+      alert("Lỗi chụp ảnh: " + (error instanceof Error ? error.message : String(error)));
     } finally {
       setCapturing(false);
     }
@@ -13454,7 +13454,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
         {/* Header */}
         <div
           onMouseDown={(e) => {
-            // Chá»‰ báº¯t Ä‘áº§u kÃ©o náº¿u click vÃ o chÃ­nh header hoáº·c cÃ¡c pháº§n tá»­ khÃ´ng tÆ°Æ¡ng tÃ¡c
+            // Chỉ bắt đầu kéo nếu click vào chính header hoặc các phần tử không tương tác
             if (e.currentTarget === e.target || (e.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {
               import('@tauri-apps/api/webviewWindow').then(m => {
                 m.getCurrentWebviewWindow().startDragging();
@@ -13468,7 +13468,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
               <Printer data-tauri-drag-region className="w-5 h-5 text-yellow-500" />
             </div>
             <div data-tauri-drag-region>
-              <h2 data-tauri-drag-region className="text-lg font-bold tracking-tight text-white">XUáº¤T Báº¢N Äá»’ & Há»’ SÆ </h2>
+              <h2 data-tauri-drag-region className="text-lg font-bold tracking-tight text-white">XUẤT BẢN ĐỒ & HỒ SƠ</h2>
               <p data-tauri-drag-region className="text-xs text-gray-500 uppercase tracking-widest font-mono">DPI: 300 | CAD EXPORT SYSTEM</p>
             </div>
           </div>
@@ -13478,20 +13478,20 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
                 <button
                   onClick={() => import('@tauri-apps/api/webviewWindow').then(m => m.getCurrentWebviewWindow().minimize())}
                   className="p-2.5 hover:bg-[#3d3d3d] text-gray-400 transition-colors border-r border-[#444]"
-                  title="Thu nhá»"
+                  title="Thu nhỏ"
                 >
                   <Minus size={16} />
                 </button>
                 <button
                   onClick={() => import('@tauri-apps/api/webviewWindow').then(m => m.getCurrentWebviewWindow().toggleMaximize())}
                   className="p-2.5 hover:bg-[#3d3d3d] text-gray-400 transition-colors border-r border-[#444]"
-                  title={isMaximized ? "KhÃ´i phá»¥c" : "PhÃ³ng to"}
+                  title={isMaximized ? "Khôi phục" : "Phóng to"}
                 >
                   {isMaximized ? <Copy size={14} className="rotate-180" /> : <Square size={14} />}
                 </button>
               </>
             )}
-            <button onClick={onClose} className="p-2.5 hover:bg-rose-500 hover:text-white text-gray-400 transition-colors" title="ÄÃ³ng">
+            <button onClick={onClose} className="p-2.5 hover:bg-rose-500 hover:text-white text-gray-400 transition-colors" title="Đóng">
               <X size={16} />
             </button>
           </div>
@@ -13503,7 +13503,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
             <section className="space-y-4">
               <div className="flex items-center gap-2 text-white font-black text-[10px] uppercase tracking-widest border-b border-[#333] pb-2">
                 <span className="w-5 h-5 rounded bg-yellow-500 text-[#1e1e1e] flex items-center justify-center font-bold">1</span>
-                VÃ¹ng chá»n in
+                Vùng chọn in
               </div>
 
               {printArea ? (
@@ -13518,7 +13518,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
                     onClick={() => setPrintArea(null)}
                     className="w-full py-2 bg-rose-500/10 text-rose-500 text-[10px] font-black uppercase tracking-widest rounded border border-rose-500/30 hover:bg-rose-500 hover:text-white transition-all shadow-sm"
                   >
-                    Há»§y vÃ¹ng chá»n
+                    Hủy vùng chọn
                   </button>
                 </div>
               ) : (
@@ -13537,7 +13537,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
                   )}
                 >
                   <MousePointer2 className={cn("w-6 h-6", drawingMode === 'print_area' && "animate-pulse")} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">QuÃ©t vÃ¹ng trÃªn Map</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">Quét vùng trên Map</span>
                 </button>
               )}
             </section>
@@ -13545,18 +13545,18 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
             <section className="space-y-4">
               <div className="flex items-center gap-2 text-white font-black text-[10px] uppercase tracking-widest border-b border-[#333] pb-2">
                 <span className="w-5 h-5 rounded bg-blue-500 text-white flex items-center justify-center font-bold">2</span>
-                TiÃªu Ä‘á» & Khá»• giáº¥y
+                Tiêu đề & Khổ giấy
               </div>
 
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1">TiÃªu Ä‘á» báº£n in</label>
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1">Tiêu đề bản in</label>
                 <div className="relative group">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-600 group-focus-within:text-blue-500" />
                   <input
                     type="text"
                     value={printTitle}
                     onChange={e => setPrintTitle(e.target.value)}
-                    placeholder="TÃªn báº£n váº½..."
+                    placeholder="Tên bản vẽ..."
                     className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg pl-9 pr-4 py-2 text-xs text-white focus:border-blue-500 outline-none transition-all placeholder:text-gray-700 font-bold"
                   />
                 </div>
@@ -13583,13 +13583,13 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
             <section className="space-y-4">
               <div className="flex items-center gap-2 text-white font-black text-[10px] uppercase tracking-widest border-b border-[#333] pb-2">
                 <span className="w-5 h-5 rounded bg-emerald-500 text-white flex items-center justify-center font-bold">3</span>
-                Ná»™i dung chÃº giáº£i
+                Nội dung chú giải
               </div>
               <div className="space-y-2">
                 {[
-                  { id: 'basemap', label: 'Báº£n Ä‘á»“ ná»n', state: includeBaseMap, setter: setIncludeBaseMap },
-                  { id: 'features', label: 'Dá»¯ liá»‡u thiáº¿t káº¿', state: includeFeatures, setter: setIncludeFeatures },
-                  { id: 'legend', label: 'Báº£ng chÃº giáº£i', state: includeLegend, setter: setIncludeLegend },
+                  { id: 'basemap', label: 'Bản đồ nền', state: includeBaseMap, setter: setIncludeBaseMap },
+                  { id: 'features', label: 'Dữ liệu thiết kế', state: includeFeatures, setter: setIncludeFeatures },
+                  { id: 'legend', label: 'Bảng chú giải', state: includeLegend, setter: setIncludeLegend },
                 ].map(layer => (
                   <label key={layer.id} className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded border border-[#333] cursor-pointer hover:bg-[#252526] transition-colors group">
                     <div className="flex flex-col">
@@ -13610,7 +13610,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
 
               {includeFeatures && (
                 <div className="space-y-4 pt-2">
-                  <div className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1">Lá»c theo lá»›p dá»¯ liá»‡u</div>
+                  <div className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1">Lọc theo lớp dữ liệu</div>
                   <div className="max-h-40 overflow-y-auto custom-scrollbar pr-1 space-y-1">
                     {Object.values(state?.layers || {}).map(layer => (
                       <label key={layer.id} className="flex items-center justify-between p-2 bg-black/20 rounded border border-[#333] cursor-pointer hover:bg-black/30 transition-colors">
@@ -13676,7 +13676,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
 
               <div className="p-6 bg-white min-h-[140px] flex flex-col">
                 <div className="text-center mb-4">
-                  <h3 className="text-sm font-black text-black uppercase tracking-tight leading-none mb-1">{printTitle || "Báº¢N Äá»’ Dá»° ÃN"}</h3>
+                  <h3 className="text-sm font-black text-black uppercase tracking-tight leading-none mb-1">{printTitle || "BẢN ĐỒ DỰ ÁN"}</h3>
                   <div className="h-[1px] w-20 bg-black/10 mx-auto mb-1" />
                   <p className="text-[8px] font-bold text-gray-400 tracking-widest uppercase">Scale: Fit to Frame | VN2000 System</p>
                 </div>
@@ -13698,7 +13698,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
                           </div>
                         ))
                       ) : (
-                        <p className="col-span-3 text-[7px] text-gray-300 italic uppercase text-center mt-2">Dá»¯ liá»‡u ngoÃ i vÃ¹ng chá»n</p>
+                        <p className="col-span-3 text-[7px] text-gray-300 italic uppercase text-center mt-2">Dữ liệu ngoài vùng chọn</p>
                       )}
                     </div>
                   </div>
@@ -13731,7 +13731,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
               onClick={onClose}
               className="px-8 py-2.5 rounded-xl border border-[#444] text-xs font-black uppercase tracking-widest text-gray-400 hover:bg-[#333] hover:text-white transition-all active:scale-95"
             >
-              Há»§y bá»
+              Hủy bỏ
             </button>
             <button
               onClick={handlePrint}
@@ -13750,7 +13750,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
               ) : (
                 <>
                   <Download className="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
-                  Xuáº¥t báº£n in
+                  Xuất bản in
                 </>
               )}
             </button>
@@ -13806,13 +13806,13 @@ const PrintWindow: React.FC = () => {
         }
         loadSettings();
         
-        document.title = "Thiáº¿t láº­p in áº¥n & Xuáº¥t báº£n há»“ sÆ¡";
+        document.title = "Thiết lập in ấn & Xuất bản hồ sơ";
     }, []);
 
     if (!projectId) {
         return (
             <div className="h-screen w-screen flex items-center justify-center bg-cad-bg text-cad-text-primary">
-                Äang khá»Ÿi táº¡o dá»¯ liá»‡u dá»± Ã¡n...
+                Đang khởi tạo dữ liệu dự án...
             </div>
         );
     }
@@ -14156,8 +14156,8 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={confirmDelete}
-                title="XÃ¡c nháº­n gá»¡ bá» dá»± Ã¡n"
-                message="Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a dá»± Ã¡n nÃ y khá»i danh sÃ¡ch gáº§n Ä‘Ã¢y khÃ´ng? Thao tÃ¡c nÃ y KHÃ”NG xÃ³a tá»‡p tin .pmp trÃªn mÃ¡y tÃ­nh cá»§a báº¡n."
+                title="Xác nhận gỡ bỏ dự án"
+                message="Bạn có chắc chắn muốn xóa dự án này khỏi danh sách gần đây không? Thao tác này KHÔNG xóa tệp tin .pmp trên máy tính của bạn."
                 itemName={projectToDelete?.name}
             />
             <PerformanceOverlay />
@@ -14186,7 +14186,7 @@ const pathname = window.location.pathname;
 const searchParams = new URLSearchParams(window.location.search);
 let view = searchParams.get('view');
 
-// ðŸŒ Google Maps Style Path Detection (@lat,lng...)
+// 🌐 Google Maps Style Path Detection (@lat,lng...)
 if (pathname.includes('/@')) {
   view = 'streetview';
 }
@@ -14450,8 +14450,8 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export const GEOM_TYPES_OPTIONS = [
-    'Äiá»ƒm', 'NÃºt giao', 'CCTV', 'PTZ', 'SPEED', 'LPR',
-    'Tá»§ thiáº¿t bá»‹', 'Cá»™t/Trá»¥', 'Cáº§u/Háº§m'
+    'Điểm', 'Nút giao', 'CCTV', 'PTZ', 'SPEED', 'LPR',
+    'Tủ thiết bị', 'Cột/Trụ', 'Cầu/Hầm'
 ];
 
 export const EditableCell = memo(({
@@ -14509,7 +14509,7 @@ export const EditableCell = memo(({
                 }
             }}
             onDoubleClick={() => setIsEditing(true)}
-            title={onClick ? "Nháº¥p chuá»™t Ä‘á»ƒ xem trÃªn báº£n Ä‘á»“, nháº¥p Ä‘Ãºp Ä‘á»ƒ sá»­a" : undefined}
+            title={onClick ? "Nhấp chuột để xem trên bản đồ, nhấp đúp để sửa" : undefined}
         >
             <span className="line-clamp-2 break-words whitespace-normal">{value || <span className="text-cad-text-muted italic opacity-30">N/A</span>}</span>
         </div>
@@ -14652,7 +14652,7 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
       if (key === 'geom_type') {
         const lowerVal = value.toLowerCase();
         if (['cctv', 'ptz', 'speed', 'lpr'].includes(lowerVal)) meta.icon = lowerVal;
-        else if (lowerVal.includes('nÃºt giao')) meta.icon = 'intersection';
+        else if (lowerVal.includes('nút giao')) meta.icon = 'intersection';
       }
       await dispatchEvent({ type: 'FeatureUpdated', payload: { id, metadata: JSON.stringify(meta) } });
     } else if (key === 'latitude' || key === 'longitude') {
@@ -14689,7 +14689,7 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
         if (field === 'geom_type') {
           const lowerVal = value.toLowerCase();
           if (['cctv', 'ptz', 'speed', 'lpr'].includes(lowerVal)) meta.icon = lowerVal;
-          else if (lowerVal.includes('nÃºt giao')) meta.icon = 'intersection';
+          else if (lowerVal.includes('nút giao')) meta.icon = 'intersection';
         }
         events.push({ type: 'FeatureUpdated', payload: { id, metadata: JSON.stringify(meta) } });
       } else if (field === 'layer' || field === 'group') {
@@ -14722,10 +14722,10 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
       if (events.length > 0) {
         setDeleteModalConfig({
           isOpen: true, type: 'import', id: JSON.stringify(events),
-          itemName: `${events.length} thay Ä‘á»•i`,
-          message: `TÃ¬m tháº¥y ${events.length} thay Ä‘á»•i. Báº¡n cÃ³ muá»‘n cáº­p nháº­t?`
+          itemName: `${events.length} thay đổi`,
+          message: `Tìm thấy ${events.length} thay đổi. Bạn có muốn cập nhật?`
         });
-      } else alert("KhÃ´ng tÃ¬m tháº¥y thay Ä‘á»•i.");
+      } else alert("Không tìm thấy thay đổi.");
     } catch (error: any) { alert(`Import error: ${error.message}`); }
   };
 
@@ -14742,11 +14742,11 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
     },
     { header: 'STT', accessorKey: 'index_stt', size: 60 },
     {
-      header: 'MÃƒ HIá»†U', accessorKey: 'display_order', size: 100,
+      header: 'MÃ HIỆU', accessorKey: 'display_order', size: 100,
       cell: info => <EditableCell value={info.getValue()} row={info.row} column={info.column} onUpdate={handleUpdate} />
     },
     {
-      header: 'TÃŠN Äá»I TÆ¯á»¢NG', accessorKey: 'name', size: 200,
+      header: 'TÊN ĐỐI TƯỢNG', accessorKey: 'name', size: 200,
       cell: info => (
         <EditableCell
           value={info.getValue()} row={info.row} column={info.column} onUpdate={handleUpdate}
@@ -14762,20 +14762,20 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
         />
       )
     },
-    { header: 'LOáº I', accessorKey: 'type', size: 100 },
-    { header: 'PHÃ‚N LOáº I', accessorKey: 'group', size: 120 },
+    { header: 'LOẠI', accessorKey: 'type', size: 100 },
+    { header: 'PHÂN LOẠI', accessorKey: 'group', size: 120 },
     { header: 'VÃ™NG', accessorKey: 'region', size: 120 },
-    { header: 'Lá»šP', accessorKey: 'layer', size: 120 },
+    { header: 'LỚP', accessorKey: 'layer', size: 120 },
     {
       header: 'GEO TYPE', accessorKey: 'geom_type', size: 140,
       cell: info => <DropdownCell value={info.getValue() as string} options={GEOM_TYPES_OPTIONS} row={info.row} column={info.column} onUpdate={handleUpdate} />
     },
     {
-      header: 'MÃ” Táº¢', accessorKey: 'description', size: 250,
+      header: 'MÔ TẢ', accessorKey: 'description', size: 250,
       cell: info => <EditableCell value={info.getValue()} row={info.row} column={info.column} onUpdate={handleUpdate} />
     },
     {
-      id: 'Action', size: 80, header: 'XÃ³a',
+      id: 'Action', size: 80, header: 'Xóa',
       cell: ({ row }) => (
         <button onClick={() => deleteFeature(row.original.id)} className="p-1 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
       )
@@ -14788,13 +14788,13 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
         data={data}
         columns={columns}
         projectId={projectId ?? undefined}
-        title="Báº¢NG Tá»”NG Há»¢P (GIS)"
+        title="BẢNG TỔNG HỢP (GIS)"
         onClose={onClose}
         onUpdate={handleUpdate}
         batchFields={[
           { label: 'Layer', value: 'layer' },
           { label: 'Group', value: 'group' },
-          { label: 'Note', value: 'note', options: ['ÄÃ£ kiá»ƒm tra', 'Cáº§n sá»­a', 'OK'] },
+          { label: 'Note', value: 'note', options: ['Đã kiểm tra', 'Cần sửa', 'OK'] },
           { label: 'Geom Type', value: 'geom_type', options: GEOM_TYPES_OPTIONS }
         ]}
         onBatchUpdate={onBatchUpdate}
@@ -14802,7 +14802,7 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
         onImport={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls'; (input as any).onchange = handleImport; input.click(); return Promise.resolve(); }}
         renderExtraActions={() => (
           <button onClick={() => deduplicate()} className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 text-amber-600 rounded text-[10px] font-black uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-all">
-            <Eraser size={14} /> Dá»n trÃ¹ng
+            <Eraser size={14} /> Dọn trùng
           </button>
         )}
       />
@@ -14816,7 +14816,7 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
           }
           setDeleteModalConfig(prev => ({ ...prev, isOpen: false }));
         }}
-        title="XÃ¡c nháº­n"
+        title="Xác nhận"
         itemName={deleteModalConfig.itemName}
         message={deleteModalConfig.message}
       />
@@ -14859,7 +14859,7 @@ const AnalysisWindow: React.FC = () => {
         }
         loadSettings();
 
-        document.title = "Báº£ng phÃ¢n tÃ­ch dá»¯ liá»‡u - Analysis";
+        document.title = "Bảng phân tích dữ liệu - Analysis";
     }, []);
 
     // 1. Wait for Auth
@@ -14868,7 +14868,7 @@ const AnalysisWindow: React.FC = () => {
             <div className="h-screen w-screen flex items-center justify-center bg-cad-bg text-cad-text-primary flex-col gap-4">
                 <div className="w-10 h-10 border-2 border-cad-accent border-t-transparent rounded-full animate-spin"></div>
                 <div className="text-[11px] font-mono text-cad-text-muted uppercase tracking-widest">
-                    Äang xÃ¡c thá»±c há»‡ thá»‘ng...
+                    Đang xác thực hệ thống...
                 </div>
             </div>
         );
@@ -14881,13 +14881,13 @@ const AnalysisWindow: React.FC = () => {
         console.error("[AnalysisWindow] Auth failed: No user soul found after window warmup.");
         return (
             <div className="h-screen w-screen flex items-center justify-center bg-cad-bg text-red-400 flex-col gap-4 p-8 text-center">
-                <div className="text-xl font-bold italic">PhiÃªn Ä‘Äƒng nháº­p háº¿t háº¡n</div>
-                <div className="text-[10px] text-cad-text-muted uppercase">Vui lÃ²ng Ä‘Äƒng nháº­p láº¡i á»Ÿ cá»­a sá»• chÃ­nh hoáº·c lÃ m má»›i trang.</div>
+                <div className="text-xl font-bold italic">Phiên đăng nhập hết hạn</div>
+                <div className="text-[10px] text-cad-text-muted uppercase">Vui lòng đăng nhập lại ở cửa sổ chính hoặc làm mới trang.</div>
                 <button
                     onClick={() => window.location.reload()}
                     className="px-4 py-1 border border-red-500/30 hover:bg-red-500/10 text-[9px] uppercase tracking-tighter transition-colors"
                 >
-                    Thá»­ láº¡i (Reload)
+                    Thử lại (Reload)
                 </button>
             </div>
         );
@@ -14896,7 +14896,7 @@ const AnalysisWindow: React.FC = () => {
     if (projectError) {
         return (
             <div className="h-screen w-screen flex items-center justify-center bg-cad-bg text-red-500 flex-col gap-4 p-8 text-center">
-                <div className="text-xl font-bold">Lá»—i khá»Ÿi táº¡o</div>
+                <div className="text-xl font-bold">Lỗi khởi tạo</div>
                 <div className="text-sm border border-red-500/30 bg-red-500/10 p-4 rounded max-w-lg overflow-auto">
                     {projectError}
                 </div>
@@ -14904,7 +14904,7 @@ const AnalysisWindow: React.FC = () => {
                     onClick={() => window.location.reload()}
                     className="mt-4 px-4 py-2 bg-cad-accent text-white rounded hover:opacity-90 transition-opacity"
                 >
-                    Thá»­ láº¡i
+                    Thử lại
                 </button>
             </div>
         );
@@ -14915,7 +14915,7 @@ const AnalysisWindow: React.FC = () => {
             <div className="h-screen w-screen flex items-center justify-center bg-cad-bg text-cad-text-primary flex-col gap-4">
                 <div className="w-10 h-10 border-2 border-cad-accent border-t-transparent rounded-full animate-spin"></div>
                 <div className="text-[11px] font-mono text-cad-text-muted uppercase tracking-widest">
-                    Äang khá»Ÿi táº¡o dá»¯ liá»‡u dá»± Ã¡n...
+                    Đang khởi tạo dữ liệu dự án...
                 </div>
             </div>
         );
@@ -15022,7 +15022,7 @@ export const AuthOverlay: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-black/40 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-[13px] text-white placeholder:text-white/20 focus:outline-none focus:border-cad-accent/40 focus:bg-black/60 transition-all duration-300"
-                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                  placeholder="••••••••••••"
                 />
               </div>
             </div>
@@ -15180,7 +15180,7 @@ export function ContractAnalysisView({
         try {
             const newGroup = {
                 project_id: projectId,
-                name: group.name || "NhÃ³m má»›i",
+                name: group.name || "Nhóm mới",
                 description: group.description || "",
                 status: group.status || "todo",
                 due_date: group.due_date || "",
@@ -15256,14 +15256,14 @@ export function ContractAnalysisView({
         },
         { header: 'STT', accessorKey: 'stt', size: 60 },
         {
-            header: 'TÃŠN Háº NG Má»¤C', accessorKey: 'name', size: 250,
+            header: 'TÊN HẠNG MỤC', accessorKey: 'name', size: 250,
             cell: info => <div className="font-bold text-white tracking-tight">{info.getValue() as string}</div>
         },
-        { header: 'QUY CÃCH', accessorKey: 'description', size: 300 },
-        { header: 'ÄVT', accessorKey: 'unit', size: 70 },
-        { header: 'Sá» LÆ¯á»¢NG', accessorKey: 'quantity', size: 100, cell: info => (info.getValue() as number).toLocaleString() },
-        { header: 'ÄÆ N GIÃ', accessorKey: 'price', size: 120, cell: info => `${(info.getValue() as number).toLocaleString()} Ä‘` },
-        { header: 'THÃ€NH TIá»€N', accessorKey: 'total', size: 140, cell: info => <span className="font-bold text-cad-accent">{(info.getValue() as number).toLocaleString()} Ä‘</span> },
+        { header: 'QUY CÁCH', accessorKey: 'description', size: 300 },
+        { header: 'ĐVT', accessorKey: 'unit', size: 70 },
+        { header: 'SỐ LƯỢNG', accessorKey: 'quantity', size: 100, cell: info => (info.getValue() as number).toLocaleString() },
+        { header: 'ĐƠN GIÁ', accessorKey: 'price', size: 120, cell: info => `${(info.getValue() as number).toLocaleString()} đ` },
+        { header: 'THÀNH TIỀN', accessorKey: 'total', size: 140, cell: info => <span className="font-bold text-cad-accent">{(info.getValue() as number).toLocaleString()} đ</span> },
     ], []);
 
     const totalAmount = data.bom_table.reduce((sum, item) => sum + item.total, 0);
@@ -15272,14 +15272,14 @@ export function ContractAnalysisView({
         <div className="flex gap-2 font-sans">
             {onBulkSync && (
                 <button onClick={onBulkSync} className="px-4 py-1.5 bg-cad-accent text-black text-[10px] font-black rounded uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-2">
-                    <PlayCircle size={14} /> Äá»’NG Bá»˜ Dá»® LIá»†U
+                    <PlayCircle size={14} /> ĐỒNG BỘ DỮ LIỆU
                 </button>
             )}
             <button onClick={() => setIsEditing(!isEditing)} className={`px-4 py-1.5 border text-[10px] font-black rounded uppercase tracking-wider transition-all ${isEditing ? 'bg-cad-accent/30 text-cad-accent border-cad-accent/50' : 'bg-cad-accent/10 text-cad-accent border-cad-accent/20'}`}>
-                {isEditing ? 'LÆ¯U BOM' : 'CHá»ˆNH Sá»¬A BOM'}
+                {isEditing ? 'LƯU BOM' : 'CHỈNH SỬA BOM'}
             </button>
             <button onClick={onViewRaw} className="px-4 py-1.5 bg-cad-elevated text-cad-text-muted hover:text-white text-[10px] font-black rounded border border-cad-border uppercase transition-all flex items-center gap-2">
-                <ExternalLink size={12} /> XEM Gá»C
+                <ExternalLink size={12} /> XEM GỐC
             </button>
         </div>
     );
@@ -15292,19 +15292,19 @@ export function ContractAnalysisView({
                     <header className="flex justify-between items-end mb-4">
                         <div>
                             <h1 className="text-4xl font-black text-white tracking-tighter uppercase leading-none mb-2">PROJECT <span className="text-cad-accent">OVERSIGHT</span></h1>
-                            <p className="text-cad-text-secondary text-xs font-medium uppercase tracking-widest opacity-60">Dá»¯ liá»‡u tá»•ng há»£p vÃ  tiáº¿n Ä‘á»™.</p>
+                            <p className="text-cad-text-secondary text-xs font-medium uppercase tracking-widest opacity-60">Dữ liệu tổng hợp và tiến độ.</p>
                         </div>
                         {onBulkSync && (
                             <button onClick={onBulkSync} className="px-6 py-2 bg-cad-accent text-black text-xs font-black rounded-sm hover:brightness-110 transition-all flex items-center gap-2 uppercase">
-                                <PlayCircle size={16} /> Äá»“ng bá»™ toÃ n bá»™ dá»¯ liá»‡u
+                                <PlayCircle size={16} /> Đồng bộ toàn bộ dữ liệu
                             </button>
                         )}
                     </header>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <StatCard icon={<Building2 className="text-cad-accent" />} label="Tá»•ng giÃ¡ trá»‹" value={`${totalAmount.toLocaleString()} Ä‘`} subValue="Há»£p Ä‘á»“ng hiá»‡n táº¡i" />
-                        <StatCard icon={<Package className="text-cad-accent" />} label="Váº­t tÆ°" value={data.bom_table.length.toString()} subValue="Sá»‘ háº¡ng má»¥c" />
-                        <StatCard icon={<Cpu className="text-cad-accent" />} label="NhÃ³m viá»‡c" value={executionGroups.length.toString()} subValue="ÄÃ£ phÃ¢n cÃ´ng" />
-                        <StatCard icon={<CheckCircle2 className="text-cad-accent" />} label="Tá»“n kho" value="92%" subValue="Sáºµn sÃ ng" color="text-cad-accent" />
+                        <StatCard icon={<Building2 className="text-cad-accent" />} label="Tổng giá trị" value={`${totalAmount.toLocaleString()} đ`} subValue="Hợp đồng hiện tại" />
+                        <StatCard icon={<Package className="text-cad-accent" />} label="Vật tư" value={data.bom_table.length.toString()} subValue="Số hạng mục" />
+                        <StatCard icon={<Cpu className="text-cad-accent" />} label="Nhóm việc" value={executionGroups.length.toString()} subValue="Đã phân công" />
+                        <StatCard icon={<CheckCircle2 className="text-cad-accent" />} label="Tồn kho" value="92%" subValue="Sẵn sàng" color="text-cad-accent" />
                     </div>
                 </div>
             </div>
@@ -15316,16 +15316,16 @@ export function ContractAnalysisView({
             data={tableData}
             columns={columns as any}
             projectId={projectId}
-            title="DANH SÃCH THIáº¾T Bá»Š HÃ€NG HÃ“A"
+            title="DANH SÁCH THIẾT BỊ HÀNG HÓA"
             onUpdate={handleBOMUpdate}
             onBatchUpdate={onBatchUpdate}
             isStandalone={false}
             renderExtraActions={renderActions}
             batchFields={[
-                { label: 'Sá»‘ lÆ°á»£ng', value: 'quantity' },
-                { label: 'ÄÆ¡n giÃ¡', value: 'price' },
-                { label: 'Xuáº¥t xá»©', value: 'origin' },
-                { label: 'HÃ£ng sáº£n xuáº¥t', value: 'manufacturer' }
+                { label: 'Số lượng', value: 'quantity' },
+                { label: 'Đơn giá', value: 'price' },
+                { label: 'Xuất xứ', value: 'origin' },
+                { label: 'Hãng sản xuất', value: 'manufacturer' }
             ]}
         />
     );
@@ -15340,17 +15340,17 @@ export function ContractAnalysisView({
                 <div className="flex-1 overflow-hidden flex">
                     <div className="w-80 border-r border-cad-border bg-cad-bg p-6 overflow-y-auto space-y-4">
                         <div className="flex justify-between items-center">
-                            <h2 className="text-xs font-black text-white uppercase tracking-widest">NHÃ“M CÃ”NG VIá»†C</h2>
+                            <h2 className="text-xs font-black text-white uppercase tracking-widest">NHÓM CÔNG VIỆC</h2>
                             <button onClick={() => setIsAddingGroup(true)} className="p-1.5 bg-cad-accent/10 text-cad-accent rounded-full hover:bg-cad-accent/20 transition-colors"><Plus size={14} /></button>
                         </div>
                         {isAddingGroup && (
                             <div className="p-4 bg-cad-surface border border-cad-accent/30 rounded-lg space-y-2">
-                                <input autoFocus placeholder="TÃªn nhÃ³m..." className="w-full bg-cad-bg border border-cad-border px-3 py-1.5 text-xs text-white rounded outline-none" onKeyDown={e => e.key === 'Enter' && handleUpsertGroup({ name: (e.target as HTMLInputElement).value })} />
-                                <p className="text-[9px] text-cad-text-muted font-bold">ENTER Ä‘á»ƒ lÆ°u, ESC há»§y</p>
+                                <input autoFocus placeholder="Tên nhóm..." className="w-full bg-cad-bg border border-cad-border px-3 py-1.5 text-xs text-white rounded outline-none" onKeyDown={e => e.key === 'Enter' && handleUpsertGroup({ name: (e.target as HTMLInputElement).value })} />
+                                <p className="text-[9px] text-cad-text-muted font-bold">ENTER để lưu, ESC hủy</p>
                             </div>
                         )}
                         {executionGroups.map(group => (
-                            <TaskCard key={group.id} {...group} status={group.status.toUpperCase()} title={group.name} desc={group.description || `Háº¡ng má»¥c: ${group.bom_item_uids.length}`} color={group.color as any} due={group.due_date || "N/A"} />
+                            <TaskCard key={group.id} {...group} status={group.status.toUpperCase()} title={group.name} desc={group.description || `Hạng mục: ${group.bom_item_uids.length}`} color={group.color as any} due={group.due_date || "N/A"} />
                         ))}
                     </div>
                     <div className="flex-1 bg-cad-surface/30 flex flex-col">{tableContent}</div>
@@ -15365,11 +15365,11 @@ export function ContractAnalysisView({
                 <div className="flex justify-between items-end">
                     <div>
                         <h1 className="text-4xl font-black text-white tracking-tighter uppercase leading-none mb-1">CONTRACT <span className="text-cad-accent">ANALYSIS</span></h1>
-                        <p className="text-cad-text-secondary text-[10px] font-bold uppercase tracking-widest opacity-60">Theo dÃµi mua sáº¯m vÃ  hiá»‡u suáº¥t.</p>
+                        <p className="text-cad-text-secondary text-[10px] font-bold uppercase tracking-widest opacity-60">Theo dõi mua sắm và hiệu suất.</p>
                     </div>
                     <div className="flex flex-col items-end gap-2 text-cad-accent">
                         <div className="flex items-center gap-4">
-                            <span className="text-[10px] font-black text-cad-text-muted uppercase tracking-widest">Tá»’N KHO</span>
+                            <span className="text-[10px] font-black text-cad-text-muted uppercase tracking-widest">TỒN KHO</span>
                             <span className="text-3xl font-black">{totalAmount === 0 ? 0 : 92}%</span>
                         </div>
                         <div className="w-64 h-1.5 bg-cad-elevated rounded-full overflow-hidden">
@@ -15387,12 +15387,12 @@ export function ContractAnalysisView({
 function ProjectInfoBar({ projectName, data, compact }: any) {
     return (
         <div className={`grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-x-8 gap-y-2 ${compact ? '' : 'bg-cad-surface/50 border border-cad-border p-4 rounded-xl'}`}>
-            <InfoItem icon={<FolderOpen size={12} />} label="Dá»° ÃN" value={projectName || "---"} />
-            <InfoItem icon={<FileText size={12} />} label="Sá» HÄ" value={data.contract_number || "---"} />
-            <InfoItem icon={<Building2 size={12} />} label="CHá»¦ Äáº¦U TÆ¯" value={data.investor || "---"} />
-            <InfoItem icon={<User size={12} />} label="NHÃ€ THáº¦U" value={data.contractor || "---"} />
-            <InfoItem icon={<Clock size={12} />} label="Dá»° KIáº¾N" value={data.end_date || "---"} />
-            <InfoItem icon={<Zap size={12} />} label="GIÃ TRá»Š" value={`${Math.round(data.bom_table.reduce((s: any, i: any) => s + i.total, 0) / 1000000)}M`} />
+            <InfoItem icon={<FolderOpen size={12} />} label="DỰ ÁN" value={projectName || "---"} />
+            <InfoItem icon={<FileText size={12} />} label="SỐ HĐ" value={data.contract_number || "---"} />
+            <InfoItem icon={<Building2 size={12} />} label="CHỦ ĐẦU TƯ" value={data.investor || "---"} />
+            <InfoItem icon={<User size={12} />} label="NHÀ THẦU" value={data.contractor || "---"} />
+            <InfoItem icon={<Clock size={12} />} label="DỰ KIẾN" value={data.end_date || "---"} />
+            <InfoItem icon={<Zap size={12} />} label="GIÁ TRỊ" value={`${Math.round(data.bom_table.reduce((s: any, i: any) => s + i.total, 0) / 1000000)}M`} />
         </div>
     );
 }
@@ -15508,7 +15508,7 @@ export function ContractManager({ contracts, onAdd, onDelete, featureCounts = {}
                   setDeleteModalConfig({
                     isOpen: true,
                     id: c.id,
-                    itemName: c.name || "Há»£p Ä‘á»“ng khÃ´ng tÃªn"
+                    itemName: c.name || "Hợp đồng không tên"
                   });
                 }}
                 className="absolute top-4 right-4 text-cad-text-muted hover:text-red-500 opacity-0 group-hover/card:opacity-100 transition-opacity"
@@ -15556,9 +15556,9 @@ export function ContractManager({ contracts, onAdd, onDelete, featureCounts = {}
             setDeleteModalConfig({ isOpen: false, id: null, itemName: "" });
           }
         }}
-        title="XÃ¡c nháº­n xÃ³a há»£p Ä‘á»“ng"
+        title="Xác nhận xóa hợp đồng"
         itemName={deleteModalConfig.itemName}
-        message="Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a báº£n ghi há»£p Ä‘á»“ng nÃ y? Táº¥t cáº£ dá»¯ liá»‡u liÃªn quan sáº½ bá»‹ loáº¡i bá» khá»i quáº£n lÃ½ dá»± Ã¡n."
+        message="Bạn có chắc chắn muốn xóa bản ghi hợp đồng này? Tất cả dữ liệu liên quan sẽ bị loại bỏ khỏi quản lý dự án."
       />
     </div>
   );
@@ -15674,7 +15674,7 @@ export function ContractSidebar({ projectId, contractType, onFileSelect }: Contr
     const renderInvestorTree = () => (
         <FolderTree name="INVESTOR MANAGEMENT" expanded>
             <FolderTree
-                name="Há»£p Ä‘á»“ng"
+                name="Hợp đồng"
                 expanded={!!linkedContract}
                 onContextMenu={(e: React.MouseEvent) => setContextMenu({ x: e.pageX, y: e.pageY, type: 'folder' })}
             >
@@ -15689,12 +15689,12 @@ export function ContractSidebar({ projectId, contractType, onFileSelect }: Contr
                 )}
             </FolderTree>
             <FileItem
-                name="Báº£ng dá»¯ liá»‡u há»£p Ä‘á»“ng"
-                onSelect={() => onFileSelect?.("Báº£ng dá»¯ liá»‡u há»£p Ä‘á»“ng")}
+                name="Bảng dữ liệu hợp đồng"
+                onSelect={() => onFileSelect?.("Bảng dữ liệu hợp đồng")}
             />
             <FileItem
-                name="Tá»•ng há»£p chi tiáº¿t (Local)"
-                onSelect={() => onFileSelect?.("Tá»•ng há»£p chi tiáº¿t (Local)")}
+                name="Tổng hợp chi tiết (Local)"
+                onSelect={() => onFileSelect?.("Tổng hợp chi tiết (Local)")}
             />
         </FolderTree>
     );
@@ -15702,8 +15702,8 @@ export function ContractSidebar({ projectId, contractType, onFileSelect }: Contr
     const renderSubcontractorTree = () => (
         <FolderTree name="SUBCONTRACTOR MANAGEMENT" expanded>
             <FileItem
-                name="Danh sÃ¡ch Há»£p Ä‘á»“ng"
-                onSelect={() => onFileSelect?.("Danh sÃ¡ch Há»£p Ä‘á»“ng")}
+                name="Danh sách Hợp đồng"
+                onSelect={() => onFileSelect?.("Danh sách Hợp đồng")}
             />
             <FileItem
                 name="Financial report"
@@ -15719,12 +15719,12 @@ export function ContractSidebar({ projectId, contractType, onFileSelect }: Contr
     const renderFinanceTree = () => (
         <FolderTree name="FINANCIAL OVERSIGHT" expanded>
             <FileItem
-                name="Báº£ng giÃ¡ trá»‹ chi tiáº¿t há»£p Ä‘á»“ng"
-                onSelect={() => onFileSelect?.("Báº£ng giÃ¡ trá»‹ chi tiáº¿t há»£p Ä‘á»“ng")}
+                name="Bảng giá trị chi tiết hợp đồng"
+                onSelect={() => onFileSelect?.("Bảng giá trị chi tiết hợp đồng")}
             />
             <FileItem
-                name="Äá»‘i á»©ng giÃ¡ trá»‹ nhÃ  tháº§u"
-                onSelect={() => onFileSelect?.("Äá»‘i á»©ng giÃ¡ trá»‹ nhÃ  tháº§u")}
+                name="Đối ứng giá trị nhà thầu"
+                onSelect={() => onFileSelect?.("Đối ứng giá trị nhà thầu")}
             />
         </FolderTree>
     );
@@ -15774,7 +15774,7 @@ export function ContractSidebar({ projectId, contractType, onFileSelect }: Contr
                 </div>
                 <div className="bg-cad-elevated/30 rounded p-2 border border-cad-border/50">
                     <p className="text-[10px] text-cad-text-secondary leading-tight">
-                        Module {contractType} Ä‘ang hoáº¡t Ä‘á»™ng Ä‘á»™c láº­p vÃ  link trá»±c tiáº¿p vá»›i kho dá»¯ liá»‡u CAD.
+                        Module {contractType} đang hoạt động độc lập và link trực tiếp với kho dữ liệu CAD.
                     </p>
                 </div>
             </div>
@@ -15848,7 +15848,7 @@ export function DynamicContentManager({ projectId, contentType }: Props) {
     };
 
     const handleDelete = async (id: number) => {
-        if (!confirm("XÃ¡c nháº­n xÃ³a báº£n ghi nÃ y?")) return;
+        if (!confirm("Xác nhận xóa bản ghi này?")) return;
         try {
             await invoke("delete_content_item", { itemId: id });
             fetchData();
@@ -15906,7 +15906,7 @@ export function DynamicContentManager({ projectId, contentType }: Props) {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                             <CADInput
-                                label="Báº£n ghi / Äá»‘i tÆ°á»£ng"
+                                label="Bản ghi / Đối tượng"
                                 value={itemName}
                                 onChange={setItemName}
                                 required
@@ -16103,10 +16103,10 @@ interface Props {
 type Step = "select" | "preview" | "mapping" | "importing" | "complete";
 
 const COMMON_FIELDS = {
-  name: ["tÃªn", "name", "label", "Ä‘á»‘i tÆ°á»£ng", "title"],
-  lat: ["vÄ© Ä‘á»™", "latitude", "lat", "y", "vi_do"],
-  lon: ["kinh Ä‘á»™", "longitude", "lon", "lng", "x", "kinh_do"],
-  order: ["stt", "thá»© tá»±", "order", "no", "id", "sá»‘ thá»© tá»±"]
+  name: ["tên", "name", "label", "đối tượng", "title"],
+  lat: ["vĩ độ", "latitude", "lat", "y", "vi_do"],
+  lon: ["kinh độ", "longitude", "lon", "lng", "x", "kinh_do"],
+  order: ["stt", "thứ tự", "order", "no", "id", "số thứ tự"]
 };
 
 export function ImportDialog({ onClose, onSuccess }: Props) {
@@ -16313,9 +16313,9 @@ export function ImportDialog({ onClose, onSuccess }: Props) {
               <div className="grid gap-4">
                 {[
                   { label: "STT (Order)", key: "order_column" as const },
-                  { label: "Name (TÃªn)", key: "name_column" as const },
-                  { label: "Latitude (VÄ© Ä‘á»™)", key: "lat_column" as const },
-                  { label: "Longitude (Kinh Ä‘á»™)", key: "lng_column" as const },
+                  { label: "Name (Tên)", key: "name_column" as const },
+                  { label: "Latitude (Vĩ độ)", key: "lat_column" as const },
+                  { label: "Longitude (Kinh độ)", key: "lng_column" as const },
                 ].map((field) => (
                   <div key={field.key} className="flex items-center gap-4 p-3 bg-surface-50 border border-surface-200 rounded-xl">
                     <span className="text-sm font-medium text-surface-700 w-32 shrink-0">{field.label}</span>
@@ -16334,7 +16334,7 @@ export function ImportDialog({ onClose, onSuccess }: Props) {
               </div>
 
               <p className="text-[10px] text-surface-500 bg-surface-50 p-3 rounded-lg border border-surface-200">
-                â„¹ï¸ Unmapped columns will be stored as additional attributes in the object's info.
+                ℹ️ Unmapped columns will be stored as additional attributes in the object's info.
               </p>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-surface-200/50">
@@ -16753,9 +16753,9 @@ export function MaterialManager({ projectId }: Props) {
         isOpen={deleteModalConfig.isOpen}
         onClose={() => setDeleteModalConfig({ ...deleteModalConfig, isOpen: false })}
         onConfirm={confirmDelete}
-        title="XÃ¡c nháº­n xÃ³a váº­t tÆ°"
+        title="Xác nhận xóa vật tư"
         itemName={deleteModalConfig.itemName}
-        message="Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a váº­t tÆ° nÃ y khá»i kho? HÃ nh Ä‘á»™ng nÃ y cÃ³ thá»ƒ áº£nh hÆ°á»Ÿng Ä‘áº¿n cÃ¡c dá»± Ã¡n Ä‘ang sá»­ dá»¥ng váº­t tÆ° nÃ y."
+        message="Bạn có chắc chắn muốn xóa vật tư này khỏi kho? Hành động này có thể ảnh hưởng đến các dự án đang sử dụng vật tư này."
       />
     </div>
   );
@@ -16944,7 +16944,7 @@ export function GlobalSearchV2() {
                     type="text"
                     value={query}
                     onChange={(e) => handleSearch(e.target.value)}
-                    placeholder="TÃ¬m kiáº¿m tÃ i liá»‡u (FTS5)..."
+                    placeholder="Tìm kiếm tài liệu (FTS5)..."
                     className="w-full bg-black/40 border border-cad-border/50 rounded-sm py-1.5 pl-9 pr-8 text-xs text-white placeholder:text-cad-text-muted/50 focus:outline-none focus:border-cad-accent transition-colors"
                 />
                 {query && (
@@ -16978,7 +16978,7 @@ export function GlobalSearchV2() {
             )}
 
             {searching && (
-                <div className="mt-1 text-[10px] text-cad-accent animate-pulse px-1">Äang tÃ¬m kiáº¿m...</div>
+                <div className="mt-1 text-[10px] text-cad-accent animate-pulse px-1">Đang tìm kiếm...</div>
             )}
         </div>
     );
@@ -17057,7 +17057,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                             <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em]">System Online</span>
                         </div>
                         <h1 className="text-3xl font-display font-black tracking-tighter uppercase">
-                            Dashboard <span className="text-cad-accent">Trung tÃ¢m</span>
+                            Dashboard <span className="text-cad-accent">Trung tâm</span>
                         </h1>
                         <div className="flex items-center gap-2 text-cad-text-muted">
                             <Calendar size={14} />
@@ -17072,13 +17072,13 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                         >
                             <div className="absolute inset-0 bg-cad-accent/10 translate-y-full group-hover:translate-y-0 transition-transform" />
                             <FolderOpen size={14} className="relative z-10 group-hover:text-cad-accent" />
-                            <span className="relative z-10">Má»ž Dá»° ÃN (.PMP)</span>
+                            <span className="relative z-10">MỞ DỰ ÁN (.PMP)</span>
                         </button>
                         <button
                             onClick={onShowCreate}
                             className="px-5 py-2 bg-cad-accent hover:bg-white text-black text-[10px] font-black rounded-sm transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.3)]"
                         >
-                            <Plus size={14} /> Táº O Dá»° ÃN Má»šI
+                            <Plus size={14} /> TẠO DỰ ÁN MỚI
                         </button>
                     </div>
                 </div>
@@ -17087,28 +17087,28 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatsCard
                         icon={Briefcase}
-                        label="Tá»•ng dá»± Ã¡n"
+                        label="Tổng dự án"
                         value={stats.total}
-                        description="Táº¥t cáº£ Workspaces"
+                        description="Tất cả Workspaces"
                         color="text-cad-accent"
                     />
                     <StatsCard
                         icon={CheckCircle2}
-                        label="Dá»± Ã¡n Active"
+                        label="Dự án Active"
                         value={stats.active}
-                        description="Sáºµn sÃ ng lÃ m viá»‡c"
+                        description="Sẵn sàng làm việc"
                         color="text-emerald-500"
                     />
                     <StatsCard
                         icon={Clock}
-                        label="Cáº­p nháº­t cuá»‘i"
+                        label="Cập nhật cuối"
                         value={stats.lastUpdate}
                         description={stats.lastProject}
                         color="text-amber-500"
                     />
                     <StatsCard
                         icon={Layers}
-                        label="PhÃ¢n há»‡"
+                        label="Phân hệ"
                         value="4"
                         description="Design/Contract/Impl"
                         color="text-blue-500"
@@ -17119,7 +17119,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 <div className="space-y-4">
                     <div className="flex items-center gap-3 border-l-4 border-cad-accent pl-4 py-1">
                         <LayoutGrid className="text-cad-text-secondary" size={18} />
-                        <h2 className="font-display font-bold tracking-widest text-sm uppercase">Dá»± Ã¡n gáº§n Ä‘Ã¢y</h2>
+                        <h2 className="font-display font-bold tracking-widest text-sm uppercase">Dự án gần đây</h2>
                     </div>
 
                     <div className="bg-cad-elevated/5 border border-cad-border p-2">
@@ -17331,7 +17331,7 @@ export const ProjectMainView: React.FC<ProjectMainViewProps> = ({
                     <div className="flex-1 flex items-center justify-center bg-cad-bg font-sans">
                         <div className="flex flex-col items-center gap-4">
                             <div className="w-12 h-12 border-4 border-cad-accent border-t-transparent rounded-full animate-spin"></div>
-                            <p className="text-cad-accent font-black text-xs uppercase tracking-widest animate-pulse">ÄANG PHÃ‚N TÃCH Há»¢P Äá»’NG...</p>
+                            <p className="text-cad-accent font-black text-xs uppercase tracking-widest animate-pulse">ĐANG PHÂN TÍCH HỢP ĐỒNG...</p>
                         </div>
                     </div>
                 );
@@ -17470,7 +17470,7 @@ export function ProjectOverlayLayer({
             {draggingPaletteId && (
                 <div className="fixed top-0 right-0 bottom-0 w-[400px] bg-cad-accent/10 border-l-2 border-dashed border-cad-accent z-[150] pointer-events-none animate-pulse flex items-center justify-center">
                     <div className="bg-cad-bg/80 px-4 py-2 border border-cad-accent text-cad-accent text-[10px] font-black uppercase tracking-widest rounded-sm shadow-xl">
-                        Tháº£ Ä‘á»ƒ gáº¯n báº£ng (Dock)
+                        Thả để gắn bảng (Dock)
                     </div>
                 </div>
             )}
@@ -17648,9 +17648,9 @@ export const RecentWorkspaces: React.FC<RecentWorkspacesProps> = ({
                         <div className="w-16 h-16 bg-cad-surface rounded-full flex items-center justify-center mb-6 border border-cad-border">
                             <Briefcase className="text-cad-text-secondary w-8 h-8" />
                         </div>
-                        <h3 className="text-cad-text font-display font-bold uppercase tracking-widest mb-3">WORKSPACES TRá»NG</h3>
+                        <h3 className="text-cad-text font-display font-bold uppercase tracking-widest mb-3">WORKSPACES TRỐNG</h3>
                         <p className="text-cad-text-secondary text-xs max-w-md leading-relaxed mb-8">
-                            Danh sÃ¡ch dá»± Ã¡n gáº§n Ä‘Ã¢y Ä‘Ã£ Ä‘Æ°á»£c lÃ m má»›i. Dá»¯ liá»‡u cá»§a báº¡n váº«n an toÃ n trong tá»‡p <code className="text-cad-accent">.pmp</code> trÃªn mÃ¡y tÃ­nh. HÃ£y nháº¥n nÃºt bÃªn dÆ°á»›i Ä‘á»ƒ má»Ÿ láº¡i.
+                            Danh sách dự án gần đây đã được làm mới. Dữ liệu của bạn vẫn an toàn trong tệp <code className="text-cad-accent">.pmp</code> trên máy tính. Hãy nhấn nút bên dưới để mở lại.
                         </p>
 
                         <div className="flex gap-4">
@@ -17659,7 +17659,7 @@ export const RecentWorkspaces: React.FC<RecentWorkspacesProps> = ({
                                 className="px-6 py-2 bg-cad-accent text-black text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all flex items-center gap-2"
                             >
                                 <FileIcon size={12} />
-                                Má»Ÿ tá»‡p .PMP Ä‘Ã£ cÃ³
+                                Mở tệp .PMP đã có
                             </button>
 
                             <button
@@ -17667,7 +17667,7 @@ export const RecentWorkspaces: React.FC<RecentWorkspacesProps> = ({
                                 className="px-6 py-2 bg-cad-surface border border-cad-border text-cad-text-primary text-[10px] font-black uppercase tracking-widest hover:bg-cad-elevated transition-all flex items-center gap-2"
                             >
                                 <Loader2 size={12} className="text-cad-accent" />
-                                KhÃ´i phá»¥c tá»« System Config
+                                Khôi phục từ System Config
                             </button>
                         </div>
                     </div>
@@ -17688,7 +17688,7 @@ export const RecentWorkspaces: React.FC<RecentWorkspacesProps> = ({
                                         <button
                                             onClick={(e) => onDeleteProject(e, p)}
                                             className="p-1 text-cad-text-muted hover:text-red-500 hover:bg-red-500/10 rounded transition-all"
-                                            title="XÃ³a dá»± Ã¡n khá»i danh sÃ¡ch"
+                                            title="Xóa dự án khỏi danh sách"
                                         >
                                             <Trash2 size={14} />
                                         </button>
@@ -18256,7 +18256,7 @@ export function ProjectTasksSidebar({ tasks, onAdd, onAddGroup, onDrop, onSelect
                                     isOpen: true,
                                     id: g.id,
                                     itemName: g.name,
-                                    message: "Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a nhÃ³m nÃ y vÃ  táº¥t cáº£ cÃ¡c má»¥c bÃªn trong? HÃ nh Ä‘á»™ng nÃ y khÃ´ng thá»ƒ hoÃ n tÃ¡c."
+                                    message: "Bạn có chắc chắn muốn xóa nhóm này và tất cả các mục bên trong? Hành động này không thể hoàn tác."
                                  });
                               }}
                               className="text-cad-text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -18285,7 +18285,7 @@ export function ProjectTasksSidebar({ tasks, onAdd, onAddGroup, onDrop, onSelect
                                        isOpen: true,
                                        id: t.id,
                                        itemName: t.name,
-                                       message: "Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a má»¥c nÃ y?"
+                                       message: "Bạn có chắc chắn muốn xóa mục này?"
                                     });
                                  }}
                                  className="text-cad-text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -18322,7 +18322,7 @@ export function ProjectTasksSidebar({ tasks, onAdd, onAddGroup, onDrop, onSelect
                   setDeleteModalConfig({ ...deleteModalConfig, isOpen: false });
                }
             }}
-            title="XÃ¡c nháº­n xÃ³a"
+            title="Xác nhận xóa"
             itemName={deleteModalConfig.itemName}
             message={deleteModalConfig.message}
          />
@@ -19040,9 +19040,9 @@ export const useCamera = ({ onCapture, watermarkData }: UseCameraProps) => {
       const lineHeight = fontSize * 1.5;
       
       const lines = [
-        watermarkData?.location ? `ðŸ“ Tá»a Ä‘á»™: ${watermarkData.location[0].toFixed(6)}, ${watermarkData.location[1].toFixed(6)}` : null,
-        `â° Thá»i gian: ${timestamp}`,
-        `ðŸ¢ Äá»‘i tÆ°á»£ng: ${watermarkData?.label || 'N/A'}`
+        watermarkData?.location ? `📍 Tọa độ: ${watermarkData.location[0].toFixed(6)}, ${watermarkData.location[1].toFixed(6)}` : null,
+        `⏰ Thời gian: ${timestamp}`,
+        `🏢 Đối tượng: ${watermarkData?.label || 'N/A'}`
       ].filter(Boolean) as string[];
 
       const boxWidth = Math.min(canvas.width * 0.8, 600);
@@ -19687,10 +19687,10 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
     }, [hasValidProject, project, projectId, projectPath, loadFileTree, loadBOM]);
 
     const handleFileSelect = useCallback(async (path: string, name: string, extension?: string, activeTab?: string) => {
-        if (name === "Báº£ng dá»¯ liá»‡u há»£p Ä‘á»“ng" || name === "Tá»•ng há»£p chi tiáº¿t (Local)") {
+        if (name === "Bảng dữ liệu hợp đồng" || name === "Tổng hợp chi tiết (Local)") {
             setAnalysisData(null);
             setSelectedFile({ name, type: 'excel', path });
-            setViewMode(name === "Báº£ng dá»¯ liá»‡u há»£p Ä‘á»“ng" ? 'global-bom' : 'global-summary');
+            setViewMode(name === "Bảng dữ liệu hợp đồng" ? 'global-bom' : 'global-summary');
             setAnalyzing(true);
             await loadBOM(false);
             setAnalyzing(false);
@@ -19741,7 +19741,7 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
                 end_date: newData.end_date
             });
         } catch (err) {
-            logger.error("Lá»—i Ä‘á»“ng bá»™ dá»¯ liá»‡u:", err);
+            logger.error("Lỗi đồng bộ dữ liệu:", err);
         } finally {
             setAnalyzing(false);
         }
@@ -19768,9 +19768,9 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
             }
             loadContracts();
             if (onProjectUpdate) onProjectUpdate();
-            logger.sync("ÄÃ£ Ä‘á»“ng bá»™ hÃ³a dá»¯ liá»‡u thÃ nh cÃ´ng!");
+            logger.sync("Đã đồng bộ hóa dữ liệu thành công!");
         } catch (err) {
-            logger.error("Lá»—i Ä‘á»“ng bá»™ dá»¯ liá»‡u:", err);
+            logger.error("Lỗi đồng bộ dữ liệu:", err);
         }
     }, [projectId, selectedFile?.path, loadContracts, onProjectUpdate]);
 
@@ -20056,10 +20056,10 @@ export function useProjectManager() {
             }
 
             console.warn("[useProjectManager] Failed to load PMP: Project not loadable or busy. Path:", selectedPath);
-            alert("KhÃ´ng thá»ƒ náº¡p tá»‡p PMP. Tá»‡p cÃ³ thá»ƒ Ä‘ang trá»‘ng hoáº·c Ä‘ang Ä‘Æ°á»£c má»Ÿ bá»Ÿi má»™t tiáº¿n trÃ¬nh khÃ¡c.");
+            alert("Không thể nạp tệp PMP. Tệp có thể đang trống hoặc đang được mở bởi một tiến trình khác.");
         } catch (e) {
             console.error("Error opening PMP:", e);
-            alert("Lá»—i há»‡ thá»‘ng khi náº¡p tá»‡p PMP. Vui lÃ²ng kiá»ƒm tra láº¡i Ä‘Æ°á»ng dáº«n.");
+            alert("Lỗi hệ thống khi nạp tệp PMP. Vui lòng kiểm tra lại đường dẫn.");
         }
 
         return false;
@@ -20095,7 +20095,7 @@ export function useProjectManager() {
             setProjectToDelete(null);
         } catch (err) {
             console.error("Failed to delete project:", err);
-            alert("Lá»—i khi xÃ³a dá»± Ã¡n.");
+            alert("Lỗi khi xóa dự án.");
         }
     };
 
@@ -20109,13 +20109,13 @@ export function useProjectManager() {
                     .filter((project): project is Project => project !== null);
                 setProjects(normalizedProjects);
                 localStorage.setItem("recent_pmps", JSON.stringify(normalizedProjects));
-                alert(`ÄÃ£ khÃ´i phá»¥c thÃ nh cÃ´ng ${config.recent_pmps.length} dá»± Ã¡n tá»« cáº¥u hÃ¬nh há»‡ thá»‘ng.`);
+                alert(`Đã khôi phục thành công ${config.recent_pmps.length} dự án từ cấu hình hệ thống.`);
             } else {
-                alert("Cáº¥u hÃ¬nh há»‡ thá»‘ng chÆ°a cÃ³ thÃ´ng tin dá»± Ã¡n cÅ©.");
+                alert("Cấu hình hệ thống chưa có thông tin dự án cũ.");
             }
         } catch (err) {
             console.error("Restore error:", err);
-            alert("Lá»—i khi khÃ´i phá»¥c tá»« backend.");
+            alert("Lỗi khi khôi phục từ backend.");
         }
     };
 
@@ -20219,9 +20219,9 @@ export function useRibbonActions(project?: Project | null) {
         try {
             const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
             const label = view;
-            let title = view === 'print' ? 'Thiáº¿t láº­p in áº¥n & Xuáº¥t báº£n há»“ sÆ¡' :
-                view === 'contract_analysis' ? 'PhÃ¢n tÃ­ch há»£p Ä‘á»“ng & BOM - AI Assistant' :
-                    'Báº£ng phÃ¢n tÃ­ch dá»¯ liá»‡u - Analysis';
+            let title = view === 'print' ? 'Thiết lập in ấn & Xuất bản hồ sơ' :
+                view === 'contract_analysis' ? 'Phân tích hợp đồng & BOM - AI Assistant' :
+                    'Bảng phân tích dữ liệu - Analysis';
 
             const width = view === 'print' ? 1100 : 1200;
             const height = view === 'print' ? 900 : 800;
@@ -20383,7 +20383,7 @@ export function useWasmRenderer(
     // For now, let's keep the logic or update it to use rendererRef.current
   }, [designMapState]);
 
-  // Khá»Ÿi táº¡o WASM WGPU Renderer
+  // Khởi tạo WASM WGPU Renderer
   useEffect(() => {
     let isWasmInitializing = false;
 
@@ -20463,7 +20463,7 @@ export function useWasmRenderer(
         renderLoop();
       } catch (err: any) {
         if (isMounted.current) {
-          console.error("Lá»—i khá»Ÿi táº¡o WASM/WGPU:", err);
+          console.error("Lỗi khởi tạo WASM/WGPU:", err);
           const errStr = err?.toString?.() ?? String(err);
 
           if (!useWebglFallback && errStr.includes("WGPU Failed to initialize on WebGPU backend")) {
@@ -20611,7 +20611,7 @@ import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
     tabManager: persistentMultipleTabManager(),
-    cacheSizeBytes: 104857600 // Giá»›i háº¡n cache 100 MB Ä‘á»ƒ trÃ¡nh quÃ¡ táº£i WebView2 trÃªn Windows
+    cacheSizeBytes: 104857600 // Giới hạn cache 100 MB để tránh quá tải WebView2 trên Windows
   })
 });
 ```
@@ -20633,19 +20633,19 @@ import {
 import { MapState, FeatureState } from '@CONTRACT/types';
 
 /**
- * Push metadata (regions, layers, groups) lÃªn Firestore project document
+ * Push metadata (regions, layers, groups) lên Firestore project document
  */
 export const pushStateToFirestore = async (projectId: number, state: MapState) => {
   try {
     const docRef = doc(db, 'design_projects', projectId.toString());
     
-    // Chá»‰ láº¥y cÃ¡c trÆ°á»ng liÃªn quan Ä‘áº¿n thiáº¿t káº¿ (Whitelisting)
+    // Chỉ lấy các trường liên quan đến thiết kế (Whitelisting)
     const features = state.features || {};
     
     const payload: any = {
       projectId,
       updatedAt: new Date().toISOString(),
-      // Chá»‰ Ä‘áº©y pháº§n thiáº¿t káº¿ (Design data only)
+      // Chỉ đẩy phần thiết kế (Design data only)
       regions: state.regions || {},
       layers: state.layers || {},
       feature_groups: state.feature_groups || {},
@@ -20657,12 +20657,12 @@ export const pushStateToFirestore = async (projectId: number, state: MapState) =
 
     await setDoc(docRef, payload, { merge: true });
     
-    // Sau khi push metadata thÃ nh cÃ´ng, push features theo batch
+    // Sau khi push metadata thành công, push features theo batch
     if (Object.keys(features).length > 0) {
        await pushFeaturesToFirestore(projectId, features);
        
-       // CRITICAL: XÃ³a field features á»Ÿ doc chÃ­nh sau khi Ä‘Ã£ vÃ o subcollection (migration cleanup)
-       // Äiá»u nÃ y ngÄƒn cháº·n viá»‡c dá»¯ liá»‡u cÅ© (legacy) bá»‹ kÃ©o vá» vÃ  merge ngÆ°á»£c láº¡i.
+       // CRITICAL: Xóa field features ở doc chính sau khi đã vào subcollection (migration cleanup)
+       // Điều này ngăn chặn việc dữ liệu cũ (legacy) bị kéo về và merge ngược lại.
        console.log(`[Sync] Cleaning up legacy features field from main doc for project ${projectId}`);
        await setDoc(docRef, { features: deleteField() }, { merge: true });
     }
@@ -20673,7 +20673,7 @@ export const pushStateToFirestore = async (projectId: number, state: MapState) =
 };
 
 /**
- * Push danh sÃ¡ch features lÃªn subcollection theo batch
+ * Push danh sách features lên subcollection theo batch
  */
 export const pushFeaturesToFirestore = async (projectId: number, features: Record<string, FeatureState>) => {
   const chunks = [];
@@ -20702,7 +20702,7 @@ export const pushFeaturesToFirestore = async (projectId: number, features: Recor
 };
 
 /**
- * Láº¯ng nghe thay Ä‘á»•i tá»« Firestore (Metadata + Features subcollection)
+ * Lắng nghe thay đổi từ Firestore (Metadata + Features subcollection)
  */
 export const subscribeToProjectState = (
   projectId: number, 
@@ -20721,9 +20721,9 @@ export const subscribeToProjectState = (
 
   const notify = () => {
     if (currentMetadata) {
-      // Logic merge: Æ¯u tiÃªn dá»¯ liá»‡u tá»« subcollection. 
-      // Chá»‰ láº¥y legacy (doc chÃ­nh) náº¿u subcollection hoÃ n toÃ n trá»‘ng (Ä‘á»ƒ support migration láº§n Ä‘áº§u).
-      // Náº¿u subcollection Ä‘Ã£ cÃ³ dá»¯ liá»‡u, coi nhÆ° migration Ä‘Ã£ xong vÃ  bá» qua legacy features.
+      // Logic merge: Ưu tiên dữ liệu từ subcollection.
+      // Chỉ lấy legacy (doc chính) nếu subcollection hoàn toàn trống (để support migration lần đầu).
+      // Nếu subcollection đã có dữ liệu, coi như migration đã xong và bỏ qua legacy features.
       const hasSubFeatures = Object.keys(subcollectionFeatures).length > 0;
       const combinedFeatures = hasSubFeatures ? subcollectionFeatures : legacyFeatures;
       
@@ -20743,7 +20743,7 @@ export const subscribeToProjectState = (
     metaPending = docSnap.metadata.hasPendingWrites;
     if (docSnap.exists()) {
       const data = docSnap.data() as any;
-      // Láº¥y legacy features náº¿u cÃ²n tá»“n táº¡i trong field cá»§a doc chÃ­nh
+      // Lấy legacy features nếu còn tồn tại trong field của doc chính
       legacyFeatures = data.features || {};
       
       const { features: _f, ...metadataOnly } = data;
@@ -20778,7 +20778,7 @@ export const subscribeToProjectState = (
 };
 
 /**
- * XÃ³a má»™t feature khá»i Firestore
+ * Xóa một feature khỏi Firestore
  */
 export const deleteFeatureFromFirestore = async (projectId: number, featureId: string) => {
   try {
@@ -20788,7 +20788,7 @@ export const deleteFeatureFromFirestore = async (projectId: number, featureId: s
     const batch = writeBatch(db);
     batch.delete(featRef);
     
-    // Äá»“ng thá»i cáº­p nháº­t updatedAt vÃ  giáº£m featureCount á»Ÿ main doc (optional but good)
+    // Đồng thời cập nhật updatedAt và giảm featureCount ở main doc (optional but good)
     batch.set(projectRef, { updatedAt: new Date().toISOString() }, { merge: true });
     
     await batch.commit();
@@ -20799,7 +20799,7 @@ export const deleteFeatureFromFirestore = async (projectId: number, featureId: s
 };
 
 /**
- * XÃ³a danh sÃ¡ch features khá»i Firestore theo batch
+ * Xóa danh sách features khỏi Firestore theo batch
  */
 export const deleteFeaturesFromFirestoreBatch = async (projectId: number, featureIds: string[]) => {
   if (featureIds.length === 0) return;
@@ -20831,38 +20831,38 @@ export const deleteFeaturesFromFirestoreBatch = async (projectId: number, featur
 };
 
 /**
- * So sÃ¡nh vÃ  dá»n dáº¹p toÃ n bá»™ dá»¯ liá»‡u trÃªn Cloud khÃ´ng cÃ³ á»Ÿ Local
- * DÃ¹ng cho chá»©c nÄƒng "Verify & Repair Sync"
+ * So sánh và dọn dẹp toàn bộ dữ liệu trên Cloud không có ở Local
+ * Dùng cho chức năng "Verify & Repair Sync"
  */
 export const forceGlobalCleanup = async (projectId: number, localState: MapState) => {
   try {
     const projectRef = doc(db, 'design_projects', projectId.toString());
     const featuresCol = collection(projectRef, 'features');
     
-    // Äáº£m báº£o localState cÃ³ features
+    // Đảm bảo localState có features
     const localFeatures = localState.features || {};
     const localIds = new Set(Object.keys(localFeatures));
     
     console.log(`[Sync] Starting global cleanup for project ${projectId}. Local features: ${localIds.size}`);
     
-    // 1. Láº¥y táº¥t cáº£ feature IDs hiá»‡n cÃ³ trÃªn Cloud
+    // 1. Lấy tất cả feature IDs hiện có trên Cloud
     const querySnap = await getDocs(featuresCol);
     const cloudDocs = querySnap.docs.map(d => ({ docId: d.id, dataId: (d.data() as any).id }));
     
-    // 2. XÃ¡c Ä‘á»‹nh cÃ¡c ID khÃ´ng tá»“n táº¡i á»Ÿ Local
-    // - d.docId khÃ´ng cÃ³ trong localIds
-    // - HOáº¶C d.docId khÃ¡c d.dataId (Ä‘Ã¢y lÃ  dupe rÃ¡c do lá»—i sync cÅ©)
-    // - HOáº¶C cÃ³ nhiá»u docId cÃ¹ng trá» vá» 1 dataId (chá»‰ giá»¯ cÃ¡i chÃ­nh docId === dataId)
+    // 2. Xác định các ID không tồn tại ở Local
+    // - d.docId không có trong localIds
+    // - HOẶC d.docId khác d.dataId (đây là dupe rác do lỗi sync cũ)
+    // - HOẶC có nhiều docId cùng trỏ về 1 dataId (chỉ giữ cái chính docId === dataId)
     const seenDataIds = new Set<string>();
     const orphanDocIds = cloudDocs
       .filter(d => {
-        // Náº¿u docId khÃ´ng thuá»™c localIds -> XÃ³a
+        // Nếu docId không thuộc localIds -> Xóa
         if (!localIds.has(d.docId)) return true;
         
-        // Náº¿u docId != dataId -> ÄÃ¢y lÃ  báº£n copy lá»—i -> XÃ³a
+        // Nếu docId != dataId -> Đây là bản copy lỗi -> Xóa
         if (d.docId !== d.dataId) return true;
         
-        // Náº¿u dataId Ä‘Ã£ tháº¥y tá»« document trÆ°á»›c Ä‘Ã³ (dupe cÃ¹ng ID) -> XÃ³a
+        // Nếu dataId đã thấy từ document trước đó (dupe cùng ID) -> Xóa
         if (seenDataIds.has(d.dataId)) return true;
         
         seenDataIds.add(d.dataId);
@@ -20877,7 +20877,7 @@ export const forceGlobalCleanup = async (projectId: number, localState: MapState
       console.log(`[Sync] No orphan documents found on cloud.`);
     }
     
-    // 3. XÃ³a Legacy field 'features' á»Ÿ doc chÃ­nh (náº¿u cÃ²n)
+    // 3. Xóa Legacy field 'features' ở doc chính (nếu còn)
     await setDoc(projectRef, { features: deleteField() }, { merge: true });
     
     console.log(`[Sync] Global cleanup finished. Deleted: ${orphanDocIds.length}`);
@@ -20900,30 +20900,30 @@ const resources = {
   vi: {
     translation: {
       "common": {
-        "loading": "Äang táº£i...",
-        "save": "LÆ°u",
-        "delete": "XÃ³a",
-        "cancel": "Há»§y",
-        "confirm": "XÃ¡c nháº­n",
-        "search": "TÃ¬m kiáº¿m"
+        "loading": "Đang tải...",
+        "save": "Lưu",
+        "delete": "Xóa",
+        "cancel": "Hủy",
+        "confirm": "Xác nhận",
+        "search": "Tìm kiếm"
       },
       "project": {
-        "tasks": "CÃ´ng viá»‡c",
-        "notes": "Ghi chÃº",
-        "files": "Tá»‡p tin",
-        "contracts": "Há»£p Ä‘á»“ng",
-        "design": "Thiáº¿t káº¿",
-        "resources": "TÃ i nguyÃªn",
-        "operate": "Váº­n hÃ nh"
+        "tasks": "Công việc",
+        "notes": "Ghi chú",
+        "files": "Tệp tin",
+        "contracts": "Hợp đồng",
+        "design": "Thiết kế",
+        "resources": "Tài nguyên",
+        "operate": "Vận hành"
       },
       "task": {
-        "todo": "Cáº§n lÃ m",
-        "doing": "Äang lÃ m",
-        "done": "HoÃ n thÃ nh",
-        "add_task": "ThÃªm cÃ´ng viá»‡c",
-        "new_group": "NhÃ³m má»›i",
-        "description": "MÃ´ táº£",
-        "timeline": "Tiáº¿n trÃ¬nh"
+        "todo": "Cần làm",
+        "doing": "Đang làm",
+        "done": "Hoàn thành",
+        "add_task": "Thêm công việc",
+        "new_group": "Nhóm mới",
+        "description": "Mô tả",
+        "timeline": "Tiến trình"
       }
     }
   },
@@ -20979,30 +20979,30 @@ export default i18n;
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 
 /**
- * Má»™t wrapper an toÃ n cho Tauri invoke.
- * Náº¿u khÃ´ng á»Ÿ trong mÃ´i trÆ°á»ng Tauri (váº¿t cáº¯t undefined), nÃ³ sáº½ log lá»—i thay vÃ¬ lÃ m sáº­p app.
+ * Một wrapper an toàn cho Tauri invoke.
+ * Nếu không ở trong môi trường Tauri (vết cắt undefined), nó sẽ log lỗi thay vì làm sập app.
  */
 export async function safeInvoke<T>(command: string, args?: any): Promise<T> {
   try {
-    // Kiá»ƒm tra xem chÃºng ta cÃ³ Ä‘ang á»Ÿ trong mÃ´i trÆ°á»ng Tauri khÃ´ng
-    // ThÆ°á»ng Tauri inject window.__TAURI_INTERNALS__ hoáº·c cÃ¡c biáº¿n tÆ°Æ¡ng tá»±
+    // Kiểm tra xem chúng ta có đang ở trong môi trường Tauri không
+    // Thường Tauri inject window.__TAURI_INTERNALS__ hoặc các biến tương tự
     const isTauri = !!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__;
     
     if (!isTauri) {
       console.warn(`[Tauri SafeInvoke] Command '${command}' skipped: Not running in Tauri environment.`);
-      // Tráº£ vá» má»™t fallback há»£p lÃ½ cho cÃ¡c command quan trá»ng
+      // Trả về một fallback hợp lý cho các command quan trọng
       if (command === "get_projects") return [] as any;
       if (command === "get_app_config") return { recent_pmps: [] } as any;
       
-      throw new Error("KhÃ´ng á»Ÿ trong mÃ´i trÆ°á»ng Tauri.");
+      throw new Error("Không ở trong môi trường Tauri.");
     }
 
     return await tauriInvoke<T>(command, args);
   } catch (error) {
     console.error(`[Tauri SafeInvoke Error] command: ${command}`, error);
-    // Náº¿u lÃ  lá»—i "window.rpc is undefined" hoáº·c tÆ°Æ¡ng tá»±, nÃ³ thÆ°á»ng nghÄ©a lÃ  Tauri chÆ°a inject xong
+    // Nếu là lỗi "window.rpc is undefined" hoặc tương tự, nó thường nghĩa là Tauri chưa inject xong
     if (String(error).includes("undefined")) {
-       console.error("Gá»£i Ã½: Tauri API chÆ°a sáºµn sÃ ng. HÃ£y Ä‘áº£m báº£o báº¡n Ä‘ang cháº¡y app báº±ng 'npm run tauri dev'");
+       console.error("Gợi ý: Tauri API chưa sẵn sàng. Hãy đảm bảo bạn đang chạy app bằng 'npm run tauri dev'");
     }
     throw error;
   }
@@ -21098,17 +21098,17 @@ export const analysisService = {
           const lowerKey = key.toLowerCase();
           const stringVal = String(val);
 
-          if (lowerKey === 'tÃªn' || lowerKey === 'name') {
+          if (lowerKey === 'tên' || lowerKey === 'name') {
             if (feature.name !== stringVal) {
               newName = stringVal;
               hasChanges = true;
             }
-          } else if (lowerKey === 'mÃ´ táº£' || lowerKey === 'description') {
+          } else if (lowerKey === 'mô tả' || lowerKey === 'description') {
             if (currentMeta.description !== stringVal) {
               currentMeta.description = stringVal;
               hasChanges = true;
             }
-          } else if (lowerKey === 'mÃ£ hiá»‡u (stt)' || lowerKey === 'display_order' || lowerKey === 'stt') {
+          } else if (lowerKey === 'mã hiệu (stt)' || lowerKey === 'display_order' || lowerKey === 'stt') {
             if (currentMeta.display_order !== stringVal) {
               currentMeta.display_order = stringVal;
               hasChanges = true;
@@ -21219,12 +21219,12 @@ export const exportProjectData = async (projectState: MapState, projectName: str
 
   if (!filePath) return; // User cancelled
 
-  startExport('Äang chuáº©n bá»‹ dá»¯ liá»‡u bÃ¡o cÃ¡o...');
-  updateProgress(5, 'Äang chuáº©n bá»‹ dá»¯ liá»‡u bÃ¡o cÃ¡o...');
+  startExport('Đang chuẩn bị dữ liệu báo cáo...');
+  updateProgress(5, 'Đang chuẩn bị dữ liệu báo cáo...');
 
   try {
     // 2. Generate Excel (.xlsx) -> Add to MAIN ZIP
-    updateProgress(10, 'Äang táº¡o báº£ng Excel metadata...');
+    updateProgress(10, 'Đang tạo bảng Excel metadata...');
     const excelData = prepareExcelData(projectState);
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
@@ -21232,11 +21232,11 @@ export const exportProjectData = async (projectState: MapState, projectName: str
     // Add Project Info sheet if info is available
     if (projectInfo) {
       const projectSheetData = [
-        { "TrÆ°á»ng": "TÃªn dá»± Ã¡n", "GiÃ¡ trá»‹": projectInfo.name },
-        { "TrÆ°á»ng": "ID dá»± Ã¡n", "GiÃ¡ trá»‹": projectInfo.id },
-        { "TrÆ°á»ng": "ÄÆ°á»ng dáº«n", "GiÃ¡ trá»‹": projectInfo.path },
-        { "TrÆ°á»ng": "Thá»i gian xuáº¥t", "GiÃ¡ trá»‹": format(new Date(), 'dd/MM/yyyy HH:mm:ss') },
-        { "TrÆ°á»ng": "Tá»•ng sá»‘ Ä‘á»‘i tÆ°á»£ng", "GiÃ¡ trá»‹": Object.keys(projectState.features).length }
+        { "Trường": "Tên dự án", "Giá trị": projectInfo.name },
+        { "Trường": "ID dự án", "Giá trị": projectInfo.id },
+        { "Trường": "Đường dẫn", "Giá trị": projectInfo.path },
+        { "Trường": "Thời gian xuất", "Giá trị": format(new Date(), 'dd/MM/yyyy HH:mm:ss') },
+        { "Trường": "Tổng số đối tượng", "Giá trị": Object.keys(projectState.features).length }
       ];
       const projectSheet = XLSX.utils.json_to_sheet(projectSheetData);
       XLSX.utils.book_append_sheet(workbook, projectSheet, "Project Info");
@@ -21245,20 +21245,20 @@ export const exportProjectData = async (projectState: MapState, projectName: str
     XLSX.utils.book_append_sheet(workbook, worksheet, "Metadata");
     const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
     mainZip.file(`Metadata_${timestamp}.xlsx`, excelBuffer);
-    updateProgress(20, 'ÄÃ£ táº¡o xong Excel.');
+    updateProgress(20, 'Đã tạo xong Excel.');
 
     // 3. Generate KML (.kml) -> Add to KMZ ZIP
-    updateProgress(25, 'Äang táº¡o dá»¯ liá»‡u báº£n Ä‘á»“ KMZ...');
+    updateProgress(25, 'Đang tạo dữ liệu bản đồ KMZ...');
     const kmlContent = generateKML(projectState, projectName, projectInfo);
     kmzZip.file("doc.kml", kmlContent);
-    updateProgress(30, 'ÄÃ£ táº¡o xong KML cÆ¡ sá»Ÿ.');
+    updateProgress(30, 'Đã tạo xong KML cơ sở.');
 
     // 4. Process Images -> Add to BOTH
     const mainImgFolder = mainZip.folder("Image");
     const kmzImgFolder = kmzZip.folder("images");
 
     if (mainImgFolder && kmzImgFolder) {
-      updateProgress(35, 'Äang xá»­ lÃ½ hÃ¬nh áº£nh hiá»‡n trÆ°á»ng...');
+      updateProgress(35, 'Đang xử lý hình ảnh hiện trường...');
       await processAndAddImages(projectState, [mainImgFolder, kmzImgFolder], (prog, text) => {
         // Map image processing (0-100) to overall progress (35-85)
         const overallProg = 35 + (prog * 0.5);
@@ -21267,16 +21267,16 @@ export const exportProjectData = async (projectState: MapState, projectName: str
     }
 
     // 5. Finalize KMZ and Add to Main ZIP
-    updateProgress(85, 'Äang Ä‘Ã³ng gÃ³i file KMZ...');
+    updateProgress(85, 'Đang đóng gói file KMZ...');
     const kmzContent = await kmzZip.generateAsync({ type: "uint8array" });
     mainZip.file(`${projectName}.kmz`, kmzContent);
 
     // 6. Generate and Save MAIN ZIP via Tauri
-    updateProgress(90, 'Äang nÃ©n dá»¯ liá»‡u ZIP cuá»‘i cÃ¹ng...');
+    updateProgress(90, 'Đang nén dữ liệu ZIP cuối cùng...');
     console.log("[Export] Generating MAIN ZIP content...");
     const finalContent = await mainZip.generateAsync({ type: "uint8array" });
 
-    updateProgress(95, `Äang lÆ°u file vÃ o há»‡ thá»‘ng (Size: ${(finalContent.length / (1024 * 1024)).toFixed(2)} MB)...`);
+    updateProgress(95, `Đang lưu file vào hệ thống (Size: ${(finalContent.length / (1024 * 1024)).toFixed(2)} MB)...`);
     console.log(`[Export] ZIP generated, size: ${finalContent.length} bytes. Saving to ${filePath}...`);
 
     await invoke('save_binary_file', {
@@ -21284,7 +21284,7 @@ export const exportProjectData = async (projectState: MapState, projectName: str
       data: finalContent
     });
 
-    updateProgress(100, 'HoÃ n táº¥t! Cáº¥u trÃºc ZIP phÃ¢n cáº¥p Ä‘Ã£ Ä‘Æ°á»£c lÆ°u.');
+    updateProgress(100, 'Hoàn tất! Cấu trúc ZIP phân cấp đã được lưu.');
     console.log(`[Export] Successfully saved to ${filePath}`);
     finishExport();
   } catch (error: any) {
@@ -21314,10 +21314,10 @@ const generateKML = (state: MapState, projectName: string, projectInfo?: Project
     <name>${safeProjectName}</name>
     <description>
       <![CDATA[
-        Dá»± Ã¡n: ${projectName}
+        Dự án: ${projectName}
         ID: ${projectInfo?.id || 'N/A'}
-        ÄÆ°á»ng dáº«n: ${projectInfo?.path || 'N/A'}
-        NgÃ y xuáº¥t: ${format(new Date(), 'dd/MM/yyyy HH:mm:ss')}
+        Đường dẫn: ${projectInfo?.path || 'N/A'}
+        Ngày xuất: ${format(new Date(), 'dd/MM/yyyy HH:mm:ss')}
       ]]>
     </description>`;
 
@@ -21363,14 +21363,14 @@ const processAndAddImages = async (
   const totalFeatures = features.length;
 
   if (totalFeatures === 0) {
-    onProgress?.(100, "KhÃ´ng cÃ³ hÃ¬nh áº£nh Ä‘á»ƒ xá»­ lÃ½.");
+    onProgress?.(100, "Không có hình ảnh để xử lý.");
     return;
   }
 
   for (let idx = 0; idx < totalFeatures; idx++) {
     const f = features[idx];
     const progressPercent = (idx / totalFeatures) * 100;
-    onProgress?.(progressPercent, `Äang xá»­ lÃ½ áº£nh: ${f.name || 'Feature'} (${idx + 1}/${totalFeatures})...`);
+    onProgress?.(progressPercent, `Đang xử lý ảnh: ${f.name || 'Feature'} (${idx + 1}/${totalFeatures})...`);
 
     let metadata: any = {};
     try {
@@ -21401,7 +21401,7 @@ const processAndAddImages = async (
       });
     }
   }
-  onProgress?.(100, "ÄÃ£ xá»­ lÃ½ xong táº¥t cáº£ hÃ¬nh áº£nh.");
+  onProgress?.(100, "Đã xử lý xong tất cả hình ảnh.");
 };
 ```
 
@@ -21665,7 +21665,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const authErr = err as AuthError;
       let msg = authErr.message;
       if (authErr.code === 'auth/invalid-credential') {
-        msg = "Email hoáº·c máº­t kháº©u khÃ´ng Ä‘Ãºng. Náº¿u báº¡n chÆ°a cÃ³ tÃ i khoáº£n, hÃ£y nháº¥n 'Create One' á»Ÿ bÃªn dÆ°á»›i.";
+        msg = "Email hoặc mật khẩu không đúng. Nếu bạn chưa có tài khoản, hãy nhấn 'Create One' ở bên dưới.";
       }
       set({ error: msg, loading: false });
     }
@@ -22834,7 +22834,7 @@ export const useDesignSync = create<DesignSyncStore>((set, get) => ({
       isLoading: currentlyLoading
     } = get();
 
-    // V10: Cáº£i thiá»‡n GUARD logic Ä‘á»ƒ xá»­ lÃ½ reload tá»‘t hÆ¡n
+    // V10: Cải thiện GUARD logic để xử lý reload tốt hơn
     if (
       currentProjectId === projectId &&
       currentState &&
@@ -22851,8 +22851,8 @@ export const useDesignSync = create<DesignSyncStore>((set, get) => ({
     set({
       isLoading: true,
       error: null,
-      // Giá»¯ state cÅ© náº¿u lÃ  cÃ¹ng ID Ä‘á»ƒ trÃ¡nh nháº¥p nhÃ¡y, 
-      // nhÆ°ng reset null náº¿u lÃ  dá»± Ã¡n má»›i Ä‘á»ƒ DrawingExplorer hiá»‡n Loading
+      // Giữ state cũ nếu là cùng ID để tránh nhấp nháy,
+      // nhưng reset null nếu là dự án mới để DrawingExplorer hiện Loading
       state: currentProjectId === projectId ? currentState : null,
       projectId,
       projectPath,
@@ -22885,7 +22885,7 @@ export const useDesignSync = create<DesignSyncStore>((set, get) => ({
           logger.sync(`[Sync] Force loading project from: ${projectPath}`);
           await invoke('load_pmp_file', { path: projectPath });
         } else {
-          throw new Error(`PhiÃªn lÃ m viá»‡c cho dá»± Ã¡n ${projectId} Ä‘Ã£ káº¿t thÃºc. Vui lÃ²ng má»Ÿ láº¡i tá»‡p.`);
+          throw new Error(`Phiên làm việc cho dự án ${projectId} đã kết thúc. Vui lòng mở lại tệp.`);
         }
       }
 
@@ -22923,11 +22923,11 @@ export const useDesignSync = create<DesignSyncStore>((set, get) => ({
       if (initializeRequestId !== latestInitializeRequestId) return;
 
       if (!state) {
-        throw new Error("KhÃ´ng thá»ƒ náº¡p dá»¯ liá»‡u báº£n váº½ tá»« backend.");
+        throw new Error("Không thể nạp dữ liệu bản vẽ từ backend.");
       }
 
       const tDone = performance.now();
-      logger.info(`[Store] âœ… Hydration completed in ${(tDone - tStart).toFixed(1)}ms for project ${projectId}`);
+      logger.info(`[Store] ✅ Hydration completed in ${(tDone - tStart).toFixed(1)}ms for project ${projectId}`);
 
       set({
         state,
@@ -22960,7 +22960,7 @@ export const useDesignSync = create<DesignSyncStore>((set, get) => ({
       }
 
       logger.error(`[Store] Hydration error for project ${projectId} (${normalizedProjectKey}): ${err}`);
-      logger.error(`[Store] âŒ Hydration error for project ${projectId}: ${err}`);
+      logger.error(`[Store] ❌ Hydration error for project ${projectId}: ${err}`);
       localStorage.removeItem('lastProjectId'); // Fix: prevent reload loop on corruption
       set({ isLoading: false, error: String(err) });
     }
@@ -22999,7 +22999,7 @@ export const useDesignSync = create<DesignSyncStore>((set, get) => ({
       get().applyEventsOptimistically([event]);
       set({ pendingSync: true, error: null });
 
-      console.log(`[Sync] ðŸš€ Dispatching ${event.type} to Rust (Incremental)...`, event.payload);
+      console.log(`[Sync] 🚀 Dispatching ${event.type} to Rust (Incremental)...`, event.payload);
 
       const response = await invokeDesignEventBatch(projectId, [event]);
 
@@ -23008,7 +23008,7 @@ export const useDesignSync = create<DesignSyncStore>((set, get) => ({
       return;
       /*
  
-      console.log(`[Sync] âœ… Backend processed ${event.type}. Patching local state...`);
+      console.log(`[Sync] ✅ Backend processed ${event.type}. Patching local state...`);
  
       const currentState = get().state;
       if (!currentState) return;
@@ -23092,7 +23092,7 @@ export const useDesignSync = create<DesignSyncStore>((set, get) => ({
  
       get().throttledSetState(newState);
       set({ pendingSync: false }); // Reset pendingSync to allow map rendering
-      // ThÃªm flag source Ä‘á»ƒ listener khÃ´ng tá»± loop
+      // Thêm flag source để listener không tự loop
       emit('sync-map-state', { state: newState, source: 'user-action' });
  
       // Still need full sync for Firestore if complex (delayed)
@@ -23256,7 +23256,7 @@ export const useDesignSync = create<DesignSyncStore>((set, get) => ({
 
     set({ state: newState, pendingSync: queuedPalettePersistCount > 0 });
     scheduleCloudSync(get().projectId!, newState);
-    console.log(`[Sync] âœ… Patch applied for ${newState.lastEventId}`);
+    console.log(`[Sync] ✅ Patch applied for ${newState.lastEventId}`);
   },
 
   applyQueuedAckToState: (response: DesignActionResponse | DesignBulkActionResponse) => {
@@ -23397,7 +23397,7 @@ export const useDesignSync = create<DesignSyncStore>((set, get) => ({
 
     events.forEach(apply);
     set({ state: newState });
-    console.log(`[Sync] ðŸš€ Optimistic update applied for ${events.length} events`);
+    console.log(`[Sync] 🚀 Optimistic update applied for ${events.length} events`);
   },
 
   dispatchEvents: async (events: DesignEventType[]) => {
@@ -23583,12 +23583,12 @@ if (typeof window !== 'undefined') {
     const { projectId } = useDesignSync.getState();
     const source = event.payload.source || 'other-window';
 
-    // GUARD: TrÃ¡nh tá»± loop khi nháº­n chÃ­nh event mÃ¬nh gá»­i
+    // GUARD: Tránh tự loop khi nhận chính event mình gửi
     if (source === 'user-action' || source === 'main-window') {
       return;
     }
 
-    console.log(`[Sync] ðŸ“¥ Received state broadcast for project ${projectId} from ${source}`);
+    console.log(`[Sync] 📥 Received state broadcast for project ${projectId} from ${source}`);
 
     useDesignSync.setState({
       state: event.payload.state,
@@ -23639,7 +23639,7 @@ export const useExportStore = create<ExportState>((set) => ({
   progress: 0,
   statusText: '',
   error: null,
-  startExport: (initialText = 'Äang khá»Ÿi táº¡o quÃ¡ trÃ¬nh xuáº¥t...') => set({
+  startExport: (initialText = 'Đang khởi tạo quá trình xuất...') => set({
     isExporting: true,
     progress: 0,
     statusText: initialText,
@@ -23706,11 +23706,11 @@ export const useLayoutStore = create<LayoutState>()(
             layoutColumns: [['spec-panel', 'summary-panel', 'camera-view', 'device-config', 'bulk-edit']],
             activePaletteId: null,
             paletteConfigs: {
-                'spec-panel': { id: 'spec-panel', title: 'ThÃ´ng sá»‘ thiáº¿t káº¿', icon: 'Settings', isPinned: true, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } },
-                'summary-panel': { id: 'summary-panel', title: 'Tá»•ng há»£p khá»‘i lÆ°á»£ng', icon: 'Calculator', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
-                'device-config': { id: 'device-config', title: 'Cáº¥u hÃ¬nh thiáº¿t bá»‹', icon: 'Camera', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
-                'camera-view': { id: 'camera-view', title: 'GÃ³c NhÃ¬n', icon: 'Video', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
-                'bulk-edit': { id: 'bulk-edit', title: 'Chá»‰nh sá»­a hÃ ng loáº¡t', icon: 'Layers', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
+                'spec-panel': { id: 'spec-panel', title: 'Thông số thiết kế', icon: 'Settings', isPinned: true, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } },
+                'summary-panel': { id: 'summary-panel', title: 'Tổng hợp khối lượng', icon: 'Calculator', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
+                'device-config': { id: 'device-config', title: 'Cấu hình thiết bị', icon: 'Camera', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
+                'camera-view': { id: 'camera-view', title: 'Góc Nhìn', icon: 'Video', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
+                'bulk-edit': { id: 'bulk-edit', title: 'Chỉnh sửa hàng loạt', icon: 'Layers', isPinned: true, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
             },
             draggingPaletteId: null,
             showPerformanceOverlay: true,
@@ -23919,11 +23919,11 @@ export const useLayoutStore = create<LayoutState>()(
                     if (state.paletteConfigs) {
                         if (state.paletteConfigs['property-manager']) {
                             const oldConfig = state.paletteConfigs['property-manager'];
-                            state.paletteConfigs['spec-panel'] = { ...oldConfig, id: 'spec-panel', title: 'ThÃ´ng sá»‘ thiáº¿t káº¿', icon: 'Settings' };
+                            state.paletteConfigs['spec-panel'] = { ...oldConfig, id: 'spec-panel', title: 'Thông số thiết kế', icon: 'Settings' };
                             delete state.paletteConfigs['property-manager'];
                         }
                         if (!state.paletteConfigs['summary-panel']) {
-                            state.paletteConfigs['summary-panel'] = { id: 'summary-panel', title: 'Tá»•ng há»£p khá»‘i lÆ°á»£ng', icon: 'Calculator', isPinned: false, isVisible: true, width: 350, isFloating: false, position: { x: 100, y: 120 } };
+                            state.paletteConfigs['summary-panel'] = { id: 'summary-panel', title: 'Tổng hợp khối lượng', icon: 'Calculator', isPinned: false, isVisible: true, width: 350, isFloating: false, position: { x: 100, y: 120 } };
                         }
                     }
                     version = 1;
@@ -23943,11 +23943,11 @@ export const useLayoutStore = create<LayoutState>()(
                 if (version === 2) {
                     // version 2 to 3: ensure all palettes exist in paletteConfigs
                     const defaultConfigs: any = {
-                        'spec-panel': { id: 'spec-panel', title: 'ThÃ´ng sá»‘ thiáº¿t káº¿', icon: 'Settings', isPinned: false, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } },
-                        'summary-panel': { id: 'summary-panel', title: 'Tá»•ng há»£p khá»‘i lÆ°á»£ng', icon: 'Calculator', isPinned: false, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } },
-                        'device-config': { id: 'device-config', title: 'Cáº¥u hÃ¬nh thiáº¿t bá»‹', icon: 'Camera', isPinned: false, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
-                        'camera-view': { id: 'camera-view', title: 'GÃ³c NhÃ¬n', icon: 'Video', isPinned: false, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } },
-                        'bulk-edit': { id: 'bulk-edit', title: 'Chá»‰nh sá»­a hÃ ng loáº¡t', icon: 'Layers', isPinned: false, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } }
+                        'spec-panel': { id: 'spec-panel', title: 'Thông số thiết kế', icon: 'Settings', isPinned: false, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } },
+                        'summary-panel': { id: 'summary-panel', title: 'Tổng hợp khối lượng', icon: 'Calculator', isPinned: false, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } },
+                        'device-config': { id: 'device-config', title: 'Cấu hình thiết bị', icon: 'Camera', isPinned: false, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } },
+                        'camera-view': { id: 'camera-view', title: 'Góc Nhìn', icon: 'Video', isPinned: false, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } },
+                        'bulk-edit': { id: 'bulk-edit', title: 'Chỉnh sửa hàng loạt', icon: 'Layers', isPinned: false, isVisible: false, width: 350, isFloating: false, position: { x: 0, y: 0 } }
                     };
 
                     if (!state.paletteConfigs) state.paletteConfigs = {};
@@ -23983,14 +23983,14 @@ export const useLayoutStore = create<LayoutState>()(
 
                     if (state.paletteConfigs && state.paletteConfigs['camera-view']) {
                         state.paletteConfigs['camera-view'].isVisible = true;
-                        state.paletteConfigs['camera-view'].title = 'GÃ³c NhÃ¬n';
+                        state.paletteConfigs['camera-view'].title = 'Góc Nhìn';
                     }
                     version = 4;
                 }
 
                 if (version === 4) {
                     // version 4 to 5: Robust fix for 'camera-view'
-                    const cameraViewConfig = { id: 'camera-view', title: 'GÃ³c NhÃ¬n', icon: 'Video', isPinned: false, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } };
+                    const cameraViewConfig = { id: 'camera-view', title: 'Góc Nhìn', icon: 'Video', isPinned: false, isVisible: true, width: 350, isFloating: false, position: { x: 0, y: 0 } };
 
                     if (!state.paletteConfigs) state.paletteConfigs = {};
 
@@ -24000,7 +24000,7 @@ export const useLayoutStore = create<LayoutState>()(
                         ...(state.paletteConfigs['camera-view'] || {})
                     };
                     state.paletteConfigs['camera-view'].isVisible = true;
-                    state.paletteConfigs['camera-view'].title = 'GÃ³c NhÃ¬n';
+                    state.paletteConfigs['camera-view'].title = 'Góc Nhìn';
 
                     // Force layout injection
                     if (state.layoutColumns) {
@@ -24801,8 +24801,8 @@ export function cn(...inputs: ClassValue[]) {
 
 ```ts
 /**
- * Cáº¥u hÃ¬nh tham sá»‘ há»‡ tá»a Ä‘á»™.
- * Dá»± Ã¡n hiá»‡n chá»‰ sá»­ dá»¥ng WGS84 cho toÃ n bá»™ cÃ¡c Ä‘á»‘i tÆ°á»£ng.
+ * Cấu hình tham số hệ tọa độ.
+ * Dự án hiện chỉ sử dụng WGS84 cho toàn bộ các đối tượng.
  */
 
 export const COORDINATE_SYSTEM = 'WGS84';
@@ -24823,7 +24823,7 @@ export const safeTruncate = (val: any, limit: number = 30000) => {
   if (val === undefined || val === null) return 'N/A';
   let str = typeof val === 'string' ? val : JSON.stringify(val);
   if (str.length > limit) {
-    return str.substring(0, limit) + "... (Dá»¯ liá»‡u quÃ¡ dÃ i)";
+    return str.substring(0, limit) + "... (Dữ liệu quá dài)";
   }
   return str;
 };
@@ -24873,7 +24873,7 @@ export const flattenFeature = (f: FeatureState, state: MapState, preParsedMetada
   };
 
   // 1. Core technical fields
-  const sttKeys = ['STT', 'stt', 'MÃ£ hiá»‡u', 'Sá»‘ hiá»‡u', 'MÃ£', 'MÃ£ hiá»‡u (STT)'];
+  const sttKeys = ['STT', 'stt', 'Mã hiệu', 'Số hiệu', 'Mã', 'Mã hiệu (STT)'];
   const sttFromProps = findValue(f.properties, sttKeys);
   const sttFromMeta = findValue(metadata, sttKeys);
 
@@ -24950,12 +24950,12 @@ export const flattenFeature = (f: FeatureState, state: MapState, preParsedMetada
 
 export const designLogic = {
   /**
-   * TÃ­nh toÃ¡n suy hao Link Budget cÆ¡ báº£n cho tuyáº¿n cÃ¡p quang
-   * @param distanceKm Khoáº£ng cÃ¡ch tuyáº¿n (km)
-   * @param spliceCount Sá»‘ lÆ°á»£ng má»‘i ná»‘i
-   * @param connectorCount Sá»‘ lÆ°á»£ng Ä‘áº§u ná»‘i (connectors)
-   * @param fiberType Loáº¡i cÃ¡p (G.652, G.655...) - máº·c Ä‘á»‹nh G.652
-   * @returns Tá»•ng suy hao Æ°á»›c tÃ­nh (dB)
+   * Tính toán suy hao Link Budget cơ bản cho tuyến cáp quang
+   * @param distanceKm Khoảng cách tuyến (km)
+   * @param spliceCount Số lượng mối nối
+   * @param connectorCount Số lượng đầu nối (connectors)
+   * @param fiberType Loại cáp (G.652, G.655...) - mặc định G.652
+   * @returns Tổng suy hao ước tính (dB)
    */
   calculateFiberLinkBudget(
     distanceKm: number,
@@ -24974,7 +24974,7 @@ export const designLogic = {
   },
 
   /**
-   * TÃ­nh toÃ¡n khoáº£ng cÃ¡ch giá»¯a cÃ¡c Ä‘iá»ƒm chá»‘t
+   * Tính toán khoảng cách giữa các điểm chốt
    */
   calculateDistance(coords1: [number, number], coords2: [number, number]): number {
     const R = 6371; // Radius of the earth in km
@@ -25011,17 +25011,17 @@ export const INTERSECTION_ICON = 'intersection';
  * Display names for various object types
  */
 export const DISPLAY_TYPES = {
-    INTERSECTION: 'NÃºt giao',
+    INTERSECTION: 'Nút giao',
     CCTV: 'CCTV',
     PTZ: 'PTZ',
     SPEED: 'SPEED',
     LPR: 'LPR',
-    CABINET: 'Tá»§ thiáº¿t bá»‹',
-    PILLAR: 'Cá»™t/Trá»¥',
-    BRIDGE: 'Cáº§u/Háº§m',
-    POINT: 'Äiá»ƒm',
-    LINE: 'Tuyáº¿n',
-    POLYGON: 'VÃ¹ng',
+    CABINET: 'Tủ thiết bị',
+    PILLAR: 'Cột/Trụ',
+    BRIDGE: 'Cầu/Hầm',
+    POINT: 'Điểm',
+    LINE: 'Tuyến',
+    POLYGON: 'Vùng',
 } as const;
 
 /**
@@ -25051,7 +25051,7 @@ export const getFeatureDisplayType = (feature: any, groupType?: string, groupNam
     if (isPoint) {
         if (metaType) {
             if (metaType === 'INTERSECTION' || metaType === 'NUT_GIAO' || metaType === 'NÃšT GIAO') return DISPLAY_TYPES.INTERSECTION;
-            if (metaType === 'CAMERA' || metaType === 'CCTV' || metaType === 'Máº®T CAM') return DISPLAY_TYPES.CCTV;
+            if (metaType === 'CAMERA' || metaType === 'CCTV' || metaType === 'MẮT CAM') return DISPLAY_TYPES.CCTV;
             if (metaType === 'SPEED') return DISPLAY_TYPES.SPEED;
             if (metaType === 'LPR') return DISPLAY_TYPES.LPR;
             if (metaType === 'PTZ') return DISPLAY_TYPES.PTZ;
@@ -25073,7 +25073,7 @@ export const getFeatureDisplayType = (feature: any, groupType?: string, groupNam
 
         const isCamera = [lowerGType, lowerGName, lowerName].some(s =>
             s.includes('camera') || s.includes('cam') || s.includes('cctv') || s.includes('lpr') ||
-            s.includes('máº¯t cam') || s.includes('giÃ¡m sÃ¡t') || s.includes('quan sÃ¡t')
+            s.includes('mắt cam') || s.includes('giám sát') || s.includes('quan sát')
         );
         if (isCamera) {
             if (icon === 'ptz') return DISPLAY_TYPES.PTZ;
@@ -25085,7 +25085,7 @@ export const getFeatureDisplayType = (feature: any, groupType?: string, groupNam
         if (lowerGType.includes('intersection') || lowerGType.includes('nut_giao')) return DISPLAY_TYPES.INTERSECTION;
 
         const isCabinet = lowerGType.includes('cabinet') || lowerGType.includes('tu_thiet_bi') ||
-            lowerGName.includes('tá»§ thiáº¿t bá»‹') || lowerName.includes('tá»§ thiáº¿t bá»‹') || lowerName.includes('tá»§ cÃ¡p');
+            lowerGName.includes('tủ thiết bị') || lowerName.includes('tủ thiết bị') || lowerName.includes('tủ cáp');
         if (isCabinet) return DISPLAY_TYPES.CABINET;
 
         return DISPLAY_TYPES.POINT;
@@ -25268,7 +25268,7 @@ export const getCleanName = (feature: any, stt?: string): string => {
     const s = stt.trim();
     const n = name.trim();
 
-    // Normalization to handle matching "193" with "193.0 NÃºt giao"
+    // Normalization to handle matching "193" with "193.0 Nút giao"
     const normalizeForMatch = (val: string) => val.replace(/^0+/, '').replace(/\.0+$/, '').replace(/[\.\-:]+$/, '');
     const sNorm = normalizeForMatch(s);
     const nNorm = normalizeForMatch(n);
@@ -25303,20 +25303,20 @@ export const getCleanName = (feature: any, stt?: string): string => {
  */
 export const removeVietnameseTones = (str: string): string => {
     if (!str) return "";
-    str = str.replace(/Ã |Ã¡|áº¡|áº£|Ã£|Ã¢|áº§|áº¥|áº­|áº©|áº«|Äƒ|áº±|áº¯|áº·|áº³|áºµ/g, "a");
-    str = str.replace(/Ã¨|Ã©|áº¹|áº»|áº½|Ãª|á»|áº¿|á»‡|á»ƒ|á»…/g, "e");
-    str = str.replace(/Ã¬|Ã­|á»‹|á»‰|Ä©/g, "i");
-    str = str.replace(/Ã²|Ã³|á»|á»|Ãµ|Ã´|á»“|á»‘|á»™|á»•|á»—|Æ¡|á»|á»›|á»£|á»Ÿ|á»¡/g, "o");
-    str = str.replace(/Ã¹|Ãº|á»¥|á»§|Å©|Æ°|á»«|á»©|á»±|á»­|á»¯/g, "u");
-    str = str.replace(/á»³|Ã½|á»µ|á»·|á»¹/g, "y");
+    str = str.replace(/à|á|ạ|ả|ã|â|ầ|ấ|ậ|ẩ|ẫ|ă|ằ|ắ|ặ|ẳ|ẵ/g, "a");
+    str = str.replace(/è|é|ẹ|ẻ|ẽ|ê|ề|ế|ệ|ể|ễ/g, "e");
+    str = str.replace(/ì|í|ị|ỉ|ĩ/g, "i");
+    str = str.replace(/ò|ó|ọ|ỏ|õ|ô|ồ|ố|ộ|ổ|ỗ|ơ|ờ|ớ|ợ|ở|ỡ/g, "o");
+    str = str.replace(/ù|ú|ụ|ủ|ũ|ư|ừ|ứ|ự|ử|ữ/g, "u");
+    str = str.replace(/ỳ|ý|ỵ|ỷ|ỹ/g, "y");
     str = str.replace(/Ä‘/g, "d");
-    str = str.replace(/Ã€|Ã|áº |áº¢|Ãƒ|Ã‚|áº¦|áº¤|áº¬|áº¨|áºª|Ä‚|áº°|áº®|áº¶|áº²|áº´/g, "A");
-    str = str.replace(/Ãˆ|Ã‰|áº¸|áºº|áº¼|ÃŠ|á»€|áº¾|á»†|á»‚|á»„/g, "E");
-    str = str.replace(/ÃŒ|Ã|á»Š|á»ˆ|Ä¨/g, "I");
-    str = str.replace(/Ã’|Ã“|á»Œ|á»Ž|Ã•|Ã”|á»’|á»|á»˜|á»”|á»–|Æ |á»œ|á»š|á»¢|á»ž|á» /g, "O");
-    str = str.replace(/Ã™|Ãš|á»¤|á»¦|Å¨|Æ¯|á»ª|á»¨|á»°|á»¬|á»®/g, "U");
-    str = str.replace(/á»²|Ã|á»´|á»¶|á»¸/g, "Y");
-    str = str.replace(/Ä/g, "D");
+    str = str.replace(/À|Á|Ạ|Ả|Ã|Â|Ầ|Ấ|Ậ|Ẩ|Ẫ|Ă|Ằ|Ắ|Ặ|Ẳ|Ẵ/g, "A");
+    str = str.replace(/È|É|Ẹ|Ẻ|Ẽ|Ê|Ề|Ế|Ệ|Ể|Ễ/g, "E");
+    str = str.replace(/Ì|Í|Ị|Ỉ|Ĩ/g, "I");
+    str = str.replace(/Ò|Ó|Ọ|Ỏ|Õ|Ô|Ồ|Ố|Ộ|Ổ|Ỗ|Ơ|Ờ|Ớ|Ợ|Ở|Ỡ/g, "O");
+    str = str.replace(/Ù|Ú|Ụ|Ủ|Ũ|Ư|Ừ|Ứ|Ự|Ử|Ữ/g, "U");
+    str = str.replace(/Ỳ|Ý|Ỵ|Ỷ|Ỹ/g, "Y");
+    str = str.replace(/Đ/g, "D");
     str = str.replace(/\u0300|\u0301|\u0303|\u0309|\u0323/g, "");
     str = str.replace(/\u02C6|\u0306|\u031B/g, "");
     return str.replace(/ + /g, " ").trim();
@@ -25402,7 +25402,7 @@ export const isMatchSearch = (feature: any, query: string, featureNumbers?: Reco
     const meta = getParsedMetadata(feature);
     const sttValues = [
         meta.display_order, meta.stt, meta.STT, meta.code, meta.label, meta.type,
-        meta['MÃƒ HIá»†U (STT)'], meta['MÃ£ hiá»‡u (STT)'], meta['mÃ£ hiá»‡u (stt)']
+        meta['MÃ HIỆU (STT)'], meta['Mã hiệu (STT)'], meta['mã hiệu (stt)']
     ];
 
     for (const val of sttValues) {
@@ -25754,7 +25754,7 @@ export const initGoogleMaps = (apiKey?: string): boolean => {
     const finalKey = (apiKey || getGoogleMapsApiKey()).trim();
 
     if (!finalKey || finalKey.length < 20 || finalKey === 'undefined') {
-        console.error('[GoogleMapsLoader] âŒ Invalid API Key! Check VITE_GOOGLE_MAPS_API_KEY in .env');
+        console.error('[GoogleMapsLoader] ❌ Invalid API Key! Check VITE_GOOGLE_MAPS_API_KEY in .env');
         return false;
     }
 
@@ -25774,7 +25774,7 @@ export const initGoogleMaps = (apiKey?: string): boolean => {
         }
 
         if (!hasKey) {
-            console.warn('[GoogleMapsLoader] âš ï¸ Cleaning up stale Google Maps scripts...');
+            console.warn('[GoogleMapsLoader] ⚠️ Cleaning up stale Google Maps scripts...');
             existingScripts.forEach(s => s.remove());
             delete (window as any).google;
         }
@@ -26002,7 +26002,7 @@ const TEXT_FIELDS = [
 const cleanString = (value: string) => value.replace(/\s+/g, ' ').trim();
 
 /**
- * Äáº£m báº£o giÃ¡ trá»‹ tráº£ vá» lÃ  chuá»—i, xá»­ lÃ½ cÃ¡c trÆ°á»ng há»£p object Ä‘áº·c biá»‡t (nhÆ° Protobuf {@type, value})
+ * Đảm bảo giá trị trả về là chuỗi, xử lý các trường hợp object đặc biệt (như Protobuf {@type, value})
  */
 const safeString = (value: any): string => {
   if (value === null || value === undefined) return "";
@@ -26237,13 +26237,13 @@ export type NormalizedSelectionItem = {
   groupId: string;
 };
 
-// Cache Ä‘á»ƒ trÃ¡nh parse JSON láº·p láº¡i cho cÃ¹ng má»™t feature version
+// Cache để tránh parse JSON lặp lại cho cùng một feature version
 const coordCache = new Map<string, any>();
 
 export function parseCoordinates(feature: FeatureState): any | null {
   if (!feature) return null;
 
-  // Náº¿u coordinates Ä‘Ã£ lÃ  object/array thÃ¬ dÃ¹ng luÃ´n
+  // Nếu coordinates đã là object/array thì dùng luôn
   if (typeof feature.coordinates !== 'string') return feature.coordinates;
 
   const cacheKey = `${feature.id}_${(feature.coordinates as string).length}`;
@@ -26253,7 +26253,7 @@ export function parseCoordinates(feature: FeatureState): any | null {
   try {
     const parsed = JSON.parse(feature.coordinates);
     coordCache.set(cacheKey, parsed);
-    // Giá»›i háº¡n size cache
+    // Giới hạn size cache
     if (coordCache.size > 10000) {
       const keys = Array.from(coordCache.keys());
       for (let i = 0; i < 100; i++) coordCache.delete(keys[i]);
@@ -27280,7 +27280,7 @@ impl RendererState {
             .find(|f: &wgpu::TextureFormat| f.is_srgb())
             .unwrap_or(surface_caps.formats[0]);
 
-        // TÃ¬m kiáº¿m alpha mode phÃ¹ há»£p Ä‘á»ƒ há»— trá»£ transparency (há»£p nháº¥t vá»›i Leaflet)
+        // Tìm kiếm alpha mode phù hợp để hỗ trợ transparency (hợp nhất với Leaflet)
         let alpha_mode = if surface_caps
             .alpha_modes
             .contains(&wgpu::CompositeAlphaMode::PreMultiplied)
@@ -27923,47 +27923,47 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 fn main() {
-    println!("ðŸš€ Starting AI Performance Benchmark...");
+    println!("🚀 Starting AI Performance Benchmark...");
 
     let resource_dir = PathBuf::from("resources");
     let data_dir = PathBuf::from("local_data/models");
 
     let manager = AIManager::new();
-    println!("ðŸ“¦ Initializing AI Engine (Target: 2GB RAM Optimization)...");
+    println!("📦 Initializing AI Engine (Target: 2GB RAM Optimization)...");
     manager.init(resource_dir, data_dir);
 
     let mut phi3 = match manager.get_phi3_engine() {
         Ok(e) => e,
         Err(e) => {
-            eprintln!("âŒ Error initializing AI: {}", e);
+            eprintln!("❌ Error initializing AI: {}", e);
             return;
         }
     };
 
-    let test_prompt = "CÃ”NG TY ABC\nHá»¢P Äá»’NG KINH Táº¾\nÄiá»u 1: Thanh toÃ¡n 50% sau khi kÃ½. Äiá»u 2: HoÃ n thÃ nh vÃ o 30/12/2026.";
-    println!("ðŸ“ Test Prompt: {}", test_prompt);
+    let test_prompt = "CÃ”NG TY ABC\nHỢP ĐỒNG KINH TẾ\nĐiều 1: Thanh toán 50% sau khi ký. Điều 2: Hoàn thành vào 30/12/2026.";
+    println!("📝 Test Prompt: {}", test_prompt);
 
-    println!("ðŸ§  Running Inference (KV Caching active)...");
+    println!("🧠 Running Inference (KV Caching active)...");
     let start = Instant::now();
     let result = phi3.analyze_contract(test_prompt);
     let duration = start.elapsed();
 
     match result {
         Ok(text) => {
-            println!("âœ… Analysis Success!");
-            println!("ðŸ“„ Result:\n{}", text);
-            println!("â±ï¸ Total Time: {:?}", duration);
+            println!("✅ Analysis Success!");
+            println!("📄 Result:\n{}", text);
+            println!("⏱️ Total Time: {:?}", duration);
 
             let tokens_count = text.len() / 4;
             let tps = tokens_count as f64 / duration.as_secs_f64();
-            println!("ðŸ“Š Performance: ~{:.2} tokens/s", tps);
+            println!("📊 Performance: ~{:.2} tokens/s", tps);
         }
-        Err(e) => eprintln!("âŒ Inference Error: {}", e),
+        Err(e) => eprintln!("❌ Inference Error: {}", e),
     }
 
-    println!("ðŸ§¹ Releasing RAM...");
+    println!("🧹 Releasing RAM...");
     manager.shutdown();
-    println!("ðŸ Benchmark Finished.");
+    println!("🏁 Benchmark Finished.");
 }
 ```
 
@@ -28103,7 +28103,7 @@ pub struct DoriZone {
 
 use geo::Destination;
 
-/// Táº¡o vÃ¹ng DORI dáº¡ng Sector (Ráº» quáº¡t)
+/// Tạo vùng DORI dạng Sector (Rẻ quạt)
 pub fn generate_dori_sector(
     center: Point,
     heading_deg: f64,
@@ -28131,10 +28131,10 @@ pub fn generate_dori_sector(
     points
 }
 
-/// Chuyá»ƒn Ä‘á»•i rotation (Ä‘á»™ tá»« trá»¥c X/Y cá»§a UI) sang Heading (Ä‘á»™ tá»« phÆ°Æ¡ng Báº¯c Ä‘á»‹a lÃ½)
+/// Chuyển đổi rotation (độ từ trục X/Y của UI) sang Heading (độ từ phương Bắc địa lý)
 pub fn map_rotation_to_heading(rotation: f64) -> f64 {
-    // LÆ°u Ã½: Logic nÃ y phá»¥ thuá»™c vÃ o cÃ¡ch lÆ°u trá»¯ rotation trong DB.
-    // ThÆ°á»ng rotation = 0 lÃ  hÆ°á»›ng ÄÃ´ng (X+), Heading = 0 lÃ  hÆ°á»›ng Báº¯c (Y+).
+    // Lưu ý: Logic này phụ thuộc vào cách lưu trữ rotation trong DB.
+    // Thường rotation = 0 là hướng Đông (X+), Heading = 0 là hướng Bắc (Y+).
     // North (0) = rotation 90. East (90) = rotation 0.
     (90.0 - rotation + 360.0) % 360.0
 }
@@ -28276,7 +28276,7 @@ pub async fn get_project_dori_zones(
     for entry in state.features.iter() {
         let feature = entry.value();
 
-        // Cáº§n Ä‘áº£m báº£o Feature nÃ y lÃ  Camera
+        // Cần đảm bảo Feature này là Camera
         let is_camera = feature.properties.get("iconKey").and_then(|v| v.as_str()) == Some("cctv")
             || feature.metadata.contains("\"type\":\"camera\"");
 
@@ -28401,7 +28401,7 @@ pub fn eval_webview(app: tauri::AppHandle, label: String, script: String) -> Res
 pub fn get_webview_url(app: tauri::AppHandle, label: String) -> Result<String, String> {
     use tauri::Manager;
     if let Some(webview) = app.get_webview_window(&label) {
-        // Trong Tauri 2.0, WebviewWindow cÃ³ method url() tráº£ vá» Result<Url, Error>
+        // Trong Tauri 2.0, WebviewWindow có method url() trả về Result<Url, Error>
         webview
             .url()
             .map(|u| u.to_string())
@@ -28595,7 +28595,7 @@ pub async fn apply_camera_rotation_logic(
                 if let Ok(res) = heal.predict_camera_rotation(&feature_info, road_heading) {
                     final_compass_heading = res.angle;
                     log_automation(&format!(
-                        "AI Self-HEAL Prediction: {:.1}Â° (Math: {:.1}Â°), Reason: {:?}",
+                        "AI Self-HEAL Prediction: {:.1}° (Math: {:.1}°), Reason: {:?}",
                         res.angle, road_heading, res.reason
                     ));
                 }
@@ -28834,7 +28834,7 @@ pub async fn get_design_state(
     Ok(tauri::ipc::Response::new(blob))
 }
 
-/// Dá»¯ liá»‡u thÃ´ tá»« DB Ä‘á»ƒ reconstruct MapState
+/// Dữ liệu thô từ DB để reconstruct MapState
 pub struct RawProjectState {
     pub snapshot: Option<(Option<String>, String)>,
     pub events: Vec<(String, String)>,
@@ -28926,9 +28926,9 @@ pub fn fetch_project_state_data(
 
     let event_count = events.len();
     if event_count == 0 && snapshot.is_none() {
-        println!("[DB] âš ï¸ Warning: No drawing data (events or snapshots) found for project_id: {}", project_id);
+        println!("[DB] ⚠️ Warning: No drawing data (events or snapshots) found for project_id: {}", project_id);
     } else {
-        println!("[DB] ðŸ“Š Project State Data: Found {} events and {} snapshot for project_id: {}", 
+        println!("[DB] 📊 Project State Data: Found {} events and {} snapshot for project_id: {}",
             event_count, if snapshot.is_some() { "1" } else { "0" }, project_id);
     }
 
@@ -29712,7 +29712,7 @@ pub async fn load_design_state(
 
             if active_project_id == Some(project_id) && hydrated_project_id == Some(project_id) {
                 println!(
-                    "[Backend] [Timeline] âš¡ Reusing in-memory state for project {} (Fast path).",
+                    "[Backend] [Timeline] ⚡ Reusing in-memory state for project {} (Fast path).",
                     project_id
                 );
                 let snap = mem_arc.to_snapshot();
@@ -29725,14 +29725,14 @@ pub async fn load_design_state(
             let active_id = *active_id_arc.lock().unwrap();
             if let Some(active_id) = active_id {
                 if active_id != project_id {
-                    println!("[Backend] [V5.1] âš ï¸ Project ID Mismatch: Favoring Active Project {} over requested {}.", active_id, project_id);
+                    println!("[Backend] [V5.1] ⚠️ Project ID Mismatch: Favoring Active Project {} over requested {}.", active_id, project_id);
                     active_id
                 } else {
                     project_id
                 }
             } else {
-                // Sáº¿p nÃ³i: "Má»›i má»Ÿ app Ä‘Ã£ bá»‹ timeout" -> CÃ³ thá»ƒ load_pmp_file chÆ°a ká»‹p set active_id
-                println!("[Backend] [V5.1] âŒ No active project record found. Trying project_id: {}.", project_id);
+                // Sếp nói: "Mới mở app đã bị timeout" -> Có thể load_pmp_file chưa kịp set active_id
+                println!("[Backend] [V5.1] ❌ No active project record found. Trying project_id: {}.", project_id);
                 project_id
             }
         };
@@ -29745,7 +29745,7 @@ pub async fn load_design_state(
                     Ok(g) => {
                         // CRITICAL: Double check cancellation status IMMEDIATELY after getting lock
                         if indexing_id_arc.load(Ordering::SeqCst) != current_task_id {
-                            println!("[Backend] [Timeline] ðŸ›‘ Task ID mismatch (Cancelled) immediately after acquiring lock for project {}. Yielding.", project_id);
+                            println!("[Backend] [Timeline] 🛑 Task ID mismatch (Cancelled) immediately after acquiring lock for project {}. Yielding.", project_id);
                             return Err("CANCELLED".to_string());
                         }
                         break g;
@@ -29753,7 +29753,7 @@ pub async fn load_design_state(
                     Err(_) => {
                         retry_count += 1;
                         if retry_count > 100 { // Max 5 seconds (100 * 50ms)
-                            return Err("CÆ¡ sá»Ÿ dá»¯ liá»‡u báº­n. Vui lÃ²ng thá»­ láº¡i.".to_string());
+                            return Err("Cơ sở dữ liệu bận. Vui lòng thử lại.".to_string());
                         }
                         // Check if we were cancelled while waiting
                         if indexing_id_arc.load(Ordering::SeqCst) != current_task_id {
@@ -29763,13 +29763,13 @@ pub async fn load_design_state(
                     }
                 }
             };
-            println!("[Backend] [Timeline] ðŸ—ï¸ DB lock acquired for project {} after {:?} (Retry: {})", project_id, t_start.elapsed(), retry_count);
+            println!("[Backend] [Timeline] 🗝️ DB lock acquired for project {} after {:?} (Retry: {})", project_id, t_start.elapsed(), retry_count);
 
-            let conn = guard.as_ref().ok_or("Dá»± Ã¡n chÆ°a Ä‘Æ°á»£c má»Ÿ (No project opened)")?;
+            let conn = guard.as_ref().ok_or("Dự án chưa được mở (No project opened)")?;
             let t_fetch = std::time::Instant::now();
             let checker = Some((indexing_id_arc, current_task_id));
             let res = fetch_project_state_data(conn, target_id, checker);
-            println!("[Backend] [Timeline] ðŸ“‚ DB fetch completed in {:?}", t_fetch.elapsed());
+            println!("[Backend] [Timeline] 📂 DB fetch completed in {:?}", t_fetch.elapsed());
             res
         }?;
 
@@ -29778,11 +29778,11 @@ pub async fn load_design_state(
         {
             let mut hydrated_guard = hydrated_id_arc.lock().unwrap();
             if *hydrated_guard == Some(target_id) && !data.events.is_empty() {
-                 println!("[Backend] [Timeline] âš¡ State already hydrated by another thread. Skipping apply.");
+                 println!("[Backend] [Timeline] ⚡ State already hydrated by another thread. Skipping apply.");
             } else {
                 let t_apply = std::time::Instant::now();
                 apply_project_state_data(&mem_arc, data)?;
-                println!("[Backend] [Timeline] ðŸ§  State reconstruction completed in {:?}", t_apply.elapsed());
+                println!("[Backend] [Timeline] 🧠 State reconstruction completed in {:?}", t_apply.elapsed());
                 *hydrated_guard = Some(target_id);
             }
         }
@@ -29791,8 +29791,8 @@ pub async fn load_design_state(
         let t_serialize = std::time::Instant::now();
         let snap = mem_arc.to_snapshot();
         let result = bincode::serialize(&snap).map_err(|e| e.to_string());
-        println!("[Backend] [Timeline] ðŸ“¦ Serialization completed in {:?}", t_serialize.elapsed());
-        println!("[Backend] [Timeline] âœ… Total hydration (Cold start) for ID {} took {:?}", target_id, t_start.elapsed());
+        println!("[Backend] [Timeline] 📦 Serialization completed in {:?}", t_serialize.elapsed());
+        println!("[Backend] [Timeline] ✅ Total hydration (Cold start) for ID {} took {:?}", target_id, t_start.elapsed());
         
         result
     })
@@ -30230,15 +30230,15 @@ impl FeatureState {
         let road_kws = [
             "road",
             "street",
-            "Ä‘Æ°á»ng",
-            "tuyáº¿n",
+            "đường",
+            "tuyến",
             "Ä‘.",
             "ql",
             "tl",
             "hl",
-            "ngÃµ",
-            "ngÃ¡ch",
-            "phá»‘",
+            "ngõ",
+            "ngách",
+            "phố",
         ];
         let meta_str = self.metadata.to_lowercase();
         let group_str = self
@@ -32355,24 +32355,24 @@ use std::net::TcpListener;
 use crate::implement::modules::core::config::ConfigState;
 #[tauri::command]
 pub async fn google_login_flow() -> Result<String, String> {
-    println!("[OAuth] Báº¯t Ä‘áº§u luá»“ng Ä‘Äƒng nháº­p Google...");
+    println!("[OAuth] Bắt đầu luồng đăng nhập Google...");
     
     let client_id = dotenvy::var("VITE_GOOGLE_CLIENT_ID").map_err(|_| {
-        let err = "Lá»—i: KhÃ´ng tÃ¬m tháº¥y VITE_GOOGLE_CLIENT_ID trong file .env".to_string();
+        let err = "Lỗi: Không tìm thấy VITE_GOOGLE_CLIENT_ID trong file .env".to_string();
         println!("[OAuth] {}", err);
         err
     })?;
 
     let client_secret = dotenvy::var("VITE_GOOGLE_CLIENT_SECRET").map_err(|_| {
-        let err = "Lá»—i: KhÃ´ng tÃ¬m tháº¥y VITE_GOOGLE_CLIENT_SECRET trong file .env".to_string();
+        let err = "Lỗi: Không tìm thấy VITE_GOOGLE_CLIENT_SECRET trong file .env".to_string();
         println!("[OAuth] {}", err);
         err
     })?;
 
     // 1. Setup Loopback Listener on port 51376
-    println!("[OAuth] Khá»Ÿi táº¡o Listener táº¡i 127.0.0.1:51376...");
+    println!("[OAuth] Khởi tạo Listener tại 127.0.0.1:51376...");
     let listener = TcpListener::bind("127.0.0.1:51376").map_err(|e| {
-        let err = format!("Cá»•ng 51376 Ä‘ang bá»‹ chiáº¿m dá»¥ng hoáº·c khÃ´ng thá»ƒ truy cáº­p: {}. Vui lÃ²ng kiá»ƒm tra xem cÃ³ phiÃªn app khÃ¡c Ä‘ang cháº¡y khÃ´ng.", e);
+        let err = format!("Cổng 51376 đang bị chiếm dụng hoặc không thể truy cập: {}. Vui lòng kiểm tra xem có phiên app khác đang chạy không.", e);
         println!("[OAuth] {}", err);
         err
     })?;
@@ -32387,7 +32387,7 @@ pub async fn google_login_flow() -> Result<String, String> {
     );
 
     // 3. Open the browser
-    println!("[OAuth] Äang má»Ÿ trÃ¬nh duyá»‡t Ä‘á»ƒ Ä‘Äƒng nháº­p...");
+    println!("[OAuth] Đang mở trình duyệt để đăng nhập...");
     let _ = webbrowser::open(&auth_url);
 
     // 4. Capture authorization code with timeout
@@ -32397,7 +32397,7 @@ pub async fn google_login_flow() -> Result<String, String> {
 
         loop {
             if start.elapsed() > timeout {
-                return Err("Háº¿t thá»i gian chá» Ä‘Äƒng nháº­p (2 phÃºt). Vui lÃ²ng thá»­ láº¡i.".to_string());
+                return Err("Hết thời gian chờ đăng nhập (2 phút). Vui lòng thử lại.".to_string());
             }
 
             match listener.accept() {
@@ -32413,7 +32413,7 @@ pub async fn google_login_flow() -> Result<String, String> {
                                 let raw_code = after_code.split(&['&', ' '][..]).next().unwrap_or("");
                                 let decoded_code = urlencoding::decode(raw_code).unwrap_or_else(|_| std::borrow::Cow::Borrowed(raw_code)).into_owned();
                                 
-                                println!("[OAuth] ÄÃ£ nháº­n mÃ£ code thÃ nh cÃ´ng.");
+                                println!("[OAuth] Đã nhận mã code thành công.");
                                 
                                 let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n
                                     <html>
@@ -32422,9 +32422,9 @@ pub async fn google_login_flow() -> Result<String, String> {
                                             <div style=\"width: 64px; height: 64px; background: #00f2fe; border-radius: 1rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem;\">
                                                 <svg width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"black\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"20 6 9 17 4 12\"></polyline></svg>
                                             </div>
-                                            <h2 style=\"color: white; margin: 0 0 0.5rem; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em;\">XÃC THá»°C THÃ€NH CÃ”NG</h2>
-                                            <p style=\"color: #A0A0A0; font-size: 0.875rem; line-height: 1.5;\">Báº¡n Ä‘Ã£ Ä‘Äƒng nháº­p thÃ nh cÃ´ng. HÃ£y quay láº¡i á»©ng dá»¥ng Ä‘á»ƒ tiáº¿p tá»¥c lÃ m viá»‡c.</p>
-                                            <p style=\"color: #666; font-size: 0.75rem; margin-top: 2rem;\">Cá»­a sá»• nÃ y sáº½ tá»± Ä‘á»™ng Ä‘Ã³ng.</p>
+                                            <h2 style=\"color: white; margin: 0 0 0.5rem; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em;\">XÁC THỰC THÀNH CÔNG</h2>
+                                            <p style=\"color: #A0A0A0; font-size: 0.875rem; line-height: 1.5;\">Bạn đã đăng nhập thành công. Hãy quay lại ứng dụng để tiếp tục làm việc.</p>
+                                            <p style=\"color: #666; font-size: 0.75rem; margin-top: 2rem;\">Cửa sổ này sẽ tự động đóng.</p>
                                         </div>
                                         <script>setTimeout(() => window.close(), 2000);</script>
                                     </body>
@@ -32432,30 +32432,30 @@ pub async fn google_login_flow() -> Result<String, String> {
                                 let _ = stream.write_all(response.as_bytes());
                                 return Ok(decoded_code);
                             } else {
-                                let response = "HTTP/1.1 400 Bad Request\r\n\r\nLá»—i: KhÃ´ng tÃ¬m tháº¥y mÃ£ code xÃ¡c thá»±c.";
+                                let response = "HTTP/1.1 400 Bad Request\r\n\r\nLỗi: Không tìm thấy mã code xác thực.";
                                 let _ = stream.write_all(response.as_bytes());
-                                return Err("KhÃ´ng tÃ¬m tháº¥y code trong callback URL".to_string());
+                                return Err("Không tìm thấy code trong callback URL".to_string());
                             }
                         }
                         Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                             std::thread::sleep(std::time::Duration::from_millis(100));
                             continue;
                         }
-                        Err(e) => return Err(format!("Lá»—i Ä‘á»c stream: {}", e)),
+                        Err(e) => return Err(format!("Lỗi đọc stream: {}", e)),
                     }
                 }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     std::thread::sleep(std::time::Duration::from_millis(200));
                     continue;
                 }
-                Err(e) => return Err(format!("Lá»—i accept connection: {}", e)),
+                Err(e) => return Err(format!("Lỗi accept connection: {}", e)),
             }
         }
     }).await.map_err(|e| format!("Thread panic: {}", e))??;
 
 
     // 5. Exchange code for id_token
-    println!("[OAuth] Äang trao Ä‘á»•i mÃ£ code láº¥y ID Token tá»« Google...");
+    println!("[OAuth] Đang trao đổi mã code lấy ID Token từ Google...");
     let token_url = "https://oauth2.googleapis.com/token";
     
     let client = reqwest::Client::new();
@@ -32481,7 +32481,7 @@ pub async fn google_login_flow() -> Result<String, String> {
         .ok_or_else(|| format!("No id_token in response: {:?}", token_data))?
         .to_string();
 
-    println!("[OAuth] ÄÄƒng nháº­p thÃ nh cÃ´ng! ÄÃ£ cÃ³ ID Token.");
+    println!("[OAuth] Đăng nhập thành công! Đã có ID Token.");
     Ok(id_token)
 }
 
@@ -33769,24 +33769,24 @@ pub async fn move_fs_item(
     let target_parent = PathBuf::from(&target_parent_path);
 
     if !source.exists() {
-        return Err("Tá»‡p nguá»“n khÃ´ng tá»“n táº¡i".to_string());
+        return Err("Tệp nguồn không tồn tại".to_string());
     }
 
     if !target_parent.exists() || !target_parent.is_dir() {
-        return Err("ThÆ° má»¥c Ä‘Ã­ch khÃ´ng há»£p lá»‡".to_string());
+        return Err("Thư mục đích không hợp lệ".to_string());
     }
 
     let file_name = source
         .file_name()
-        .ok_or_else(|| "TÃªn tá»‡p khÃ´ng há»£p lá»‡".to_string())?;
+        .ok_or_else(|| "Tên tệp không hợp lệ".to_string())?;
     let target = target_parent.join(file_name);
 
     if target.exists() {
-        return Err("Tá»‡p hoáº·c thÆ° má»¥c Ä‘Ã£ tá»“n táº¡i á»Ÿ vá»‹ trÃ­ Ä‘Ã­ch".to_string());
+        return Err("Tệp hoặc thư mục đã tồn tại ở vị trí đích".to_string());
     }
 
     // Perform the physical move
-    std::fs::rename(&source, &target).map_err(|e| format!("KhÃ´ng thá»ƒ di chuyá»ƒn tá»‡p: {}", e))?;
+    std::fs::rename(&source, &target).map_err(|e| format!("Không thể di chuyển tệp: {}", e))?;
 
     // Update the database if the file/folder was tracked
     let guard = state.conn.lock().unwrap();
@@ -34723,8 +34723,8 @@ pub async fn search_pmp_v2(
     let conn_guard = db.conn.lock().map_err(|e| e.to_string())?;
     let conn = conn_guard.as_ref().ok_or("Database not connected")?;
 
-    // á»ž Ä‘Ã¢y ta cÃ³ thá»ƒ bá»c Connection hiá»‡n táº¡i vÃ o wrapper PmpDbV2 hoáº·c query trá»±c tiáº¿p
-    // VÃ¬ DatabaseState Ä‘ang giá»¯ raw rusqlite Connection, ta query trá»±c tiáº¿p cho nhanh
+    // Ở đây ta có thể bọc Connection hiện tại vào wrapper PmpDbV2 hoặc query trực tiếp
+    // Vì DatabaseState đang giữ raw rusqlite Connection, ta query trực tiếp cho nhanh
     let mut stmt = conn
         .prepare(
             r#"
@@ -35653,19 +35653,19 @@ pub fn recover_orphaned_rows(conn: &Connection, active_id: i64) -> Result<(), St
                 Ok(_) => {
                     total_recovered += orphan_count;
                     println!(
-                        "[DB] ðŸ”§ Recovery: Fixed {} orphaned rows in '{}' to project_id={}",
+                        "[DB] 🔧 Recovery: Fixed {} orphaned rows in '{}' to project_id={}",
                         orphan_count, table, active_id
                     );
                 }
                 Err(e) => {
-                    eprintln!("[DB] âŒ Recovery Failed for table '{}': {}", table, e);
+                    eprintln!("[DB] ❌ Recovery Failed for table '{}': {}", table, e);
                 }
             }
         }
     }
     if total_recovered > 0 {
         println!(
-            "[DB] âœ… Data recovery complete: {} rows restored to project_id={}",
+            "[DB] ✅ Data recovery complete: {} rows restored to project_id={}",
             total_recovered, active_id
         );
     }
@@ -35689,7 +35689,7 @@ pub fn deduplicate_projects(conn: &Connection) -> Result<(), String> {
     }
 
     println!(
-        "[DB] âš ï¸ Found {} project entries. Starting deduplication...",
+        "[DB] ⚠️ Found {} project entries. Starting deduplication...",
         rows.len()
     );
 
@@ -35791,7 +35791,7 @@ pub fn migrate_project_id(
                 table
             );
             if let Err(e) = tx.execute(&sql, params![active_id]) {
-                eprintln!("[DB] âš ï¸ Migration Warning for table '{}': {}", table, e);
+                eprintln!("[DB] ⚠️ Migration Warning for table '{}': {}", table, e);
             }
         }
 
@@ -36037,7 +36037,7 @@ pub fn open_project_db(
                     Err(_) => {
                         retry_count += 1;
                         if retry_count > 40 {
-                            return Err("Há»‡ thá»‘ng Ä‘ang báº­n xá»­ lÃ½ tÃ¡c vá»¥ cÅ©. Vui lÃ²ng thá»­ láº¡i sau vÃ i giÃ¢y (Timeout waiting for DB Lock).".to_string());
+                            return Err("Hệ thống đang bận xử lý tác vụ cũ. Vui lòng thử lại sau vài giây (Timeout waiting for DB Lock).".to_string());
                         }
                         std::thread::sleep(Duration::from_millis(50));
                     }
@@ -36068,11 +36068,11 @@ pub fn open_project_db(
     }
 
     if !db_path.exists() {
-        return Err(format!("Tá»‡p dá»± Ã¡n khÃ´ng tá»“n táº¡i: {:?}", db_path));
+        return Err(format!("Tệp dự án không tồn tại: {:?}", db_path));
     }
 
     if db_path.is_dir() {
-        return Err(format!("ÄÆ°á»ng dáº«n Ä‘Æ°á»£c chá»n lÃ  thÆ° má»¥c: {:?}", db_path));
+        return Err(format!("Đường dẫn được chọn là thư mục: {:?}", db_path));
     }
 
     let conn = Connection::open(&db_path)
@@ -36086,9 +36086,9 @@ pub fn open_project_db(
         .map_err(|e| {
             let err_msg = e.to_string();
             if err_msg.contains("code 14") || err_msg.contains("unable to open") {
-                format!("KhÃ´ng thá»ƒ má»Ÿ táº­p tin dá»± Ã¡n: {:?}", db_path)
+                format!("Không thể mở tập tin dự án: {:?}", db_path)
             } else {
-                format!("Lá»—i SQLite: {} ({:?})", err_msg, db_path)
+                format!("Lỗi SQLite: {} ({:?})", err_msg, db_path)
             }
         })?;
     conn.busy_timeout(Duration::from_secs(10))
@@ -36772,17 +36772,17 @@ pub fn apply_base_schema(conn: &Connection) -> Result<(), String> {
         .query_row("SELECT COUNT(*) FROM content_types", [], |r| r.get(0))
         .unwrap_or(0);
     if count == 0 {
-        conn.execute("INSERT INTO content_types (name, icon, description) VALUES ('Thiáº¿t bá»‹', 'Zap', 'Quáº£n lÃ½ mÃ¡y mÃ³c, cÃ´ng cá»¥ táº¡i cÃ´ng trÆ°á»ng')", []).ok();
+        conn.execute("INSERT INTO content_types (name, icon, description) VALUES ('Thiết bị', 'Zap', 'Quản lý máy móc, công cụ tại công trường')", []).ok();
         let type_id: i32 = conn.last_insert_rowid() as i32;
-        conn.execute("INSERT INTO content_fields (content_type_id, name, label, field_type, required) VALUES (?1, 'code', 'MÃ£ hiá»‡u', 'text', 1)", params![type_id]).ok();
-        conn.execute("INSERT INTO content_fields (content_type_id, name, label, field_type, required) VALUES (?1, 'brand', 'ThÆ°Æ¡ng hiá»‡u', 'text', 0)", params![type_id]).ok();
-        conn.execute("INSERT INTO content_fields (content_type_id, name, label, field_type, required) VALUES (?1, 'status', 'TÃ¬nh tráº¡ng', 'text', 0)", params![type_id]).ok();
-        conn.execute("INSERT INTO content_fields (content_type_id, name, label, field_type, required) VALUES (?1, 'purchase_date', 'NgÃ y mua', 'date', 0)", params![type_id]).ok();
+        conn.execute("INSERT INTO content_fields (content_type_id, name, label, field_type, required) VALUES (?1, 'code', 'Mã hiệu', 'text', 1)", params![type_id]).ok();
+        conn.execute("INSERT INTO content_fields (content_type_id, name, label, field_type, required) VALUES (?1, 'brand', 'Thương hiệu', 'text', 0)", params![type_id]).ok();
+        conn.execute("INSERT INTO content_fields (content_type_id, name, label, field_type, required) VALUES (?1, 'status', 'Tình trạng', 'text', 0)", params![type_id]).ok();
+        conn.execute("INSERT INTO content_fields (content_type_id, name, label, field_type, required) VALUES (?1, 'purchase_date', 'Ngày mua', 'date', 0)", params![type_id]).ok();
 
-        conn.execute("INSERT INTO content_types (name, icon, description) VALUES ('NhÃ¢n sá»± dá»± Ã¡n', 'Users', 'Danh sÃ¡ch cÃ¡n bá»™, cÃ´ng nhÃ¢n viÃªn tham gia dá»± Ã¡n')", []).ok();
+        conn.execute("INSERT INTO content_types (name, icon, description) VALUES ('Nhân sự dự án', 'Users', 'Danh sách cán bộ, công nhân viên tham gia dự án')", []).ok();
         let type_id: i32 = conn.last_insert_rowid() as i32;
-        conn.execute("INSERT INTO content_fields (content_type_id, name, label, field_type, required) VALUES (?1, 'role', 'Chá»©c vá»¥', 'text', 1)", params![type_id]).ok();
-        conn.execute("INSERT INTO content_fields (content_type_id, name, label, field_type, required) VALUES (?1, 'phone', 'Sá»‘ Ä‘iá»‡n thoáº¡i', 'text', 0)", params![type_id]).ok();
+        conn.execute("INSERT INTO content_fields (content_type_id, name, label, field_type, required) VALUES (?1, 'role', 'Chức vụ', 'text', 1)", params![type_id]).ok();
+        conn.execute("INSERT INTO content_fields (content_type_id, name, label, field_type, required) VALUES (?1, 'phone', 'Số điện thoại', 'text', 0)", params![type_id]).ok();
         conn.execute("INSERT INTO content_fields (content_type_id, name, label, field_type, required) VALUES (?1, 'email', 'Email', 'text', 0)", params![type_id]).ok();
 
         conn.execute("INSERT OR IGNORE INTO roles (name, permissions_json) VALUES ('Admin', '{\"all\": true}')", []).ok();
@@ -36903,9 +36903,9 @@ pub fn predict_task_duration(task_name: &str) -> i32 {
     let words = task_name.split_whitespace().count();
     // A synthetic heuristic: base is 1 day. complex tasks take longer based on name length
     let mut duration = (words as i32) / 2 + 1;
-    if task_name.to_lowercase().contains("kháº©n") || task_name.to_lowercase().contains("urgent") || task_name.to_lowercase().contains("fix") {
+    if task_name.to_lowercase().contains("khẩn") || task_name.to_lowercase().contains("urgent") || task_name.to_lowercase().contains("fix") {
         duration = 1; // Urgent tasks
-    } else if task_name.to_lowercase().contains("thiáº¿t káº¿") || task_name.to_lowercase().contains("design") {
+    } else if task_name.to_lowercase().contains("thiết kế") || task_name.to_lowercase().contains("design") {
         duration += 3;
     }
     
@@ -37025,14 +37025,14 @@ impl ModelManager {
                 if metadata.len() > 1000000 {
                     // > 1MB as a heuristic for valid small models
                     println!(
-                        "âœ… Model {} already exists ({} bytes). Skipping...",
+                        "✅ Model {} already exists ({} bytes). Skipping...",
                         model.name,
                         metadata.len()
                     );
                     continue;
                 } else {
                     println!(
-                        "âš ï¸ Existing file for {} seems too small ({} bytes). Redownloading...",
+                        "⚠️ Existing file for {} seems too small ({} bytes). Redownloading...",
                         model.name,
                         metadata.len()
                     );
@@ -37040,7 +37040,7 @@ impl ModelManager {
                 }
             }
 
-            println!("ðŸ“¥ Downloading {} from {}...", model.name, url);
+            println!("📥 Downloading {} from {}...", model.name, url);
 
             let mut response = client
                 .get(&url)
@@ -37058,7 +37058,7 @@ impl ModelManager {
 
             let content_length = response.content_length().unwrap_or(0);
             if content_length > 0 {
-                println!("ðŸ“¦ Expected size: {} MB", content_length / 1024 / 1024);
+                println!("📦 Expected size: {} MB", content_length / 1024 / 1024);
             }
 
             let mut file = fs::File::create(&target_path)?;
@@ -37067,7 +37067,7 @@ impl ModelManager {
             let final_metadata = fs::metadata(&target_path)?;
             if content_length > 0 && final_metadata.len() != content_length {
                 error!(
-                    "âŒ Download mismatch for {}: Expected {}, got {}",
+                    "❌ Download mismatch for {}: Expected {}, got {}",
                     model.name,
                     content_length,
                     final_metadata.len()
@@ -37075,7 +37075,7 @@ impl ModelManager {
                 return Err(anyhow!("Download corrupted for {}", model.name));
             }
 
-            println!("âœ¨ Finished downloading {}.", model.name);
+            println!("✨ Finished downloading {}.", model.name);
         }
         Ok(())
     }
@@ -37268,7 +37268,7 @@ impl AIEngine {
             return ort::execution_providers::CPUExecutionProvider::default().build();
         }
 
-        // Æ¯u tiÃªn DirectML trÃªn Windows cho GPU tÃ­ch há»£p
+        // Ưu tiên DirectML trên Windows cho GPU tích hợp
         #[cfg(target_os = "windows")]
         if ort::execution_providers::DirectMLExecutionProvider::default()
             .is_available()
@@ -37277,7 +37277,7 @@ impl AIEngine {
             return ort::execution_providers::DirectMLExecutionProvider::default().build();
         }
 
-        // Æ¯u tiÃªn CUDA cho NVIDIA
+        // Ưu tiên CUDA cho NVIDIA
         if ort::execution_providers::CUDAExecutionProvider::default()
             .is_available()
             .unwrap_or(false)
@@ -37285,7 +37285,7 @@ impl AIEngine {
             return ort::execution_providers::CUDAExecutionProvider::default().build();
         }
 
-        // Fallback vá» CPU
+        // Fallback về CPU
         ort::execution_providers::CPUExecutionProvider::default().build()
     }
 
@@ -37293,7 +37293,7 @@ impl AIEngine {
         if let Some(s) = self.yolo_session.get() {
             return Ok(s.clone());
         }
-        // Thá»­ tÃ¬m model nÃ©n trÆ°á»›c
+        // Thử tìm model nén trước
         let path = self.resolve_model_path("yolov8n_int8.onnx");
         let path = if path.exists() {
             path
@@ -37317,7 +37317,7 @@ impl AIEngine {
         if let Some(s) = self.phi3_session.get() {
             return Ok(s.clone());
         }
-        // Thá»­ tÃ¬m model INT4
+        // Thử tìm model INT4
         let path = self.resolve_model_path("llm_int4.onnx");
         let path = if path.exists() {
             path
@@ -37681,13 +37681,13 @@ impl SelfHEAL {
 
         if normalized_diff > 15.0 && response.confidence < 0.99 {
             warn!(
-                "[Self-HEAL] AI suggested {:.1}Â°, but Math says {:.1}Â°. Difference: {:.1}Â°. Retrying with HEAL...",
+                "[Self-HEAL] AI suggested {:.1}°, but Math says {:.1}°. Difference: {:.1}°. Retrying with HEAL...",
                 response.angle, geometry_hint, normalized_diff
             );
 
             // HEAL: Retry with correction prompt
             let heal_prompt = format!(
-                "<|im_start|>system\nYou are an AI validator. Your previous suggestion was {:.1}Â°, but geometrical analysis indicates {:.1}Â°. \
+                "<|im_start|>system\nYou are an AI validator. Your previous suggestion was {:.1}°, but geometrical analysis indicates {:.1}°. \
                 Re-evaluate based on this hint and return the CORRECT angle in JSON.<|im_end|>\n\
                 <|im_start|>user\nContext: {}\n<|im_end|>\n<|im_start|>assistant\n",
                 response.angle, geometry_hint, feature_info
@@ -37701,14 +37701,14 @@ impl SelfHEAL {
             let healed_response = self.parse_and_validate(&healed_raw)?;
 
             info!(
-                "[Self-HEAL] Correction successful. New angle: {:.1}Â°, confidence: {:.2}",
+                "[Self-HEAL] Correction successful. New angle: {:.1}°, confidence: {:.2}",
                 healed_response.angle, healed_response.confidence
             );
 
             response = healed_response;
         } else {
             info!(
-                "[Self-HEAL] AI Prediction verified. Angle: {:.1}Â°, Math Match: {:.1}Â°",
+                "[Self-HEAL] AI Prediction verified. Angle: {:.1}°, Math Match: {:.1}°",
                 response.angle, geometry_hint
             );
         }
@@ -38097,19 +38097,19 @@ pub fn check_permission(
     let user_email = config
         .current_user_email
         .as_ref()
-        .ok_or("Báº¡n chÆ°a Ä‘Äƒng nháº­p. Vui lÃ²ng Ä‘Äƒng nháº­p Ä‘á»ƒ thá»±c hiá»‡n thao tÃ¡c nÃ y.")?;
+        .ok_or("Bạn chưa đăng nhập. Vui lòng đăng nhập để thực hiện thao tác này.")?;
 
     let user_role_str = config.user_roles.get(user_email).ok_or(format!(
-        "TÃ i khoáº£n {} chÆ°a Ä‘Æ°á»£c cáº¥p quyá»n truy cáº­p. Vui lÃ²ng liÃªn há»‡ Admin.",
+        "Tài khoản {} chưa được cấp quyền truy cập. Vui lòng liên hệ Admin.",
         user_email
     ))?;
 
-    let user_role = Role::from_str(user_role_str).ok_or("Vai trÃ² ngÆ°á»i dÃ¹ng khÃ´ng há»£p lá»‡.")?;
+    let user_role = Role::from_str(user_role_str).ok_or("Vai trò người dùng không hợp lệ.")?;
 
     if user_role.priority() >= required_role.priority() {
         Ok(user_email.clone())
     } else {
-        Err("Báº¡n khÃ´ng cÃ³ Ä‘á»§ quyá»n háº¡n Ä‘á»ƒ thá»±c hiá»‡n thao tÃ¡c nÃ y.".to_string())
+        Err("Bạn không có đủ quyền hạn để thực hiện thao tác này.".to_string())
     }
 }
 
@@ -38170,13 +38170,13 @@ impl AppConfig {
         );
         self.last_opened_pmp = Some(project.path.clone());
 
-        // ThÃªm hoáº·c Ä‘Æ°a lÃªn Ä‘áº§u danh sÃ¡ch gáº§n Ä‘Ã¢y
+        // Thêm hoặc đưa lên đầu danh sách gần đây
         if let Some(pos) = self.recent_pmps.iter().position(|x| x.path == project.path) {
             self.recent_pmps.remove(pos);
         }
         self.recent_pmps.insert(0, project);
 
-        // Giá»›i háº¡n 10 má»¥c
+        // Giới hạn 10 mục
         if self.recent_pmps.len() > 10 {
             self.recent_pmps.truncate(10);
         }
@@ -38442,7 +38442,7 @@ impl PmpDbV2 {
         println!("[DB] Starting migration from V1 to V2...");
         self.conn.execute("PRAGMA foreign_keys = OFF", [])?;
         
-        // 1. Kiá»ƒm tra sá»± tá»“n táº¡i cá»§a cÃ¡c báº£ng V1
+        // 1. Kiểm tra sự tồn tại của các bảng V1
         let tables: Vec<String> = self.conn.prepare("SELECT name FROM sqlite_master WHERE type='table'")?
             .query_map([], |r| r.get(0))?
             .filter_map(|r| r.ok())
@@ -38456,7 +38456,7 @@ impl PmpDbV2 {
         // 2. Rename legacy tables
         self.conn.execute("ALTER TABLE projects RENAME TO projects_v1", [])?;
         self.conn.execute("ALTER TABLE files RENAME TO files_v1", [])?;
-        // tags vÃ  file_tags (náº¿u cÃ³) xá»­ lÃ½ tÆ°Æ¡ng tá»± hoáº·c bá» qua náº¿u Ä‘Æ¡n giáº£n
+        // tags và file_tags (nếu có) xử lý tương tự hoặc bỏ qua nếu đơn giản
         if tables.contains(&"tags".to_string()) {
              self.conn.execute("ALTER TABLE tags RENAME TO tags_v1", [])?;
         }
@@ -38519,8 +38519,8 @@ impl PmpDbV2 {
             };
 
             // Convert Absolute to Relative
-            // á»ž Ä‘Ã¢y giáº£ Ä‘á»‹nh root_path lÃ  base. Trong thá»±c táº¿ cáº§n logic an toÃ n hÆ¡n.
-            let rel_path = abs_path.clone(); // Placeholder, thá»±c táº¿ sáº½ dÃ¹ng path::strip_prefix
+            // Ở đây giả định root_path là base. Trong thực tế cần logic an toàn hơn.
+            let rel_path = abs_path.clone(); // Placeholder, thực tế sẽ dùng path::strip_prefix
 
             let file_uuid = Uuid::new_v4().to_string();
             let now = Utc::now().to_rfc3339();
@@ -39172,8 +39172,8 @@ impl ExcelParser {
         for (idx, row) in all_rows.iter().take(50).enumerate() {
             let row_strs: Vec<String> = row.iter().map(|c| c.to_string().to_lowercase()).collect();
             let is_header = row_strs.iter().any(|s| 
-                s.contains("vÄ© Ä‘á»™") || s.contains("lat") || s.contains("y") ||
-                s.contains("kinh Ä‘á»™") || s.contains("lon") || s.contains("lng") || s.contains("x")
+                s.contains("vĩ độ") || s.contains("lat") || s.contains("y") ||
+                s.contains("kinh độ") || s.contains("lon") || s.contains("lng") || s.contains("x")
             );
 
             if is_header {
@@ -39210,19 +39210,19 @@ impl ExcelParser {
         } else {
             let lat = headers.iter().position(|h: &String| {
                 let lh = h.to_lowercase();
-                lh.contains("vÄ© Ä‘á»™") || lh == "lat" || lh == "latitude" || lh == "y"
+                lh.contains("vĩ độ") || lh == "lat" || lh == "latitude" || lh == "y"
             });
             let lon = headers.iter().position(|h: &String| {
                 let lh = h.to_lowercase();
-                lh.contains("kinh Ä‘á»™") || lh == "lon" || lh == "longitude" || lh == "lng" || lh == "x"
+                lh.contains("kinh độ") || lh == "lon" || lh == "longitude" || lh == "lng" || lh == "x"
             });
             let name = headers.iter().position(|h: &String| {
                 let lh = h.to_lowercase();
-                lh.contains("tÃªn") || lh.contains("nhÃ£n") || lh == "name" || lh == "ten" || lh == "label"
+                lh.contains("tên") || lh.contains("nhãn") || lh == "name" || lh == "ten" || lh == "label"
             });
             let order = headers.iter().position(|h: &String| {
                 let lh = h.to_lowercase();
-                lh.contains("mÃ£") || lh.contains("stt") || lh.contains("h hiá»‡u") || lh == "id" || lh == "index"
+                lh.contains("mã") || lh.contains("stt") || lh.contains("h hiệu") || lh == "id" || lh == "index"
             });
             println!("[Import] Auto-detected indices: Lat={:?}, Lon={:?}, Name={:?}, Order={:?}", lat, lon, name, order);
             (lat, lon, name, order)
@@ -39785,14 +39785,14 @@ impl DatasetMeta {
             .iter()
             .map(|h| {
                 let lower = h.to_lowercase();
-                let is_coord = lower.contains("vÄ© Ä‘á»™")
+                let is_coord = lower.contains("vĩ độ")
                     || lower.contains("lat")
-                    || lower.contains("kinh Ä‘á»™")
+                    || lower.contains("kinh độ")
                     || lower.contains("lon")
                     || lower.contains("lng")
                     || lower == "x"
                     || lower == "y";
-                let is_name = lower.contains("tÃªn") || lower == "name" || lower == "label";
+                let is_name = lower.contains("tên") || lower == "name" || lower == "label";
 
                 FieldMeta {
                     name: h.to_lowercase().trim().replace(" ", "_"),

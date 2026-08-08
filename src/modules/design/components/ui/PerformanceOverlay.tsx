@@ -1,7 +1,7 @@
 import React from 'react';
 import { Activity, Cpu, Zap, X } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
+import { useLayoutStore } from '@CORE/stores/useLayoutStore';
 
 export const PerformanceOverlay: React.FC = () => {
     const isSaving = useDesignSync(s => s.isSaving);
@@ -31,7 +31,7 @@ export const PerformanceOverlay: React.FC = () => {
 
     return (
         <div
-            className="fixed bottom-12 right-4 z-cad-debug bg-cad-elevated/95 backdrop-blur-md border border-cad-accent/40 rounded-lg p-2.5 flex flex-col gap-1.5 shadow-2xl pointer-events-none select-none transition-all duration-500 overflow-hidden"
+            className="fixed bottom-12 right-4 z-cad-debug bg-cad-elevated/95 backdrop-blur-md border border-cad-accent/40 rounded-lg p-2.5 flex flex-col gap-1.5 shadow-2xl pointer-events-none select-none transition-all duration-200 overflow-hidden"
             style={{ minWidth: '170px' }}
         >
             <div className="flex items-center justify-between border-b border-cad-border pb-1.5 mb-0.5">
@@ -150,7 +150,7 @@ export const PerformanceOverlay: React.FC = () => {
             <div className="mt-1 flex flex-col gap-1">
                 <div className="h-1 bg-cad-text-primary/10 rounded-full overflow-hidden">
                     <div
-                        className="h-full bg-gradient-to-r from-cad-accent to-cad-accent transition-all duration-300 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
+                        className="h-full bg-gradient-to-r from-cad-accent to-cad-accent transition-all duration-200 shadow-[0_0_10px_rgba(34,197,94,0.4)]"
                         style={{ width: pendingSync || isSaving ? '65%' : syncError ? '20%' : '100%' }}
                     />
                 </div>

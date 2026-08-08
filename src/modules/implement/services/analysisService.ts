@@ -1,6 +1,5 @@
 import { format } from 'date-fns';
-import { save, open } from '@tauri-apps/plugin-dialog';
-import { safeInvoke as invoke } from '@IMPLEMENT/lib/tauri';
+import { invoke, open, save } from '@/contracts/tauri-api/runtime';
 import { normalizeAnalysisColumnKey } from '@IMPLEMENT/features/analysis/analysisColumns';
 import { syncDisplayOrderAliases, getParsedMetadata } from '@TOOL/utils/featureUtils';
 
@@ -8,6 +7,18 @@ import type { DesignEventType, FeatureProperties } from '@CONTRACT/designTypes';
 import type { FeatureState, FeatureGroupState, LayerState, MapState, RegionState } from '@CONTRACT/types';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { buildAnalysisHierarchyRows } from '@IMPLEMENT/features/analysis/analysisHierarchy';
+
+const toDisplayText = (value: unknown, fallback = ''): string => {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value);
+  }
+  try {
+    return JSON.stringify(value) ?? fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 
 export interface WorkbookLink {
@@ -684,14 +695,14 @@ export const analysisService = {
         };
 
         // Write row cells
-        dataRow.getCell(1).value = String(item.stt || idx + 1);
-        dataRow.getCell(2).value = String(item.name || '');
-        dataRow.getCell(3).value = String(item.type || item.geom_type || '');
+        dataRow.getCell(1).value = toDisplayText(item.stt ?? idx + 1);
+        dataRow.getCell(2).value = toDisplayText(item.name);
+        dataRow.getCell(3).value = toDisplayText(item.type ?? item.geom_type);
         dataRow.getCell(4).value = String(isJunction ? 'Giao điểm chính' : (item.junction_scope || ''));
-        dataRow.getCell(5).value = String(item.group || '');
-        dataRow.getCell(6).value = String(item.region || '');
-        dataRow.getCell(7).value = String(item.layer || '');
-        dataRow.getCell(8).value = String(item.geom_type || '');
+        dataRow.getCell(5).value = toDisplayText(item.group);
+        dataRow.getCell(6).value = toDisplayText(item.region);
+        dataRow.getCell(7).value = toDisplayText(item.layer);
+        dataRow.getCell(8).value = toDisplayText(item.geom_type);
         dataRow.getCell(9).value = Number(item.size) || 1;
         dataRow.getCell(10).value = Number(item.quantity) || 1;
 
@@ -719,14 +730,14 @@ export const analysisService = {
           dataRow.getCell(12).value = Number(item.area) || 0;
         }
 
-        dataRow.getCell(13).value = String(item.status || '');
+        dataRow.getCell(13).value = toDisplayText(item.status);
         dataRow.getCell(14).value = String(item.is_visible !== false ? 'Có' : 'Không');
-        dataRow.getCell(15).value = String(item.note || '');
-        dataRow.getCell(16).value = String(item.description || '');
+        dataRow.getCell(15).value = toDisplayText(item.note);
+        dataRow.getCell(16).value = toDisplayText(item.description);
 
         // Technical ID columns
-        dataRow.getCell(hiddenFeatureIdCol).value = String(item.id);
-        dataRow.getCell(hiddenParentIdCol).value = String(item.__analysis_parent_id || '');
+        dataRow.getCell(hiddenFeatureIdCol).value = toDisplayText(item.id);
+        dataRow.getCell(hiddenParentIdCol).value = toDisplayText(item.__analysis_parent_id);
       });
 
       // Enable AutoFilter on Data Sheet
@@ -746,14 +757,14 @@ export const analysisService = {
       const bomMap = new Map<string, { group: string; name: string; unit: string; qty: number }>();
       flatRows.forEach((item) => {
         if (item.__analysis_parent_id) return; // Exclude child items from BOM
-        const key = `${item.group || 'Chung'}::${item.name}`;
+        const key = `${toDisplayText(item.group, 'Chung')}::${toDisplayText(item.name)}`;
         const existing = bomMap.get(key);
         if (existing) {
           existing.qty += 1;
         } else {
           bomMap.set(key, {
-            group: String(item.group || 'Chung'),
-            name: String(item.name || ''),
+            group: toDisplayText(item.group, 'Chung'),
+            name: toDisplayText(item.name),
             unit: item.geom_type === 'LineString' ? 'm' : item.geom_type === 'Polygon' ? 'm2' : 'Cái',
             qty: 1,
           });
@@ -863,7 +874,7 @@ export const analysisService = {
         };
       }
 
-      const metadata: WorkbookMetadata = JSON.parse(String(metaCellVal));
+      const metadata: WorkbookMetadata = JSON.parse(toDisplayText(metaCellVal));
 
       if (expectedProjectId && metadata.projectId !== expectedProjectId) {
         return {
@@ -905,10 +916,10 @@ export const analysisService = {
       dataSheet.eachRow((row, rowNumber) => {
         if (rowNumber <= 2) return; // Skip headers
 
-        const featureId = String(row.getCell(17).value || '').trim(); // Hidden technical feature ID
-        const name = String(row.getCell(2).value || '').trim();
-        const note = String(row.getCell(15).value || '').trim();
-        const status = String(row.getCell(13).value || '').trim();
+        const featureId = toDisplayText(row.getCell(17).value).trim(); // Hidden technical feature ID
+        const name = toDisplayText(row.getCell(2).value).trim();
+        const note = toDisplayText(row.getCell(15).value).trim();
+        const status = toDisplayText(row.getCell(13).value).trim();
 
         if (!featureId) {
           if (name) {
@@ -918,10 +929,10 @@ export const analysisService = {
               name,
               note,
               status,
-              type: String(row.getCell(3).value || ''),
-              group: String(row.getCell(5).value || ''),
-              region: String(row.getCell(6).value || ''),
-              layer: String(row.getCell(7).value || ''),
+              type: toDisplayText(row.getCell(3).value),
+              group: toDisplayText(row.getCell(5).value),
+              region: toDisplayText(row.getCell(6).value),
+              layer: toDisplayText(row.getCell(7).value),
             });
           }
           return;
@@ -937,8 +948,8 @@ export const analysisService = {
 
         const designMeta = getParsedMetadata(designFeature);
         const designName = designFeature.name || '';
-        const designNote = String(designMeta.note || designMeta.notes || '');
-        const designStatus = String(designMeta.status || '');
+        const designNote = toDisplayText(designMeta.note ?? designMeta.notes);
+        const designStatus = toDisplayText(designMeta.status);
 
         // 3-way diff fields
         const fieldsToCompare = [

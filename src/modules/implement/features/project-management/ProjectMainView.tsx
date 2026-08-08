@@ -15,7 +15,7 @@ import {
 } from '@CONTRACT/types';
 import { useTranslation } from 'react-i18next';
 import AnalyticsDashboard from '@ANALYTICS/AnalyticsDashboard';
-import { cn } from '@TOOL/utils/cn';
+import { cn } from '@SHARED/utils/cn';
 
 type ViewMode =
   | 'tasks'

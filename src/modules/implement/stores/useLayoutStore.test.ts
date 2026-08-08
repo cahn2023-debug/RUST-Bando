@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createDefaultLayoutState, migrateLayoutState } from './useLayoutStore';
+import { createDefaultLayoutState, migrateLayoutState } from '@CORE/stores/useLayoutStore';
 
 describe('migrateLayoutState', () => {
     it('resets persisted layout to the new baseline on version 10', () => {

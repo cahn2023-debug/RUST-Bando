@@ -1,6 +1,6 @@
 import { CheckCircle2, Circle, Folder, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 import { Task } from "@CONTRACT/types";
 
 interface TaskRowProps {

@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import { safeInvoke as invoke } from "@IMPLEMENT/lib/tauri";
 import { resolveMediaAsset } from "@IMPLEMENT/services/mediaAssetService";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 import type { ReportPhoto, ReportModel } from "./reportModel";
 import type { ReportImageMap, ReportImageRef } from "./reportDocx";
 

@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TechnicalSpecsPanel } from './TechnicalSpecsPanel';
-import { getFeatureDetailV2 } from '@TOOL/utils/designIpc';
+import { getFeatureDetailV2 } from '@SHARED/utils/designIpc';
 
 const mockState = vi.hoisted(() => ({
   store: {
@@ -31,7 +31,7 @@ vi.mock('@IMPLEMENT/stores/useDesignSync', () => ({
   useDesignSync: mockUseDesignSync,
 }));
 
-vi.mock('@TOOL/utils/designIpc', () => ({
+vi.mock('@SHARED/utils/designIpc', () => ({
   getFeatureDetailV2: vi.fn(),
 }));
 

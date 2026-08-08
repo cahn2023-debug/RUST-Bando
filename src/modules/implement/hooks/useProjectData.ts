@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { safeInvoke } from "@IMPLEMENT/lib/tauri";
 import { Project, Task, Note, Contract, TaskDependency } from "@CONTRACT/types";
-import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
+import { useSettingsStore } from "@CORE/stores/useSettingsStore";
 import { addDays } from "date-fns";
-import { logger } from "@TOOL/utils/logger";
+import { logger } from "@SHARED/utils/logger";
 
 export function useProjectData(project: Project) {
   const projectId = project?.id ?? "";

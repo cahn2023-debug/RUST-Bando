@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import React, { useState, useEffect, useRef } from "react";
+import { invoke } from "@/contracts/tauri-api/runtime";
 import { Package, Plus, Trash2, Edit2, Search, Filter, Download } from "lucide-react";
 import { Material } from "@CONTRACT/types";
 import { DeleteConfirmationModal } from "@DESIGN/components/ui/DeleteConfirmationModal";
@@ -23,6 +23,7 @@ export function MaterialManager({ projectId }: Props) {
     id: null,
     itemName: ""
   });
+  const materialNameInputRef = useRef<HTMLInputElement>(null);
 
   const categories = ["General", "Steel", "Concrete", "Wood", "Electrical", "Mechanical", "Finishing"];
 
@@ -42,6 +43,10 @@ export function MaterialManager({ projectId }: Props) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMaterials();
   }, [projectId]);
+
+  useEffect(() => {
+    if (showAdd) materialNameInputRef.current?.focus();
+  }, [showAdd]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,7 +194,7 @@ export function MaterialManager({ projectId }: Props) {
 
       {/* Add Modal Overlay */}
       {showAdd && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-cad-overlay flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-cad-surface border border-cad-border w-full max-w-md shadow-2xl rounded-sm">
             <div className="p-4 border-b border-cad-border bg-cad-bg/50 flex justify-between items-center">
               <h3 className="text-sm font-black text-white uppercase tracking-widest">New Resource Entry</h3>
@@ -199,8 +204,7 @@ export function MaterialManager({ projectId }: Props) {
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black text-cad-text-muted uppercase tracking-widest">Description</label>
                 <input
-                  // eslint-disable-next-line jsx-a11y/no-autofocus
-                  autoFocus
+                  ref={materialNameInputRef}
                   required
                   value={newMaterial.name}
                   onChange={e => setNewMaterial({ ...newMaterial, name: e.target.value })}

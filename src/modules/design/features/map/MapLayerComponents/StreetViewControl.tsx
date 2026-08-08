@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMapContext } from '../MapContext';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { IS_REAL_TAURI, safeEmit, safeListen } from '@IMPLEMENT/lib/tauri';
+import { createWebviewWindow, getWindowByLabel } from '@/contracts/tauri-api/runtime';
 
 const DEFAULT_FOV = 90;
 
@@ -136,11 +137,9 @@ export function StreetViewControl() {
     if (IS_REAL_TAURI) {
       void (async () => {
         try {
-          const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-          const { Window } = await import('@tauri-apps/api/window');
           const label = 'street-view';
 
-          const existingWindow = await Window.getByLabel(label);
+          const existingWindow = await getWindowByLabel(label);
           if (existingWindow) {
             if (await existingWindow.isMinimized()) {
               await existingWindow.unminimize();
@@ -163,7 +162,7 @@ export function StreetViewControl() {
           }
 
           const url = `index.html?view=streetview&lat=${lat}&lng=${lng}&heading=${heading}&fov=${fov}`;
-          const win = new WebviewWindow(label, {
+          const win = createWebviewWindow(label, {
             url,
             title: 'Google Street View',
             width: 1120,
@@ -174,6 +173,8 @@ export function StreetViewControl() {
             visible: true,
             focus: true,
           });
+
+          if (!win) return;
 
           win.once('tauri://created', () => {
             syncPegmanState({
@@ -190,7 +191,7 @@ export function StreetViewControl() {
 
           win.once('tauri://error', async (err) => {
             console.error('[StreetViewControl] Failed to open Tauri window:', err);
-            const reExisting = await Window.getByLabel(label);
+            const reExisting = await getWindowByLabel(label);
             if (reExisting) {
               await reExisting.show();
               await reExisting.setFocus();

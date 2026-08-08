@@ -1,9 +1,9 @@
 import { Save, RotateCcw, RotateCw, Search, Sun, Moon, User } from "lucide-react";
-import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
+import { useAuthStore } from "@CORE/stores/useAuthStore";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
-import { useThemeStore } from "@DESIGN/stores/themeStore";
+import { useThemeStore } from "@CORE/stores/themeStore";
 import { useTranslation } from "react-i18next";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 import { StorageHealthIndicator } from "./StorageHealthIndicator";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { KeytipBadge } from "./KeytipBadge";
@@ -28,8 +28,9 @@ export function TopToolbar({ onSave, onUndo, onRedo, onOpenAppMenu, keytipsActiv
         {/* AUTOCAD RED 'P' APP MENU BUTTON */}
         <button
           onClick={onOpenAppMenu}
-          className="relative group flex items-center justify-center w-7 h-7 bg-[#D32F2F] hover:bg-[#B71C1C] transition-all rounded shadow-md cursor-pointer border border-red-700/50"
+          className="relative group flex items-center justify-center w-7 h-7 bg-cad-danger hover:bg-cad-danger/80 transition-all rounded shadow-md cursor-pointer border border-cad-danger/50"
           title="Application Menu (Alt+F)"
+          aria-label="Application menu"
         >
           <span className="text-white font-black text-sm italic group-hover:scale-110 transition-transform">
             P
@@ -49,6 +50,7 @@ export function TopToolbar({ onSave, onUndo, onRedo, onOpenAppMenu, keytipsActiv
             onClick={onSave}
             className="cad-icon-button relative p-1.5 rounded hover:bg-cad-text-primary/10 transition-colors"
             title="Save (Ctrl+S)"
+            aria-label="Save project"
           >
             <Save size={15} className={syncStatus !== 0 ? "text-cad-warn" : "text-cad-text-muted"} />
             {syncStatus !== 0 && (
@@ -69,6 +71,7 @@ export function TopToolbar({ onSave, onUndo, onRedo, onOpenAppMenu, keytipsActiv
             onClick={onUndo}
             className="cad-icon-button relative p-1.5 rounded hover:bg-cad-text-primary/10 transition-colors"
             title="Undo (Ctrl+Z)"
+            aria-label="Undo"
           >
             <RotateCcw size={15} />
             {keytipsActive && (
@@ -81,6 +84,7 @@ export function TopToolbar({ onSave, onUndo, onRedo, onOpenAppMenu, keytipsActiv
             onClick={onRedo}
             className="cad-icon-button relative p-1.5 rounded hover:bg-cad-text-primary/10 transition-colors"
             title="Redo (Ctrl+Y)"
+            aria-label="Redo"
           >
             <RotateCw size={15} />
             {keytipsActive && (

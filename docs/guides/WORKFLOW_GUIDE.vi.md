@@ -98,3 +98,16 @@
 ## 💡 Mẹo sử dụng
 - Bạn có thể **kết hợp** các lệnh. Ví dụ: Dùng `/plan` trước, sau đó dùng `/orchestrate` để thực thi plan đó.
 - Nếu không nhớ lệnh? Chỉ cần gõ `/help` hoặc hỏi AI bằng tiếng Việt, nó sẽ tìm workflow phù hợp cho bạn.
+
+## 6. Project quality gate
+
+Run the same checks locally and in CI:
+
+```bash
+npm run check:frontend
+npm run check:backend
+```
+
+Frontend order: encoding/locale and Tauri boundary checks, typecheck, lint, coverage tests, then production build.
+Backend order: format check, workspace check, workspace tests, then clippy with warnings denied.
+Do not rename Tauri commands or change persisted project data without a migration test.

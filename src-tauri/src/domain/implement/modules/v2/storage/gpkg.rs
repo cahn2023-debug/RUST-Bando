@@ -80,8 +80,13 @@ pub fn init_gpkg_tables(conn: &Connection) -> Result<()> {
 
 /// Đồng bộ dữ liệu bbox từ bảng features vào R-Tree spatial index table.
 pub fn sync_rtree_index_if_needed(conn: &Connection) -> Result<()> {
-    let rtree_count: i64 = conn.query_row("SELECT COUNT(*) FROM rtree_features_bbox", [], |r| r.get(0))?;
-    let feature_count: i64 = conn.query_row("SELECT COUNT(*) FROM features WHERE bbox_min_x IS NOT NULL", [], |r| r.get(0))?;
+    let rtree_count: i64 =
+        conn.query_row("SELECT COUNT(*) FROM rtree_features_bbox", [], |r| r.get(0))?;
+    let feature_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM features WHERE bbox_min_x IS NOT NULL",
+        [],
+        |r| r.get(0),
+    )?;
 
     if rtree_count < feature_count {
         conn.execute_batch(
@@ -91,14 +96,21 @@ pub fn sync_rtree_index_if_needed(conn: &Connection) -> Result<()> {
             FROM features
             WHERE bbox_min_x IS NOT NULL AND bbox_max_x IS NOT NULL
               AND bbox_min_y IS NOT NULL AND bbox_max_y IS NOT NULL;
-            "#
+            "#,
         )?;
     }
     Ok(())
 }
 
 /// Thêm/cập nhật 1 feature vào R-Tree index
-pub fn update_rtree_feature(conn: &Connection, rowid: i64, min_x: f64, max_x: f64, min_y: f64, max_y: f64) -> Result<()> {
+pub fn update_rtree_feature(
+    conn: &Connection,
+    rowid: i64,
+    min_x: f64,
+    max_x: f64,
+    min_y: f64,
+    max_y: f64,
+) -> Result<()> {
     conn.execute(
         "INSERT OR REPLACE INTO rtree_features_bbox(rowid, min_x, max_x, min_y, max_y) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![rowid, min_x, max_x, min_y, max_y],
@@ -127,29 +139,30 @@ pub fn query_features_by_tile_bbox(
           AND r.min_x <= ?3 AND r.max_x >= ?2
           AND r.min_y <= ?5 AND r.max_y >= ?4
         LIMIT ?6
-        "#
+        "#,
     )?;
 
-    let rows = stmt.query_map(params![project_id, min_x, max_x, min_y, max_y, limit as i64], |row| {
-        Ok(GpkgFeature {
-            id: row.get(0)?,
-            layer_id: row.get(1)?,
-            name: row.get(2)?,
-            geom_type: row.get(3)?,
-            coordinates_json: row.get(4)?,
-            properties_json: row.get(5)?,
-            min_x: row.get::<_, Option<f64>>(6)?.unwrap_or(min_x),
-            max_x: row.get::<_, Option<f64>>(7)?.unwrap_or(max_x),
-            min_y: row.get::<_, Option<f64>>(8)?.unwrap_or(min_y),
-            max_y: row.get::<_, Option<f64>>(9)?.unwrap_or(max_y),
-        })
-    })?;
+    let rows = stmt.query_map(
+        params![project_id, min_x, max_x, min_y, max_y, limit as i64],
+        |row| {
+            Ok(GpkgFeature {
+                id: row.get(0)?,
+                layer_id: row.get(1)?,
+                name: row.get(2)?,
+                geom_type: row.get(3)?,
+                coordinates_json: row.get(4)?,
+                properties_json: row.get(5)?,
+                min_x: row.get::<_, Option<f64>>(6)?.unwrap_or(min_x),
+                max_x: row.get::<_, Option<f64>>(7)?.unwrap_or(max_x),
+                min_y: row.get::<_, Option<f64>>(8)?.unwrap_or(min_y),
+                max_y: row.get::<_, Option<f64>>(9)?.unwrap_or(max_y),
+            })
+        },
+    )?;
 
     let mut result = Vec::new();
-    for r in rows {
-        if let Ok(feat) = r {
-            result.push(feat);
-        }
+    for feat in rows.flatten() {
+        result.push(feat);
     }
     Ok(result)
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { gisApi } from '@/contracts/tauri-api';
 
 interface LandCategorySummary {
     land_type: String;
@@ -23,7 +23,7 @@ export const GisDashboardV2: React.FC = () => {
     const fetchReport = async () => {
         try {
             setLoading(true);
-            const data: GisReportSummary = await invoke('get_active_gis_report_v2');
+            const data = await gisApi.getActiveReport<GisReportSummary>();
             setReport(data);
             setError(null);
         } catch (err) {
@@ -44,7 +44,7 @@ export const GisDashboardV2: React.FC = () => {
     if (!report) return <div className="p-4">No data available.</div>;
 
     return (
-        <div className="p-6 space-y-6 bg-slate-900 text-white min-h-screen">
+        <div className="p-6 space-y-6 bg-slate-900 text-white min-h-dvh">
             <div className="flex justify-between items-center">
                 <h1 className="text-2xl font-bold">GIS Analytics Dashboard (V2)</h1>
                 <button

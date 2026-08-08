@@ -1,7 +1,7 @@
 import { PaletteSystem } from "@DESIGN/components/ui/PaletteSystem";
 import { PaletteSidebar } from "@DESIGN/features/map/Palette/PaletteSidebar";
 import { FilePreview } from "@IMPLEMENT/features/files/FilePreview";
-import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
+import { useLayoutStore } from "@CORE/stores/useLayoutStore";
 
 interface ProjectOverlayLayerProps {
     activeTab: string;
@@ -42,7 +42,7 @@ export function ProjectOverlayLayer({
 
             {/* Drag-and-drop docking hint */}
             {draggingPaletteId && (
-                <div className="fixed top-0 right-0 bottom-0 w-[400px] bg-cad-accent/10 border-l-2 border-dashed border-cad-accent z-[150] pointer-events-none animate-pulse flex items-center justify-center">
+                <div className="fixed top-0 right-0 bottom-0 w-[400px] bg-cad-accent/10 border-l-2 border-dashed border-cad-accent z-cad-floating pointer-events-none animate-pulse flex items-center justify-center">
                     <div className="bg-cad-bg/80 px-4 py-2 border border-cad-accent text-cad-accent text-[10px] font-black uppercase tracking-widest rounded-sm shadow-xl">
                         Thả để gắn bảng (Dock)
                     </div>

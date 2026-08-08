@@ -1,6 +1,6 @@
 import { StateCreator } from 'zustand';
 import { UIControlSlice, DesignSyncStore } from './types';
-import { emit } from '@tauri-apps/api/event';
+import { emit } from '@/contracts/tauri-api/runtime';
 
 export const createUIControlSlice: StateCreator<DesignSyncStore, [], [], UIControlSlice> = (set, get) => ({
     isCoordinatePanelOpen: false,

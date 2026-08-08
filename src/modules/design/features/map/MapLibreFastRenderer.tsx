@@ -4,10 +4,10 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { useShallow } from 'zustand/react/shallow';
 import { useDesignSync, EMPTY_OBJ } from '@IMPLEMENT/stores/useDesignSync';
 import { useFeatureNumbering } from '@IMPLEMENT/hooks/useDesignFeatures';
-import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
+import { useLayoutStore } from '@CORE/stores/useLayoutStore';
 import { useSnap } from '@IMPLEMENT/hooks/useSnap';
-import { queryVisibleFeaturesV2 } from '@TOOL/utils/designIpc';
-import { confirmUserAction } from '@TOOL/utils/userConfirmation';
+import { queryVisibleFeaturesV2 } from '@SHARED/utils/designIpc';
+import { confirmUserAction } from '@SHARED/utils/userConfirmation';
 import { getParsedCoordinates, getParsedMetadata } from '@TOOL/utils/featureUtils';
 import { useMapStyles, type MapBasemapPreset } from './useMapStyles';
 import { buildMapLibreFeatureCollection, getMapLibreLodPolicy } from './mapLibreFastAdapter';
@@ -1422,7 +1422,7 @@ export function MapLibreFastRenderer({
         >
             <FeatureOverlayCanvas
                 ref={overlayRef}
-                // eslint-disable-next-line react-compiler/react-compiler, react-hooks/refs
+                // eslint-disable-next-line react-hooks/refs
                 camera={cameraBridgeRef.current.getSnapshot()}
                 designFeatures={renderCollectionResult.collection}
                 renderFlags={pointOverlayRenderFlags}

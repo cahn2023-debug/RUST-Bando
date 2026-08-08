@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@IMPLEMENT/lib/tauri';
 
 export interface ProjectTreeItem {
   id: string;
@@ -15,8 +15,10 @@ export interface ActiveProjectState {
 }
 
 export const projectApi = {
-  createProject: async (name: string, path: string): Promise<string> => {
-    return invoke<string>('create_pmp_v2', { name, path });
+  createProject: async (path: string, name: string, description?: string): Promise<ActiveProjectState> => {
+    const payload: { path: string; name: string; description?: string } = { path, name };
+    if (description !== undefined) payload.description = description;
+    return invoke<ActiveProjectState>('create_pmp_v2', payload);
   },
 
   loadProject: async (path: string): Promise<ActiveProjectState> => {
@@ -27,19 +29,37 @@ export const projectApi = {
     return invoke<ActiveProjectState | null>('get_active_project');
   },
 
-  getProjectTree: async (projectId: string): Promise<ProjectTreeItem[]> => {
-    return invoke<ProjectTreeItem[]>('get_project_tree', { projectId });
+  getProjectTree: async (projectId: string, path?: string): Promise<ProjectTreeItem[]> => {
+    return invoke<ProjectTreeItem[]>(
+      'get_project_tree',
+      path === undefined ? { projectId } : { projectId, path }
+    );
   },
 
-  saveProject: async (projectId: string): Promise<void> => {
-    return invoke('save_project', { projectId });
+  saveProject: async (): Promise<void> => {
+    return invoke('save_project');
   },
 
-  closeProject: async (projectId: string): Promise<void> => {
-    return invoke('close_active_project', { projectId });
+  closeProject: async (): Promise<void> => {
+    return invoke('close_active_project');
   },
 
   deleteProject: async (projectId: string): Promise<void> => {
-    return invoke('delete_project', { projectId });
+    return invoke('delete_project', { id: projectId });
+  },
+
+  saveRecentProjects: async (projects: unknown[]): Promise<void> => {
+    return invoke('save_recent_projects', { projects });
+  },
+
+  saveLastOpenedProject: async (project?: unknown, path?: string): Promise<void> => {
+    const payload: { project?: unknown; path?: string } = {};
+    if (project !== undefined) payload.project = project;
+    if (path !== undefined) payload.path = path;
+    return invoke('save_last_opened_project', payload);
+  },
+
+  indexFiles: async (projectId: string): Promise<unknown> => {
+    return invoke('index_project_files', { project_id: projectId });
   },
 };

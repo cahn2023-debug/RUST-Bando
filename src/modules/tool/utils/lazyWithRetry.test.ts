@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadWithRetry } from "./lazyWithRetry";
+import { loadWithRetry } from "@SHARED/utils/lazyWithRetry";
 
 describe("loadWithRetry", () => {
   afterEach(() => {

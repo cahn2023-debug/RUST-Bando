@@ -1,5 +1,5 @@
 import React from 'react';
-import { mapRotationToHeading } from '@TOOL/utils/cameraMath';
+import { mapRotationToHeading } from '@SHARED/utils/cameraMath';
 
 export interface CameraHudFallbackProps {
     hfov: number;

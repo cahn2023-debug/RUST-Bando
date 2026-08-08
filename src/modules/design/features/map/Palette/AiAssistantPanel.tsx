@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { InvokeArgs, invoke as tauriInvoke } from "@tauri-apps/api/core";
 import {
     AlertTriangle,
     Check,
@@ -19,8 +18,8 @@ import {
 } from "lucide-react";
 import { IS_REAL_TAURI, safeInvoke, safeListen } from "@IMPLEMENT/lib/tauri";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
-import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
-import { cn } from "@TOOL/utils/cn";
+import { useSettingsStore } from "@CORE/stores/useSettingsStore";
+import { cn } from "@SHARED/utils/cn";
 
 type AiPanelTab = "chat" | "config";
 
@@ -119,11 +118,11 @@ const DEFAULT_AI_CONFIG: AiConfig = {
     has_api_key: false,
 };
 
-const strictInvoke = async <T,>(command: string, args?: InvokeArgs): Promise<T> => {
+const strictInvoke = async <T,>(command: string, args?: Record<string, unknown>): Promise<T> => {
     if (!IS_REAL_TAURI) {
         throw new Error(`Tauri runtime is not available for ${command}.`);
     }
-    return tauriInvoke<T>(command, args);
+    return safeInvoke<T>(command, args);
 };
 
 const parseJsonArray = <T,>(value: unknown): T[] => {

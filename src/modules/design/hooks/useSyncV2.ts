@@ -1,13 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { safeInvoke as invoke } from '@IMPLEMENT/lib/tauri';
-
-export interface SyncResult {
-    pushed: number;
-    pulled: number;
-    conflicts: number;
-    status?: string;
-    reason?: string;
-}
+import { syncApi, SyncResult } from '@/contracts/tauri-api';
 
 const syncConfigArgs = () => ({
     coordinatorUrl: import.meta.env.VITE_COLLAB_COORDINATOR_URL?.trim() || undefined,
@@ -24,7 +16,7 @@ export function useSyncV2() {
 
     const fetchStatus = useCallback(async () => {
         try {
-            const status = await invoke<{ status?: string; reason?: string }>('sync_v2_get_status');
+            const status = await syncApi.getStatus();
             if (status?.status === 'error') {
                 setLastError(status.reason || 'Sync service error');
             } else if (status?.status === 'offline') {
@@ -33,7 +25,7 @@ export function useSyncV2() {
                 setLastError(null);
             }
 
-            const online = await invoke<boolean>('sync_v2_is_online');
+            const online = await syncApi.isOnline();
             setIsOnline(Boolean(online));
         } catch (e) {
             console.error('Failed to fetch sync status:', e);
@@ -47,7 +39,7 @@ export function useSyncV2() {
         setLastError(null);
 
         try {
-            const result = await invoke<SyncResult>('sync_v2_start', syncConfigArgs());
+            const result = await syncApi.start(syncConfigArgs());
             const normalized = result ?? { pushed: 0, pulled: 0, conflicts: 0, status: 'offline' };
             setLastResult(normalized);
             if (normalized.status === 'offline' && normalized.reason) {
@@ -63,9 +55,9 @@ export function useSyncV2() {
     const toggleOnline = useCallback(async () => {
         try {
             if (isOnline) {
-                await invoke('sync_v2_go_offline');
+                await syncApi.goOffline();
             } else {
-                await invoke('sync_v2_go_online', syncConfigArgs());
+                await syncApi.goOnline(syncConfigArgs());
             }
             setIsOnline(!isOnline);
         } catch (e) {

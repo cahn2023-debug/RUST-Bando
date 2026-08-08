@@ -50,6 +50,9 @@
       "@ANALYTICS/*": [
         "src/modules/analytics/*"
       ],
+      "@CORE/*": [
+        "src/core/*"
+      ],
       "@SHARED/*": [
         "src/shared/*"
       ]

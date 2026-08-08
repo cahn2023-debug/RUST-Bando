@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '@/contracts/tauri-api/runtime';
 import { initGoogleMaps, waitForGoogleMaps } from '@TOOL/utils/googleMapsLoader';
-import { getStreetViewUrl } from '@TOOL/utils/cameraMath';
+import { getStreetViewUrl } from '@SHARED/utils/cameraMath';
 
 export interface StaticStreetViewPreviewProps {
     lat: number;
@@ -260,7 +260,7 @@ export const StaticStreetViewPreview: React.FC<StaticStreetViewPreviewProps> = (
                 <img
                     src={resolvedUrl}
                     alt="Street View Preview"
-                    className={`w-full h-full object-contain transition-opacity duration-300 image-pixelated bg-white ${imageError ? 'opacity-0' : 'opacity-100'}`}
+                    className={`w-full h-full object-contain transition-opacity duration-200 image-pixelated bg-white ${imageError ? 'opacity-0' : 'opacity-100'}`}
                     onError={() => {
                         if (resolvedLocation?.source === 'direct' && !resolveFinished) {
                             console.warn('[StaticStreetViewPreview] Direct Street View image failed before pano resolution finished. Waiting for nearest pano result.');

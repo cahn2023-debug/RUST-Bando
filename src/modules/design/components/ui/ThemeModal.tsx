@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Settings2, X, Play } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { getParsedMetadata, normalizeFeatureSymbolData, getObjectTypeForIcon } from '@TOOL/utils/featureUtils';
-import { confirmUserAction } from '@TOOL/utils/userConfirmation';
+import { confirmUserAction } from '@SHARED/utils/userConfirmation';
 import { Button } from '@DESIGN/components/ui/Button';
 import { Modal } from '@DESIGN/components/ui/Modal';
 import type { DesignEventType } from '@CONTRACT/designTypes';

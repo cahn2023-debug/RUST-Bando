@@ -1,12 +1,13 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { safeInvoke } from '@IMPLEMENT/lib/tauri';
 import * as googleMapsLoader from '@TOOL/utils/googleMapsLoader';
 import { CameraHudFallback } from './CameraHudFallback';
 import { StaticStreetViewPreview } from './StaticStreetViewPreview';
 
-const mockInvoke = vi.fn();
-vi.mock('@tauri-apps/api/core', () => ({
-    invoke: (...args: any[]) => mockInvoke(...args)
+const mockInvoke = vi.mocked(safeInvoke);
+vi.mock('@IMPLEMENT/lib/tauri', () => ({
+    safeInvoke: vi.fn(),
 }));
 
 vi.mock('@TOOL/utils/googleMapsLoader', () => ({

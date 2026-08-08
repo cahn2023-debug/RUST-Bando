@@ -7,9 +7,9 @@ import React, { useMemo, useState } from 'react';
 import { Package, BarChart3, Users, Layers, Map as MapIcon } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { generateBOMSummary, bomToExcelData } from '@IMPLEMENT/services/bomService';
-import { cn } from '@TOOL/utils/cn';
-import { rowsToCsv } from '@TOOL/utils/csv';
-import { save } from '@tauri-apps/plugin-dialog';
+import { cn } from '@SHARED/utils/cn';
+import { rowsToCsv } from '@SHARED/utils/csv';
+import { fileApi, save } from '@/contracts/tauri-api';
 
 interface BOMSummaryProps {
   className?: string;
@@ -66,8 +66,7 @@ export const BOMSummaryPanel: React.FC<BOMSummaryProps> = ({ className }) => {
       if (!filePath) return;
 
       const buffer = new TextEncoder().encode(rowsToCsv(bomToExcelData(bomSummary)));
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('save_binary_file', { path: filePath, data: buffer });
+      await fileApi.saveBinary(filePath, buffer);
     } catch (error) {
       console.error('Export error:', error);
     }

@@ -1,5 +1,6 @@
 import maplibregl from 'maplibre-gl';
 import { transparentPngBytes } from './tilePlaceholder';
+import { invoke } from '@/contracts/tauri-api/runtime';
 
 /**
  * Cache-first tile transport.
@@ -246,7 +247,6 @@ async function loadThroughCache(url: string): Promise<{ data: ArrayBuffer }> {
 
     const { sourceKey, z, x, y, upstream } = parsed;
     try {
-        const { invoke } = await import('@tauri-apps/api/core');
         const bytes = await invoke<ArrayBuffer | Uint8Array | number[]>('get_basemap_tile', {
             request: { sourceKey, z, x, y, url: upstream },
         });

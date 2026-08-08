@@ -16,13 +16,14 @@ import {
   Moon
 } from "lucide-react";
 import { Project } from "@CONTRACT/types";
-import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
+import { useAuthStore } from "@CORE/stores/useAuthStore";
 import { useClickOutside } from "@IMPLEMENT/hooks/useClickOutside";
 import { safeInvoke } from "@IMPLEMENT/lib/tauri";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 import { moveFocus, announce } from "@TOOL/utils/accessibility";
-import { useThemeStore } from "@DESIGN/stores/themeStore";
+import { useThemeStore } from "@CORE/stores/themeStore";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { getCurrentWindow } from "@/contracts/tauri-api/runtime";
 
 export interface TitleBarProps {
   project: Project | null;
@@ -65,10 +66,10 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
 
   useEffect(() => {
     // Dynamically import to avoid crash in non-tauri environments
-    const initWindow = async () => {
+    const initWindow = () => {
       try {
-        const { getCurrentWindow } = await import("@tauri-apps/api/window");
         const currentWindow = getCurrentWindow();
+        if (!currentWindow) return;
         setAppWindow(currentWindow);
 
         const updateMaximized = async () => {

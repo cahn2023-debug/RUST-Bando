@@ -1,4 +1,12 @@
+import { useEffect, useRef } from 'react';
+
 export function CommandLine() {
+  const commandInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    commandInputRef.current?.focus();
+  }, []);
+
   return (
     <div className="h-[60px] bg-cad-bg border-t border-cad-border flex flex-col px-4 py-1.5 gap-1 shrink-0">
       <div className="flex-1 flex items-center bg-cad-surface border border-cad-border/50 px-3 rounded-sm">
@@ -7,8 +15,7 @@ export function CommandLine() {
           type="text" 
           defaultValue="_OPEN_PROJECT_RECORDS"
           className="bg-transparent outline-none border-none font-mono text-cad-text-primary text-[11px] w-full"
-          // eslint-disable-next-line jsx-a11y/no-autofocus
-          autoFocus
+          ref={commandInputRef}
         />
       </div>
       <div className="flex justify-between items-center text-[9px] font-mono text-cad-text-secondary px-1">

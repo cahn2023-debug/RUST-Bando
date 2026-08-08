@@ -18,13 +18,16 @@ impl AtomicFileWriter {
         let temp_filename = format!(
             ".tmp_{}_{}",
             std::process::id(),
-            target_path.file_name().and_then(|n| n.to_str()).unwrap_or("project.pmp")
+            target_path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("project.pmp")
         );
         let temp_path = parent_dir.join(temp_filename);
 
         // 1. Write to temporary file
-        let mut temp_file = File::create(&temp_path)
-            .map_err(|e| format!("Không thể tạo tệp tạm: {}", e))?;
+        let mut temp_file =
+            File::create(&temp_path).map_err(|e| format!("Không thể tạo tệp tạm: {}", e))?;
 
         temp_file
             .write_all(content)

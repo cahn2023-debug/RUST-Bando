@@ -29,20 +29,21 @@ impl AutosaveJournalManager {
         let line = serde_json::to_string(entry)
             .map_err(|e| format!("Lỗi serialize journal entry: {}", e))?;
 
-        writeln!(file, "{}", line)
-            .map_err(|e| format!("Lỗi ghi journal entry: {}", e))?;
+        writeln!(file, "{}", line).map_err(|e| format!("Lỗi ghi journal entry: {}", e))?;
 
         Ok(())
     }
 
-    pub fn check_uncommitted_journal(project_path: &Path) -> Result<Option<Vec<JournalEntry>>, String> {
+    pub fn check_uncommitted_journal(
+        project_path: &Path,
+    ) -> Result<Option<Vec<JournalEntry>>, String> {
         let journal_path = Self::get_journal_path(project_path);
         if !journal_path.exists() {
             return Ok(None);
         }
 
-        let mut file = File::open(&journal_path)
-            .map_err(|e| format!("Không thể đọc tệp journal: {}", e))?;
+        let mut file =
+            File::open(&journal_path).map_err(|e| format!("Không thể đọc tệp journal: {}", e))?;
 
         let mut content = String::new();
         file.read_to_string(&mut content)

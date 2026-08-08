@@ -25,7 +25,7 @@ describe('useAuthStore (Local Auth)', () => {
   });
 
   it('hydrates default local engineer user on initAuth', async () => {
-    const { initAuth, useAuthStore } = await import('./useAuthStore');
+    const { initAuth, useAuthStore } = await import('@CORE/stores/useAuthStore');
     await initAuth();
 
     expect(useAuthStore.getState()).toEqual(expect.objectContaining({
@@ -39,7 +39,7 @@ describe('useAuthStore (Local Auth)', () => {
   });
 
   it('handles local logout successfully', async () => {
-    const { initAuth, useAuthStore } = await import('./useAuthStore');
+    const { initAuth, useAuthStore } = await import('@CORE/stores/useAuthStore');
     await initAuth();
 
     await useAuthStore.getState().logout();

@@ -27,10 +27,15 @@ export const EditableCell = memo(({
     const [value, setValue] = useState(initialValue);
     const [isEditing, setIsEditing] = useState(false);
     const cancelEditRef = useRef(false);
+    const editorRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setValue(initialValue);
     }, [initialValue]);
+
+    useEffect(() => {
+        if (isEditing) editorRef.current?.focus();
+    }, [isEditing]);
 
     const onBlur = () => {
         setIsEditing(false);
@@ -62,8 +67,7 @@ export const EditableCell = memo(({
                         e.currentTarget.blur();
                     }
                 }}
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
+                ref={editorRef}
                 className="w-full bg-cad-elevated border-cad-accent border rounded px-1 py-0.5 outline-none font-medium text-cad-text-primary"
             />
         );

@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
-import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
-import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
+import { useAuthStore } from "@CORE/stores/useAuthStore";
+import { useSettingsStore } from "@CORE/stores/useSettingsStore";
 import { safeInvoke as invoke, safeListen } from "@IMPLEMENT/lib/tauri";
+import { getCurrentWindow } from "@/contracts/tauri-api/runtime";
 
-import { useThemeStore } from "@DESIGN/stores/themeStore";
+import { useThemeStore } from "@CORE/stores/themeStore";
 
 /**
  * Handles application-level side effects like window visibility,
@@ -42,7 +43,6 @@ export function useAppBootstrap(handleOpenProject: (path: string) => Promise<boo
                 const isTauri = !!(window as any).__TAURI_IPC__;
                 if (!isTauri) return;
 
-                const { getCurrentWindow } = await import("@tauri-apps/api/window");
                 const win = getCurrentWindow();
                 if (win) {
                     await win.show();
@@ -64,7 +64,6 @@ export function useAppBootstrap(handleOpenProject: (path: string) => Promise<boo
                     const isTauri = !!(window as any).__TAURI_IPC__;
                     if (!isTauri) return;
 
-                    const { getCurrentWindow } = await import("@tauri-apps/api/window");
                     const win = getCurrentWindow();
                     if (win) {
                         await win.show();

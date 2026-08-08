@@ -1,12 +1,15 @@
-import { invoke } from '@tauri-apps/api/core';
-import { invoke_design_event_batch } from '@TOOL/utils/designIpc';
+import { fiberApi } from '@/contracts/tauri-api';
+import type {
+  FiberCablePointsResponse,
+  FiberCapacityResponse,
+  FiberNetworkValidationResponse,
+} from '@/contracts/tauri-api';
+import { invoke_design_event_batch } from '@SHARED/utils/designIpc';
 import type {
   DesignBulkActionResponse,
   FeatureState,
   FiberCableSource,
   FiberCableStatus,
-  FiberCablePoint,
-  FiberCapacitySummary,
   FiberCircuitServiceType,
   FiberCircuitStatus,
   FiberInventory,
@@ -15,7 +18,6 @@ import type {
   FiberPortStatus,
   FiberStrandStatus,
   FiberTraceResult,
-  FiberValidationDiagnostic,
 } from '@CONTRACT/types';
 import { buildFiberPolylineMaterializationEvents } from './fiberPolylineMaterializer';
 import { validateFiberGeometry } from './fiberGeometryValidation';
@@ -108,18 +110,7 @@ export interface FiberCircuitUpsertInput {
 
 export type FiberInventoryResponse = FiberInventory;
 
-export interface FiberCapacityResponse {
-  items: FiberCapacitySummary[];
-}
-
-export interface FiberCablePointsResponse {
-  items: FiberCablePoint[];
-}
-
-export interface FiberNetworkValidationResponse {
-  inventory: FiberInventoryResponse;
-  diagnostics: FiberValidationDiagnostic[];
-}
+export type { FiberCapacityResponse, FiberCablePointsResponse, FiberNetworkValidationResponse } from '@/contracts/tauri-api';
 
 const toMaybeString = (value: string | null | undefined) => {
   const trimmed = value?.trim();
@@ -135,7 +126,7 @@ export const getFiberInventory = async (
   projectId: string,
   filter: FiberInventoryFilter = {}
 ): Promise<FiberInventoryResponse> => {
-  return invoke<FiberInventoryResponse>('get_fiber_inventory', {
+  return fiberApi.getInventory({
     projectId,
     project_id: projectId,
     cableId: toMaybeString(filter.cableId ?? null),
@@ -149,7 +140,7 @@ export const getFiberCapacity = async (
   projectId: string,
   filter: FiberInventoryFilter = {}
 ): Promise<FiberCapacityResponse> => {
-  return invoke<FiberCapacityResponse>('get_fiber_capacity', {
+  return fiberApi.getCapacity({
     projectId,
     project_id: projectId,
     cableId: toMaybeString(filter.cableId ?? null),
@@ -163,7 +154,7 @@ export const getFiberCablePoints = async (
   projectId: string,
   cableId?: string | null
 ): Promise<FiberCablePointsResponse> => {
-  return invoke<FiberCablePointsResponse>('get_fiber_cable_points', {
+  return fiberApi.getCablePoints({
     projectId,
     project_id: projectId,
     cableId: toMaybeString(cableId ?? null),
@@ -172,10 +163,7 @@ export const getFiberCablePoints = async (
 };
 
 export const traceFiberCircuit = async (circuitId: string): Promise<FiberTraceResult> => {
-  return invoke<FiberTraceResult>('trace_fiber_circuit', {
-    circuitId,
-    circuit_id: circuitId,
-  });
+  return fiberApi.traceCircuit(circuitId);
 };
 
 export const validateFiberNetwork = async (
@@ -183,7 +171,7 @@ export const validateFiberNetwork = async (
   filter: FiberInventoryFilter = {},
   featuresById?: Record<string, FeatureState>
 ): Promise<FiberNetworkValidationResponse> => {
-  const result = await invoke<FiberNetworkValidationResponse>('validate_fiber_network', {
+  const result = await fiberApi.validateNetwork({
     projectId,
     project_id: projectId,
     cableId: toMaybeString(filter.cableId ?? null),

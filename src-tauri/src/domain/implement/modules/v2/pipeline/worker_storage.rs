@@ -850,18 +850,16 @@ fn worker_feature_row_to_state(row: &Value) -> Value {
 }
 
 fn worker_project_from_row(row: &Value, path: &str) -> Option<Value> {
-    let raw_id = worker_extract_id(row.get("id"))
-        .or_else(|| worker_extract_id(row.get("project_id")))?;
+    let raw_id =
+        worker_extract_id(row.get("id")).or_else(|| worker_extract_id(row.get("project_id")))?;
     let name = worker_extract_string_text(row.get("title"))
         .or_else(|| worker_extract_string_text(row.get("name")))
         .unwrap_or_else(|| "Untitled Project".to_string());
     let description = worker_trim_to_option(worker_extract_string_text(row.get("description")));
-    let status = worker_extract_string_text(row.get("status"))
-        .unwrap_or_else(|| "active".to_string());
-    let created_at = worker_extract_string_text(row.get("created_at"))
-        .unwrap_or_default();
-    let updated_at = worker_extract_string_text(row.get("updated_at"))
-        .unwrap_or_default();
+    let status =
+        worker_extract_string_text(row.get("status")).unwrap_or_else(|| "active".to_string());
+    let created_at = worker_extract_string_text(row.get("created_at")).unwrap_or_default();
+    let updated_at = worker_extract_string_text(row.get("updated_at")).unwrap_or_default();
     Some(json!({
         "id": worker_uuid_from_text_fallback(&raw_id),
         "name": name,
@@ -901,9 +899,12 @@ impl StorageWorker {
             self.db = dummy_db;
         }
 
-        let (effective_open_path, sync_target) = if crate::domain::implement::modules::v2::storage::connection::is_network_drive_path(&path) {
-            let temp_dir = std::env::temp_dir().join("antigravity_temp_pmps");
-            match crate::domain::implement::modules::v2::storage::connection::prepare_network_pmp_local_copy(&path, &temp_dir) {
+        let (effective_open_path, sync_target) =
+            if crate::domain::implement::modules::v2::storage::connection::is_network_drive_path(
+                &path,
+            ) {
+                let temp_dir = std::env::temp_dir().join("antigravity_temp_pmps");
+                match crate::domain::implement::modules::v2::storage::connection::prepare_network_pmp_local_copy(&path, &temp_dir) {
                 Ok(temp_path) => {
                     log::info!("[StorageWorker] Network path detected. Using local temp copy: {:?} (Original: {:?})", temp_path, path);
                     (temp_path.clone(), Some((temp_path, path.clone())))
@@ -913,9 +914,9 @@ impl StorageWorker {
                     (path.clone(), None)
                 }
             }
-        } else {
-            (path.clone(), None)
-        };
+            } else {
+                (path.clone(), None)
+            };
 
         self.network_sync_target = sync_target;
         self.db = PmpDatabase::open_or_create(effective_open_path).map_err(|e| e.to_string())?;
@@ -923,7 +924,7 @@ impl StorageWorker {
 
         let db_path_copy = self.db.pmp_path.clone();
         crate::domain::implement::modules::v2::pipeline::tile_server::start_local_tile_server(
-            std::sync::Arc::new(move || Some(db_path_copy.clone()))
+            std::sync::Arc::new(move || Some(db_path_copy.clone())),
         );
 
         let mut first_project = self.query(
@@ -1083,9 +1084,12 @@ impl StorageWorker {
             "viewportFeatureLimit": viewport_first_limit
         });
 
-        let tile_port = crate::domain::implement::modules::v2::pipeline::tile_server::get_tile_server_port();
+        let tile_port =
+            crate::domain::implement::modules::v2::pipeline::tile_server::get_tile_server_port();
         let tile_server_url = if tile_port > 0 {
-            format!("http://127.0.0.1:{tile_port}/tiles/{{z}}/{{x}}/{{y}}.pbf?project_id={project_id}")
+            format!(
+                "http://127.0.0.1:{tile_port}/tiles/{{z}}/{{x}}/{{y}}.pbf?project_id={project_id}"
+            )
         } else {
             String::new()
         };
@@ -1788,7 +1792,11 @@ impl StorageWorker {
             return Ok(json!([]));
         }
 
-        let placeholders = feature_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let placeholders = feature_ids
+            .iter()
+            .map(|_| "?")
+            .collect::<Vec<_>>()
+            .join(",");
         let sql = format!(
             "SELECT
                 fm.feature_id,
@@ -1819,60 +1827,62 @@ impl StorageWorker {
 
         let base_dir = pmp_path.parent().unwrap_or(&self.db.base_dir);
         let mut repaired_paths: Vec<(String, String)> = Vec::new();
-        let rows = stmt.query_map(params.as_slice(), |row| {
-            let rel_path: String = row.get(5)?;
-            let sha256: String = row.get(6)?;
-            let asset_id: String = row.get(1)?;
-            let stored_path = PathBuf::from(&rel_path);
-            let mut full_path = if stored_path.is_absolute() {
-                stored_path
-            } else {
-                base_dir.join(&stored_path)
-            };
-            let mut exists = full_path.exists();
-            let mut repaired_rel_path: Option<String> = None;
+        let rows = stmt
+            .query_map(params.as_slice(), |row| {
+                let rel_path: String = row.get(5)?;
+                let sha256: String = row.get(6)?;
+                let asset_id: String = row.get(1)?;
+                let stored_path = PathBuf::from(&rel_path);
+                let mut full_path = if stored_path.is_absolute() {
+                    stored_path
+                } else {
+                    base_dir.join(&stored_path)
+                };
+                let mut exists = full_path.exists();
+                let mut repaired_rel_path: Option<String> = None;
 
-            if !exists {
-                if let Some(found) = find_media_asset_file(base_dir, pmp_path, &sha256) {
-                    if let Ok(next_rel_path) = compute_rel_path(&found, base_dir) {
-                        repaired_rel_path = Some(next_rel_path);
+                if !exists {
+                    if let Some(found) = find_media_asset_file(base_dir, pmp_path, &sha256) {
+                        if let Ok(next_rel_path) = compute_rel_path(&found, base_dir) {
+                            repaired_rel_path = Some(next_rel_path);
+                        }
+                        full_path = found;
+                        exists = true;
                     }
-                    full_path = found;
-                    exists = true;
                 }
-            }
-            if let Some(next_rel_path) = repaired_rel_path {
-                if next_rel_path != rel_path {
-                    repaired_paths.push((asset_id.clone(), next_rel_path));
+                if let Some(next_rel_path) = repaired_rel_path {
+                    if next_rel_path != rel_path {
+                        repaired_paths.push((asset_id.clone(), next_rel_path));
+                    }
                 }
-            }
-            let warning = if exists {
-                Value::Null
-            } else {
-                json!(format!(
-                    "Khong tim thay file Site Photo: {}. Da thu thu muc assets: {}",
-                    rel_path,
-                    describe_media_asset_search_dirs(base_dir, pmp_path)
-                ))
-            };
+                let warning = if exists {
+                    Value::Null
+                } else {
+                    json!(format!(
+                        "Khong tim thay file Site Photo: {}. Da thu thu muc assets: {}",
+                        rel_path,
+                        describe_media_asset_search_dirs(base_dir, pmp_path)
+                    ))
+                };
 
-            Ok(json!({
-                "featureId": row.get::<_, String>(0)?,
-                "assetId": asset_id,
-                "sortOrder": row.get::<_, i64>(2)?,
-                "isPrimary": row.get::<_, i64>(3)? == 1,
-                "projectId": row.get::<_, String>(4)?,
-                "relativePath": rel_path,
-                "absolutePath": full_path.to_string_lossy().to_string(),
-                "sha256": sha256,
-                "mimeType": row.get::<_, String>(7)?,
-                "byteSize": row.get::<_, i64>(8)?,
-                "width": row.get::<_, Option<i64>>(9)?,
-                "height": row.get::<_, Option<i64>>(10)?,
-                "status": if exists { "resolved" } else { "missing" },
-                "warning": warning,
-            }))
-        }).map_err(|e| e.to_string())?;
+                Ok(json!({
+                    "featureId": row.get::<_, String>(0)?,
+                    "assetId": asset_id,
+                    "sortOrder": row.get::<_, i64>(2)?,
+                    "isPrimary": row.get::<_, i64>(3)? == 1,
+                    "projectId": row.get::<_, String>(4)?,
+                    "relativePath": rel_path,
+                    "absolutePath": full_path.to_string_lossy().to_string(),
+                    "sha256": sha256,
+                    "mimeType": row.get::<_, String>(7)?,
+                    "byteSize": row.get::<_, i64>(8)?,
+                    "width": row.get::<_, Option<i64>>(9)?,
+                    "height": row.get::<_, Option<i64>>(10)?,
+                    "status": if exists { "resolved" } else { "missing" },
+                    "warning": warning,
+                }))
+            })
+            .map_err(|e| e.to_string())?;
 
         let mut photos = Vec::new();
         for r in rows {
@@ -10009,7 +10019,9 @@ mod tests {
         hasher.update(bytes);
         let sha256 = hex::encode(hasher.finalize());
         let asset_id = "asset-plain-assets";
-        let actual_rel_path = PathBuf::from("assets").join("media").join(format!("{sha256}.png"));
+        let actual_rel_path = PathBuf::from("assets")
+            .join("media")
+            .join(format!("{sha256}.png"));
         let actual_path = dir.path().join(&actual_rel_path);
         fs::create_dir_all(actual_path.parent().expect("asset parent")).expect("asset dir");
         fs::write(&actual_path, bytes).expect("asset file");
@@ -10094,7 +10106,9 @@ mod tests {
         hasher.update(bytes);
         let sha256 = hex::encode(hasher.finalize());
         let asset_id = "asset-report-assets";
-        let actual_rel_path = PathBuf::from("assets").join("media").join(format!("{sha256}.png"));
+        let actual_rel_path = PathBuf::from("assets")
+            .join("media")
+            .join(format!("{sha256}.png"));
         let actual_path = dir.path().join(&actual_rel_path);
         fs::create_dir_all(actual_path.parent().expect("asset parent")).expect("asset dir");
         fs::write(&actual_path, bytes).expect("asset file");
@@ -10145,8 +10159,14 @@ mod tests {
         let photos = worker
             .get_report_section_site_photos(&pmp_path, project_id, &[feature_id.to_string()])
             .expect("report photos");
-        let first = photos.as_array().and_then(|items| items.first()).expect("photo");
-        assert_eq!(first.get("status").and_then(Value::as_str), Some("resolved"));
+        let first = photos
+            .as_array()
+            .and_then(|items| items.first())
+            .expect("photo");
+        assert_eq!(
+            first.get("status").and_then(Value::as_str),
+            Some("resolved")
+        );
         assert_eq!(first.get("warning"), Some(&Value::Null));
         assert_eq!(
             first.get("absolutePath").and_then(Value::as_str),
@@ -10179,7 +10199,9 @@ mod tests {
         hasher.update(bytes);
         let sha256 = hex::encode(hasher.finalize());
         let asset_id = "asset-requested-path";
-        let actual_rel_path = PathBuf::from("assets").join("media").join(format!("{sha256}.png"));
+        let actual_rel_path = PathBuf::from("assets")
+            .join("media")
+            .join(format!("{sha256}.png"));
         let actual_path = asset_dir.path().join(&actual_rel_path);
         fs::create_dir_all(actual_path.parent().expect("asset parent")).expect("asset dir");
         fs::write(&actual_path, bytes).expect("asset file");
@@ -10234,8 +10256,14 @@ mod tests {
                 &[feature_id.to_string()],
             )
             .expect("report photos");
-        let first = photos.as_array().and_then(|items| items.first()).expect("photo");
-        assert_eq!(first.get("status").and_then(Value::as_str), Some("resolved"));
+        let first = photos
+            .as_array()
+            .and_then(|items| items.first())
+            .expect("photo");
+        assert_eq!(
+            first.get("status").and_then(Value::as_str),
+            Some("resolved")
+        );
         assert_eq!(
             first.get("absolutePath").and_then(Value::as_str),
             Some(actual_path.to_string_lossy().as_ref())

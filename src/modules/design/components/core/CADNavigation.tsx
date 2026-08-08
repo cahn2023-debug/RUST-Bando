@@ -1,5 +1,5 @@
 import { ZoomIn, ZoomOut, Maximize2, Crosshair, Ruler } from "lucide-react";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 
 interface CADNavigationProps {
     onLocateMe: () => void;

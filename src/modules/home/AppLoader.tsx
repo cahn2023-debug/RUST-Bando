@@ -1,6 +1,6 @@
 import React from "react";
 import { Loader2 } from "lucide-react";
-import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
+import { useAuthStore } from "@CORE/stores/useAuthStore";
 
 export const AppLoader: React.FC = () => {
     return (

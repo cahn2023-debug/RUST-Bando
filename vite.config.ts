@@ -41,6 +41,7 @@ export default defineConfig({
       "@IMPLEMENT": path.resolve(__dirname, "src/modules/implement"),
       "@TOOL": path.resolve(__dirname, "src/modules/tool"),
       "@ANALYTICS": path.resolve(__dirname, "src/modules/analytics"),
+      "@CORE": path.resolve(__dirname, "src/core"),
       "@SHARED": path.resolve(__dirname, "src/shared"),
       "@": path.resolve(__dirname, "src"),
     }

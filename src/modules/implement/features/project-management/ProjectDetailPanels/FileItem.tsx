@@ -1,5 +1,5 @@
 import { FileText } from "lucide-react";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 
 export function FileItem({ name, onSelect, onContextMenu, isActive, path }: { name: string, type?: 'doc' | 'excel' | 'code' | 'image' | 'pdf', onSelect?: () => void, onContextMenu?: (e: React.MouseEvent) => void, isActive?: boolean, path?: string }) {
   const Icon = FileText;

@@ -20,7 +20,7 @@ export const LanguageSwitcher = () => {
   return (
     <button
       onClick={toggleLanguage}
-      className="flex items-center justify-center px-2 py-1 text-[11px] font-extrabold text-cad-text-secondary hover:text-cad-text-primary transition-all rounded hover:bg-white/10 cursor-pointer uppercase tracking-wider select-none min-w-[28px]"
+      className="flex items-center justify-center px-2 py-1 text-[11px] font-extrabold text-cad-text-secondary hover:text-cad-text-primary transition-all rounded hover:bg-cad-text-primary/5 cursor-pointer uppercase tracking-wider select-none min-w-[28px]"
       aria-label={currentLang === 'vi' ? 'Switch to English' : 'Chuyển sang tiếng Việt'}
       title={currentLang === 'vi' ? 'Switch to English' : 'Chuyển sang tiếng Việt'}
     >
@@ -28,4 +28,3 @@ export const LanguageSwitcher = () => {
     </button>
   );
 };
-

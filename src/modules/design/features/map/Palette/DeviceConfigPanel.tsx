@@ -12,7 +12,7 @@ import {
 } from '@TOOL/utils/featureUtils';
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { buildFeaturePropertiesForPersistence, normalizeFeatureMetadataForPersistence } from '@TOOL/utils/featurePersistence';
-import { confirmUserAction } from '@TOOL/utils/userConfirmation';
+import { confirmUserAction } from '@SHARED/utils/userConfirmation';
 
 
 export const DeviceConfigPanel: React.FC = () => {
@@ -42,6 +42,8 @@ export const DeviceConfigPanel: React.FC = () => {
 
     useEffect(() => {
         if (!feature) {
+            // This effect mirrors the selected feature into the editable draft.
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLocalMeta({});
             return;
         }
@@ -50,9 +52,11 @@ export const DeviceConfigPanel: React.FC = () => {
             const parsed = typeof feature.metadata === 'string'
                 ? JSON.parse(feature.metadata || '{}')
                 : (feature.metadata || {});
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLocalMeta(parsed);
         } catch (e) {
             console.warn('[DeviceConfigPanel] Failed to parse feature metadata:', e);
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLocalMeta({});
         }
     }, [feature?.id, feature?.metadata]);
@@ -60,6 +64,7 @@ export const DeviceConfigPanel: React.FC = () => {
     // Sync with previewMetadata (from other palettes)
     useEffect(() => {
         if (previewMetadata?.id === selectedFeatureId && previewMetadata.metadata) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setLocalMeta((prev: any) => {
                 const incoming = previewMetadata.metadata;
                 if (JSON.stringify(prev) !== JSON.stringify(incoming)) {

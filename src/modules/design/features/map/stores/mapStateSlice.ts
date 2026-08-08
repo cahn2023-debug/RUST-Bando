@@ -6,6 +6,7 @@ import { DesignEventType } from '@CONTRACT/designTypes';
 import { normalizeMapStateForDisplay } from '../../../../tool/utils/normalizeDisplay';
 import { createMapCameraSubSlice } from './mapCameraSubSlice';
 import { applyLayerEventToMapState, removeFeaturesFromRecord } from './mapLayersSubSlice';
+import { invoke } from '@/contracts/tauri-api/runtime';
 
 
 
@@ -264,7 +265,6 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
 
         // 3. Gọi IPC invoke
         try {
-            const { invoke } = await import('@tauri-apps/api/core');
             await invoke('update_entity_metadata_v2', {
                 request: {
                     project_id: projectKey, // projectKey is the string UUID

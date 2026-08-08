@@ -91,7 +91,7 @@ vi.mock('@IMPLEMENT/hooks/useProjectData', () => ({
   useProjectData: () => ({ contracts: [] }),
 }));
 
-vi.mock('@IMPLEMENT/stores/useLayoutStore', () => ({
+vi.mock('@CORE/stores/useLayoutStore', () => ({
   useLayoutStore: (selector: (state: unknown) => unknown) => selector({
     togglePalette: mocks.togglePalette,
     paletteConfigs: {},

@@ -1,5 +1,5 @@
-import { safeInvoke as invoke } from '@IMPLEMENT/lib/tauri';
-import { BincodeDecoder } from '@TOOL/utils/bincodeDecoder';
+import { invoke } from '@/contracts/tauri-api/runtime';
+import { BincodeDecoder } from '@SHARED/utils/bincodeDecoder';
 import { MapState } from '@CONTRACT/types';
 import { DesignBulkActionResponse } from '@CONTRACT/designTypes';
 

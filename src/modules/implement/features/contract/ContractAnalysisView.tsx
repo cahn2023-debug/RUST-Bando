@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Plus,
   Package,
@@ -13,7 +13,7 @@ import {
   CheckCircle2,
   User,
 } from 'lucide-react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '@/contracts/tauri-api/runtime';
 import { addDays, parse, format, isValid } from 'date-fns';
 import { AnalysisTable } from '@DESIGN/components/ui/AnalysisTable';
 import { ColumnDef } from '@tanstack/react-table';
@@ -67,6 +67,7 @@ export function ContractAnalysisView({
   const [data, setData] = useState<ContractMetadata>(initialData);
   const [executionGroups, setExecutionGroups] = useState<ContractExecutionGroup[]>([]);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
+  const groupNameInputRef = useRef<HTMLInputElement>(null);
 
   const fetchGroups = useCallback(async () => {
     try {
@@ -98,6 +99,10 @@ export function ContractAnalysisView({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (projectId) void fetchGroups();
   }, [projectId, fetchGroups]);
+
+  useEffect(() => {
+    if (isAddingGroup) groupNameInputRef.current?.focus();
+  }, [isAddingGroup]);
 
   const handleUpsertGroup = async (group: Partial<ContractExecutionGroup>) => {
     try {
@@ -251,7 +256,7 @@ export function ContractAnalysisView({
 
   if (viewType === 'dashboard') {
     return (
-      <div className="flex-1 bg-cad-bg p-8 overflow-y-auto custom-scrollbar animate-in fade-in duration-500 font-sans">
+      <div className="flex-1 bg-cad-bg p-8 overflow-y-auto custom-scrollbar animate-in fade-in duration-200 font-sans">
         <div className="max-w-7xl mx-auto space-y-8">
           <ProjectInfoBar projectName={projectName} data={data} isAnalyzing={isAnalyzing} />
           <header className="flex justify-between items-end mb-4">
@@ -325,7 +330,7 @@ export function ContractAnalysisView({
 
   if (viewType === 'groups') {
     return (
-      <div className="flex-1 bg-cad-bg overflow-hidden flex flex-col animate-in fade-in duration-500 font-sans">
+      <div className="flex-1 bg-cad-bg overflow-hidden flex flex-col animate-in fade-in duration-200 font-sans">
         <div className="px-8 py-4 border-b border-cad-border bg-cad-bg/80 backdrop-blur-md z-10 flex flex-col gap-2">
           <h1 className="text-2xl font-black text-white tracking-tighter uppercase leading-none">
             DETAILED <span className="text-cad-accent">SUMMARY</span>
@@ -348,8 +353,7 @@ export function ContractAnalysisView({
             {isAddingGroup && (
               <div className="p-4 bg-cad-surface border border-cad-accent/30 rounded-lg space-y-2">
                 <input
-                  // eslint-disable-next-line jsx-a11y/no-autofocus
-                  autoFocus
+                  ref={groupNameInputRef}
                   placeholder="Tên nhóm..."
                   className="w-full bg-cad-bg border border-cad-border px-3 py-1.5 text-xs text-white rounded outline-none"
                   onKeyDown={(e) =>
@@ -379,7 +383,7 @@ export function ContractAnalysisView({
   }
 
   return (
-    <div className="flex-1 bg-cad-bg overflow-hidden flex flex-col animate-in fade-in duration-500 font-sans">
+    <div className="flex-1 bg-cad-bg overflow-hidden flex flex-col animate-in fade-in duration-200 font-sans">
       <div className="px-8 py-6 border-b border-cad-border bg-cad-bg/80 backdrop-blur-sm z-10 space-y-4">
         <div className="flex justify-between items-end">
           <div>

@@ -13,8 +13,9 @@ const mocks = vi.hoisted(() => ({
   requestStorageHealthRefresh: vi.fn(),
 }));
 
-vi.mock("@tauri-apps/plugin-dialog", () => ({
-  open: mocks.open,
+vi.mock("@IMPLEMENT/lib/tauri", () => ({
+  safeOpenDialog: mocks.open,
+  safeInvoke: vi.fn(),
 }));
 
 vi.mock("@IMPLEMENT/services/importService", () => ({

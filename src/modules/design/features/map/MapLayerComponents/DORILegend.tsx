@@ -1,5 +1,5 @@
 import React from 'react';
-import { DORI_LEVELS } from '@TOOL/utils/cameraMath';
+import { DORI_LEVELS } from '@SHARED/utils/cameraMath';
 import { Info } from 'lucide-react';
 
 export const DORILegend: React.FC = () => {

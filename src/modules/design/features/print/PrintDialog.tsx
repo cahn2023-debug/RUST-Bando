@@ -8,6 +8,7 @@ import { PrintPageSetup } from '@DESIGN/features/print/PrintPageSetup';
 import { PrintPreview } from '@DESIGN/features/print/PrintPreview';
 import { cn, pointInBounds } from '@DESIGN/features/print/printDialogUtils';
 import { requestMapCapture, usePrintExport } from '@DESIGN/features/print/usePrintExport';
+import { getCurrentWebviewWindow } from '@/contracts/tauri-api/runtime';
 
 interface PrintDialogProps {
   onClose: () => void;
@@ -24,8 +25,8 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
   // Đồng bộ trạng thái Maximize với Tauri window
   useEffect(() => {
     if (isStandalone) {
-      import('@tauri-apps/api/webviewWindow').then(m => {
-        const win = m.getCurrentWebviewWindow();
+      const win = getCurrentWebviewWindow();
+      if (win) {
 
         // Kiểm tra trạng thái ban đầu
         win.isMaximized().then(setIsMaximized);
@@ -39,7 +40,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
         return () => {
           unlisten.then(u => u());
         };
-      });
+      }
     }
   }, [isStandalone]);
   const [includeBaseMap, setIncludeBaseMap] = useState(true);
@@ -138,9 +139,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
           onMouseDown={(e) => {
             // Chỉ bắt đầu kéo nếu click vào chính header hoặc các phần tử không tương tác
             if (e.currentTarget === e.target || (e.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {
-              import('@tauri-apps/api/webviewWindow').then(m => {
-                m.getCurrentWebviewWindow().startDragging();
-              });
+              getCurrentWebviewWindow()?.startDragging();
             }
           }}
           data-tauri-drag-region
@@ -158,14 +157,14 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
             {isStandalone && (
               <>
                 <button
-                  onClick={() => import('@tauri-apps/api/webviewWindow').then(m => m.getCurrentWebviewWindow().minimize())}
+                  onClick={() => getCurrentWebviewWindow()?.minimize()}
                   className="p-2.5 hover:bg-cad-elevated text-cad-text-muted transition-colors border-r border-cad-border"
                   title="Thu nhỏ"
                 >
                   <Minus size={16} />
                 </button>
                 <button
-                  onClick={() => import('@tauri-apps/api/webviewWindow').then(m => m.getCurrentWebviewWindow().toggleMaximize())}
+                  onClick={() => getCurrentWebviewWindow()?.toggleMaximize()}
                   className="p-2.5 hover:bg-cad-elevated text-cad-text-muted transition-colors border-r border-cad-border"
                   title={isMaximized ? "Khôi phục" : "Phóng to"}
                 >

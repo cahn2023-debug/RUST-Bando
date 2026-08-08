@@ -2,8 +2,9 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Minus, Square, X } from 'lucide-react';
 import { AnalysisDialog } from '@IMPLEMENT/features/analysis/AnalysisDialog';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore';
-import { useAuthStore } from '@IMPLEMENT/stores/useAuthStore';
+import { useSettingsStore } from '@CORE/stores/useSettingsStore';
+import { useAuthStore } from '@CORE/stores/useAuthStore';
+import { getCurrentWebviewWindow } from '@/contracts/tauri-api/runtime';
 
 const AnalysisWindow: React.FC = () => {
     const { initialize, state, error: projectError } = useDesignSync();
@@ -32,8 +33,8 @@ const AnalysisWindow: React.FC = () => {
 
         const initWindowControls = async () => {
             try {
-                const { getCurrentWebviewWindow } = await import('@tauri-apps/api/webviewWindow');
                 const appWindow = getCurrentWebviewWindow();
+                if (!appWindow) return;
                 const syncMaximized = async () => {
                     if (!disposed) {
                         setIsMaximized(await appWindow.isMaximized());
@@ -157,12 +158,10 @@ const AnalysisWindow: React.FC = () => {
                 data-tauri-drag-region
                 onMouseDown={(event) => {
                     if (event.currentTarget === event.target || (event.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {
-                        import('@tauri-apps/api/webviewWindow').then((m) => {
-                            m.getCurrentWebviewWindow().startDragging();
-                        });
+                        getCurrentWebviewWindow()?.startDragging();
                     }
                 }}
-                onDoubleClick={() => import('@tauri-apps/api/webviewWindow').then((m) => m.getCurrentWebviewWindow().toggleMaximize())}
+                onDoubleClick={() => getCurrentWebviewWindow()?.toggleMaximize()}
                 className="h-10 shrink-0 border-b border-[#1A1A1A] bg-[#2B2B2B] flex items-center justify-between pl-2 pr-0 select-none"
             >
                 <div data-tauri-drag-region className="flex items-center gap-2 min-w-0 pointer-events-none">
@@ -181,15 +180,15 @@ const AnalysisWindow: React.FC = () => {
 
                 <div className="flex items-center h-full pointer-events-auto">
                     <button
-                        onClick={() => import('@tauri-apps/api/webviewWindow').then((m) => m.getCurrentWebviewWindow().minimize())}
-                        className="w-11 h-full flex items-center justify-center text-white hover:bg-white/10 transition-colors"
+                        onClick={() => getCurrentWebviewWindow()?.minimize()}
+                        className="w-11 h-full flex items-center justify-center text-cad-text-primary hover:bg-cad-text-primary/5 transition-colors"
                         aria-label="Minimize analysis window"
                     >
                         <Minus className="w-4 h-4" />
                     </button>
                     <button
-                        onClick={() => import('@tauri-apps/api/webviewWindow').then((m) => m.getCurrentWebviewWindow().toggleMaximize())}
-                        className="w-11 h-full flex items-center justify-center text-white hover:bg-white/10 transition-colors"
+                        onClick={() => getCurrentWebviewWindow()?.toggleMaximize()}
+                        className="w-11 h-full flex items-center justify-center text-cad-text-primary hover:bg-cad-text-primary/5 transition-colors"
                         aria-label="Maximize analysis window"
                     >
                         {isMaximized ? (
@@ -201,7 +200,7 @@ const AnalysisWindow: React.FC = () => {
                         )}
                     </button>
                     <button
-                        onClick={() => import('@tauri-apps/api/webviewWindow').then((m) => m.getCurrentWebviewWindow().close())}
+                        onClick={() => getCurrentWebviewWindow()?.close()}
                         className="w-11 h-full flex items-center justify-center text-white hover:bg-[#E81123] transition-colors"
                         aria-label="Close analysis window"
                     >
@@ -211,9 +210,7 @@ const AnalysisWindow: React.FC = () => {
             </div>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden relative">
                 <AnalysisDialog onClose={() => {
-                    import('@tauri-apps/api/webviewWindow').then(m => {
-                        m.getCurrentWebviewWindow().close();
-                    });
+                    getCurrentWebviewWindow()?.close();
                 }} />
             </div>
         </div>

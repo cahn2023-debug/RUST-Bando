@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { addDays, differenceInDays, eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek } from "date-fns";
 import { Globe } from "lucide-react";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 import { Task, TaskDependency } from "@CONTRACT/types";
 
 interface GanttTimelineProps {

@@ -62,7 +62,7 @@ export function MapLayer({
 
 
             {showDORILayers && (
-                <div className="absolute bottom-6 right-16 z-cad-map-control pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="absolute bottom-6 right-16 z-cad-map-control pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-200">
                     <DORILegend />
                 </div>
             )}

@@ -51,15 +51,15 @@ vi.mock("@IMPLEMENT/stores/useDesignSync", () => {
   return { useDesignSync };
 });
 
-vi.mock("@IMPLEMENT/stores/useSettingsStore", () => ({
+vi.mock("@CORE/stores/useSettingsStore", () => ({
   useSettingsStore: () => ({ enableAi: false, setEnableAi: vi.fn() }),
 }));
 
-vi.mock("@IMPLEMENT/stores/useLayoutStore", () => ({
+vi.mock("@CORE/stores/useLayoutStore", () => ({
   useLayoutStore: () => ({ togglePalette: vi.fn(), activePaletteId: null }),
 }));
 
-vi.mock("@IMPLEMENT/stores/useAuthStore", () => ({
+vi.mock("@CORE/stores/useAuthStore", () => ({
   useAuthStore: () => ({ user: null }),
 }));
 

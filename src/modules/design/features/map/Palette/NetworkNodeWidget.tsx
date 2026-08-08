@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import { cn } from '@TOOL/utils/cn';
+import { cn } from '@SHARED/utils/cn';
 import type { NetworkComputedStatus } from '../network/NetworkGraphService';
 
 interface NetworkNodeData {
@@ -16,7 +16,7 @@ interface NetworkNodeData {
 const statusClass: Record<NetworkComputedStatus, string> = {
     online: 'border-emerald-500/30 bg-emerald-950/40 text-emerald-200 shadow-[0_0_12px_rgba(52,211,153,0.15)] hover:border-emerald-500/50 hover:shadow-[0_0_18px_rgba(52,211,153,0.25)]',
     'direct-offline': 'border-red-500/30 bg-red-950/40 text-red-200 shadow-[0_0_12px_rgba(239,68,68,0.25)] hover:border-red-500/50 hover:shadow-[0_0_18px_rgba(239,68,68,0.35)]',
-    'upstream-offline': 'border-orange-500/30 bg-orange-950/40 text-orange-200 shadow-[0_0_12px_rgba(249,115,22,0.18)] hover:border-orange-500/50 hover:shadow-[0_0_18px_rgba(249,115,22,0.28)]',
+    'upstream-offline': 'border-cad-warn/30 bg-cad-warn/10 text-cad-warn shadow-sm hover:border-cad-warn/50 hover:shadow-md',
     unknown: 'border-zinc-700/30 bg-zinc-950/40 text-zinc-400 shadow-none hover:border-zinc-600/50',
     'configuration-error': 'border-purple-500/30 bg-purple-950/40 text-purple-200 shadow-[0_0_12px_rgba(168,85,247,0.18)] hover:border-purple-500/50 hover:shadow-[0_0_18px_rgba(168,85,247,0.28)]',
 };
@@ -33,7 +33,7 @@ export const NetworkNodeWidget = memo(({ data }: { data: NetworkNodeData }) => {
     return (
         <div
             className={cn(
-                'w-[152px] rounded-lg border backdrop-blur-md px-2.5 py-2 text-left shadow transition-all duration-300 ease-out hover:-translate-y-0.5 font-sans',
+                'w-[152px] rounded-lg border backdrop-blur-md px-2.5 py-2 text-left shadow transition-all duration-200 ease-out hover:-translate-y-0.5 font-sans',
                 statusClass[data.status || 'unknown'],
                 data.isSelected && 'ring-2 ring-cad-active border-cad-active/50 shadow-[0_0_15px_rgba(34,211,238,0.25)]'
             )}

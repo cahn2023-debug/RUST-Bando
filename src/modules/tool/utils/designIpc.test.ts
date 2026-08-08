@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { safeInvoke } from '../../implement/lib/tauri';
-import { invoke_design_event_batch } from './designIpc';
+import { invoke } from '@/contracts/tauri-api/runtime';
+import { invoke_design_event_batch } from '@SHARED/utils/designIpc';
 
-vi.mock('../../implement/lib/tauri', () => ({
-  safeInvoke: vi.fn(),
+vi.mock('@/contracts/tauri-api/runtime', () => ({
+  invoke: vi.fn(),
 }));
 
-const mockInvoke = vi.mocked(safeInvoke);
+const mockInvoke = vi.mocked(invoke);
 
 describe('designIpc sync client', () => {
   beforeEach(() => {

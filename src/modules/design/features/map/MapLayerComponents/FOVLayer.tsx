@@ -2,7 +2,7 @@ import React from 'react';
 import type { FeatureState } from '@CONTRACT/types';
 import { useMapContext } from '../MapContext';
 import { useDesignSync, EMPTY_OBJ } from '@IMPLEMENT/stores/useDesignSync';
-import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore';
+import { useSettingsStore } from '@CORE/stores/useSettingsStore';
 import {
     getFeatureDisplayInfo,
     getPointCoordinates,

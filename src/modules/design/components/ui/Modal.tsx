@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef } from "react";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 import { Portal } from "./Portal";
 
 export type ModalSize = "sm" | "md" | "lg" | "xl";
@@ -119,7 +119,7 @@ export function Modal({
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-cad-overlay flex items-center justify-center p-4 animate-in fade-in duration-300">
+      <div className="fixed inset-0 z-cad-overlay flex items-center justify-center p-4 animate-in fade-in duration-200">
         <div
           className="cad-overlay"
           onClick={overlayClickDisabled ? undefined : onClose}
@@ -133,7 +133,7 @@ export function Modal({
           aria-labelledby={resolvedTitleId}
           tabIndex={trapFocusDisabled ? undefined : -1}
           className={cn(
-            "cad-dialog relative z-cad-modal w-full animate-in zoom-in-95 duration-300",
+            "cad-dialog relative z-cad-modal w-full animate-in zoom-in-95 duration-200",
             sizeClasses[size],
             className
           )}

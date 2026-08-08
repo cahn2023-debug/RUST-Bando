@@ -45,7 +45,7 @@ export const StatsCard: React.FC<StatsCardProps> = ({
             </div>
             <div className="h-[2px] w-full bg-cad-bg overflow-hidden mt-1 rounded-full">
                 <div
-                    className={`h-full ${bgColor} opacity-30 group-hover:opacity-100 transition-all duration-500`}
+                    className={`h-full ${bgColor} opacity-30 group-hover:opacity-100 transition-all duration-200`}
                     style={{ width: '40%' }}
                 />
             </div>

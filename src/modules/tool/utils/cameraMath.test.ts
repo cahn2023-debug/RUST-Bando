@@ -7,7 +7,7 @@ import {
     getDORICategory,
     mapRotationToHeading,
     SENSOR_SIZES
-} from './cameraMath';
+} from '@SHARED/utils/cameraMath';
 
 describe('cameraMath Utilities', () => {
     describe('calculateHFOV', () => {

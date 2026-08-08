@@ -81,15 +81,18 @@ export const useSnap = () => {
         }
     }, [drawingMode, editingFeatureId, features]);
 
-    const performSnap = useMemo(() => throttle((lat: number, lng: number) => {
-        const result = snapNow(lat, lng);
-        const current = snappedPointRef.current;
-        if (!current && !result) return;
-        if (current && result && current.id === result.id && Math.abs(current.x - result.x) < 1e-7 && Math.abs(current.y - result.y) < 1e-7) {
-            return;
-        }
-        setSnappedPoint(result);
-    }, 50), [snapNow, setSnappedPoint]);
+    const performSnap = useMemo(
+        () => throttle((lat: number, lng: number) => {
+            const result = snapNow(lat, lng);
+            const current = useDesignSync.getState().snappedPoint;
+            if (!current && !result) return;
+            if (current && result && current.id === result.id && Math.abs(current.x - result.x) < 1e-7 && Math.abs(current.y - result.y) < 1e-7) {
+                return;
+            }
+            setSnappedPoint(result);
+        }, 50),
+        [snapNow, setSnappedPoint]
+    );
 
     const clearSnap = useCallback(() => {
         setSnappedPoint(null);

@@ -13,7 +13,7 @@ vi.mock('@tauri-apps/api/event', () => ({
     listen: vi.fn(),
 }));
 
-vi.mock('@TOOL/utils/userConfirmation', () => ({
+vi.mock('@SHARED/utils/userConfirmation', () => ({
     confirmUserAction: confirmationMocks.confirmUserAction,
 }));
 

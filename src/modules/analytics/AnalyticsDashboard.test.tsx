@@ -1,9 +1,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke } from '@IMPLEMENT/lib/tauri';
 import AnalyticsDashboard from './AnalyticsDashboard';
 
-const mockInvoke = vi.mocked(invoke);
+vi.mock('@IMPLEMENT/lib/tauri', () => ({
+  safeInvoke: vi.fn(),
+}));
+
+const mockInvoke = vi.mocked(safeInvoke);
 
 describe('AnalyticsDashboard', () => {
   beforeEach(() => {

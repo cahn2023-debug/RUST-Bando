@@ -1,7 +1,7 @@
 import React from 'react';
 import { VirtuosoGrid } from 'react-virtuoso';
-import { convertFileSrc } from '@tauri-apps/api/core';
-import { logger } from '@TOOL/utils/logger';
+import { convertFileSrc } from '@/contracts/tauri-api/runtime';
+import { logger } from '@SHARED/utils/logger';
 
 export interface FileItemData {
     id: string;
@@ -74,7 +74,7 @@ function FilePreviewCard({ file }: { file: FileItemData }) {
                 ) : isHtmlPreview ? (
                     <iframe
                         src={previewUrl}
-                        className="w-full h-full border-none bg-white"
+                        className="w-full h-full border-none bg-cad-surface"
                         sandbox="allow-same-origin"
                         loading="lazy"
                         onError={() => setError(true)}

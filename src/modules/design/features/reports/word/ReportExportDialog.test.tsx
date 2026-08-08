@@ -46,6 +46,25 @@ vi.mock('@IMPLEMENT/services/mediaAssetService', () => ({
 
 vi.mock('@IMPLEMENT/lib/tauri', () => ({
   safeInvoke: tauriMocks.safeInvoke,
+  safeListen: vi.fn(async (event: string, handler: (event: { payload: any }) => void) => {
+    const handlers = eventMocks.listeners.get(event) || [];
+    handlers.push(handler);
+    eventMocks.listeners.set(event, handlers);
+    return vi.fn();
+  }),
+  safeEmit: vi.fn(async (event: string, payload: any) => {
+    eventMocks.emitted.push({ event, payload });
+    if (event === 'request-map-capture') {
+      const resultHandlers = eventMocks.listeners.get('map-capture-result') || [];
+      resultHandlers.forEach((handler) => handler({
+        payload: {
+          captureId: payload.captureId,
+          dataUrl: 'data:image/jpeg;base64,MAP',
+        },
+      }));
+    }
+  }),
+  safeSaveDialog: vi.fn(async () => 'D:/report.docx'),
 }));
 
 vi.mock('./reportDocx', async () => {

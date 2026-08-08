@@ -28,7 +28,7 @@ export const ReportDashboard: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col gap-8 p-6 animate-in fade-in duration-500">
+        <div className="flex flex-col gap-8 p-6 animate-in fade-in duration-200">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-cad-border pb-6">
                 <div>

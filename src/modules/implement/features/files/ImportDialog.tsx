@@ -11,7 +11,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open } from "@/contracts/tauri-api/runtime";
 import type { Project } from "@CONTRACT/types";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import {
@@ -224,7 +224,7 @@ export function ImportDialog({ onClose, onSuccess, project }: Props) {
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex-center bg-surface-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="fixed inset-0 z-cad-overlay flex-center bg-surface-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
         <div className="bg-surface-100 rounded-2xl shadow-2xl border border-surface-200 w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-200 relative pb-2">
           <div className="absolute top-0 right-0 w-64 h-64 bg-brand-500/10 rounded-full blur-3xl pointer-events-none -mt-32 -mr-32" />
 
@@ -297,7 +297,7 @@ export function ImportDialog({ onClose, onSuccess, project }: Props) {
             {step === "preview" && meta && mode === "gis" && (
               <div className="space-y-6">
                 <div className="p-4 bg-brand-50 rounded-xl border border-brand-100 flex items-center gap-4">
-                  <div className="p-2 bg-white rounded-lg shadow-sm text-brand-500">
+                  <div className="p-2 bg-cad-surface rounded-lg shadow-sm text-cad-accent">
                     {isKml ? <FileCode size={20} /> : <FileSpreadsheet size={20} />}
                   </div>
                   <div>
@@ -362,7 +362,7 @@ export function ImportDialog({ onClose, onSuccess, project }: Props) {
             {step === "pmpPreview" && pmpPreview && mode === "pmp" && (
               <div className="space-y-6">
                 <div className="p-4 bg-brand-50 rounded-xl border border-brand-100 flex items-center gap-4">
-                  <div className="p-2 bg-white rounded-lg shadow-sm text-brand-500">
+                  <div className="p-2 bg-cad-surface rounded-lg shadow-sm text-cad-accent">
                     <FileArchive size={20} />
                   </div>
                   <div className="min-w-0">
@@ -436,7 +436,7 @@ export function ImportDialog({ onClose, onSuccess, project }: Props) {
             )}
 
             {step === "mapping" && meta && mode === "gis" && (
-              <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
+              <div className="space-y-6 animate-in slide-in-from-right-4 duration-200">
                 <div className="flex items-center gap-2 mb-2">
                   <Settings2 size={18} className="text-brand-500" />
                   <h3 className="font-bold text-surface-900">Map your data columns</h3>
@@ -464,7 +464,7 @@ export function ImportDialog({ onClose, onSuccess, project }: Props) {
                             [field.key]: event.target.value,
                           }))
                         }
-                        className="flex-1 bg-white border border-surface-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
+                        className="cad-input flex-1 rounded-lg px-3 py-1.5 text-sm transition-all"
                       >
                         <option value="">-- Do not map --</option>
                         {meta.fields.map((fieldMeta) => (
@@ -515,7 +515,7 @@ export function ImportDialog({ onClose, onSuccess, project }: Props) {
 
             {step === "complete" && (
               <div className="flex flex-col items-center justify-center p-12 text-center">
-                <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex-center mb-6 animate-in zoom-in duration-500">
+                <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex-center mb-6 animate-in zoom-in duration-200">
                   <CheckCircle2 size={48} />
                 </div>
                 <h3 className="text-2xl font-bold text-surface-900 mb-2">Import Successful</h3>

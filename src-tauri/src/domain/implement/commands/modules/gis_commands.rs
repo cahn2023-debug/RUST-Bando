@@ -1,21 +1,11 @@
 pub use crate::domain::implement::commands::gis_commands::{
-    st_geom_from_ewkt,
-    st_as_ewkt,
-    st_is_valid,
-    st_make_valid,
-    st_transform,
-    st_measure_feature,
-    st_spatial_relate,
+    st_as_ewkt, st_geom_from_ewkt, st_is_valid, st_make_valid, st_measure_feature,
+    st_spatial_relate, st_transform,
 };
 
 pub use crate::domain::implement::commands::gis_commands::{
-    __cmd__st_geom_from_ewkt,
-    __cmd__st_as_ewkt,
-    __cmd__st_is_valid,
-    __cmd__st_make_valid,
-    __cmd__st_transform,
-    __cmd__st_measure_feature,
-    __cmd__st_spatial_relate,
+    __cmd__st_as_ewkt, __cmd__st_geom_from_ewkt, __cmd__st_is_valid, __cmd__st_make_valid,
+    __cmd__st_measure_feature, __cmd__st_spatial_relate, __cmd__st_transform,
 };
 
 #[macro_export]

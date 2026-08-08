@@ -13,23 +13,23 @@ import { designLogic } from '@TOOL/utils/designLogic';
 import { getFeatureDisplayInfo, safeString, getCleanName, isCameraIcon, getParsedMetadata, getPointCoordinates } from '@TOOL/utils/featureUtils';
 import { useCamera } from '@IMPLEMENT/hooks/useCamera';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
-import { cn } from '@TOOL/utils/cn';
+import { cn } from '@SHARED/utils/cn';
 import type { DesignEventType, FeatureMetadata, FeatureProperties, FiberCable, IconType } from '@CONTRACT/types';
 import { useProjectData } from '@IMPLEMENT/hooks/useProjectData';
-import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
+import { useLayoutStore } from '@CORE/stores/useLayoutStore';
 import { deleteMediaAsset, importMediaAsset, resolveMediaAsset, replaceMediaAsset, type MediaFeaturePatch } from '@IMPLEMENT/services/mediaAssetService';
 import { requestStorageHealthRefresh } from '@IMPLEMENT/services/projectStorageService';
 import { PropertyImportControls } from './PropertyPanel/PropertyImportControls';
 import { usePaletteContext } from '@DESIGN/features/map/Palette/PaletteContext';
 
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
-import { getFeatureDetailV2 } from '@TOOL/utils/designIpc';
+import { getFeatureDetailV2 } from '@SHARED/utils/designIpc';
 import { buildFeaturePropertiesForPersistence, getTypeForIcon, normalizeFeatureMetadataForPersistence } from '@TOOL/utils/featurePersistence';
 import { getDeclaredOrderFieldKey, syncDisplayOrderAliases } from '@TOOL/utils/featureMapping';
 import { buildToggleOriginEvents } from '@DESIGN/features/map/network/networkTopology';
 import { buildFiberRouteDisplay } from '@DESIGN/features/map/network/fiberRouteDisplay';
 import { getTemplateFieldValue, getTemplateTypeIdForFeature, normalizeProjectSettings } from '@TOOL/utils/objectDataTemplates';
-import { confirmUserAction } from '@TOOL/utils/userConfirmation';
+import { confirmUserAction } from '@SHARED/utils/userConfirmation';
 
 interface SegmentItem {
   id?: string | number;
@@ -1580,7 +1580,7 @@ export const PropertyPanel: React.FC = () => {
 
         {/* AUTOMATED SEGMENTS */}
         {isPolyline && feature.properties?.segments && (
-          <section className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500" role="group" aria-labelledby={`${uid}-segments`}>
+          <section className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-200" role="group" aria-labelledby={`${uid}-segments`}>
             <div id={`${uid}-segments`} className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
               <Sparkles className="w-3 h-3 text-cad-warn" aria-hidden="true" /> Automated Segments
             </div>

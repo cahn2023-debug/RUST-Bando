@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
+import { open } from '@/contracts/tauri-api/runtime';
 import { Trash2, Eraser, Filter, Package, ListFilter } from 'lucide-react';
 import { type ColumnDef, type SortingFn } from '@tanstack/react-table';
 import { AnalysisTable } from '@DESIGN/components/ui/AnalysisTable';
@@ -27,7 +28,7 @@ import {
 } from '@IMPLEMENT/features/analysis/analysisHierarchy';
 import { getAnalysisTemplateGroups, normalizeProjectSettings } from '@TOOL/utils/objectDataTemplates';
 import { compareAnalysisHierarchyRows } from '@IMPLEMENT/features/analysis/analysisHierarchy';
-import { cn } from '@TOOL/utils/cn';
+import { cn } from '@SHARED/utils/cn';
 import { getLineCoordinates, getPointCoordinates, getPolygonCoordinates } from '@TOOL/utils/featureUtils';
 
 interface AnalysisDialogProps {
@@ -531,7 +532,6 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
     if (!state || !projectId) return;
 
     try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
       const selected = await open({
         multiple: false,
         filters: [{ name: 'Excel Workbook', extensions: ['xlsx'] }],
@@ -884,5 +884,4 @@ export const AnalysisDialog = ({ onClose }: AnalysisDialogProps) => {
     </>
   );
 };
-
 

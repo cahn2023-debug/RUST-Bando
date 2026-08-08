@@ -33,7 +33,7 @@ pub fn local_login(email: String, _password: String) -> Result<LocalUser, String
     if email.trim().is_empty() {
         return Err("Email không được để trống".to_string());
     }
-    
+
     Ok(LocalUser {
         id: format!("user-{}", email.replace('@', "_")),
         email: email.clone(),

@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@IMPLEMENT/lib/tauri';
 
 export interface AiStatus {
   isInitialized: boolean;

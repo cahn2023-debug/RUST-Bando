@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { PrintDialog } from '@DESIGN/features/print/PrintDialog';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { useSettingsStore } from '@IMPLEMENT/stores/useSettingsStore';
+import { useSettingsStore } from '@CORE/stores/useSettingsStore';
+import { getCurrentWebviewWindow } from '@/contracts/tauri-api/runtime';
 
 const PrintWindow: React.FC = () => {
     const { initialize, projectId } = useDesignSync();
@@ -31,9 +32,7 @@ const PrintWindow: React.FC = () => {
         <div className="h-full w-full min-h-0 min-w-0 bg-cad-bg overflow-hidden flex flex-col">
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden relative">
                 <PrintDialog onClose={() => {
-                    import('@tauri-apps/api/webviewWindow').then(m => {
-                        m.getCurrentWebviewWindow().close();
-                    });
+                    getCurrentWebviewWindow()?.close();
                 }} />
             </div>
         </div>

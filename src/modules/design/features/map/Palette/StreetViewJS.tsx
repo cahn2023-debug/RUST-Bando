@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { IS_REAL_TAURI, safeEmit } from '@IMPLEMENT/lib/tauri';
+import { getCurrentWebviewWindow } from '@/contracts/tauri-api/runtime';
 import { initGoogleMaps, waitForGoogleMaps } from '@TOOL/utils/googleMapsLoader';
 
 interface StreetViewJSProps {
@@ -53,11 +54,16 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
 
   // Sync props when map updates
   useEffect(() => {
+    // The local position is an editable mirror of the map's external state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentLat(lat);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentLng(lng);
   }, [lat, lng]);
 
   useEffect(() => {
+    // Keep the editable heading synchronized with the map.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentHeading(normalizeHeading(heading));
   }, [heading]);
 
@@ -169,7 +175,6 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
   }, [apiKey, usePublicEmbed]);
 
   const publicEmbedUrl = useMemo(() => {
-    setLoading(true);
     const params = new URLSearchParams({
       layer: 'c',
       cbll: `${currentLat},${currentLng}`,
@@ -185,9 +190,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
 
   const handleClose = () => {
     if (IS_REAL_TAURI) {
-      import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
-        getCurrentWebviewWindow()?.close();
-      });
+      getCurrentWebviewWindow()?.close();
     } else {
       window.close();
     }
@@ -283,7 +286,7 @@ export const StreetViewJS: React.FC<StreetViewJSProps> = ({
       )}
 
       {loading && usePublicEmbed && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-50 pointer-events-none">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white z-cad-overlay pointer-events-none">
           <div className="w-8 h-8 border-2 border-cad-accent/30 border-t-cad-accent rounded-full animate-spin" />
           <div className="mt-3 text-[10px] uppercase tracking-[0.24em] text-cad-text-muted">
             Đang tải Street View...

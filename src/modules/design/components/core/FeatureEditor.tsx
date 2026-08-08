@@ -20,7 +20,7 @@ const parseCoordinateList = (coordinates: unknown): [number, number][] => {
   return [];
 };
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
-import { confirmUserAction } from '@TOOL/utils/userConfirmation';
+import { confirmUserAction } from '@SHARED/utils/userConfirmation';
 
 interface FeatureEditorProps {
   feature: FeatureState;
@@ -253,18 +253,18 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
 
       {/* Lightbox / SlideShow */}
       {viewingImageIndex !== null && (
-        <div className="fixed inset-0 z-cad-modal-nested bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setViewingImageIndex(null)}>
+        <div className="fixed inset-0 z-cad-modal-nested bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setViewingImageIndex(null)}>
           <div className="absolute top-6 right-6 flex gap-3">
-            <button onClick={(e) => { e.stopPropagation(); downloadImage(imageUrls[viewingImageIndex]); }} className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full border border-white/10"><Download className="w-5 h-5" /></button>
-            <button onClick={() => setViewingImageIndex(null)} className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full border border-white/10"><X className="w-5 h-5" /></button>
+              <button onClick={(e) => { e.stopPropagation(); downloadImage(imageUrls[viewingImageIndex]); }} className="p-3 bg-cad-text-primary/10 hover:bg-cad-text-primary/20 text-cad-text-primary rounded-full border border-cad-text-primary/10"><Download className="w-5 h-5" /></button>
+              <button onClick={() => setViewingImageIndex(null)} className="p-3 bg-cad-text-primary/10 hover:bg-cad-text-primary/20 text-cad-text-primary rounded-full border border-cad-text-primary/10"><X className="w-5 h-5" /></button>
           </div>
           <div className="relative w-full flex items-center justify-center gap-4">
             {imageUrls.length > 1 && (
-              <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(p => p! > 0 ? p! - 1 : imageUrls.length - 1); }} className="p-4 bg-white/5 hover:bg-white/10 text-white rounded-full"><ChevronLeft className="w-8 h-8" /></button>
+              <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(p => p! > 0 ? p! - 1 : imageUrls.length - 1); }} className="p-4 bg-cad-text-primary/5 hover:bg-cad-text-primary/10 text-cad-text-primary rounded-full"><ChevronLeft className="w-8 h-8" /></button>
             )}
             <img src={imageUrls[viewingImageIndex]} className="max-w-full max-h-[75vh] object-contain rounded-xl shadow-2xl border border-white/10" onClick={(e) => e.stopPropagation()} />
             {imageUrls.length > 1 && (
-              <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(p => p! < imageUrls.length - 1 ? p! + 1 : 0); }} className="p-4 bg-white/5 hover:bg-white/10 text-white rounded-full"><ChevronRight className="w-8 h-8" /></button>
+              <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(p => p! < imageUrls.length - 1 ? p! + 1 : 0); }} className="p-4 bg-cad-text-primary/5 hover:bg-cad-text-primary/10 text-cad-text-primary rounded-full"><ChevronRight className="w-8 h-8" /></button>
             )}
           </div>
         </div>
@@ -293,9 +293,9 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
             <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${!stream ? 'hidden' : ''}`} />
             <div className="absolute top-6 left-6 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-lg text-[10px] text-white font-mono flex items-center gap-2 border border-white/10"><Clock className="w-3 h-3 text-cad-accent" /> {currentTime}</div>
             <div className="absolute bottom-12 left-0 right-0 flex justify-center items-center gap-10 px-4">
-              <button onClick={stopCamera} className="w-14 h-14 bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-md flex items-center justify-center border border-white/10"><X className="w-6 h-6" /></button>
-              <button onClick={() => videoRef.current && applyWatermark(videoRef.current)} disabled={!stream || isCapturing} className="w-20 h-20 bg-white text-cad-accent rounded-full shadow-2xl border-4 border-cad-accent/20 flex items-center justify-center active:scale-90 transition-transform">{isCapturing ? <Loader2 className="w-10 h-10 animate-spin" /> : <Camera className="w-10 h-10" />}</button>
-              <button onClick={() => fileInputRef.current?.click()} className="w-14 h-14 bg-white/20 hover:bg-white/30 text-white rounded-full backdrop-blur-md flex items-center justify-center border border-white/10"><ImageIcon className="w-6 h-6" /></button>
+              <button onClick={stopCamera} className="w-14 h-14 bg-cad-text-primary/20 hover:bg-cad-text-primary/30 text-cad-text-primary rounded-full backdrop-blur-md flex items-center justify-center border border-cad-text-primary/10"><X className="w-6 h-6" /></button>
+              <button onClick={() => videoRef.current && applyWatermark(videoRef.current)} disabled={!stream || isCapturing} className="w-20 h-20 bg-cad-text-primary text-cad-accent rounded-full shadow-2xl border-4 border-cad-accent/20 flex items-center justify-center active:scale-90 transition-transform">{isCapturing ? <Loader2 className="w-10 h-10 animate-spin" /> : <Camera className="w-10 h-10" />}</button>
+              <button onClick={() => fileInputRef.current?.click()} className="w-14 h-14 bg-cad-text-primary/20 hover:bg-cad-text-primary/30 text-cad-text-primary rounded-full backdrop-blur-md flex items-center justify-center border border-cad-text-primary/10"><ImageIcon className="w-6 h-6" /></button>
             </div>
           </div>
         )}

@@ -51,7 +51,7 @@ export function ImportReviewDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-[10020] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-cad-overlay flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
       <div className="flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-cad-border bg-cad-surface shadow-2xl">
         <div className="flex items-center justify-between border-b border-cad-border bg-cad-elevated px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">

@@ -10,7 +10,13 @@ pub struct BasemapStatusPayload {
 
 pub enum BasemapWorkerCommand {
     ReportStatus,
-    PrefetchRegion { west: f64, south: f64, east: f64, north: f64, zoom: u8 },
+    PrefetchRegion {
+        west: f64,
+        south: f64,
+        east: f64,
+        north: f64,
+        zoom: u8,
+    },
 }
 
 pub struct BasemapWorker;
@@ -22,7 +28,7 @@ impl BasemapWorker {
     ) -> tauri::async_runtime::JoinHandle<()> {
         tauri::async_runtime::spawn(async move {
             log::info!("[BasemapWorker] Started independent Basemap Tokio Task");
-            
+
             // Emit initial ready status if app_handle is available
             if let Some(ref handle) = app_handle {
                 use tauri::Emitter;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, File, Folder, X } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/contracts/tauri-api/runtime";
 
 interface PmpV2SearchFile {
     id: string;
@@ -53,7 +53,7 @@ export function GlobalSearchV2() {
             </div>
 
             {results.length > 0 && (
-                <div className="cad-card cad-scrollbar z-50 mt-2 max-h-60 overflow-y-auto">
+                <div className="cad-card cad-scrollbar z-cad-dropdown mt-2 max-h-60 overflow-y-auto">
                     {results.map((file) => (
                         <button
                             key={file.id}

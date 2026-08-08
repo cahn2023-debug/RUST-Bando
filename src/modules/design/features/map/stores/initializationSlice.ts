@@ -1,14 +1,13 @@
 import { StateCreator } from 'zustand';
 import { InitializationSlice, DesignSyncStore } from './types';
-import { safeInvoke as invoke } from '../../../../implement/lib/tauri';
-import { listen } from '@tauri-apps/api/event';
-import { logger } from '../../../../tool/utils/logger';
+import { invoke, listen } from '@/contracts/tauri-api/runtime';
+import { logger } from '@SHARED/utils/logger';
 import {
     incrementInitializeRequestId,
     getLatestInitializeRequestId,
     loadDesignState
-} from '../../../../tool/utils/designIpc';
-import type { ProjectBootstrap } from '../../../../tool/utils/designIpc';
+} from '@SHARED/utils/designIpc';
+import type { ProjectBootstrap } from '@SHARED/utils/designIpc';
 import { normalizeMapStateForDisplay } from '../../../../tool/utils/normalizeDisplay';
 
 
@@ -373,5 +372,3 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
         lastSync: Date.now()
     })
 });
-
-

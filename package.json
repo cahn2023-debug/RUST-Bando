@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "build:msi": "tauri build --bundles msi",
+    "check:encoding": "node scripts/check_encoding.mjs",
+    "check:boundaries": "node scripts/check_boundaries.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
@@ -17,7 +19,10 @@
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\""
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
+    "check:frontend": "npm run check:encoding && npm run check:boundaries && npm run typecheck && npm run lint && npm run test:ci && npm run build",
+    "check:backend": "cargo fmt --check --manifest-path src-tauri/Cargo.toml && cargo check --manifest-path src-tauri/Cargo.toml --workspace --all-targets && cargo test --manifest-path src-tauri/Cargo.toml --workspace && cargo clippy --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings",
+    "check": "npm run check:frontend && npm run check:backend"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { mapApi } from '@/contracts/tauri-api';
 
 export interface TileBounds {
     minX: number;
@@ -16,7 +16,7 @@ export interface MapTileService {
 export const mapTileService: MapTileService = {
     prefetchBasemapTiles: async (bounds: TileBounds) => {
         try {
-            await invoke('prefetch_basemap_tiles', { bounds });
+            await mapApi.prefetchBasemapTiles(bounds);
             return true;
         } catch (err) {
             console.warn('[mapTileService] Prefetch failed:', err);
@@ -25,7 +25,7 @@ export const mapTileService: MapTileService = {
     },
     clearBasemapCache: async () => {
         try {
-            await invoke('clear_basemap_tile_cache');
+            await mapApi.clearBasemapCache();
             return true;
         } catch (err) {
             console.warn('[mapTileService] Clear cache failed:', err);

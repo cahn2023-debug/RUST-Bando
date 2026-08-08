@@ -1,7 +1,11 @@
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@IMPLEMENT/lib/tauri';
 import { GisValidationReport, SpatialMeasurements } from '../postgis';
 
 export const gisApi = {
+  getActiveReport: async <T = unknown>(): Promise<T> => {
+    return invoke<T>('get_active_gis_report_v2');
+  },
+
   isValid: async (ewkt: string): Promise<GisValidationReport> => {
     return invoke<GisValidationReport>('st_is_valid', { ewkt });
   },

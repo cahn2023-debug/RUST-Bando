@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { createWebviewWindow, getWindowByLabel, invoke } from "@/contracts/tauri-api/runtime";
 import { Project } from "@CONTRACT/types";
 
 export function useRibbonActions(project?: Project | null) {
@@ -7,8 +7,6 @@ export function useRibbonActions(project?: Project | null) {
     const openStandaloneWindow = useCallback(async (view: 'analysis' | 'print' | 'contract_analysis') => {
         if (!project?.id) return;
         try {
-            const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
-            const { Window } = await import('@tauri-apps/api/window');
             const label = view === 'analysis' ? `analysis-${project.id}` : view;
             const title = view === 'print'
                 ? 'Thiết lập in ấn & Xuất bản hồ sơ'
@@ -20,7 +18,7 @@ export function useRibbonActions(project?: Project | null) {
             const height = view === 'print' ? 900 : 800;
 
             const focusWindow = async () => {
-                const existingWindow = await Window.getByLabel(label);
+                const existingWindow = await getWindowByLabel(label);
                 if (!existingWindow) {
                     return false;
                 }
@@ -39,7 +37,7 @@ export function useRibbonActions(project?: Project | null) {
             };
 
             const destroyWindow = async () => {
-                const existingWindow = await Window.getByLabel(label);
+                const existingWindow = await getWindowByLabel(label);
                 if (!existingWindow) {
                     return false;
                 }
@@ -60,7 +58,7 @@ export function useRibbonActions(project?: Project | null) {
 
             await destroyWindow();
 
-            const createWindow = () => new WebviewWindow(label, {
+            const createWindow = () => createWebviewWindow(label, {
                 url: `index.html?view=${view}&projectId=${project.id}`,
                 title,
                 width,
@@ -73,10 +71,11 @@ export function useRibbonActions(project?: Project | null) {
             });
 
             const win = createWindow();
+            if (!win) return;
 
             win.once('tauri://created', () => {
                 setTimeout(async () => {
-                    await focusWindow();
+                        await focusWindow();
                 }, 150);
             });
 
@@ -87,6 +86,7 @@ export function useRibbonActions(project?: Project | null) {
                     const destroyed = await destroyWindow();
                     if (destroyed) {
                         const retryWindow = createWindow();
+                        if (!retryWindow) return;
                         retryWindow.once('tauri://created', () => {
                             setTimeout(async () => {
                                 await focusWindow();

@@ -5,9 +5,9 @@ import { TopToolbar } from "@DESIGN/components/ui/TopToolbar";
 import { HomeDashboard } from "@IMPLEMENT/features/project-management/HomeDashboard";
 import { ProjectDetail } from "@IMPLEMENT/features/project-management/ProjectDetail";
 import { useProjectManager } from "@IMPLEMENT/hooks/useProjectManager";
-import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
+import { useSettingsStore } from "@CORE/stores/useSettingsStore";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
-import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
+import { useLayoutStore } from "@CORE/stores/useLayoutStore";
 import { AppMenu } from "@DESIGN/components/ui/AppMenu";
 import { useKeytips } from "@DESIGN/hooks/useKeytips";
 
@@ -21,9 +21,8 @@ import { useTabStore } from "@IMPLEMENT/TabInProgram/useTabStore";
 import { safeInvoke } from "@IMPLEMENT/lib/tauri";
 import { requestStorageHealthRefresh } from "@IMPLEMENT/services/projectStorageService";
 import { announce } from "@TOOL/utils/accessibility";
-import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
+import { getCurrentWindow, listen } from "@/contracts/tauri-api/runtime";
+import { useAuthStore } from "@CORE/stores/useAuthStore";
 import { MapProvider } from "@DESIGN/features/map/MapContext";
 import { BasemapProvider, PersistentBasemapHost, BasemapControls } from "@/core/basemap";
 import { markMapStartup } from "@DESIGN/features/map/mapStartupTelemetry";
@@ -50,6 +49,38 @@ export default function App() {
   const [contractType, setContractType] = useState<"INVESTOR" | "SUBCONTRACTOR" | "FINANCE">("INVESTOR");
   const [isAppMenuOpen, setIsAppMenuOpen] = useState(false);
   const { keytipsActive, dismissKeytips } = useKeytips();
+
+  const {
+    projects,
+    selectedProject,
+    loadingProjects,
+    loadProjects,
+    refreshProject,
+    handleOpenProject,
+    handleCloseProject,
+    handleDeleteProject,
+    handleRestoreFromConfig,
+    isDeleteModalOpen,
+    setIsDeleteModalOpen,
+    projectToDelete,
+    confirmDelete,
+  } = useProjectManager();
+
+  const handleSaveProject = async () => {
+    if (!selectedProject) return;
+    try {
+      if (pendingSync && !syncError) {
+        await flushPendingPersists();
+      }
+      await safeInvoke("save_project");
+      requestStorageHealthRefresh();
+      announce("Project saved successfully");
+      console.log("[App] Project saved successfully");
+    } catch (e) {
+      console.error("[App] Failed to save project:", e);
+      announce("Failed to save project");
+    }
+  };
 
   useEffect(() => {
     if (!keytipsActive) return;
@@ -100,44 +131,12 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeytipTrigger);
   }, [keytipsActive, dismissKeytips]);
 
-  const {
-    projects,
-    selectedProject,
-    loadingProjects,
-    loadProjects,
-    refreshProject,
-    handleOpenProject,
-    handleCloseProject,
-    handleDeleteProject,
-    handleRestoreFromConfig,
-    isDeleteModalOpen,
-    setIsDeleteModalOpen,
-    projectToDelete,
-    confirmDelete,
-  } = useProjectManager();
-
   // Application bootstrap and side effects
   useAppBootstrap(handleOpenProject, () => setActiveTab("DESIGN"));
 
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
-
-  const handleSaveProject = async () => {
-    if (!selectedProject) return;
-    try {
-      if (pendingSync && !syncError) {
-        await flushPendingPersists();
-      }
-      await safeInvoke("save_project");
-      requestStorageHealthRefresh();
-      announce("Project saved successfully");
-      console.log("[App] Project saved successfully");
-    } catch (e) {
-      console.error("[App] Failed to save project:", e);
-      announce("Failed to save project");
-    }
-  };
 
   const handleForceSave = async () => {
     if (!selectedProject) return;
@@ -180,7 +179,7 @@ export default function App() {
       const statusText = syncStatus === 0 ? "SAVED" : "CHANGES";
       const projectText = selectedProject ? `${selectedProject.name.toUpperCase()} [${selectedProject.path}]` : "READY";
       try {
-        await getCurrentWindow().setTitle(`[${statusText}] - ${projectText}`);
+        await getCurrentWindow()?.setTitle(`[${statusText}] - ${projectText}`);
       } catch (e) {
         console.warn("Failed to set window title:", e);
       }

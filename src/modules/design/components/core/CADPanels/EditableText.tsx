@@ -1,5 +1,5 @@
-import { useState, KeyboardEvent, useEffect } from "react";
-import { cn } from "@TOOL/utils/cn";
+import { useState, KeyboardEvent, useEffect, useRef } from "react";
+import { cn } from "@SHARED/utils/cn";
 
 interface EditableTextProps {
   value: string;
@@ -11,12 +11,17 @@ interface EditableTextProps {
 export function EditableText({ value: initialValue, onSave, className, placeholder }: EditableTextProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(initialValue);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Sync with external value changes
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setValue(initialValue);
   }, [initialValue]);
+
+  useEffect(() => {
+    if (isEditing) inputRef.current?.focus();
+  }, [isEditing]);
 
   const handleSave = () => {
     if (value !== initialValue) {
@@ -38,8 +43,7 @@ export function EditableText({ value: initialValue, onSave, className, placehold
     return (
       <input
         type="text"
-        // eslint-disable-next-line jsx-a11y/no-autofocus
-        autoFocus
+        ref={inputRef}
         value={value}
         onChange={e => setValue(e.target.value)}
         onBlur={handleSave}

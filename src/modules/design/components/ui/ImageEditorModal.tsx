@@ -3,7 +3,7 @@ import {
   Pencil, Crop, RotateCw, Circle, Square, Type as TypeIcon, Minus, MoveUpRight,
   Undo2, Radio, Eraser, X, Check, RotateCcw
 } from 'lucide-react';
-import { cn } from '@TOOL/utils/cn';
+import { cn } from '@SHARED/utils/cn';
 import { Button } from '@DESIGN/components/ui/Button';
 import { Modal } from '@DESIGN/components/ui/Modal';
 
@@ -214,6 +214,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   const rotationPreviewSourceRef = useRef<RotationPreviewSource | null>(null);
   /** Initial focus target: the crop tool, a safe non-destructive control. */
   const initialFocusRef = useRef<HTMLButtonElement>(null);
+  const textPreviewInputRef = useRef<HTMLInputElement>(null);
 
   const [tool, setTool] = useState<ImageEditTool>('crop');
   const [strokeColor, setStrokeColor] = useState('#f97316');
@@ -443,6 +444,10 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
   useEffect(() => {
     initialFocusRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (pendingTextPoint) textPreviewInputRef.current?.focus();
+  }, [pendingTextPoint]);
 
   // Initialize canvas with imageUrl
   useEffect(() => {
@@ -1146,6 +1151,7 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
           {pendingTextPoint && canvasDisplaySize && canvasSize && (
             <input
               aria-label="Text preview"
+              ref={textPreviewInputRef}
               value={textValue}
               onChange={e => setTextValue(e.target.value)}
               onKeyDown={(e) => {
@@ -1163,8 +1169,6 @@ export const ImageEditorModal: React.FC<ImageEditorModalProps> = ({
                 width: `${Math.max(96, Math.min(420, (textValue.length || 1) * Math.max(10, textSize * (canvasDisplaySize.width / canvasSize.width)) * 0.72 + 24))}px`,
                 color: strokeColor,
               }}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
             />
           )}
 

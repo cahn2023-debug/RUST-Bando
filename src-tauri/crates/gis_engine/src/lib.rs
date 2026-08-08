@@ -521,7 +521,7 @@ impl GisEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use geo::{line_string, point, polygon};
+    use geo::{point, polygon};
 
     #[test]
     fn test_st_geom_from_ewkt_and_as_ewkt() {

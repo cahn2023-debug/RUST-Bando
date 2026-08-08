@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { listen, emit } from '@tauri-apps/api/event';
+import { listen, emit } from '@/contracts/tauri-api/runtime';
 import { useMapContext } from '../MapContext';
 import { validateMapCaptureCanvas } from './mapCaptureValidation';
 import { compositeMapCapture } from '../render';

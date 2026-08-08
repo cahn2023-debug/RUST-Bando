@@ -39,7 +39,7 @@ export const RecognitionSimulator: React.FC<RecognitionSimulatorProps> = ({ ppm 
                         style={{
                             filter: ppm < 50 ? `blur(${Math.max(0, (50 - ppm) / 5)}px) contrast(0.8)` : 'none',
                         }}
-                        className={`w-full h-full object-cover transition-all duration-700 ${ppm < 125 ? 'image-pixelated grayscale' : 'grayscale-0'
+                        className={`w-full h-full object-cover transition-all duration-200 ${ppm < 125 ? 'image-pixelated grayscale' : 'grayscale-0'
                             }`}
                         onError={(e) => {
                             (e.target as any).src = 'https://placehold.co/600x400/1e1e1e/444?text=Save+image+to+assets/recognition-sim-license.webp';

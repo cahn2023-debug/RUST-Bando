@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { emit, listen } from '@tauri-apps/api/event';
+import { emit, listen } from '@/contracts/tauri-api/runtime';
 import html2canvas from 'html2canvas';
 import { PRINT_COLORS } from '@DESIGN/features/print/printColors';
 

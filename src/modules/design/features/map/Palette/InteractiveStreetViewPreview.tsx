@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { cn } from '@TOOL/utils/cn';
+import { cn } from '@SHARED/utils/cn';
 
 export interface InteractiveStreetViewPreviewProps {
     lat: number;
@@ -69,7 +69,7 @@ export const InteractiveStreetViewPreview: React.FC<InteractiveStreetViewPreview
                     setFailedUrl(null);
                     setLoadedUrl(publicUrl);
                 }}
-                className={cn('transition-opacity duration-300 bg-white', loading ? 'opacity-0' : 'opacity-100')}
+                className={cn('transition-opacity duration-200 bg-white', loading ? 'opacity-0' : 'opacity-100')}
             />
 
             {loading && (

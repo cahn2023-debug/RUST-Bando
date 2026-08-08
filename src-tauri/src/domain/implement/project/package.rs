@@ -32,14 +32,18 @@ impl PmpPackageEngine {
             return Err(format!("Tệp PMP không tồn tại: {:?}", package_path));
         }
 
-        let file = File::open(package_path)
-            .map_err(|e| format!("Không thể mở tệp PMP: {}", e))?;
+        let file = File::open(package_path).map_err(|e| format!("Không thể mở tệp PMP: {}", e))?;
 
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|e| format!("Tệp .pmp hỏng hoặc không đúng định dạng zip container: {}", e))?;
+        let mut archive = zip::ZipArchive::new(file).map_err(|e| {
+            format!(
+                "Tệp .pmp hỏng hoặc không đúng định dạng zip container: {}",
+                e
+            )
+        })?;
 
         // 1. Read manifest.json
-        let manifest_file = archive.by_name("manifest.json")
+        let manifest_file = archive
+            .by_name("manifest.json")
             .map_err(|_| "Tệp .pmp thiếu manifest.json chuẩn".to_string())?;
 
         let manifest: PmpManifest = serde_json::from_reader(manifest_file)
@@ -62,25 +66,37 @@ impl PmpPackageEngine {
         Ok(header)
     }
 
-    pub fn extract_attachment(package_path: &Path, attachment_rel_path: &str, output_dest: &Path) -> Result<PathBuf, String> {
-        let file = File::open(package_path)
-            .map_err(|e| format!("Không thể mở .pmp: {}", e))?;
+    pub fn extract_attachment(
+        package_path: &Path,
+        attachment_rel_path: &str,
+        output_dest: &Path,
+    ) -> Result<PathBuf, String> {
+        let file = File::open(package_path).map_err(|e| format!("Không thể mở .pmp: {}", e))?;
 
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|e| format!("Lỗi nạp archive: {}", e))?;
+        let mut archive =
+            zip::ZipArchive::new(file).map_err(|e| format!("Lỗi nạp archive: {}", e))?;
 
-        let zip_path = format!("attachments/{}", attachment_rel_path.trim_start_matches('/'));
-        let mut entry = archive.by_name(&zip_path)
-            .map_err(|_| format!("Attachment không tồn tại trong package: {}", attachment_rel_path))?;
+        let zip_path = format!(
+            "attachments/{}",
+            attachment_rel_path.trim_start_matches('/')
+        );
+        let mut entry = archive.by_name(&zip_path).map_err(|_| {
+            format!(
+                "Attachment không tồn tại trong package: {}",
+                attachment_rel_path
+            )
+        })?;
 
-        let mut out_file = File::create(output_dest)
-            .map_err(|e| format!("Không thể ghi file đầu ra: {}", e))?;
+        let mut out_file =
+            File::create(output_dest).map_err(|e| format!("Không thể ghi file đầu ra: {}", e))?;
 
         let mut buffer = Vec::new();
-        entry.read_to_end(&mut buffer)
+        entry
+            .read_to_end(&mut buffer)
             .map_err(|e| format!("Lỗi đọc attachment: {}", e))?;
 
-        out_file.write_all(&buffer)
+        out_file
+            .write_all(&buffer)
             .map_err(|e| format!("Lỗi xuất attachment: {}", e))?;
 
         Ok(output_dest.to_path_buf())

@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { fileApi } from "@/contracts/tauri-api";
 
 export const RAW_BINARY_PATH_HEADER = "x-antinigaty-file-path-b64";
 
@@ -12,7 +12,7 @@ export const encodeRawBinaryFilePath = (path: string): string => {
 };
 
 export const saveReportDocxFile = async (path: string, buffer: ArrayBuffer): Promise<void> => {
-  await invoke("save_binary_file_raw", new Uint8Array(buffer), {
+  await fileApi.saveBinaryRaw(new Uint8Array(buffer), {
     headers: {
       [RAW_BINARY_PATH_HEADER]: encodeRawBinaryFilePath(path),
     },

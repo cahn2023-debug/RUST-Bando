@@ -19,7 +19,7 @@ export const onlyClusterablePointFeatures = (
         return (
             isPointGeometry(feature.geometry.type) &&
             props?.geomType !== 'line' &&
-            !Boolean(props?.isIntersectionChild)
+            !props?.isIntersectionChild
         );
     }),
 });

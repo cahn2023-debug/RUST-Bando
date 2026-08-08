@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import { lazyWithRetry } from '@TOOL/utils/lazyWithRetry';
+import { lazyWithRetry } from '@SHARED/utils/lazyWithRetry';
 
 export interface PaletteDefinition {
     id: string;

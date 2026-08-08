@@ -3,12 +3,12 @@ import { ProjectSidebar } from "./ProjectSidebar";
 import { ProjectMainView } from "./ProjectMainView";
 import { ProjectOverlayLayer } from "./ProjectOverlayLayer";
 import { useProjectDetailLogic } from "@IMPLEMENT/hooks/useProjectDetailLogic";
-import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
-import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
+import { useSettingsStore } from "@CORE/stores/useSettingsStore";
+import { useLayoutStore } from "@CORE/stores/useLayoutStore";
 import { ResizeHandle } from "@DESIGN/components/ui/ResizeHandle";
-import { cn } from "@TOOL/utils/cn";
-import { invoke } from "@tauri-apps/api/core";
-import { logger } from "@TOOL/utils/logger";
+import { cn } from "@SHARED/utils/cn";
+import { invoke } from "@/contracts/tauri-api/runtime";
+import { logger } from "@SHARED/utils/logger";
 
 interface ProjectDetailProps {
   project: Project;

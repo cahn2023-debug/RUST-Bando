@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Check, ChevronDown, ChevronRight, Download, Eye, Loader2 } from "lucide-react";
 import { Button } from "@DESIGN/components/ui/Button";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 import type { ReportModel } from "./reportModel";
 import { getDescendantKeys, type SelectableReportItem } from "./useReportDialogState";
 

@@ -1,6 +1,10 @@
-import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { safeInvoke } from "@IMPLEMENT/lib/tauri";
 import { encodeRawBinaryFilePath, RAW_BINARY_PATH_HEADER, saveReportDocxFile } from "./reportFileSave";
+
+vi.mock("@IMPLEMENT/lib/tauri", () => ({
+  safeInvoke: vi.fn(),
+}));
 
 const decodeRawBinaryFilePath = (encoded: string): string => {
   const binary = atob(encoded);
@@ -10,7 +14,7 @@ const decodeRawBinaryFilePath = (encoded: string): string => {
 
 describe("reportFileSave", () => {
   beforeEach(() => {
-    vi.mocked(invoke).mockReset();
+    vi.mocked(safeInvoke).mockReset();
   });
 
   it("encodes Unicode file paths as UTF-8 Base64", () => {
@@ -25,7 +29,7 @@ describe("reportFileSave", () => {
 
     await saveReportDocxFile(path, bytes.buffer);
 
-    expect(invoke).toHaveBeenCalledWith(
+    expect(safeInvoke).toHaveBeenCalledWith(
       "save_binary_file_raw",
       expect.any(Uint8Array),
       {
@@ -34,7 +38,7 @@ describe("reportFileSave", () => {
         },
       },
     );
-    const [, body] = vi.mocked(invoke).mock.calls[0];
+    const [, body] = vi.mocked(safeInvoke).mock.calls[0];
     expect(body).toBeInstanceOf(Uint8Array);
     expect(Array.from(body as Uint8Array)).toEqual(Array.from(bytes));
   });

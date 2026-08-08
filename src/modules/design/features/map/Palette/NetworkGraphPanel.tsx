@@ -51,7 +51,7 @@ import { buildManualEdgeDirectionEvent, buildToggleOriginEvents } from '@DESIGN/
 import { useNetworkStatusStore } from '@DESIGN/features/map/network/useNetworkStatusStore';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
 import { NetworkNodeWidget } from './NetworkNodeWidget';
-import { cn } from '@TOOL/utils/cn';
+import { cn } from '@SHARED/utils/cn';
 import { getPointCoordinates } from '@TOOL/utils/featureMapping';
 import { matchesSearchQuery } from '@TOOL/utils/vietnameseSearch';
 import { FiberInspector } from './FiberInspector';
@@ -82,7 +82,7 @@ const statusLabel: Record<NetworkComputedStatus, string> = {
 const statusColor: Record<NetworkComputedStatus, string> = {
     online: 'bg-emerald-400',
     'direct-offline': 'bg-red-400',
-    'upstream-offline': 'bg-orange-400',
+    'upstream-offline': 'bg-cad-warn',
     unknown: 'bg-zinc-500',
     'configuration-error': 'bg-purple-400',
 };
@@ -1158,7 +1158,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                     </div>
                 )}
 
-                <div className={cn("absolute top-4 z-10 pointer-events-none flex flex-wrap gap-3 transition-all duration-300", tab === 'fiber' ? "left-[350px] right-[350px] justify-center" : "left-4 right-4 justify-between md:left-4")}>
+                <div className={cn("absolute top-4 z-10 pointer-events-none flex flex-wrap gap-3 transition-all duration-200", tab === 'fiber' ? "left-[350px] right-[350px] justify-center" : "left-4 right-4 justify-between md:left-4")}>
                     {tab === 'intersection' && selectedIntersection ? <div className="w-40" /> : <div />}
 
                     <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-cad-border bg-cad-bg/75 px-3 py-1.5 shadow-xl backdrop-blur-md text-[10.5px] font-sans">
@@ -1177,9 +1177,9 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
                             Lỗi trực tiếp: <strong className="text-red-300">{stats.directOffline}</strong>
                         </span>
                         <span className="h-3 w-px bg-cad-border mx-1" />
-                        <span className="flex items-center gap-1 text-orange-400 font-medium">
-                            <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />
-                            Upstream: <strong className="text-orange-300">{stats.upstreamOffline}</strong>
+                        <span className="flex items-center gap-1 text-cad-warn font-medium">
+                            <span className="h-1.5 w-1.5 rounded-full bg-cad-warn" />
+                            Upstream: <strong className="text-cad-warn">{stats.upstreamOffline}</strong>
                         </span>
                         <span className="h-3 w-px bg-cad-border mx-1" />
                         <span className="flex items-center gap-1 text-purple-400 font-medium">
@@ -1290,7 +1290,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
             {/* FLOATING COLLAPSIBLE FIBER PANEL (LEFT) */}
             <aside
                 className={cn(
-                    "absolute left-4 top-4 bottom-4 z-20 w-[320px] flex flex-col min-h-0 rounded-xl border border-cad-active/30 bg-cad-bg/90 shadow-2xl backdrop-blur-lg transition-all duration-300 ease-out",
+                    "absolute left-4 top-4 bottom-4 z-20 w-[320px] flex flex-col min-h-0 rounded-xl border border-cad-active/30 bg-cad-bg/90 shadow-2xl backdrop-blur-lg transition-all duration-200 ease-out",
                     tab === 'fiber' ? "translate-x-0 opacity-100 pointer-events-auto" : "-translate-x-[340px] opacity-0 pointer-events-none"
                 )}
             >
@@ -1302,7 +1302,7 @@ const NetworkGraphFlow = ({ tab, layoutMode, fitVersion, treeArrangeVersion }: N
             {/* FLOATING COLLAPSIBLE INSPECTOR PANEL */}
             <aside
                 className={cn(
-                    "absolute right-4 top-4 bottom-4 z-20 w-[320px] flex flex-col min-h-0 rounded-xl border border-cad-border bg-cad-bg/90 shadow-2xl backdrop-blur-lg transition-all duration-300 ease-out",
+                    "absolute right-4 top-4 bottom-4 z-20 w-[320px] flex flex-col min-h-0 rounded-xl border border-cad-border bg-cad-bg/90 shadow-2xl backdrop-blur-lg transition-all duration-200 ease-out",
                     isInspectorOpen ? "translate-x-0 opacity-100 pointer-events-auto" : "translate-x-[340px] opacity-0 pointer-events-none"
                 )}
             >
@@ -1670,7 +1670,7 @@ export const NetworkGraphPanel: React.FC = () => {
                     <div className="hidden items-center gap-2 text-[10px] text-cad-text-muted md:flex">
                         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-400" />Online</span>
                         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-400" />Direct</span>
-                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-400" />Upstream</span>
+                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-cad-warn" />Upstream</span>
                         <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-purple-400" />Config</span>
                     </div>
                     <div className="flex rounded border border-cad-border bg-cad-surface/60 p-0.5 text-[11px] font-semibold">

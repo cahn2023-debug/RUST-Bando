@@ -3,7 +3,7 @@ import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { normalizeMetadataObject } from '@TOOL/utils/metadataNormalization';
 import { safeString, getCleanName } from '@TOOL/utils/featureUtils';
 import type { FeatureMetadata } from '@CONTRACT/types';
-import { confirmUserAction } from '@TOOL/utils/userConfirmation';
+import { confirmUserAction } from '@SHARED/utils/userConfirmation';
 
 /**
  * Hook to manage property panel state for a selected feature.

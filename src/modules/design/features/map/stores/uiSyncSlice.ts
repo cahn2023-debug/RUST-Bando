@@ -5,13 +5,12 @@ import {
     DesignBulkActionResponse,
     DesignEventType
 } from '@CONTRACT/designTypes';
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { invoke, listen } from '@/contracts/tauri-api/runtime';
 import {
     invoke_design_event_batch,
     isCollaborationCoordinatorEnabled,
     pull_collaboration_events
-} from '@TOOL/utils/designIpc';
+} from '@SHARED/utils/designIpc';
 
 const DESIGN_PERSIST_BATCH_DELAY_MS = 150;
 const IS_DEV = import.meta.env.DEV;

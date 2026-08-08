@@ -1,8 +1,8 @@
 import { StateCreator } from 'zustand';
 import { DesignActionSlice, DesignSyncStore } from './types';
-import { invoke } from '@tauri-apps/api/core';
-import { logger } from '../../../../tool/utils/logger';
-import { invoke_design_event_batch } from '../../../../tool/utils/designIpc';
+import { invoke } from '@/contracts/tauri-api/runtime';
+import { logger } from '@SHARED/utils/logger';
+import { invoke_design_event_batch } from '@SHARED/utils/designIpc';
 import { enrichEventBeforeDispatch } from '../../../../tool/utils/designEvents';
 import { DesignEventType } from '@CONTRACT/designTypes';
 

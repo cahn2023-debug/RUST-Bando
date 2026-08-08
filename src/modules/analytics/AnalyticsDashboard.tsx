@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '@/contracts/tauri-api/runtime';
 import { HardDrive, Files, RefreshCw, BarChart3, AlertCircle } from 'lucide-react';
 import StatCard from './components/StatCard';
 import ExtensionDistribution, { ExtensionStat } from './components/ExtensionDistribution';
@@ -82,7 +82,7 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ projectId }) =>
     }
 
     return (
-        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-200">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <BarChart3 className="text-cad-accent" size={24} />

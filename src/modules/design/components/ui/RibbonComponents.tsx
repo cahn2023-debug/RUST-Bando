@@ -1,5 +1,5 @@
 import React from "react";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 
 export function ToolGroup({ children, label }: { children: React.ReactNode; label: string }) {
     return (

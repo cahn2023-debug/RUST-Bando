@@ -155,10 +155,10 @@ const asDashArray = (value: unknown): number[] | undefined => {
     return parsed.length >= 2 ? parsed : undefined;
 };
 
-const imageIdSafe = (value: unknown) => String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, '-');
+const imageIdSafe = (value: unknown) => {
+    const text = typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+    return text.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+};
 
 const isLineGeomType = (feature: FeatureState, metadata: Record<string, any>): boolean => {
     const geomType = String(feature.geom_type || '').trim().toLowerCase();

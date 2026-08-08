@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getCurrentWindow } from '@/contracts/tauri-api/runtime';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -30,7 +31,6 @@ const getSystemTheme = (): 'light' | 'dark' => {
 
 const syncTauriTheme = async (resolvedTheme: 'light' | 'dark') => {
   try {
-    const { getCurrentWindow } = await import('@tauri-apps/api/window');
     const win = getCurrentWindow();
     if (win && 'setTheme' in win && typeof (win as any).setTheme === 'function') {
       await (win as any).setTheme(resolvedTheme);

@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode, useEffect } from "react";
-import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
+import { useLayoutStore } from "@CORE/stores/useLayoutStore";
 import { PalettePanel } from "@DESIGN/features/map/Palette/PalettePanel";
 import { VerticalResizeHandle } from "@DESIGN/components/ui/VerticalResizeHandle";
 import { ResizeHandle } from "@DESIGN/components/ui/ResizeHandle";

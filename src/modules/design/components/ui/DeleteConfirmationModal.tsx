@@ -38,14 +38,14 @@ export function DeleteConfirmationModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-cad-overlay flex items-center justify-center p-4 animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-cad-overlay flex items-center justify-center p-4 animate-in fade-in duration-200">
       <div className="cad-overlay" onClick={onClose} aria-hidden="true" />
 
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="delete-confirmation-title"
-        className="cad-dialog relative z-cad-modal w-full max-w-md border-cad-danger/30 animate-in zoom-in-95 duration-300"
+        className="cad-dialog relative z-cad-modal w-full max-w-md border-cad-danger/30 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top accent rule */}

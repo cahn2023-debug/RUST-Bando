@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AiAssistantPanel } from "./AiAssistantPanel";
 import { safeInvoke } from "@IMPLEMENT/lib/tauri";
@@ -34,7 +33,7 @@ vi.mock("@IMPLEMENT/stores/useDesignSync", () => {
     return { useDesignSync };
 });
 
-vi.mock("@IMPLEMENT/stores/useSettingsStore", () => ({
+vi.mock("@CORE/stores/useSettingsStore", () => ({
     useSettingsStore: () => ({
         enableAi: true,
         setEnableAi: mocks.setEnableAi,
@@ -88,31 +87,34 @@ describe("AiAssistantPanel", () => {
                     return null as never;
             }
         });
-        vi.mocked(tauriInvoke).mockResolvedValue(null);
     });
 
     it("saves AI config and API key from the Config tab", async () => {
         render(<AiAssistantPanel />);
 
+        await screen.findByText("LOCAL READY");
         fireEvent.click(await screen.findByRole("button", { name: /config/i }));
         fireEvent.change(screen.getByPlaceholderText(/OpenAI-compatible API key/i), {
             target: { value: "sk-test" },
         });
         fireEvent.click(screen.getByRole("button", { name: /Save AI API key/i }));
         await waitFor(() => {
-            expect(tauriInvoke).toHaveBeenCalledWith("set_ai_api_key", { apiKey: "sk-test" });
+            expect(safeInvoke).toHaveBeenCalledWith("set_ai_api_key", { apiKey: "sk-test" });
         });
         fireEvent.click(screen.getByRole("button", { name: /save ai config/i }));
 
         await waitFor(() => {
-            expect(tauriInvoke).toHaveBeenCalledWith("update_ai_config", expect.objectContaining({
+            expect(safeInvoke).toHaveBeenCalledWith("update_ai_config", expect.objectContaining({
                 config: expect.objectContaining({ enableAi: true }),
             }));
         });
     });
 
     it("renders chat action proposals and sends accept/reject commands", async () => {
-        vi.mocked(tauriInvoke).mockImplementation(async (command: string) => {
+        vi.mocked(safeInvoke).mockImplementation(async (command: string) => {
+            if (command === "get_ai_status") return aiStatus as never;
+            if (command === "get_ai_config") return aiConfig as never;
+            if (command === "list_ai_conversations") return [{ id: "conv-1" }] as never;
             if (command === "send_ai_message") {
                 return {
                     requestId: "req-1",
@@ -141,7 +143,7 @@ describe("AiAssistantPanel", () => {
         fireEvent.click(screen.getByRole("button", { name: /Accept/i }));
 
         await waitFor(() => {
-            expect(tauriInvoke).toHaveBeenCalledWith("confirm_ai_action", { actionId: "act-1" });
+            expect(safeInvoke).toHaveBeenCalledWith("confirm_ai_action", { actionId: "act-1" });
         });
     });
 });

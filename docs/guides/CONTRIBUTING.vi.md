@@ -44,3 +44,14 @@ Khi tham gia dự án, vui lòng giữ thái độ tôn trọng, lịch sự và
 
 ## 📜 Bản Quyền
 Mọi đóng góp của bạn sẽ tuân theo giấy phép MIT License của dự án.
+
+## Quality gate before push
+
+```bash
+npm run check:frontend
+npm run check:backend
+```
+
+Use Conventional Commits. Keep shared utilities in `src/shared`, app-shell stores in
+`src/core`, typed native calls in `src/contracts/tauri-api`, and domain helpers in their
+own module. Runtime text must be UTF-8 and user-facing labels should use i18n keys.

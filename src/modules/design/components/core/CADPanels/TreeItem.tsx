@@ -1,6 +1,6 @@
 import React from "react";
 import { Eye, EyeOff, GripVertical } from "lucide-react";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 import { EditableText } from "@DESIGN/components/core/CADPanels/EditableText";
 
 export interface TreeItemProps {

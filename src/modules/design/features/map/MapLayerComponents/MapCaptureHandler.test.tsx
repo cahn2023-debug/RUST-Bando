@@ -25,12 +25,12 @@ const mapMock = vi.hoisted(() => ({
   off: vi.fn(),
 }));
 
-vi.mock('@tauri-apps/api/event', () => ({
-  listen: vi.fn(async (_event: string, handler: (event: { payload: any }) => void) => {
+vi.mock('@IMPLEMENT/lib/tauri', () => ({
+  safeListen: vi.fn(async (_event: string, handler: (event: { payload: any }) => void) => {
     eventMocks.listener = handler;
     return vi.fn();
   }),
-  emit: eventMocks.emit,
+  safeEmit: eventMocks.emit,
 }));
 
 vi.mock('../MapContext', () => ({

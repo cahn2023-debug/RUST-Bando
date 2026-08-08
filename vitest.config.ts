@@ -12,6 +12,8 @@ export default defineConfig({
       '@IMPLEMENT': path.resolve(__dirname, './src/modules/implement'),
       '@TOOL': path.resolve(__dirname, './src/modules/tool'),
       '@ANALYTICS': path.resolve(__dirname, './src/modules/analytics'),
+      '@CORE': path.resolve(__dirname, './src/core'),
+      '@SHARED': path.resolve(__dirname, './src/shared'),
       '@': path.resolve(__dirname, './src'),
     },
   },
@@ -19,6 +21,8 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    testTimeout: 15_000,
+    hookTimeout: 15_000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],

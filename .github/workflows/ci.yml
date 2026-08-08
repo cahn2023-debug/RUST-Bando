@@ -28,17 +28,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type check
-        run: npx tsc --noEmit
-
-      - name: Lint
-        run: npm run lint --if-present
-
-      - name: Run tests
-        run: npm test -- --run
-
-      - name: Build frontend
-        run: npm run build
+      - name: Frontend quality gate
+        run: npm run check:frontend
 
   backend-check:
     name: Backend Checks
@@ -51,6 +42,16 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
 
       - name: Cache cargo registry
         uses: Swatinem/rust-cache@v2
@@ -74,20 +75,12 @@ jobs:
         run: |
           # Tauri Windows dependencies are pre-installed on windows-latest
 
-      - name: Cargo check
-        working-directory: src-tauri
-        run: cargo check --workspace --all-targets --features ai
-
-      - name: Cargo test
-        working-directory: src-tauri
-        run: cargo test --workspace --features ai
+      - name: Backend quality gate
+        run: npm run check:backend
 
       - name: Map performance budget
         run: python scripts/map_perf_benchmark.py --sizes 10000 100000 500000 --budget perf/map_performance_budget.json --output target/map_perf_results.json
 
-      - name: Cargo clippy
-        working-directory: src-tauri
-        run: cargo clippy --workspace --all-targets --features ai -- -D warnings
 
   security-scan:
     name: Security Scan

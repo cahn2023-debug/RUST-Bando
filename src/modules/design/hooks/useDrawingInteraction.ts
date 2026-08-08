@@ -5,7 +5,7 @@ import { getParsedMetadata } from "@TOOL/utils/featureMetadata";
 import { buildFeatureCreatedPayload } from "@TOOL/utils/featurePersistence";
 import { getNetworkEndpointCoordinate, getRepresentativeFeatureIdForEndpoint } from "@DESIGN/features/map/network/NetworkEndpoint";
 import { buildSnapLinks, inferNetworkRole, isSourceRole, resolveNetworkNodeIdFromSnap } from "@DESIGN/features/map/network/networkTopology";
-import { confirmUserAction } from "@TOOL/utils/userConfirmation";
+import { confirmUserAction } from "@SHARED/utils/userConfirmation";
 
 type OneClickDrawingMode = 'point' | 'image' | 'intersection';
 

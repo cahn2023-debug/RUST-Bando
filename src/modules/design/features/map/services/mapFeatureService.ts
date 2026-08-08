@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { mapApi } from '@/contracts/tauri-api';
 
 export interface SnapPoint {
     x: number;
@@ -14,7 +14,7 @@ export interface MapFeatureService {
 export const mapFeatureService: MapFeatureService = {
     findNearestSnapPoint: async (point: [number, number], tolerance: number) => {
         try {
-            const result = await invoke<SnapPoint>('find_nearest_snap_point', { point, tolerance });
+            const result = await mapApi.findNearestSnapPoint(point, tolerance);
             return result;
         } catch (err) {
             console.warn('[mapFeatureService] Find snap point failed:', err);

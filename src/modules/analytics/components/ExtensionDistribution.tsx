@@ -53,7 +53,7 @@ const ExtensionDistribution: React.FC<ExtensionDistributionProps> = ({ data }) =
                                 fill="none"
                                 stroke={seg.color}
                                 strokeWidth="12"
-                                className="cursor-pointer transition-all duration-700 hover:opacity-80"
+                                className="cursor-pointer transition-all duration-200 hover:opacity-80"
                             />
                         ))}
                     </svg>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuthStore } from '@IMPLEMENT/stores/useAuthStore';
+import { useAuthStore } from '@CORE/stores/useAuthStore';
 import { Mail, Lock, LogIn, AlertCircle, Loader2 } from 'lucide-react';
 
 export const AuthOverlay: React.FC = () => {
@@ -18,7 +18,7 @@ export const AuthOverlay: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-[12px] transition-all animate-in fade-in duration-700">
+    <div className="fixed inset-0 z-cad-overlay flex items-center justify-center bg-black/60 backdrop-blur-[12px] transition-all animate-in fade-in duration-200">
       <div className="w-full max-w-md p-10 bg-[#121212]/90 border border-white/[0.08] shadow-[0_32px_128px_-16px_rgba(0,0,0,0.8)] rounded-[2rem] relative overflow-hidden group">
         {/* Advanced Decorative Elements */}
         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-cad-accent/40 to-transparent" />
@@ -27,7 +27,7 @@ export const AuthOverlay: React.FC = () => {
 
         <div className="relative z-10">
           <div className="flex flex-col items-center mb-10">
-            <div className="w-20 h-20 bg-gradient-to-br from-cad-accent to-cad-accent/60 flex items-center justify-center rounded-2xl mb-6 shadow-[0_0_40px_rgba(var(--cad-accent-rgb),0.3)] transform group-hover:scale-105 transition-transform duration-500">
+            <div className="w-20 h-20 bg-gradient-to-br from-cad-accent to-cad-accent/60 flex items-center justify-center rounded-2xl mb-6 shadow-[0_0_40px_rgba(var(--cad-accent-rgb),0.3)] transform group-hover:scale-105 transition-transform duration-200">
               <span className="text-black font-black text-4xl italic tracking-tighter">AG</span>
             </div>
             <h1 className="text-3xl font-display font-black tracking-tighter text-white uppercase text-center bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60">
@@ -39,7 +39,7 @@ export const AuthOverlay: React.FC = () => {
           </div>
 
           {error && (
-            <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-4 duration-200">
               <div className="bg-red-500/20 p-1.5 rounded-md">
                 <AlertCircle size={14} className="text-red-500" />
               </div>
@@ -54,7 +54,7 @@ export const AuthOverlay: React.FC = () => {
             <div className="space-y-2">
               <label className="text-[10px] font-black text-cad-text-muted/80 uppercase tracking-widest ml-1">Universal Identifier</label>
               <div className="relative group/input">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-cad-text-muted group-focus-within/input:text-cad-accent transition-colors duration-300">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-cad-text-muted group-focus-within/input:text-cad-accent transition-colors duration-200">
                   <Mail size={18} />
                 </div>
                 <input
@@ -62,7 +62,7 @@ export const AuthOverlay: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-[13px] text-white placeholder:text-white/20 focus:outline-none focus:border-cad-accent/40 focus:bg-black/60 transition-all duration-300"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-[13px] text-white placeholder:text-white/20 focus:outline-none focus:border-cad-accent/40 focus:bg-black/60 transition-all duration-200"
                   placeholder="commander@antigravity.ia"
                 />
               </div>
@@ -71,7 +71,7 @@ export const AuthOverlay: React.FC = () => {
             <div className="space-y-2">
               <label className="text-[10px] font-black text-cad-text-muted/80 uppercase tracking-widest ml-1">Access Fragment</label>
               <div className="relative group/input">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-cad-text-muted group-focus-within/input:text-cad-accent transition-colors duration-300">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-cad-text-muted group-focus-within/input:text-cad-accent transition-colors duration-200">
                   <Lock size={18} />
                 </div>
                 <input
@@ -79,7 +79,7 @@ export const AuthOverlay: React.FC = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-black/40 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-[13px] text-white placeholder:text-white/20 focus:outline-none focus:border-cad-accent/40 focus:bg-black/60 transition-all duration-300"
+                  className="w-full bg-black/40 border border-white/10 rounded-xl py-3.5 pl-12 pr-4 text-[13px] text-white placeholder:text-white/20 focus:outline-none focus:border-cad-accent/40 focus:bg-black/60 transition-all duration-200"
                   placeholder="••••••••••••"
                 />
               </div>
@@ -88,7 +88,7 @@ export const AuthOverlay: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-white text-black font-black py-4 rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-[0.97] hover:bg-cad-accent shadow-[0_10px_30px_rgba(255,255,255,0.1)] hover:shadow-cad-accent/20 mt-8 group/btn"
+              className="w-full bg-cad-text-primary text-cad-bg font-black py-4 rounded-xl flex items-center justify-center gap-3 transition-all transform active:scale-[0.97] hover:bg-cad-active shadow-lg shadow-cad-text-primary/10 hover:shadow-cad-accent/20 mt-8 group/btn"
             >
               {loading ? (
                 <Loader2 size={20} className="animate-spin" />

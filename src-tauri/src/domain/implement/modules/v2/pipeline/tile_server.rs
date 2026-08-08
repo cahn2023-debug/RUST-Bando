@@ -1,4 +1,6 @@
-use crate::domain::implement::modules::v2::storage::gpkg::{query_features_by_tile_bbox, tile_bounds};
+use crate::domain::implement::modules::v2::storage::gpkg::{
+    query_features_by_tile_bbox, tile_bounds,
+};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
@@ -13,7 +15,9 @@ pub fn get_tile_server_port() -> u16 {
 }
 
 /// Khởi chạy Local HTTP Vector Tile Server trên Rust thread độc lập.
-pub fn start_local_tile_server(db_path_getter: Arc<dyn Fn() -> Option<PathBuf> + Send + Sync + 'static>) {
+pub fn start_local_tile_server(
+    db_path_getter: Arc<dyn Fn() -> Option<PathBuf> + Send + Sync + 'static>,
+) {
     if get_tile_server_port() > 0 {
         return;
     }
@@ -27,9 +31,15 @@ pub fn start_local_tile_server(db_path_getter: Arc<dyn Fn() -> Option<PathBuf> +
             }
         };
 
-        let port = server.server_addr().to_ip().map(|addr| addr.port()).unwrap_or(0);
+        let port = server
+            .server_addr()
+            .to_ip()
+            .map(|addr| addr.port())
+            .unwrap_or(0);
         TILE_SERVER_PORT.store(port, Ordering::Relaxed);
-        log::info!("[TileServer] Local MVT Vector Tile Server listening on http://127.0.0.1:{port}");
+        log::info!(
+            "[TileServer] Local MVT Vector Tile Server listening on http://127.0.0.1:{port}"
+        );
 
         for request in server.incoming_requests() {
             let url = request.url().to_string();
@@ -68,18 +78,32 @@ pub fn start_local_tile_server(db_path_getter: Arc<dyn Fn() -> Option<PathBuf> +
             let pbf_bytes = match db_path {
                 Some(path) => match rusqlite::Connection::open_with_flags(
                     &path,
-                    rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+                    rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
+                        | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
                 ) {
                     Ok(conn) => {
                         let (min_x, max_x, min_y, max_y) = tile_bounds(z, x, y);
-                        let features = query_features_by_tile_bbox(&conn, &project_id, min_x, max_x, min_y, max_y, 2000).unwrap_or_default();
-                        
+                        let features = query_features_by_tile_bbox(
+                            &conn,
+                            &project_id,
+                            min_x,
+                            max_x,
+                            min_y,
+                            max_y,
+                            2000,
+                        )
+                        .unwrap_or_default();
+
                         // Serialize MVT GeoJSON Feature Collection cho MapLibre Render
                         let geojson_features: Vec<serde_json::Value> = features
                             .into_iter()
                             .map(|f| {
-                                let coords: serde_json::Value = serde_json::from_str(&f.coordinates_json).unwrap_or(serde_json::Value::Null);
-                                let props: serde_json::Value = serde_json::from_str(&f.properties_json).unwrap_or(serde_json::json!({}));
+                                let coords: serde_json::Value =
+                                    serde_json::from_str(&f.coordinates_json)
+                                        .unwrap_or(serde_json::Value::Null);
+                                let props: serde_json::Value =
+                                    serde_json::from_str(&f.properties_json)
+                                        .unwrap_or(serde_json::json!({}));
                                 serde_json::json!({
                                     "type": "Feature",
                                     "id": f.id,
@@ -104,8 +128,10 @@ pub fn start_local_tile_server(db_path_getter: Arc<dyn Fn() -> Option<PathBuf> +
                 None => Vec::new(),
             };
 
-            let cors_header = Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]).unwrap();
-            let content_type = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
+            let cors_header =
+                Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]).unwrap();
+            let content_type =
+                Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
 
             let response = Response::from_data(pbf_bytes)
                 .with_header(cors_header)

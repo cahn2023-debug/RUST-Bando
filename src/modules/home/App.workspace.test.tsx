@@ -124,13 +124,13 @@ vi.mock("@IMPLEMENT/TabInProgram/useTabStore", () => ({
   },
 }));
 
-vi.mock("@IMPLEMENT/stores/useSettingsStore", () => ({
+vi.mock("@CORE/stores/useSettingsStore", () => ({
   useSettingsStore: () => ({
     loadSettings: vi.fn(),
   }),
 }));
 
-vi.mock("@IMPLEMENT/stores/useAuthStore", () => ({
+vi.mock("@CORE/stores/useAuthStore", () => ({
   useAuthStore: () => ({
     logout: vi.fn(),
   }),
@@ -140,7 +140,7 @@ vi.mock("@IMPLEMENT/stores/useDesignSync", () => ({
   useDesignSync: mocks.useDesignSync,
 }));
 
-vi.mock("@IMPLEMENT/stores/useLayoutStore", () => ({
+vi.mock("@CORE/stores/useLayoutStore", () => ({
   useLayoutStore: (selector: (state: any) => unknown) =>
     selector({
       togglePalette: vi.fn(),

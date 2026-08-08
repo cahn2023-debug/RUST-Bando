@@ -1,6 +1,21 @@
+export interface UserConfirmationOptions {
+  /**
+   * Kept for call-site compatibility. Dialog failures always fail closed.
+   */
+  fallbackOnDialogError?: boolean;
+}
+
 export const confirmUserAction = (
-  _message: string,
-  _options: { fallbackOnDialogError?: boolean } = {}
+  message: string,
+  _options: UserConfirmationOptions = {}
 ): Promise<boolean> => {
-  return Promise.resolve(true);
+  let confirmed = false;
+  try {
+    if (typeof globalThis.confirm === 'function') {
+      confirmed = globalThis.confirm(message) === true;
+    }
+  } catch {
+    confirmed = false;
+  }
+  return Promise.resolve(confirmed);
 };

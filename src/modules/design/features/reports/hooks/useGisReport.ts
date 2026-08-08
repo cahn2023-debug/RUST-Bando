@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '@/contracts/tauri-api/runtime';
 
 export interface GisCategoryStat {
     category: string;

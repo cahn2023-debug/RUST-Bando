@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Plus, X, Trash2, Edit2, Save } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/contracts/tauri-api/runtime";
 import { ContentType, ContentField, ContentItem } from "@CONTRACT/types";
 import { CADInput } from "@IMPLEMENT/features/project-management/ProjectDetailPanels/CADInput";
-import { logger } from "@TOOL/utils/logger";
+import { logger } from "@SHARED/utils/logger";
 
 interface Props {
     projectId: string;
@@ -178,7 +178,7 @@ export function DynamicContentManager({ projectId, contentType }: Props) {
                                 items.map(item => {
                                     const data = JSON.parse(item.data_json);
                                     return (
-                                        <tr key={item.id} className="group transition-colors hover:bg-white/5">
+                                        <tr key={item.id} className="group transition-colors hover:bg-cad-text-primary/5">
                                             <td className="p-4 text-xs font-bold text-cad-text-primary">{item.name}</td>
                                             {fields.map(f => (
                                                 <td key={f.id} className="p-4 font-mono text-xs text-cad-text-muted">

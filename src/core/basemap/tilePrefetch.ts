@@ -1,6 +1,7 @@
 import { getStyledBasemapTiles } from './style';
 import { deriveTileSourceKey, isTileCacheAvailable, shardTemplate } from './tileCache';
 import type { BasemapPreferences, BasemapPresetId, GeographicBounds } from './types';
+import { invoke } from '@/contracts/tauri-api/runtime';
 
 /**
  * Launch-time basemap warm-up.
@@ -134,7 +135,6 @@ export async function prefetchBasemapTiles(options: {
     if (signal?.aborted) return null;
 
     try {
-        const { invoke } = await import('@tauri-apps/api/core');
         return await invoke<PrefetchReport>('prefetch_basemap_tiles', { requests });
     } catch (error) {
         // Warm-up is an optimisation; failing it must not affect startup.

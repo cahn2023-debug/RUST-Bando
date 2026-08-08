@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Database, FolderPlus, Trash2, FileUp, Palette, MapPin } from "lucide-react";
 import { Virtuoso, type ListRange, type VirtuosoHandle } from "react-virtuoso";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open } from "@/contracts/tauri-api/runtime";
 
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 import { TreeItem } from "@DESIGN/components/core/CADPanels/TreeItem";
 import { FeatureItem } from "@DESIGN/components/core/CADPanels/FeatureItem";
 import { useDesignSync, EMPTY_OBJ } from "@IMPLEMENT/stores/useDesignSync";
-import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
+import { useLayoutStore } from "@CORE/stores/useLayoutStore";
 import { importFromExcel, importFromKML, getExcelHeaders, applyImportedRecords, type ImportMapping } from "@IMPLEMENT/services/importService";
 import { ImportReviewDialog } from "@IMPLEMENT/components/import/ImportReviewDialog";
 import {
@@ -286,6 +286,7 @@ export function DrawingExplorer() {
   const restoredProjectRef = useRef<string | null>(null);
   const isRestoringViewStateRef = useRef(false);
   const pendingScrollRestoreRef = useRef<{ id: string | null; index: number } | null>(null);
+  const coordinateInputRef = useRef<HTMLTextAreaElement>(null);
   const hasAutoExpanded = useRef(false);
   const lastSelectedFeatureIdRef = useRef<string | null>(null);
 
@@ -345,6 +346,10 @@ export function DrawingExplorer() {
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
   const [deleteModal, setDeleteModal] = useState<DeleteModalState>({ isOpen: false, type: null, id: '', name: '' });
   const [coordinateEditor, setCoordinateEditor] = useState<CoordinateEditorState | null>(null);
+
+  useEffect(() => {
+    if (coordinateEditor) coordinateInputRef.current?.focus();
+  }, [coordinateEditor]);
 
   useEffect(() => {
     if (!selectedFeatureId) return;
@@ -838,8 +843,7 @@ export function DrawingExplorer() {
                 onChange={(e) => setCoordinateEditor(prev => prev ? { ...prev, value: e.target.value, error: null } : prev)}
                 className="h-24 w-full resize-none rounded border border-cad-border bg-cad-bg px-2 py-1.5 font-mono text-[10px] text-cad-text-primary outline-none focus:border-cad-accent"
                 placeholder={coordinateEditor.geomType.toLowerCase() === 'point' ? "105.871928, 21.046998" : "[[105.871928,21.046998],[105.872,21.047]]"}
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
+                ref={coordinateInputRef}
               />
               <div className="text-[8px] text-cad-text-muted">
                 Point: lng, lat hoặc [lng, lat]. Line/Polygon: JSON array.

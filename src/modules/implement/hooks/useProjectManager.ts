@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, startTransition } from "react";
 import { safeInvoke as invoke, safeOpenDialog, IS_REAL_TAURI } from "@IMPLEMENT/lib/tauri";
-import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
+import { useSettingsStore } from "@CORE/stores/useSettingsStore";
 import { Project } from "@CONTRACT/types";
+import { projectApi } from "@/contracts/tauri-api";
 import { useTabStore } from "@IMPLEMENT/TabInProgram/useTabStore";
 import { backfillProjectPath } from "./projectPathUtils";
-import { openProjectBootstrap } from "@TOOL/utils/designIpc";
+import { openProjectBootstrap } from "@SHARED/utils/designIpc";
 import { invalidateAll } from "@DESIGN/features/map/coordinateCache";
 import { resetTelemetry } from "@DESIGN/features/map/mapStartupTelemetry";
 
@@ -227,7 +228,7 @@ export function useProjectManager() {
 
     const scheduleProjectIndexing = (projectId: string) => {
         indexingTimeoutRef.current = setTimeout(() => {
-            invoke("index_project_files", { projectId }).catch(console.error);
+            projectApi.indexFiles(projectId).catch(console.error);
             indexingTimeoutRef.current = null;
         }, 3000);
     };
@@ -243,13 +244,13 @@ export function useProjectManager() {
         projectsRef.current = nextRecent;
         setProjects(nextRecent);
 
-        invoke("save_recent_projects", { projects: nextRecent }).catch((err) => {
+        projectApi.saveRecentProjects(nextRecent).catch((err) => {
             console.warn("Failed to save recent projects to backend, using localStorage:", err);
             localStorage.setItem("recent_pmps", JSON.stringify(nextRecent));
         });
 
         if (persistLastOpened) {
-            invoke("save_last_opened_project", { project }).catch(console.error);
+            projectApi.saveLastOpenedProject(project).catch(console.error);
         }
 
         useTabStore.getState().addTab({
@@ -425,13 +426,13 @@ export function useProjectManager() {
             if (selectedProjectRef.current?.id === projectToDelete.id) {
                 selectedProjectRef.current = null;
                 setSelectedProject(null);
-                await invoke("close_active_project").catch((err) => {
+                await projectApi.closeProject().catch((err) => {
                     console.warn("Could not close active project while removing from recent:", err);
                 });
             }
 
             try {
-                await invoke("delete_project", { id: projectToDelete.id });
+                await projectApi.deleteProject(projectToDelete.id);
             } catch (err) {
                 console.warn("Could not remove project metadata from backend:", err);
             }
@@ -462,7 +463,7 @@ export function useProjectManager() {
                 setProjects(normalizedProjects);
 
                 // Save to backend
-                invoke("save_recent_projects", { projects: normalizedProjects })
+                projectApi.saveRecentProjects(normalizedProjects)
                     .catch((err) => {
                         console.warn("Failed to save to backend, using localStorage:", err);
                         localStorage.setItem("recent_pmps", JSON.stringify(normalizedProjects));
@@ -480,7 +481,7 @@ export function useProjectManager() {
     const handleCloseProject = async () => {
         console.info("[useProjectManager] Closing active project...");
         try {
-            await invoke("close_active_project");
+            await projectApi.closeProject();
             selectedProjectRef.current = null;
             setSelectedProject(null);
             console.info("[useProjectManager] Project closed successfully.");

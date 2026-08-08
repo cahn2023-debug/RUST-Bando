@@ -1,6 +1,6 @@
 import React from "react";
 import { ChevronDown, ChevronRight, Eye, EyeOff, Trash2 } from "lucide-react";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 import { FeatureIcon } from "@DESIGN/components/core/CADPanels/FeatureIcon";
 import { getCleanName, getParsedMetadata } from "@TOOL/utils/featureUtils";
 import type { FeatureState } from "@CONTRACT/types";
@@ -94,7 +94,7 @@ export const FeatureItem = React.memo(({
         className={cn(
           "group/feat relative flex cursor-pointer select-none items-center justify-between rounded-sm px-1 py-1 transition-all",
           selected && "border-r-2 border-r-cad-accent bg-cad-accent/10",
-          hovered && !selected && "bg-white/5 ring-1 ring-white/5",
+          hovered && !selected && "bg-cad-text-primary/5 ring-1 ring-cad-text-primary/5",
           isDropTarget && "bg-cad-accent/10 ring-1 ring-cad-accent/70"
         )}
         onContextMenu={onContextMenu}

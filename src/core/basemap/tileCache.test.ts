@@ -9,8 +9,12 @@ import {
     toCachedTileUrls,
 } from './tileCache';
 import { enumerateTiles, prefetchBasemapTiles, VIETNAM_BOUNDS } from './tilePrefetch';
+import { safeInvoke } from '@IMPLEMENT/lib/tauri';
 
 vi.mock('maplibre-gl', () => ({ default: { addProtocol: vi.fn() } }));
+vi.mock('@IMPLEMENT/lib/tauri', () => ({
+    safeInvoke: vi.fn(),
+}));
 
 const TEMPLATES = [
     'https://mt0.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
@@ -127,8 +131,7 @@ describe('prefetch', () => {
             // Derive the key the way the runtime does — from the styled templates
             // for this preset, not from hand-written fixtures.
             const liveKey = toCachedTileUrls('street', getStyledBasemapTiles('street', {}))[0].split('/')[2];
-            const invoke = vi.fn().mockResolvedValue({ requested: 1, cached: 0, fetched: 1, failed: 0 });
-            vi.doMock('@tauri-apps/api/core', () => ({ invoke }));
+            const invoke = vi.mocked(safeInvoke).mockResolvedValue({ requested: 1, cached: 0, fetched: 1, failed: 0 });
 
             await prefetchBasemapTiles({ presetId: 'street', minZoom: 0, maxZoom: 0 });
 
@@ -145,7 +148,6 @@ describe('prefetch', () => {
             expect(payload.requests[0].url).not.toMatch(/\{[zxy]\}/);
         } finally {
             delete host.__TAURI_INTERNALS__;
-            vi.doUnmock('@tauri-apps/api/core');
         }
     });
 });

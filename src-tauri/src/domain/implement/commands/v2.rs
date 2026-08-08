@@ -25,7 +25,8 @@ const BINARY_SAVE_EXTENSIONS: &[&str] = &[
     "pmp", "xlsx", "docx", "zip", "json", "csv", "png", "jpg", "jpeg",
 ];
 const BINARY_READ_EXTENSIONS: &[&str] = &[
-    "pmp", "xlsx", "xls", "csv", "kml", "kmz", "json", "png", "jpg", "jpeg", "webp", "gif", "bmp", "svg", "ico", "tif", "tiff",
+    "pmp", "xlsx", "xls", "csv", "kml", "kmz", "json", "png", "jpg", "jpeg", "webp", "gif", "bmp",
+    "svg", "ico", "tif", "tiff",
 ];
 const VIEWPORT_FIRST_FEATURE_LIMIT: i64 = 10_000;
 
@@ -1603,8 +1604,7 @@ fn build_project_value(
 
 fn project_from_query_result(result: &Value, path: &str) -> Option<Value> {
     let row = result.as_array()?.first()?;
-    let id = v2_extract_id(row.get("id"))
-        .or_else(|| v2_extract_id(row.get("project_id")))?;
+    let id = v2_extract_id(row.get("id")).or_else(|| v2_extract_id(row.get("project_id")))?;
     let name = v2_extract_string_text(row.get("title"))
         .or_else(|| v2_extract_string_text(row.get("name")))
         .unwrap_or_else(|| "Untitled Project".to_string());
@@ -2889,6 +2889,7 @@ pub async fn get_pending_sync_outbox(
 
 #[tauri::command]
 #[allow(non_snake_case)]
+#[allow(clippy::too_many_arguments)]
 pub async fn mark_outbox_synced(
     state: State<'_, ActorState>,
     eventIds: Option<Vec<String>>,
@@ -3305,14 +3306,9 @@ pub async fn open_project_bootstrap(
         .parent()
         .map(|parent| parent.to_string_lossy().to_string())
         .unwrap_or_default();
-    let bootstrap = open_project_bootstrap_in_worker(
-        &state,
-        path_buf,
-        title,
-        base_hint,
-        open_request_id,
-    )
-    .await?;
+    let bootstrap =
+        open_project_bootstrap_in_worker(&state, path_buf, title, base_hint, open_request_id)
+            .await?;
     let project = bootstrap
         .get("project")
         .cloned()

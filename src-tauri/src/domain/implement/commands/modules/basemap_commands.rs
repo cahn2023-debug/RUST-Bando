@@ -1,15 +1,10 @@
 pub use crate::domain::implement::modules::basemap::tile_cache::{
-    get_basemap_tile,
-    prefetch_basemap_tiles,
-    get_basemap_cache_stats,
-    clear_basemap_tile_cache,
+    clear_basemap_tile_cache, get_basemap_cache_stats, get_basemap_tile, prefetch_basemap_tiles,
 };
 
 pub use crate::domain::implement::modules::basemap::tile_cache::{
-    __cmd__get_basemap_tile,
+    __cmd__clear_basemap_tile_cache, __cmd__get_basemap_cache_stats, __cmd__get_basemap_tile,
     __cmd__prefetch_basemap_tiles,
-    __cmd__get_basemap_cache_stats,
-    __cmd__clear_basemap_tile_cache,
 };
 
 #[macro_export]

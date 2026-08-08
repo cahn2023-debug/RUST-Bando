@@ -1,6 +1,6 @@
 import React from 'react';
-import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
-import { cn } from '@TOOL/utils/cn';
+import { useLayoutStore } from '@CORE/stores/useLayoutStore';
+import { cn } from '@SHARED/utils/cn';
 import { Calculator, Camera, Layers, Network, Settings, Video } from 'lucide-react';
 
 const paletteIcons = {
@@ -16,7 +16,7 @@ export const PaletteSidebar: React.FC = () => {
     const { layoutColumns, paletteConfigs, activePaletteId, expandPalette, togglePalette } = useLayoutStore();
 
     return (
-        <div className="workspace-rail relative z-50 flex shrink-0 flex-col overflow-visible border-l border-cad-border bg-cad-bg pointer-events-auto">
+        <div className="workspace-rail relative z-cad-panel flex shrink-0 flex-col overflow-visible border-l border-cad-border bg-cad-bg pointer-events-auto">
             {/* Tab Container */}
             <div className="flex w-[36px] flex-col items-center gap-2 py-2">
                 {layoutColumns.flat().map((id) => {

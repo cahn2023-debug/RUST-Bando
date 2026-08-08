@@ -6,10 +6,10 @@
 import React, { useEffect, useMemo } from 'react';
 import { Wrench, Ruler, Camera, MapPin, Eye, Zap } from 'lucide-react';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { getFeatureDetailV2 } from '@TOOL/utils/designIpc';
+import { getFeatureDetailV2 } from '@SHARED/utils/designIpc';
 import { getParsedMetadata } from '@TOOL/utils/featureMetadata';
 import { getFeatureDisplayInfo } from '@TOOL/utils/featureUtils';
-import { cn } from '@TOOL/utils/cn';
+import { cn } from '@SHARED/utils/cn';
 import type { FeatureMetadata } from '@CONTRACT/types';
 
 interface TechnicalSpecsPanelProps {

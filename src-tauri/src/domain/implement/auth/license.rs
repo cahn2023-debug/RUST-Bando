@@ -17,10 +17,14 @@ pub fn get_hardware_id() -> String {
         let output = Command::new("wmic")
             .args(["csproduct", "get", "UUID"])
             .output();
-        
+
         if let Ok(out) = output {
             let text = String::from_utf8_lossy(&out.stdout);
-            let lines: Vec<&str> = text.lines().map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+            let lines: Vec<&str> = text
+                .lines()
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .collect();
             if lines.len() >= 2 {
                 return lines[1].to_string();
             }

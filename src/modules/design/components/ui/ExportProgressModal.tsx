@@ -29,7 +29,7 @@ export const ExportProgressModal: React.FC = () => {
 
           <div className="h-1.5 w-full bg-cad-bg border border-cad-border rounded-full overflow-hidden">
             <div 
-              className="h-full bg-cad-accent transition-all duration-300 ease-out"
+              className="h-full bg-cad-accent transition-all duration-200 ease-out"
               style={{ width: `${progress}%` }}
             />
           </div>

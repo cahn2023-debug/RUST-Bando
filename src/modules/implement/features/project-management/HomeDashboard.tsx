@@ -89,7 +89,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                         </button>
                         <button
                             onClick={onShowCreate}
-                            className="px-5 py-2 bg-cad-accent hover:bg-white text-black text-[10px] font-black rounded-sm transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.3)]"
+                            className="px-5 py-2 bg-cad-accent hover:bg-cad-active text-black text-[10px] font-black rounded-sm transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(34,197,94,0.3)]"
                         >
                             <Plus size={14} /> {t('project.newProject').toUpperCase()}
                         </button>

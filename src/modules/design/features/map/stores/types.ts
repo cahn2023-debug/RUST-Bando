@@ -6,7 +6,7 @@ import type {
     SelectionSummary
 } from '@CONTRACT/designTypes';
 import type { NetworkConnectionDraft } from '../network/NetworkEndpoint';
-import type { ProjectBootstrap } from '@TOOL/utils/designIpc';
+import type { ProjectBootstrap } from '@SHARED/utils/designIpc';
 
 export type {
     DesignEventType,

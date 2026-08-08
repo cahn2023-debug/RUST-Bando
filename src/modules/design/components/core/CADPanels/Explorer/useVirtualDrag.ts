@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { DesignEventType } from "@IMPLEMENT/stores/useDesignSync";
 import { getFeatureDisplayInfo, getNextFeatureDisplayOrder, getParsedMetadata, syncDisplayOrderAliases } from "@TOOL/utils/featureUtils";
 import type { FeatureGroupState, FeatureState } from "@CONTRACT/types";
-import { confirmUserAction } from "@TOOL/utils/userConfirmation";
+import { confirmUserAction } from "@SHARED/utils/userConfirmation";
 
 interface UseVirtualDragProps {
     featuresRef: React.MutableRefObject<Record<string, FeatureState>>;

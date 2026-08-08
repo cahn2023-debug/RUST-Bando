@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { FolderTree } from "@IMPLEMENT/features/project-management/ProjectDetailPanels/FolderTree";
 import { FileItem } from "@IMPLEMENT/features/project-management/ProjectDetailPanels/FileItem";
 import { TrendingUp, FileSearch, ExternalLink, FolderOpen } from "lucide-react";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, listen, open as openDialog } from "@/contracts/tauri-api/runtime";
 import { Contract } from "@CONTRACT/types";
 
 interface ContractSidebarProps {
@@ -39,7 +38,6 @@ export function ContractSidebar({ projectId, contractType, onFileSelect }: Contr
         let unlisten: any;
         const setupListener = async () => {
             try {
-                const { listen } = await import("@tauri-apps/api/event");
                 unlisten = await listen<any>("metadata-updated", (event) => {
                     const payload = event.payload;
                     // id safety
@@ -168,7 +166,7 @@ export function ContractSidebar({ projectId, contractType, onFileSelect }: Contr
 
             {contextMenu && (
                 <div
-                    className="fixed z-[250] bg-cad-surface border border-cad-border rounded-lg shadow-2xl flex flex-col min-w-[200px] overflow-hidden backdrop-blur-md bg-opacity-95"
+                    className="fixed z-cad-dropdown bg-cad-surface border border-cad-border rounded-lg shadow-2xl flex flex-col min-w-[200px] overflow-hidden backdrop-blur-md bg-opacity-95"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
                     onClick={(e) => e.stopPropagation()}
                 >

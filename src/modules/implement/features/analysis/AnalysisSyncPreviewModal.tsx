@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AlertTriangle, CheckCircle, FileSpreadsheet, X, HelpCircle, Check, ArrowRight } from 'lucide-react';
-import { cn } from '@TOOL/utils/cn';
+import { cn } from '@SHARED/utils/cn';
 import type { SyncPreview, ConflictResolution } from '@IMPLEMENT/services/analysisService';
 
 interface AnalysisSyncPreviewModalProps {
@@ -40,7 +40,7 @@ export const AnalysisSyncPreviewModal: React.FC<AnalysisSyncPreviewModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200 select-none">
+    <div className="fixed inset-0 z-cad-overlay flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200 select-none">
       <div className="flex flex-col w-full max-w-4xl max-h-[85vh] bg-cad-elevated border border-cad-border rounded-xl shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-cad-border/60 bg-cad-surface/80">

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { emit, listen } from "@tauri-apps/api/event";
-import { save } from "@tauri-apps/plugin-dialog";
+import { emit, listen, save } from "@/contracts/tauri-api/runtime";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import { resolveMediaAsset } from "@IMPLEMENT/services/mediaAssetService";
 import {

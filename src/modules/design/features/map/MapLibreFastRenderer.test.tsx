@@ -1,7 +1,7 @@
 import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { queryVisibleFeaturesV2 } from '@TOOL/utils/designIpc';
+import { queryVisibleFeaturesV2 } from '@SHARED/utils/designIpc';
 import { MapLibreFastRenderer, clearMapImageCache } from './MapLibreFastRenderer';
 import { MapProvider } from './MapContext';
 
@@ -38,7 +38,7 @@ vi.mock('@tauri-apps/api/event', () => ({
     listen: vi.fn().mockResolvedValue(() => {}),
 }));
 
-vi.mock('@TOOL/utils/designIpc', () => ({
+vi.mock('@SHARED/utils/designIpc', () => ({
     queryVisibleFeaturesV2: vi.fn(),
 }));
 

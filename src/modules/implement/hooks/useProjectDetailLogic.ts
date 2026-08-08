@@ -10,8 +10,8 @@ import {
 } from '@CONTRACT/types';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { useProjectData } from '@IMPLEMENT/hooks/useProjectData';
-import { logger } from '@TOOL/utils/logger';
-import { queryProjection, getContentTypes } from '@TOOL/utils/designIpc';
+import { logger } from '@SHARED/utils/logger';
+import { queryProjection, getContentTypes } from '@SHARED/utils/designIpc';
 
 export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => void) {
   const projectId = project?.id ?? '';

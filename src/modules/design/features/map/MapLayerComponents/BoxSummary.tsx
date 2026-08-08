@@ -6,7 +6,7 @@ import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import { DeleteConfirmationModal } from "@DESIGN/components/ui/DeleteConfirmationModal";
 import { safeString } from "@TOOL/utils/featureUtils";
 import { EditableText } from "@DESIGN/components/core/CADPanels/EditableText";
-import { confirmUserAction } from '@TOOL/utils/userConfirmation';
+import { confirmUserAction } from '@SHARED/utils/userConfirmation';
 
 interface BoxSummaryProps {
   inline?: boolean;
@@ -276,7 +276,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
                 <div className="flex items-center gap-3">
                   <div className="w-24 h-1 bg-cad-border/50 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-cad-accent/60 group-hover:bg-cad-accent transition-all duration-500"
+                      className="h-full bg-cad-accent/60 group-hover:bg-cad-accent transition-all duration-200"
                       style={{ width: `${(count / totalCount) * 100}%` }}
                     />
                   </div>
@@ -449,7 +449,7 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
                     {/* Expanded Section with Smooth Height Transition */}
                     <tr>
                       <td colSpan={8} className="p-0 border-none">
-                        <div className={`grid transition-all duration-300 ease-in-out ${isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                        <div className={`grid transition-all duration-200 ease-in-out ${isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
                           <div className="overflow-hidden">
                             <div className="bg-cad-elevated/40 border-b border-cad-border/20 px-8 py-5">
                               <div className="grid grid-cols-2 gap-8">

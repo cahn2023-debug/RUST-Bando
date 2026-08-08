@@ -81,7 +81,7 @@ export const DesignRibbonTools = ({
     const [configCoords, setConfigCoords] = React.useState<{ top: string; left: string; maxHeight: string }>({
         top: '100px',
         left: '20px',
-        maxHeight: 'calc(100vh - 140px)'
+        maxHeight: 'calc(100dvh - 140px)'
     });
 
     React.useEffect(() => {
@@ -92,7 +92,7 @@ export const DesignRibbonTools = ({
             setConfigCoords({
                 top: `${rect.bottom + 8}px`,
                 left: `${rect.left}px`,
-                maxHeight: `calc(100vh - ${rect.bottom + 24}px)`
+                maxHeight: `calc(100dvh - ${rect.bottom + 24}px)`
             });
         };
         updateCoords();
@@ -280,4 +280,3 @@ export const GraphRibbonTools = ({
         </ToolGroup>
     </>
 );
-

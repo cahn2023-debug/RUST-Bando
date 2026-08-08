@@ -1,7 +1,8 @@
 use crate::domain::implement::modules::v2::storage::audit::{audit_database, DatabaseAuditReport};
 use crate::domain::implement::modules::v2::storage::schema::{
-    apply_base_schema, apply_v10_schema, apply_v11_schema, apply_v9_schema, ensure_runtime_schema_compatibility,
-    ensure_v8_compatibility, stamp_schema_version, CURRENT_SCHEMA_VERSION, MIN_COMPATIBLE_SCHEMA_VERSION,
+    apply_base_schema, apply_v10_schema, apply_v11_schema, apply_v9_schema,
+    ensure_runtime_schema_compatibility, ensure_v8_compatibility, stamp_schema_version,
+    CURRENT_SCHEMA_VERSION, MIN_COMPATIBLE_SCHEMA_VERSION,
 };
 use rusqlite::{backup::Backup, params, Connection, DatabaseName, OpenFlags, TransactionBehavior};
 use serde_json::json;
@@ -39,7 +40,9 @@ impl PmpDatabase {
         conn.pragma_update(None, "busy_timeout", "15000")?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
 
-        if let Err(e) = crate::domain::implement::modules::v2::storage::gpkg::init_gpkg_tables(&conn) {
+        if let Err(e) =
+            crate::domain::implement::modules::v2::storage::gpkg::init_gpkg_tables(&conn)
+        {
             log::warn!("[Storage] GeoPackage RTree initialization warning: {e}");
         }
 
@@ -285,9 +288,15 @@ pub fn is_network_drive_path(path: &Path) -> bool {
         || s.contains("my drive")
 }
 
-pub fn prepare_network_pmp_local_copy(original_path: &Path, temp_dir: &Path) -> Result<PathBuf, String> {
+pub fn prepare_network_pmp_local_copy(
+    original_path: &Path,
+    temp_dir: &Path,
+) -> Result<PathBuf, String> {
     if !original_path.exists() {
-        return Err(format!("Tệp PMP không tồn tại: {}", original_path.display()));
+        return Err(format!(
+            "Tệp PMP không tồn tại: {}",
+            original_path.display()
+        ));
     }
     std::fs::create_dir_all(temp_dir).map_err(|e| format!("Không thể tạo thư mục temp: {e}"))?;
     let file_name = original_path
@@ -305,7 +314,11 @@ pub fn prepare_network_pmp_local_copy(original_path: &Path, temp_dir: &Path) -> 
         let _ = std::fs::remove_file(&preferred_temp_path);
     }
 
-    log::info!("[NetworkPMP] Copying network file {} -> temp file {}", original_path.display(), preferred_temp_path.display());
+    log::info!(
+        "[NetworkPMP] Copying network file {} -> temp file {}",
+        original_path.display(),
+        preferred_temp_path.display()
+    );
     match std::fs::copy(original_path, &preferred_temp_path) {
         Ok(_) => Ok(preferred_temp_path),
         Err(e) => {
@@ -320,20 +333,33 @@ pub fn prepare_network_pmp_local_copy(original_path: &Path, temp_dir: &Path) -> 
     }
 }
 
-pub fn sync_local_temp_to_network(local_temp_path: &Path, original_network_path: &Path) -> Result<(), String> {
+pub fn sync_local_temp_to_network(
+    local_temp_path: &Path,
+    original_network_path: &Path,
+) -> Result<(), String> {
     if !local_temp_path.exists() {
         return Err("Local temp PMP file missing".to_string());
     }
-    log::info!("[NetworkPMP] Syncing local temp {} -> network file {}", local_temp_path.display(), original_network_path.display());
+    log::info!(
+        "[NetworkPMP] Syncing local temp {} -> network file {}",
+        local_temp_path.display(),
+        original_network_path.display()
+    );
 
     for attempt in 1..=3 {
         match std::fs::copy(local_temp_path, original_network_path) {
             Ok(_) => return Ok(()),
             Err(err) if attempt < 3 => {
-                log::warn!("[NetworkPMP] Sync back attempt {attempt} failed: {err}. Retrying in 500ms...");
+                log::warn!(
+                    "[NetworkPMP] Sync back attempt {attempt} failed: {err}. Retrying in 500ms..."
+                );
                 std::thread::sleep(Duration::from_millis(500));
             }
-            Err(err) => return Err(format!("Lỗi khi đồng bộ dữ liệu về ổ mạng sau 3 lần thử: {err}")),
+            Err(err) => {
+                return Err(format!(
+                    "Lỗi khi đồng bộ dữ liệu về ổ mạng sau 3 lần thử: {err}"
+                ))
+            }
         }
     }
     Ok(())

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { listen } from '@tauri-apps/api/event';
+import { listen } from '@/contracts/tauri-api/runtime';
 
 export interface FeatureChunkPayload {
     chunk_index: number;

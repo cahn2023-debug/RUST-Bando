@@ -1,6 +1,6 @@
 import { Folder, FileIcon, Trash2 } from "lucide-react";
-import { cn } from "@TOOL/utils/cn";
-import { useState } from "react";
+import { cn } from "@SHARED/utils/cn";
+import { useEffect, useRef, useState } from "react";
 import { DeleteConfirmationModal } from "@DESIGN/components/ui/DeleteConfirmationModal";
 
 interface TaskItem {
@@ -29,12 +29,16 @@ export function ProjectTasksSidebar({
    tasks, onAdd, onAddGroup, onDrop, onSelect, onDeleteTask,
    adding, newName, setNewName, onSubmit
 }: ProjectTasksSidebarProps) {
+   const newTaskInputRef = useRef<HTMLInputElement>(null);
    const [deleteModalConfig, setDeleteModalConfig] = useState<{ isOpen: boolean; id: string | null; itemName: string; message: string }>({
       isOpen: false,
       id: null,
       itemName: "",
       message: ""
    });
+   useEffect(() => {
+      if (adding) newTaskInputRef.current?.focus();
+   }, [adding]);
    const groups = tasks.filter((t: TaskItem) => t.status === 'folder');
    const unassigned = tasks.filter((t: TaskItem) => t.status !== 'folder' && !t.parent_id);
 
@@ -114,8 +118,7 @@ export function ProjectTasksSidebar({
 
          {adding ? (
             <form onSubmit={onSubmit} className="bg-cad-bg p-3 border border-cad-accent">
-               {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
-               <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} className="w-full bg-cad-surface border border-cad-border p-2 text-[10px] text-white outline-none" placeholder="TASK NAME..." />
+               <input ref={newTaskInputRef} value={newName} onChange={e => setNewName(e.target.value)} className="w-full bg-cad-surface border border-cad-border p-2 text-[10px] text-white outline-none" placeholder="TASK NAME..." />
                <div className="flex justify-end gap-2 mt-2">
                   <button type="button" onClick={() => onAdd(false)} className="text-[9px] font-black text-cad-text-muted hover:text-white uppercase transition-all">Cancel</button>
                   <button type="submit" className="text-[9px] font-black bg-cad-accent text-black px-2 py-1 rounded-sm uppercase transition-all hover:bg-cad-accent/80">Save</button>

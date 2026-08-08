@@ -1,5 +1,8 @@
-import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke as tauriInvoke } from "@tauri-apps/api/core";
+import type { InvokeOptions } from "@tauri-apps/api/core";
 import { listen as tauriListen, UnlistenFn } from "@tauri-apps/api/event";
+import { getCurrentWindow as tauriGetCurrentWindow, Window as TauriWindow } from "@tauri-apps/api/window";
+import { getCurrentWebviewWindow as tauriGetCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 export const win = typeof window !== 'undefined' ? window as any : {} as any;
 
@@ -14,7 +17,7 @@ export const IS_REAL_TAURI = typeof window !== 'undefined' && (
 /**
  * Một wrapper an toàn cho Tauri invoke.
  */
-export async function safeInvoke<T>(command: string, args?: any): Promise<T> {
+export async function safeInvoke<T>(command: string, args?: any, options?: InvokeOptions): Promise<T> {
   try {
     if (!IS_REAL_TAURI) {
       if (![
@@ -31,7 +34,7 @@ export async function safeInvoke<T>(command: string, args?: any): Promise<T> {
       }
       return null as any;
     }
-    return await tauriInvoke<T>(command, args);
+    return await tauriInvoke<T>(command, args, options);
   } catch (error) {
     if (command === "build_map_tiles_v2") {
       console.info(`[Tauri SafeInvoke Info] command: ${command}`, error);
@@ -101,3 +104,19 @@ export async function safeSaveDialog(options: any): Promise<string | null> {
     return null;
   }
 }
+
+export function safeConvertFileSrc(path: string, protocol?: string): string {
+  return convertFileSrc(path, protocol);
+}
+
+export const safeGetCurrentWindow = () => IS_REAL_TAURI ? tauriGetCurrentWindow() : null;
+
+export const safeGetCurrentWebviewWindow = () => IS_REAL_TAURI ? tauriGetCurrentWebviewWindow() : null;
+
+export const safeGetWindowByLabel = (label: string) =>
+  IS_REAL_TAURI ? TauriWindow.getByLabel(label) : Promise.resolve(null);
+
+export const safeCreateWebviewWindow = (
+  label: string,
+  options: ConstructorParameters<typeof WebviewWindow>[1]
+) => IS_REAL_TAURI ? new WebviewWindow(label, options) : null;

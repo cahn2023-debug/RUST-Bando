@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInitializationSlice } from './initializationSlice';
 import type { DesignSyncStore } from './types';
-import { loadDesignState } from '../../../../tool/utils/designIpc';
+import { loadDesignState } from '@SHARED/utils/designIpc';
 
 vi.mock('../../../../implement/lib/tauri', () => ({
     safeInvoke: vi.fn(),
@@ -12,9 +12,9 @@ vi.mock('@tauri-apps/api/event', () => ({
     listen: vi.fn(async () => vi.fn()),
 }));
 
-vi.mock('../../../../tool/utils/designIpc', async () => {
-    const actual = await vi.importActual<typeof import('../../../../tool/utils/designIpc')>(
-        '../../../../tool/utils/designIpc'
+vi.mock('@SHARED/utils/designIpc', async () => {
+    const actual = await vi.importActual<typeof import('@SHARED/utils/designIpc')>(
+        '@SHARED/utils/designIpc'
     );
     return {
         ...actual,

@@ -19,7 +19,8 @@ import {
     VisibilityState,
     Table
 } from '@tanstack/react-table';
-import { cn } from '@TOOL/utils/cn';
+import { cn } from '@SHARED/utils/cn';
+import { getCurrentWebviewWindow } from '@/contracts/tauri-api/runtime';
 
 type CellPosition = {
     rowIndex: number;
@@ -129,15 +130,15 @@ export function AnalysisTable<TData extends { id: string | number }>({
     // Sync with Tauri window if standalone
     useEffect(() => {
         if (isStandalone) {
-            import('@tauri-apps/api/webviewWindow').then(m => {
-                const win = m.getCurrentWebviewWindow();
+            const win = getCurrentWebviewWindow();
+            if (win) {
                 win.isMaximized().then(setIsMaximized);
                 const unlisten = win.onResized(async () => {
                     const maximized = await win.isMaximized();
                     setIsMaximized(maximized);
                 });
                 return () => { unlisten.then(u => u()); };
-            });
+            }
         }
     }, [isStandalone]);
 
@@ -445,9 +446,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
             <div
                 onMouseDown={(e) => {
                     if (isStandalone && (e.currentTarget === e.target || (e.target as HTMLElement).hasAttribute('data-tauri-drag-region'))) {
-                        import('@tauri-apps/api/webviewWindow').then(m => {
-                            m.getCurrentWebviewWindow().startDragging();
-                        });
+                        getCurrentWebviewWindow()?.startDragging();
                     }
                 }}
                 data-tauri-drag-region={isStandalone ? "true" : undefined}
@@ -574,13 +573,13 @@ export function AnalysisTable<TData extends { id: string | number }>({
                         {isStandalone && showWindowControls && (
                             <>
                                 <button
-                                    onClick={() => import('@tauri-apps/api/webviewWindow').then(m => m.getCurrentWebviewWindow().minimize())}
+                                    onClick={() => getCurrentWebviewWindow()?.minimize()}
                                     className="p-2.5 hover:bg-cad-elevated text-cad-text-secondary transition-colors border-r border-cad-border"
                                 >
                                     <Minus size={16} />
                                 </button>
                                 <button
-                                    onClick={() => import('@tauri-apps/api/webviewWindow').then(m => m.getCurrentWebviewWindow().toggleMaximize())}
+                                    onClick={() => getCurrentWebviewWindow()?.toggleMaximize()}
                                     className="p-2.5 hover:bg-cad-elevated text-cad-text-secondary transition-colors border-r border-cad-border"
                                 >
                                     {isMaximized ? <Copy size={14} className="rotate-180" /> : <Square size={14} />}

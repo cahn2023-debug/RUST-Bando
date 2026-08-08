@@ -7,7 +7,7 @@ import {
     getEffectiveCameraSpecs,
     getFeatureMetadataValue
 } from '@TOOL/utils/featureUtils';
-import { calculateDORIRanges, calculateArcPoints, SENSOR_SIZES, calculateHFOV, mapRotationToHeading } from '@TOOL/utils/cameraMath';
+import { calculateDORIRanges, calculateArcPoints, SENSOR_SIZES, calculateHFOV, mapRotationToHeading } from '@SHARED/utils/cameraMath';
 import { getRenderableFeatureById } from '../featureLookup';
 
 const DORI_SOURCE_ID = 'maplibre-dori-source';

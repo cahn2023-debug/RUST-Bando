@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { cn } from '@TOOL/utils/cn'; // Assuming a cn utility exists or using a simple one
+import { cn } from '@SHARED/utils/cn'; // Assuming a cn utility exists or using a simple one
 
 interface ResizeHandleProps {
   direction: 'left' | 'right';
@@ -50,7 +50,7 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({ direction, onResize,
     <div
       onMouseDown={startResizing}
       className={cn(
-        "absolute top-0 bottom-0 w-1.5 cursor-col-resize z-50 group flex items-center justify-center transition-all",
+        "absolute top-0 bottom-0 w-1.5 cursor-col-resize z-cad-panel group flex items-center justify-center transition-all",
         direction === 'left' ? "-right-0.75" : "-left-0.75",
         isResizing ? "bg-cad-accent/40" : "hover:bg-cad-accent/20",
         className

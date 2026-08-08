@@ -8,7 +8,7 @@
  * - Support error reporting integration
  */
 
-import { logger } from './logger';
+import { logger } from '@SHARED/utils/logger';
 
 /**
  * Standard error handler for catch blocks

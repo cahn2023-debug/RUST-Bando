@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   FilePlus,
   FolderOpen,
@@ -16,7 +16,7 @@ import { useTranslation } from "react-i18next";
 import { useClickOutside } from "@IMPLEMENT/hooks/useClickOutside";
 import { KeytipBadge } from "./KeytipBadge";
 import { Project } from "@CONTRACT/types";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 
 export interface AppMenuProps {
   isOpen: boolean;
@@ -48,8 +48,13 @@ export function AppMenu({
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useClickOutside(menuRef, onClose, isOpen);
+
+  useEffect(() => {
+    if (isOpen) searchInputRef.current?.focus();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -64,7 +69,7 @@ export function AppMenu({
   };
 
   return (
-    <div className="fixed inset-0 z-[9990] bg-black/40 backdrop-blur-xs flex items-start justify-start pt-10 pl-2 animate-in fade-in duration-100">
+    <div className="fixed inset-0 z-cad-overlay bg-black/40 backdrop-blur-xs flex items-start justify-start pt-10 pl-2 animate-in fade-in duration-100">
       <div
         ref={menuRef}
         className="w-[780px] bg-[#1E1E1E] border-2 border-[#D32F2F] rounded-lg shadow-[0_25px_60px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col text-cad-text-primary select-none animate-in zoom-in-95 duration-100"
@@ -74,12 +79,12 @@ export function AppMenu({
           <div className="flex items-center gap-2 flex-1 max-w-md bg-[#252525] border border-[#383838] rounded px-3 py-1.5 focus-within:border-[#D32F2F] transition-all">
             <Search size={15} className="text-cad-text-muted" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder={t('common.search', 'Search commands or recent projects...')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="bg-transparent border-none outline-none text-xs text-white placeholder:text-cad-text-muted w-full"
-              autoFocus
             />
           </div>
 
@@ -89,7 +94,7 @@ export function AppMenu({
             </span>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-white/10 rounded text-cad-text-muted hover:text-white transition-colors cursor-pointer"
+              className="p-1 hover:bg-cad-text-primary/5 rounded text-cad-text-muted hover:text-cad-text-primary transition-colors cursor-pointer"
             >
               <X size={16} />
             </button>

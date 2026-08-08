@@ -33,13 +33,19 @@ pub fn run() {
             app.manage(state);
             let ai_state = crate::domain::implement::modules::v2::ai::AiState::default();
             let app_handle = app.handle().clone();
-            
+
             // Spawn 2 Async Tasks (Tokio Workers) cho Basemap & Database GIS Streaming ngay khi Boot
             let (_bm_tx, bm_rx) = tokio::sync::mpsc::channel(256);
-            let _bm_worker = crate::domain::implement::modules::v2::basemap::BasemapWorker::spawn(bm_rx, Some(app_handle.clone()));
+            let _bm_worker = crate::domain::implement::modules::v2::basemap::BasemapWorker::spawn(
+                bm_rx,
+                Some(app_handle.clone()),
+            );
 
             let (_gis_tx, gis_rx) = tokio::sync::mpsc::channel(256);
-            let _gis_worker = crate::domain::implement::modules::v2::gis::GisStreamWorker::spawn(gis_rx, Some(app_handle.clone()));
+            let _gis_worker = crate::domain::implement::modules::v2::gis::GisStreamWorker::spawn(
+                gis_rx,
+                Some(app_handle.clone()),
+            );
 
             tauri::async_runtime::block_on(
                 crate::domain::implement::modules::v2::ai::init_from_disk(&app_handle, &ai_state),

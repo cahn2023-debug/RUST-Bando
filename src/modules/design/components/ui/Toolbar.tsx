@@ -1,9 +1,9 @@
 import React from 'react';
 import { ListTodo, Columns, CalendarDays, Plus, Settings, Layers, Eye } from 'lucide-react';
-import { useLayoutStore } from '@IMPLEMENT/stores/useLayoutStore';
+import { useLayoutStore } from '@CORE/stores/useLayoutStore';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { Button } from '@DESIGN/components/ui/Button';
-import { cn } from '@TOOL/utils/cn';
+import { cn } from '@SHARED/utils/cn';
 
 interface ToolbarProps {
   activeTab: string;
@@ -105,7 +105,7 @@ function DesignToolbarTools({ togglePalette }: { togglePalette: (id: string) => 
         onClick={() => togglePalette('system-config')}
         className="flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold text-cad-accent hover:bg-cad-accent hover:text-black border border-cad-accent/30 rounded-lg transition-all uppercase tracking-widest group"
       >
-        <Settings size={14} className="group-hover:rotate-90 transition-transform duration-500" />
+        <Settings size={14} className="group-hover:rotate-90 transition-transform duration-200" />
         <span>System Config</span>
       </button>
     </div>
@@ -127,7 +127,7 @@ function ViewToggle({ current, onChange }: { current: ViewToggleMode, onChange: 
             key={m.id}
             onClick={() => onChange(m.id)}
             className={cn(
-              "flex items-center gap-2 px-3 py-1.5 text-[10px] font-black rounded-lg transition-all duration-300 uppercase tracking-widest",
+              "flex items-center gap-2 px-3 py-1.5 text-[10px] font-black rounded-lg transition-all duration-200 uppercase tracking-widest",
               isActive
                 ? "bg-cad-surface text-cad-text-primary shadow-md border border-cad-border/50"
                 : "text-cad-text-muted hover:text-cad-text-secondary hover:bg-cad-text-primary/5 transparent border border-transparent"

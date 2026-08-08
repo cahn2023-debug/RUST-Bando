@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '@/contracts/tauri-api/runtime';
 import { useCallback, useState } from 'react';
 import { FeatureState } from '@CONTRACT/types';
 

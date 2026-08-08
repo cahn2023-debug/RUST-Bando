@@ -68,7 +68,7 @@ export function ProjectSidebar({
                                                 // Logic for switching to metadata module view
                                                 // This could be passed as a prop or handled via a shared state
                                             }}
-                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs transition-colors text-cad-text-muted hover:text-white hover:bg-white/5"
+                                            className="w-full flex items-center gap-3 px-4 py-2 text-xs transition-colors text-cad-text-muted hover:text-cad-text-primary hover:bg-cad-text-primary/5"
                                         >
                                             <Briefcase size={14} className="text-cad-text-muted" />
                                             <span className="truncate uppercase font-bold tracking-tight">{ct.name}</span>

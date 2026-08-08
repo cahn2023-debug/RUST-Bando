@@ -4,16 +4,16 @@ import { Layout, FileText, Briefcase, Activity, Layers, ShieldCheck, BarChart3 }
 
 import { Project } from "@CONTRACT/types";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
-import { useSettingsStore } from "@IMPLEMENT/stores/useSettingsStore";
-import { useLayoutStore } from "@IMPLEMENT/stores/useLayoutStore";
-import { useAuthStore } from "@IMPLEMENT/stores/useAuthStore";
+import { useSettingsStore } from "@CORE/stores/useSettingsStore";
+import { useLayoutStore } from "@CORE/stores/useLayoutStore";
+import { useAuthStore } from "@CORE/stores/useAuthStore";
 import { safeInvoke } from "@IMPLEMENT/lib/tauri";
 import { ImportDialog } from "@IMPLEMENT/features/files/ImportDialog";
 import { ReportExportDialog } from "@DESIGN/features/reports/word/ReportExportDialog";
 import { HomeRibbonTools, DesignRibbonTools, ContractRibbonTools } from "./RibbonTabContent";
 import { useRibbonActions } from "@IMPLEMENT/hooks/useRibbonActions";
 import { useClickOutside } from "@IMPLEMENT/hooks/useClickOutside";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 import { exportProjectData } from "@IMPLEMENT/services/exportService";
 import { announce, moveFocus } from "@TOOL/utils/accessibility";
 
@@ -213,7 +213,7 @@ export function Ribbon({ activeTab, onTabChange, project, onForceSave, contractT
         className="flex h-[80px] items-center gap-8 overflow-x-auto border-t border-cad-border bg-cad-elevated px-6 no-scrollbar"
       >
         {activeTab === 'ADMIN' ? (
-          <div className="flex items-center gap-6 animate-in slide-in-from-left duration-300">
+          <div className="flex items-center gap-6 animate-in slide-in-from-left duration-200">
             <div className="flex flex-col">
               <span className="text-[10px] font-black text-cad-accent uppercase tracking-[0.2em] mb-1">{t('settings.settings')}</span>
               <span className="text-[9px] font-bold text-cad-text-muted uppercase">{t('project.projectSettings')}</span>

@@ -1,6 +1,6 @@
 import React, { forwardRef, MouseEvent } from "react";
 import { LucideIcon } from "lucide-react";
-import { cn } from "@TOOL/utils/cn";
+import { cn } from "@SHARED/utils/cn";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "accent";
 export type ButtonSize = "sm" | "md" | "lg";

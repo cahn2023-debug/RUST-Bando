@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke } from '@IMPLEMENT/lib/tauri';
 import {
   analyzeProjectMediaRecovery,
   applyProjectMediaRecovery,
@@ -9,7 +9,11 @@ import {
   STORAGE_HEALTH_REFRESH_EVENT,
 } from './projectStorageService';
 
-const mockInvoke = vi.mocked(invoke);
+const mockInvoke = vi.mocked(safeInvoke);
+
+vi.mock('@IMPLEMENT/lib/tauri', () => ({
+  safeInvoke: vi.fn(),
+}));
 
 describe('projectStorageService', () => {
   beforeEach(() => {

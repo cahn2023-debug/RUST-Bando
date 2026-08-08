@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 
 export interface UseMapLifecycleOptions {
@@ -9,6 +9,7 @@ export interface UseMapLifecycleOptions {
 
 export function useMapLifecycle({ containerRef, styleUrl, onMapLoad }: UseMapLifecycleOptions) {
     const mapInstanceRef = useRef<maplibregl.Map | null>(null);
+    const [map, setMap] = useState<maplibregl.Map | null>(null);
 
     useEffect(() => {
         if (!containerRef.current || mapInstanceRef.current) return;
@@ -26,6 +27,7 @@ export function useMapLifecycle({ containerRef, styleUrl, onMapLoad }: UseMapLif
 
         map.on('load', () => {
             mapInstanceRef.current = map;
+            setMap(map);
             if (onMapLoad) onMapLoad(map);
         });
 
@@ -33,9 +35,10 @@ export function useMapLifecycle({ containerRef, styleUrl, onMapLoad }: UseMapLif
             if (mapInstanceRef.current) {
                 mapInstanceRef.current.remove();
                 mapInstanceRef.current = null;
+                setMap(null);
             }
         };
     }, [containerRef, styleUrl, onMapLoad]);
 
-    return { map: mapInstanceRef.current };
+    return { map };
 }

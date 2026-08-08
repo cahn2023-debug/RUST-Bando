@@ -1367,7 +1367,7 @@ pub async fn retrieve_and_rerank(
                 let filename = row.get("filename").and_then(Value::as_str).unwrap_or_default().to_string();
                 let extension = row.get("extension").and_then(Value::as_str).unwrap_or_default().to_string();
                 let meta = row.get("metadata_json").and_then(Value::as_str).unwrap_or_default().to_string();
-                
+
                 let text = format!("[File/Task] Name: {}, Ext: {}, Metadata: {}", filename, extension, meta);
                 candidates.push(( "files".to_string(), id, filename, text ));
             }
@@ -1386,7 +1386,7 @@ pub async fn retrieve_and_rerank(
                 let geom = row.get("geom_type").and_then(Value::as_str).unwrap_or_default().to_string();
                 let props = row.get("properties_json").and_then(Value::as_str).unwrap_or_default().to_string();
                 let meta = row.get("metadata_json").and_then(Value::as_str).unwrap_or_default().to_string();
-                
+
                 let text = format!("[Feature] Name: {}, Geometry: {}, Properties: {}, Metadata: {}", name, geom, props, meta);
                 candidates.push(( "features".to_string(), id, name, text ));
             }

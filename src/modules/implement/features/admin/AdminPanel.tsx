@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, History, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import { safeInvoke } from '@IMPLEMENT/lib/tauri';
-import { cn } from '@TOOL/utils/cn';
+import { cn } from '@SHARED/utils/cn';
 
 interface AppConfig {
     admins: Record<string, string>;
@@ -72,7 +72,7 @@ export const AdminPanel: React.FC = () => {
     if (loading) return <div className="p-8 text-cad-text-muted font-mono animate-pulse">Initializing Administrative Terminal...</div>;
 
     return (
-        <div className="flex h-full flex-col overflow-hidden border-l border-cad-border bg-cad-surface animate-in slide-in-from-right duration-500">
+        <div className="flex h-full flex-col overflow-hidden border-l border-cad-border bg-cad-surface animate-in slide-in-from-right duration-200">
             <div className="border-b border-cad-border bg-cad-elevated/30 p-6">
                 <div className="mb-6 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
@@ -174,7 +174,7 @@ export const AdminPanel: React.FC = () => {
                     <div className="space-y-4">
                         {logs.map((log) => (
                             <div key={log.id} className="flex gap-4 rounded-md border border-cad-border bg-cad-elevated/20 p-4 transition-colors hover:bg-cad-elevated/40">
-                                <div className="shrink-0 rounded-md bg-white/5 p-2">
+                                <div className="shrink-0 rounded-md bg-cad-text-primary/5 p-2">
                                     <History size={14} className="text-cad-text-muted" />
                                 </div>
                                 <div

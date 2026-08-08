@@ -286,7 +286,7 @@ export const getFeatureDisplayInfo = (feature: any, groupType?: string, groupNam
         else if (displayType === DISPLAY_TYPES.LPR || iconKey === 'lpr') IconComponent = CameraLPR;
         else IconComponent = CameraCCTV;
     } else if (displayType === DISPLAY_TYPES.CABINET) {
-        colorClass = "text-orange-400";
+        colorClass = "text-cad-warn";
     }
 
     return {
@@ -333,7 +333,7 @@ export const getIconByDisplayType = (displayType: string) => {
             colorClass = "text-fuchsia-400";
             break;
         case DISPLAY_TYPES.CABINET:
-            colorClass = "text-orange-400";
+            colorClass = "text-cad-warn";
             break;
     }
 
