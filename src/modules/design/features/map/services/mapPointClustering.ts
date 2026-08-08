@@ -11,16 +11,19 @@ export const withoutPointFeatures = (
 });
 
 export const onlyClusterablePointFeatures = (
-    collection: MapLibreRenderFeatureCollection
+    collection: MapLibreRenderFeatureCollection,
+    clusterPoints = false
 ): MapLibreRenderFeatureCollection => ({
     ...collection,
     features: collection.features.filter(feature => {
         const props = feature.properties as Record<string, any> | undefined;
-        return (
-            isPointGeometry(feature.geometry.type) &&
-            props?.geomType !== 'line' &&
-            !props?.isIntersectionChild
-        );
+        if (!isPointGeometry(feature.geometry.type) || props?.geomType === 'line') {
+            return false;
+        }
+        if (clusterPoints && props?.isIntersectionChild) {
+            return false;
+        }
+        return true;
     }),
 });
 
@@ -40,7 +43,7 @@ export const buildPointClusteringCollections = ({
 }) => ({
     mainCollection: withoutPointFeatures(collection),
     clusterCollection: clusterPoints || !overlayPoints
-        ? onlyClusterablePointFeatures(collection)
+        ? onlyClusterablePointFeatures(collection, clusterPoints)
         : emptyLike(collection),
 });
 

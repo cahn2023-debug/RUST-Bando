@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { createBasemapRuntime } from './BasemapRuntime';
 import { useBasemap } from './BasemapContext';
 import type { BasemapController, BasemapLifecycleState, BasemapRuntimeConfig } from './types';
@@ -20,7 +20,14 @@ export function PersistentBasemapHost({
     const containerRef = useRef<HTMLDivElement | null>(null);
     const runtimeRef = useRef<BasemapController | null>(null);
     const firstFrameReportedRef = useRef(false);
+    const onFirstFrameRenderedRef = useRef(onFirstFrameRendered);
+    const onLifecycleStateRef = useRef(onLifecycleState);
     const { setController } = useBasemap();
+
+    useEffect(() => {
+        onFirstFrameRenderedRef.current = onFirstFrameRendered;
+        onLifecycleStateRef.current = onLifecycleState;
+    }, [onFirstFrameRendered, onLifecycleState]);
 
     // eslint-disable-next-line react-hooks/refs
     if (!runtimeRef.current) runtimeRef.current = createBasemapRuntime();
@@ -31,10 +38,10 @@ export function PersistentBasemapHost({
         if (!container || !runtime) return;
 
         const unsubscribe = runtime.subscribeLifecycle(state => {
-            onLifecycleState?.(state);
+            onLifecycleStateRef.current?.(state);
             if ((state === 'first-frame' || state === 'interactive') && !firstFrameReportedRef.current) {
                 firstFrameReportedRef.current = true;
-                onFirstFrameRendered?.();
+                onFirstFrameRenderedRef.current?.();
             }
         });
         setController(runtime);
@@ -45,7 +52,7 @@ export function PersistentBasemapHost({
             setController(null);
             runtime.destroy();
         };
-    }, [config, onFirstFrameRendered, setController]);
+    }, [config, setController]);
 
     return (
         <section className={className} data-basemap-host="core">

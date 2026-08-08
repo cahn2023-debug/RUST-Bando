@@ -122,6 +122,7 @@ describe('ReportExportDialog', () => {
     vi.mocked(resolveMediaAsset).mockRejectedValue(new Error('missing asset'));
     useDesignSync.setState({
       projectId: 'project-1',
+      projectPath: 'D:/projects/demo.pmp',
       selectedFeatureId: 'route-1',
       selectedGroupId: null,
       selectionSet: new Set(),
@@ -146,7 +147,8 @@ describe('ReportExportDialog', () => {
     fireEvent.change(titleInput, { target: { value: 'Báo cáo nghiệm thu tuyến 1' } });
 
     await waitFor(() => expect(screen.getAllByText('Báo cáo nghiệm thu tuyến 1').length).toBeGreaterThan(0));
-    await waitFor(() => expect(resolveMediaAsset).toHaveBeenCalledWith('project-1', 'missing-photo'));
+    await waitFor(() => expect(resolveMediaAsset).toHaveBeenCalledWith('project-1', 'missing-photo', 'D:/projects/demo.pmp'));
+    await waitFor(() => expect(screen.getAllByText('missing-photo').length).toBeGreaterThan(0));
 
     fireEvent.click(screen.getByText('Xuất Word'));
 
@@ -176,6 +178,7 @@ describe('ReportExportDialog', () => {
     render(
       <SitePhotoPreviewItem
         projectId="project-1"
+        projectPath="D:/projects/demo.pmp"
         photo={{
           id: 'photo-1',
           label: 'Anh 1',
@@ -190,6 +193,6 @@ describe('ReportExportDialog', () => {
 
     const image = await screen.findByRole('img', { name: 'Anh 1' });
     expect(image).toHaveAttribute('src', 'data:image/png;base64,PHOTO');
-    expect(resolveMediaAsset).toHaveBeenCalledWith('project-1', 'asset-1');
+    expect(resolveMediaAsset).toHaveBeenCalledWith('project-1', 'asset-1', 'D:/projects/demo.pmp');
   });
 });

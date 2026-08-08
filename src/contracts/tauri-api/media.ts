@@ -31,8 +31,12 @@ export const mediaApi = {
   importAsset: (projectId: string, featureId: string, dataUrl: string) =>
     safeInvoke<MediaAssetMutationResult>('import_media_asset', { projectId, featureId, dataUrl }),
 
-  resolveAsset: (projectId: string, assetId: string) =>
-    safeInvoke<MediaAsset>('resolve_media_asset', { projectId, assetId }),
+  resolveAsset: (projectId: string, assetId: string, pmpPath?: string | null) =>
+    safeInvoke<MediaAsset>('resolve_media_asset', {
+      projectId,
+      assetId,
+      ...(pmpPath ? { pmpPath } : {}),
+    }),
 
   deleteAsset: (projectId: string, assetId: string) =>
     safeInvoke<{ featurePatch?: MediaFeaturePatch | null }>('delete_media_asset', { projectId, assetId }),

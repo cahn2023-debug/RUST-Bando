@@ -218,7 +218,80 @@ describe('mapLibreFastAdapter', () => {
             displaySize: 48,
             labelIndex: '12',
         }));
-        expect(collection.features[0].properties.iconImageId).toContain('design-point-ptz');
+        expect(collection.features[0].properties.iconImageId).toBe('design-point-ptz-2563eb-48-12-45');
+        expect(collection.features[0].properties.iconImageId).not.toContain('--');
+    });
+
+    it.each([
+        ['cctv', true],
+        ['lpr', true],
+        ['speed', true],
+        ['point_circle', false],
+    ] as const)('applies group theme preview for %s only to its group', (icon, hasIconImage) => {
+        const target = pointFeature(`preview-${icon}`, [105.8, 21.02], {
+            group_id: 'theme-group',
+            metadata: JSON.stringify({ icon: 'point_circle', color: '#ef4444', size: 24 }),
+        });
+        const other = pointFeature(`other-${icon}`, [105.81, 21.03], {
+            group_id: 'other-group',
+            metadata: JSON.stringify({ icon: 'point_circle', color: '#ef4444', size: 24 }),
+        });
+
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [target, other],
+            featureGroups: {
+                'theme-group': { type: 'NODE', name: 'Theme group' },
+                'other-group': { type: 'NODE', name: 'Other group' },
+            },
+            groupThemePreview: {
+                groupId: 'theme-group',
+                config: {
+                    icon,
+                    color: '#2563eb',
+                    size: 24,
+                    gis: { color: '#2563eb', size: 24 },
+                },
+            },
+            zoom: 20,
+        });
+
+        const targetProperties = collection.features.find(feature => feature.properties.id === target.id)?.properties;
+        const otherProperties = collection.features.find(feature => feature.properties.id === other.id)?.properties;
+        expect(targetProperties?.iconKey).toBe(icon);
+        if (hasIconImage) {
+            expect(targetProperties?.iconImageId).toEqual(expect.stringContaining(`design-point-${icon}`));
+        } else {
+            expect(targetProperties?.iconImageId).toBe('');
+        }
+        expect(otherProperties?.iconKey).toBe('point_circle');
+        expect(otherProperties?.iconImageId).toBe('');
+    });
+
+    it('invalidates the render cache when a preview changes only the icon type', () => {
+        const feature = pointFeature('preview-icon-change', [105.8, 21.02], {
+            metadata: JSON.stringify({ icon: 'point_circle', color: '#2563eb', size: 24 }),
+        });
+
+        const pointPreview = buildMapLibreFeatureCollection({
+            features: [feature],
+            previewMetadata: {
+                id: feature.id,
+                metadata: { icon: 'point_circle', color: '#2563eb', size: 24 },
+            },
+            zoom: 20,
+        });
+        const lprPreview = buildMapLibreFeatureCollection({
+            features: [feature],
+            previewMetadata: {
+                id: feature.id,
+                metadata: { icon: 'lpr', color: '#2563eb', size: 24 },
+            },
+            zoom: 20,
+        });
+
+        expect(pointPreview.collection.features[0].properties.iconKey).toBe('point_circle');
+        expect(lprPreview.collection.features[0].properties.iconKey).toBe('lpr');
+        expect(lprPreview.collection.features[0].properties.iconImageId).toContain('design-point-lpr');
     });
 
     it('uses native MapLibre labels for ordinary points without a custom icon', () => {

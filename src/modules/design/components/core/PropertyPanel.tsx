@@ -273,6 +273,7 @@ export const PropertyPanel: React.FC = () => {
     editingFeatureId,
     setEditingFeatureId,
     projectId,
+    projectPath,
     selectionSet,
     featureDetailsCache,
     visibleFeatures
@@ -406,7 +407,7 @@ export const PropertyPanel: React.FC = () => {
     let cancelled = false;
     Promise.allSettled(
       imageAssetIds.map(async (assetId) => {
-        const asset = await resolveMediaAsset(String(projectId), assetId);
+        const asset = await resolveMediaAsset(String(projectId), assetId, projectPath);
         return [assetId, asset.src] as const;
       })
     )
@@ -415,7 +416,7 @@ export const PropertyPanel: React.FC = () => {
           const entries: Array<readonly [string, string]> = [];
           const broken: string[] = [];
           results.forEach((result, index) => {
-            if (result.status === 'fulfilled') {
+            if (result.status === 'fulfilled' && result.value[1]) {
               entries.push(result.value);
             } else {
               broken.push(imageAssetIds[index]);
@@ -431,7 +432,7 @@ export const PropertyPanel: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [projectId, imageAssetIds.join('|')]);
+  }, [projectId, projectPath, imageAssetIds.join('|')]);
 
   // Helper to get nested metadata values with legacy fallback
   const getMetaValue = useCallback((path: string, legacyKey?: string): unknown => {

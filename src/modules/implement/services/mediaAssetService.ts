@@ -31,9 +31,10 @@ export const importMediaAsset = async (
 
 export const resolveMediaAsset = async (
   projectId: string,
-  assetId: string
+  assetId: string,
+  pmpPath?: string | null,
 ): Promise<MediaAssetWithSrc> => toMediaAssetWithSrc(
-  await mediaApi.resolveAsset(projectId, assetId)
+  await mediaApi.resolveAsset(projectId, assetId, pmpPath)
 );
 
 export const deleteMediaAsset = (

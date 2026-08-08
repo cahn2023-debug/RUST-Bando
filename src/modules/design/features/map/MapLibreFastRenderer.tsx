@@ -106,7 +106,10 @@ const parseIconImageId = (imageId: string): Record<string, any> | null => {
     const parts = raw.split('-');
     if (parts.length < 5) return null;
     const iconKey = parts[0];
-    const color = parts[1] ? `#${parts[1]}` : '#6366f1';
+    const rawColor = parts[1];
+    const color = rawColor
+        ? (rawColor.startsWith('#') || rawColor.startsWith('rgb') ? rawColor : `#${rawColor}`)
+        : '#6366f1';
     const displaySize = Number(parts[2]) || 24;
     const labelIndex = parts[3];
     const rotation = Number(parts[4]) || 0;
@@ -117,7 +120,7 @@ const parseIconImageId = (imageId: string): Record<string, any> | null => {
         labelIndex,
         rotation,
         isIntersection: iconKey === 'intersection',
-        isCamera: iconKey === 'cctv' || iconKey.includes('camera'),
+        isCamera: ['cctv', 'camera', 'ptz', 'speed', 'lpr'].includes(iconKey.toLowerCase()),
     };
 };
 
@@ -755,6 +758,14 @@ export function MapLibreFastRenderer({
             ensureCameraBridgeLayer(map, cameraBridgeRef.current, scheduleOverlay);
             scheduleOverlay(DirtyFlag.Camera | DirtyFlag.Geometry);
         });
+        onMap('idle', () => {
+            if (navigator.onLine === false) {
+                setBasemapLoadState('offline');
+                return;
+            }
+            setBasemapLoadState('ready');
+            basemapRetryAttemptRef.current = 0;
+        });
         onMap('error', (event: any) => {
             const sourceId = event?.sourceId || event?.source?.id;
             if (sourceId && sourceId !== BASEMAP_SOURCE_ID) return;
@@ -1055,7 +1066,7 @@ export function MapLibreFastRenderer({
         };
         if (map.isStyleLoaded()) fit();
         else map.once('load', fit);
-    }, [initialBounds, mapRevision, projectId]);
+    }, [contextMap, initialBounds, mapRevision, projectId]);
 
     React.useEffect(() => {
         const map = mapRef.current;
@@ -1363,7 +1374,7 @@ export function MapLibreFastRenderer({
         };
 
         render();
-    }, [activeBasemapPreset, iconReadyRevision, renderCacheKey, renderCollectionResult, renderFlags, reportCaptureScope, scheduleSelectedFeatureState, selectedFeatureId, setRenderMetrics, updateOpenMetrics]);
+    }, [activeBasemapPreset, contextMap, iconReadyRevision, renderCacheKey, renderCollectionResult, renderFlags, reportCaptureScope, scheduleSelectedFeatureState, selectedFeatureId, setRenderMetrics, updateOpenMetrics]);
 
     React.useEffect(() => {
         const map = mapRef.current;

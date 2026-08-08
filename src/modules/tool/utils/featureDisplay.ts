@@ -116,6 +116,7 @@ const getEffectiveIcon = (feature: any, meta: any, groupType?: string, groupName
     const propertyType = safeString(props.type).toLowerCase();
     const lowerGType = safeString(groupType).toLowerCase();
     const lowerGName = safeString(groupName).toLowerCase();
+    const lowerName = safeString(feature?.name).toLowerCase();
 
     const normalizedMetaIcon = normalizeIconKey(metaIcon);
     const normalizedPropertyIcon = normalizeIconKey(propertyIcon);
@@ -126,6 +127,14 @@ const getEffectiveIcon = (feature: any, meta: any, groupType?: string, groupName
     if (propertyType === 'intersection' || propertyType === 'nut_giao' || propertyType === 'nút giao') return 'intersection';
     if (isCameraIcon(metaType)) return normalizeIconKey(metaType);
     if (isCameraIcon(propertyType)) return normalizeIconKey(propertyType);
+
+    // Infer icon from feature.name when explicit icon is default or unspecified
+    if (lowerName.includes('intersection') || lowerName.includes('nut_giao') || lowerName.includes('nút giao')) return 'intersection';
+    if (lowerName.includes('ptz')) return 'ptz';
+    if (lowerName.includes('speed') || lowerName.includes('tốc độ') || lowerName.includes('toc do')) return 'speed';
+    if (lowerName.includes('lpr') || lowerName.includes('biển số') || lowerName.includes('bien so')) return 'lpr';
+    if (lowerName.includes('cctv') || lowerName.includes('camera') || lowerName.includes('mắt cam') || lowerName.includes('mat cam')) return 'cctv';
+
     if (lowerGType.includes('intersection') || lowerGType.includes('nut_giao') || lowerGName.includes('nút giao')) return 'intersection';
     if ([lowerGType, lowerGName].some(s => s.includes('camera') || s.includes('cam') || s.includes('cctv'))) return 'cctv';
 

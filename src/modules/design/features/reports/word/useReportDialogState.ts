@@ -270,16 +270,21 @@ const capturePreviewImage = async (model: ReportModel, sectionId: string): Promi
   );
 };
 
-const hydrateReportPhotoAssets = async (model: ReportModel, projectId?: string | null): Promise<ReportModel> => {
+const hydrateReportPhotoAssets = async (
+  model: ReportModel,
+  projectId?: string | null,
+  projectPath?: string | null,
+): Promise<ReportModel> => {
   if (!projectId) return model;
   const cache = new Map<string, string>();
   const resolvePhotos = async (photos: ReportPhoto[], ownerLabel: string): Promise<ReportPhoto[]> => {
     const resolved = await Promise.all(photos.map(async (photo) => {
       if (photo.dataUrl) return photo;
+      if (photo.absolutePath && photo.status === "resolved") return photo;
       if (!photo.assetId) return null;
       try {
         if (!cache.has(photo.assetId)) {
-          const asset = await resolveMediaAsset(projectId, photo.assetId);
+          const asset = await resolveMediaAsset(projectId, photo.assetId, projectPath);
           cache.set(photo.assetId, asset.src);
         }
         const dataUrl = cache.get(photo.assetId) || "";
@@ -403,12 +408,13 @@ export const useReportDialogState = (projectName: string) => {
     setReportModel(baseReportModel);
     if (projectPath && projectId) {
       hydrateReportSitePhotos(baseReportModel, projectPath, projectId)
+        .then((hydrated) => hydrateReportPhotoAssets(hydrated, projectId, projectPath))
         .then((hydrated) => {
           // eslint-disable-next-line react-hooks/set-state-in-effect
           if (!cancelled) setReportModel(hydrated);
         });
     } else {
-      hydrateReportPhotoAssets(baseReportModel, projectId)
+      hydrateReportPhotoAssets(baseReportModel, projectId, projectPath)
         .then((hydrated) => {
           // eslint-disable-next-line react-hooks/set-state-in-effect
           if (!cancelled) setReportModel(hydrated);

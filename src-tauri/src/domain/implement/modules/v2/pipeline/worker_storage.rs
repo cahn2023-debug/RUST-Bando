@@ -399,10 +399,11 @@ impl StorageWorker {
             StorageCommand::ResolveMediaAsset {
                 project_id,
                 asset_id,
+                pmp_path,
                 reply,
             } => {
                 let res = catch_unwind(AssertUnwindSafe(|| {
-                    self.resolve_media_asset(&project_id, &asset_id)
+                    self.resolve_media_asset(&project_id, &asset_id, pmp_path.as_deref())
                 }))
                 .map_err(panic_to_string)
                 .and_then(|result| result);
@@ -1702,8 +1703,21 @@ impl StorageWorker {
         Ok(json!({ "featurePatch": feature_patch }))
     }
 
-    fn resolve_media_asset(&self, project_id: &str, asset_id: &str) -> Result<Value, String> {
-        let mut asset = self
+    fn resolve_media_asset(
+        &self,
+        project_id: &str,
+        asset_id: &str,
+        requested_pmp_path: Option<&Path>,
+    ) -> Result<Value, String> {
+        let (stored_id, sha256, rel_path, mime_type, byte_size, width, height): (
+            String,
+            String,
+            String,
+            String,
+            i64,
+            Option<i64>,
+            Option<i64>,
+        ) = self
             .db
             .conn
             .query_row(
@@ -1711,65 +1725,64 @@ impl StorageWorker {
                  FROM media_assets WHERE project_id = ?1 AND id = ?2",
                 params![project_id, asset_id],
                 |row| {
-                    let rel_path: String = row.get(2)?;
-                    let full_path = self.db.base_dir.join(&rel_path);
-                    Ok(json!({
-                        "id": row.get::<_, String>(0)?,
-                        "assetId": row.get::<_, String>(0)?,
-                        "projectId": project_id,
-                        "sha256": row.get::<_, String>(1)?,
-                        "relPath": rel_path,
-                        "path": full_path.to_string_lossy().to_string(),
-                        "mimeType": row.get::<_, String>(3)?,
-                        "byteSize": row.get::<_, i64>(4)?,
-                        "width": row.get::<_, Option<i64>>(5)?,
-                        "height": row.get::<_, Option<i64>>(6)?,
-                    }))
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                    ))
                 },
             )
             .optional()
             .map_err(|e| e.to_string())?
             .ok_or_else(|| format!("Media asset not found: {asset_id}"))?;
+
+        let lookup_pmp_path = requested_pmp_path.unwrap_or(&self.db.pmp_path);
+        let lookup_base_dir = lookup_pmp_path.parent().unwrap_or(&self.db.base_dir);
+        let stored_path = PathBuf::from(&rel_path);
+        let mut path = if stored_path.is_absolute() {
+            stored_path
+        } else {
+            lookup_base_dir.join(&stored_path)
+        };
         let mut repaired_rel_path: Option<String> = None;
-        if let Some(asset_obj) = asset.as_object_mut() {
-            if let (Some(rel_path), Some(sha256), Some(mime_type)) = (
-                asset_obj
-                    .get("relPath")
-                    .and_then(Value::as_str)
-                    .map(ToString::to_string),
-                asset_obj
-                    .get("sha256")
-                    .and_then(Value::as_str)
-                    .map(ToString::to_string),
-                asset_obj
-                    .get("mimeType")
-                    .and_then(Value::as_str)
-                    .map(ToString::to_string),
-            ) {
-                let mut path = self.db.base_dir.join(&rel_path);
-                if !path.exists() {
-                    path = find_media_asset_file(&self.db.base_dir, &self.db.pmp_path, &sha256)
-                        .ok_or_else(|| format!("Media asset file not found: {asset_id}"))?;
-                    let next_rel_path = compute_rel_path(&path, &self.db.base_dir)?;
-                    asset_obj.insert("relPath".to_string(), json!(next_rel_path.clone()));
+        let mut display_rel_path = rel_path.clone();
+
+        if !path.exists() {
+            path = find_media_asset_file(lookup_base_dir, lookup_pmp_path, &sha256)
+                .ok_or_else(|| format!("Media asset file not found: {asset_id}"))?;
+            let relative_base_dir = requested_pmp_path
+                .map(|_| lookup_base_dir)
+                .unwrap_or(&self.db.base_dir);
+            if let Ok(next_rel_path) = compute_rel_path(&path, relative_base_dir) {
+                display_rel_path = next_rel_path.clone();
+                if requested_pmp_path.is_none() {
                     repaired_rel_path = Some(next_rel_path);
                 }
-                let bytes =
-                    fs::read(&path).map_err(|e| format!("Failed to read media asset: {e}"))?;
-                asset_obj.insert(
-                    "path".to_string(),
-                    json!(path.to_string_lossy().to_string()),
-                );
-                asset_obj.insert(
-                    "dataUrl".to_string(),
-                    json!(format!(
-                        "data:{};base64,{}",
-                        mime_type,
-                        general_purpose::STANDARD.encode(bytes)
-                    )),
-                );
             }
         }
+
+        let bytes = fs::read(&path).map_err(|e| format!("Failed to read media asset: {e}"))?;
+        let asset = json!({
+            "id": stored_id,
+            "assetId": asset_id,
+            "projectId": project_id,
+            "sha256": sha256,
+            "relPath": display_rel_path,
+            "path": path.to_string_lossy().to_string(),
+            "mimeType": mime_type,
+            "byteSize": byte_size,
+            "width": width,
+            "height": height,
+            "dataUrl": format!(
+                "data:{};base64,{}",
+                mime_type,
+                general_purpose::STANDARD.encode(bytes)
+            ),
+        });
         if let Some(rel_path) = repaired_rel_path {
             self.db
                 .conn
@@ -9625,7 +9638,7 @@ mod tests {
         let (_tx, rx) = mpsc::channel(1);
         let worker = StorageWorker::new(rx, db);
         let resolved = worker
-            .resolve_media_asset(project_id, asset_id)
+            .resolve_media_asset(project_id, asset_id, None)
             .expect("resolve asset");
         assert_eq!(
             resolved.get("assetId").and_then(Value::as_str),
@@ -9973,7 +9986,7 @@ mod tests {
             .expect("repair links");
 
         let resolved = worker
-            .resolve_media_asset(project_id, asset_id)
+            .resolve_media_asset(project_id, asset_id, None)
             .expect("resolve repaired asset");
         let repaired_rel_path = resolved
             .get("relPath")
@@ -10070,7 +10083,7 @@ mod tests {
         let (_tx, rx) = mpsc::channel(1);
         let worker = StorageWorker::new(rx, db);
         let resolved = worker
-            .resolve_media_asset(project_id, asset_id)
+            .resolve_media_asset(project_id, asset_id, None)
             .expect("resolve asset");
         assert_eq!(
             resolved.get("path").and_then(Value::as_str),
@@ -10268,6 +10281,19 @@ mod tests {
             first.get("absolutePath").and_then(Value::as_str),
             Some(actual_path.to_string_lossy().as_ref())
         );
+
+        let resolved = worker
+            .resolve_media_asset(project_id, asset_id, Some(&requested_pmp_path))
+            .expect("resolve asset from requested pmp path");
+        assert_eq!(
+            resolved.get("path").and_then(Value::as_str),
+            Some(actual_path.to_string_lossy().as_ref())
+        );
+        assert!(resolved
+            .get("dataUrl")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .starts_with("data:image/png;base64,"));
     }
 
     #[tokio::test]

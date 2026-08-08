@@ -2,6 +2,7 @@ import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { queryVisibleFeaturesV2 } from '@SHARED/utils/designIpc';
+import { BasemapContext } from '@/core/basemap/BasemapContext';
 import { MapLibreFastRenderer, clearMapImageCache } from './MapLibreFastRenderer';
 import { MapProvider } from './MapContext';
 
@@ -78,6 +79,7 @@ const mockMapState = vi.hoisted(() => {
         touchZoomRotate = { disable: vi.fn(), enable: vi.fn() };
         triggerRepaint = vi.fn();
         easeTo = vi.fn();
+        fitBounds = vi.fn();
         setLayoutProperty = vi.fn((id: string, key: string, value: any) => {
             const layer = this.layers.get(id);
             if (layer) {
@@ -162,7 +164,6 @@ const mockMapState = vi.hoisted(() => {
         getContainer() { return document.createElement('div'); }
         unproject() { return { lng: 105.8, lat: 21.02 }; }
         resize() {}
-        fitBounds() {}
         flyTo() {}
         jumpTo() {}
         moveLayer(id: string) {
@@ -190,6 +191,10 @@ const mockMapState = vi.hoisted(() => {
                 return;
             }
             handler();
+        }
+
+        emit(event: string, payload?: any) {
+            (this.handlers.get(event) || []).forEach(handler => handler(payload));
         }
     }
 
@@ -301,19 +306,21 @@ describe('MapLibreFastRenderer', () => {
             viewportRevision: 0,
             mapRenderEngine: 'maplibre-fast',
             showFeatureGroups: true,
+            groupThemePreview: null,
         } as any);
     });
 
     afterEach(() => {
+        vi.useRealTimers();
         vi.restoreAllMocks();
         vi.unstubAllGlobals();
     });
 
-    it('creates icon-backed point data and layers for camera features', async () => {
+    it.each(['cctv', 'lpr', 'speed'])('creates icon-backed point data and layers for %s features', async (icon) => {
         useDesignSync.setState({
             state: {
                 features: {
-                    'camera-1': pointFeature('camera-1', { icon: 'cctv', size: 24 }),
+                    'camera-1': pointFeature('camera-1', { icon, size: 24 }),
                 },
                 feature_groups: { 'group-1': { type: 'CAMERA', name: 'Camera' } },
                 isLargeProject: false,
@@ -331,14 +338,14 @@ describe('MapLibreFastRenderer', () => {
             const data = lastMap?.sources.get('design-fast-point-clusters-source')?.data;
             expect(data.features[0].properties).toEqual(expect.objectContaining({
                 id: 'camera-1',
-                iconKey: 'cctv',
+                iconKey: icon,
                 isCamera: true,
                 color: '#10b981',
                 displaySize: 36,
                 labelIndex: '1',
             }));
             const iconImageId = data.features[0].properties.iconImageId;
-            expect(iconImageId).toContain('design-point-cctv');
+            expect(iconImageId).toContain(`design-point-${icon}`);
             expect(lastMap?.images.has(iconImageId)).toBe(true);
             expect(lastMap?.imageData.get(iconImageId)).toEqual(expect.objectContaining({
                 width: 36,
@@ -346,6 +353,38 @@ describe('MapLibreFastRenderer', () => {
                 data: expect.any(Uint8ClampedArray),
             }));
             expect(lastMap?.triggerRepaint).toHaveBeenCalled();
+        });
+    });
+
+    it('renders a group theme preview icon through the MapLibre source', async () => {
+        useDesignSync.setState({
+            state: {
+                features: {
+                    'camera-1': pointFeature('camera-1'),
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+            } as any,
+            groupThemePreview: {
+                groupId: 'group-1',
+                config: {
+                    icon: 'lpr',
+                    color: '#2563eb',
+                    size: 24,
+                    gis: { color: '#2563eb', size: 24 },
+                },
+            },
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            const lastMap = mockMapState.getLastMap();
+            const data = lastMap?.sources.get('design-fast-point-clusters-source')?.data;
+            const properties = data.features[0].properties;
+            expect(properties.iconKey).toBe('lpr');
+            expect(properties.iconImageId).toContain('design-point-lpr');
+            expect(lastMap?.images.has(properties.iconImageId)).toBe(true);
         });
     });
 
@@ -1085,6 +1124,200 @@ describe('MapLibreFastRenderer', () => {
             expect(heatLayer?.paint?.['heatmap-opacity']).toBe(0);
             expect(lastMap?.sources.get('design-fast-features')).toBeTruthy();
         });
+    });
+
+    it('keeps the persistent basemap map and layers while project bounds change', async () => {
+        const fakeMap = new mockMapState.MockMap({
+            style: {
+                sources: {
+                    basemap: {
+                        type: 'raster',
+                        tiles: ['basemap://street/{z}/{x}/{y}'],
+                    },
+                },
+                layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }],
+            },
+        });
+        const fakeController = {
+            getMap: () => fakeMap,
+            subscribeLifecycle: () => () => {},
+        };
+        const basemapTilesBefore = fakeMap.getSource('basemap')?.tiles;
+
+        useDesignSync.setState({
+            projectId: 'project-1',
+            state: {
+                features: { 'point-1': pointFeature('point-1') },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+                mapRevision: 1,
+                initialBounds: { south: 20.9, north: 21.1, west: 105.7, east: 105.9 },
+            } as any,
+        } as any);
+        mockMapState.clearLastMap();
+
+        const { container, rerender } = render(
+            <BasemapContext.Provider value={{ controller: fakeController as any, setController: () => {} }}>
+                <MapProvider>
+                    <MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />
+                </MapProvider>
+            </BasemapContext.Provider>
+        );
+
+        await waitFor(() => {
+            expect(fakeMap.getSource('design-fast-features')).toBeTruthy();
+            expect(fakeMap.fitBounds).toHaveBeenCalledWith(
+                [[105.7, 20.9], [105.9, 21.1]],
+                { padding: 72, maxZoom: 18, duration: 0 }
+            );
+        });
+
+        useDesignSync.setState({
+            projectId: 'project-2',
+            state: {
+                features: { 'point-2': pointFeature('point-2') },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+                mapRevision: 2,
+                initialBounds: { south: 21, north: 21.2, west: 105.9, east: 106.1 },
+            } as any,
+        } as any);
+        rerender(
+            <BasemapContext.Provider value={{ controller: fakeController as any, setController: () => {} }}>
+                <MapProvider>
+                    <MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />
+                </MapProvider>
+            </BasemapContext.Provider>
+        );
+
+        await waitFor(() => {
+            expect(fakeMap.fitBounds).toHaveBeenCalledWith(
+                [[105.9, 21], [106.1, 21.2]],
+                { padding: 72, maxZoom: 18, duration: 0 }
+            );
+            expect(fakeMap.getSource('design-fast-point-clusters-source')?.data.features).toEqual(
+                expect.arrayContaining([expect.objectContaining({ properties: expect.objectContaining({ id: 'point-2' }) })])
+            );
+        });
+
+        expect(mockMapState.getLastMap()).toBeNull();
+        expect(fakeMap.setStyle).not.toHaveBeenCalled();
+        expect(fakeMap.getSource('basemap')?.tiles).toBe(basemapTilesBefore);
+        expect(fakeMap.getSource('design-fast-features')).toBeTruthy();
+        expect(container.querySelector('[data-map-attach-mode="persistent-basemap"]')).toBeTruthy();
+    });
+
+    it('binds design data and fits bounds when the persistent basemap becomes ready after project state', async () => {
+        const fakeMap = new mockMapState.MockMap({
+            style: {
+                sources: {
+                    basemap: {
+                        type: 'raster',
+                        tiles: ['basemap://street/{z}/{x}/{y}'],
+                    },
+                },
+                layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }],
+            },
+        });
+        let currentMap: any = null;
+        const lifecycleListeners = new Set<() => void>();
+        const fakeController = {
+            getMap: () => currentMap,
+            subscribeLifecycle: (listener: () => void) => {
+                lifecycleListeners.add(listener);
+                return () => lifecycleListeners.delete(listener);
+            },
+        };
+
+        useDesignSync.setState({
+            projectId: 'late-map-project',
+            state: {
+                features: {
+                    'point-1': pointFeature('point-1'),
+                    'line-1': lineFeature,
+                    'polygon-1': {
+                        id: 'polygon-1',
+                        layer_id: 'layer-1',
+                        group_id: 'group-1',
+                        name: 'polygon-1',
+                        geom_type: 'Polygon',
+                        coordinates: [[[105.8, 21.02], [105.81, 21.02], [105.81, 21.03], [105.8, 21.02]]],
+                        properties: {},
+                        metadata: '{}',
+                    },
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+                mapRevision: 1,
+                initialBounds: { south: 20.9, north: 21.1, west: 105.7, east: 105.9 },
+            } as any,
+        } as any);
+
+        render(
+            <BasemapContext.Provider value={{ controller: fakeController as any, setController: () => {} }}>
+                <MapProvider>
+                    <MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />
+                </MapProvider>
+            </BasemapContext.Provider>
+        );
+
+        expect(fakeMap.getSource('design-fast-features')).toBeUndefined();
+
+        currentMap = fakeMap;
+        act(() => {
+            lifecycleListeners.forEach(listener => listener());
+        });
+
+        await waitFor(() => {
+            const mainData = fakeMap.getSource('design-fast-features')?.data;
+            const geometryTypes = mainData?.features.map((feature: any) => feature.geometry.type);
+            const pointData = fakeMap.getSource('design-fast-point-clusters-source')?.data;
+
+            expect(mainData?.features).toHaveLength(2);
+            expect(geometryTypes).toEqual(expect.arrayContaining(['LineString', 'Polygon']));
+            expect(pointData?.features).toEqual(
+                expect.arrayContaining([expect.objectContaining({ properties: expect.objectContaining({ id: 'point-1' }) })])
+            );
+            expect(fakeMap.fitBounds).toHaveBeenCalledWith(
+                [[105.7, 20.9], [105.9, 21.1]],
+                { padding: 72, maxZoom: 18, duration: 0 }
+            );
+        });
+    });
+
+    it('keeps feature layers available while the basemap transitions offline and recovers', async () => {
+        useDesignSync.setState({
+            state: {
+                features: { 'point-1': pointFeature('point-1') },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        const { container, unmount } = render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+        await waitFor(() => {
+            expect(mockMapState.getLastMap()?.getSource('design-fast-features')).toBeTruthy();
+        });
+
+        const map = mockMapState.getLastMap();
+        const source = map.getSource('basemap');
+        const stateNode = () => container.querySelector('[data-testid="maplibre-fast-renderer"]')?.getAttribute('data-basemap-state');
+
+        act(() => map.emit('error', { sourceId: 'basemap' }));
+        expect(stateNode()).toBe('degraded');
+
+        act(() => window.dispatchEvent(new Event('offline')));
+        expect(stateNode()).toBe('offline');
+
+        act(() => window.dispatchEvent(new Event('online')));
+        expect(stateNode()).toBe('initializing');
+        expect(source.reload).toHaveBeenCalled();
+
+        act(() => map.emit('idle'));
+        expect(stateNode()).toBe('ready');
+        expect(map.getSource('design-fast-features')).toBeTruthy();
+
+        unmount();
     });
 
     it('deduplicates missing icon preloads across multiple features sharing the same icon style', async () => {

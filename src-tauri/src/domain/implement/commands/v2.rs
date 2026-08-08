@@ -4008,6 +4008,7 @@ pub async fn resolve_media_asset(
     state: State<'_, ActorState>,
     projectId: String,
     assetId: String,
+    pmpPath: Option<String>,
 ) -> Result<Value, String> {
     let (tx, rx) = oneshot::channel();
     state
@@ -4015,6 +4016,7 @@ pub async fn resolve_media_asset(
         .send(StorageCommand::ResolveMediaAsset {
             project_id: projectId,
             asset_id: assetId,
+            pmp_path: pmpPath.map(PathBuf::from),
             reply: tx,
         })
         .await

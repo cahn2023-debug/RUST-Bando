@@ -128,6 +128,11 @@ export class BasemapRuntime implements BasemapController {
                 });
             }
         });
+        map.on('render', () => {
+            if (this.lifecycleState === 'degraded') {
+                this.setLifecycleState('interactive');
+            }
+        });
         map.on('move', () => this.publishCamera());
         map.on('moveend', () => this.publishCamera());
         map.on('error', (event: any) => this.handleMapError(event));

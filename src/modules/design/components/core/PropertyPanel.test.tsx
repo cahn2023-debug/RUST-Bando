@@ -749,6 +749,7 @@ describe('PropertyPanel clipboard images', () => {
       editingFeatureId: null,
       setEditingFeatureId: mocks.setEditingFeatureId,
       projectId: 'project-1',
+      projectPath: 'D:/projects/demo.pmp',
       selectionSet: new Set<string>(),
     });
 
@@ -760,6 +761,7 @@ describe('PropertyPanel clipboard images', () => {
       expect(images[0]).toHaveAttribute('src', 'asset://asset-1');
       expect(images[1]).toHaveAttribute('src', 'data:image/png;base64,legacy');
     });
+    expect(mocks.resolveMediaAsset).toHaveBeenCalledWith('project-1', 'asset-1', 'D:/projects/demo.pmp');
   });
 
   it('cancels image editing without updating metadata', async () => {

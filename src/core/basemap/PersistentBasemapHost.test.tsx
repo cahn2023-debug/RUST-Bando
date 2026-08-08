@@ -97,6 +97,39 @@ describe('PersistentBasemapHost', () => {
         expect(runtimeMock.runtime.destroy).toHaveBeenCalledTimes(1);
     });
 
+    it('does not recreate the basemap when lifecycle callback identities change', () => {
+        const firstCallback = vi.fn();
+        const secondCallback = vi.fn();
+        const firstFrameCallback = vi.fn();
+        const secondFrameCallback = vi.fn();
+        const view = (
+            callback: (state: BasemapLifecycleState) => void,
+            firstFrame: () => void,
+        ) => (
+            <BasemapProvider>
+                <PersistentBasemapHost
+                    onLifecycleState={callback}
+                    onFirstFrameRendered={firstFrame}
+                />
+            </BasemapProvider>
+        );
+
+        const { rerender, unmount } = render(view(firstCallback, firstFrameCallback));
+        runtimeMock.emit('map-created');
+
+        rerender(view(secondCallback, secondFrameCallback));
+        runtimeMock.emit('interactive');
+
+        expect(runtimeMock.runtime.initialize).toHaveBeenCalledTimes(1);
+        expect(runtimeMock.runtime.destroy).not.toHaveBeenCalled();
+        expect(firstCallback).toHaveBeenCalledWith('map-created');
+        expect(secondCallback).toHaveBeenCalledWith('interactive');
+        expect(secondFrameCallback).toHaveBeenCalledTimes(1);
+
+        unmount();
+        expect(runtimeMock.runtime.destroy).toHaveBeenCalledTimes(1);
+    });
+
     it('renders persistent basemap section with core data attributes', () => {
         const { container } = render(
             <BasemapProvider>

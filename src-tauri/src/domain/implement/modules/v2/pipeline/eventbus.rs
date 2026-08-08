@@ -74,6 +74,7 @@ pub enum StorageCommand {
     ResolveMediaAsset {
         project_id: String,
         asset_id: String,
+        pmp_path: Option<PathBuf>,
         reply: oneshot::Sender<Result<serde_json::Value, String>>,
     },
     OptimizeProjectStorage {

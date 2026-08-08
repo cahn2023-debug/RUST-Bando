@@ -10,4 +10,14 @@ describe('MapIcons', () => {
     expect(svg).toContain('#ef4444');
     expect(svg).toContain('>9</text>');
   });
+
+  it.each(['cctv', 'lpr', 'speed', 'ptz'])('returns a valid SVG string for camera icon %s', (type) => {
+    const svg = getIconSvgString(type, '#10b981', 36, 1, 0);
+
+    expect(svg).toContain('<svg');
+    expect(svg).not.toContain('stroke="#"');
+    expect(svg).not.toContain('fill="#"');
+    expect(svg).toContain('#10b981');
+    expect(svg).toContain('>1</text>');
+  });
 });

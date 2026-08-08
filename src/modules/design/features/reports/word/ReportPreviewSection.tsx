@@ -11,7 +11,15 @@ const imageRefSrc = (image?: ReportImageRef | string): string | undefined => (
   typeof image === "string" ? image : image?.objectUrl || image?.dataUrl
 );
 
-export function SitePhotoPreviewItem({ photo, projectId }: { photo: ReportPhoto; projectId?: string | null }) {
+export function SitePhotoPreviewItem({
+  photo,
+  projectId,
+  projectPath,
+}: {
+  photo: ReportPhoto;
+  projectId?: string | null;
+  projectPath?: string | null;
+}) {
   const [src, setSrc] = useState<string | null>(photo.dataUrl || null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(!photo.dataUrl);
@@ -48,7 +56,7 @@ export function SitePhotoPreviewItem({ photo, projectId }: { photo: ReportPhoto;
       const effectiveProjectId = projectId || photo.projectId;
       if (effectiveProjectId && photo.assetId) {
         try {
-          const asset = await resolveMediaAsset(effectiveProjectId, photo.assetId);
+          const asset = await resolveMediaAsset(effectiveProjectId, photo.assetId, projectPath);
           if (cancelled) return;
           if (asset.src) {
             setSrc(asset.src);
@@ -75,7 +83,7 @@ export function SitePhotoPreviewItem({ photo, projectId }: { photo: ReportPhoto;
         URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [photo, projectId]);
+  }, [photo, projectId, projectPath]);
 
   if (error || (!loading && !src && photo.status === "missing")) {
     return (
@@ -120,6 +128,7 @@ export function ReportPreviewSection({
   onSelectSection: (sectionId: string) => void;
 }) {
   const projectId = useDesignSync((store) => store.projectId);
+  const projectPath = useDesignSync((store) => store.projectPath);
   const activeSection = model.sections.find((section) => section.id === activeSectionId) || model.sections[0];
   const activeMapImage = activeSection ? imageMap[activeSection.id] : undefined;
   const activeMapImageSrc = imageRefSrc(activeMapImage);
@@ -250,7 +259,7 @@ export function ReportPreviewSection({
               <h3 className="font-bold text-xs uppercase tracking-wider text-slate-600 mb-2">Site photo đối tượng gốc / nút giao</h3>
               <div className="grid grid-cols-2 gap-3">
                 {activeSection.photos.map((photo) => (
-                  <SitePhotoPreviewItem key={photo.id} photo={photo} projectId={projectId} />
+                  <SitePhotoPreviewItem key={photo.id} photo={photo} projectId={projectId} projectPath={projectPath} />
                 ))}
               </div>
             </div>
@@ -270,7 +279,7 @@ export function ReportPreviewSection({
                   <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500 mb-2">Site photo đối tượng</h4>
                   <div className="grid grid-cols-2 gap-3">
                     {detail.photos.map((photo) => (
-                      <SitePhotoPreviewItem key={photo.id} photo={photo} projectId={projectId} />
+                      <SitePhotoPreviewItem key={photo.id} photo={photo} projectId={projectId} projectPath={projectPath} />
                     ))}
                   </div>
                 </div>
