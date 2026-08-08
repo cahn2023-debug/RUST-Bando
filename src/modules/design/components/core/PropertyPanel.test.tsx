@@ -435,6 +435,8 @@ describe('PropertyPanel clipboard images', () => {
     render(<PropertyPanel />);
     const mediaSection = await getMediaSection();
 
+    mocks.setPreview.mockClear();
+
     fireEvent.paste(mediaSection, {
       clipboardData: {
         items: [{
@@ -446,6 +448,7 @@ describe('PropertyPanel clipboard images', () => {
     });
 
     await waitFor(() => {
+      expect(mocks.importMediaAsset).not.toHaveBeenCalled();
       expect(mocks.setPreview).not.toHaveBeenCalled();
     });
   });

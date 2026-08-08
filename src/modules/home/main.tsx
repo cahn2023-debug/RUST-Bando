@@ -30,15 +30,20 @@ window.addEventListener('contextmenu', (e) => e.preventDefault(), false);
 import { I18nextProvider, useTranslation } from "react-i18next";
 import i18n from "@/modules/i18n";
 
+let resizeRafId: number | null = null;
 const syncViewportSize = () => {
-  const root = document.documentElement;
-  root.style.setProperty("--app-vw", `${window.innerWidth}px`);
-  root.style.setProperty("--app-vh", `${window.innerHeight}px`);
+  if (resizeRafId !== null) return;
+  resizeRafId = requestAnimationFrame(() => {
+    resizeRafId = null;
+    const root = document.documentElement;
+    root.style.setProperty("--app-vw", `${window.innerWidth}px`);
+    root.style.setProperty("--app-vh", `${window.innerHeight}px`);
+  });
 };
 
 syncViewportSize();
-window.addEventListener("resize", syncViewportSize);
-window.visualViewport?.addEventListener("resize", syncViewportSize);
+window.addEventListener("resize", syncViewportSize, { passive: true });
+window.visualViewport?.addEventListener("resize", syncViewportSize, { passive: true });
 
 const LoadingFallback = () => {
   const { t } = useTranslation();

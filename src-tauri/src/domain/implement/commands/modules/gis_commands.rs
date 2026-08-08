@@ -8,6 +8,16 @@ pub use crate::domain::implement::commands::gis_commands::{
     st_spatial_relate,
 };
 
+pub use crate::domain::implement::commands::gis_commands::{
+    __cmd__st_geom_from_ewkt,
+    __cmd__st_as_ewkt,
+    __cmd__st_is_valid,
+    __cmd__st_make_valid,
+    __cmd__st_transform,
+    __cmd__st_measure_feature,
+    __cmd__st_spatial_relate,
+};
+
 #[macro_export]
 macro_rules! register_gis_commands {
     () => {

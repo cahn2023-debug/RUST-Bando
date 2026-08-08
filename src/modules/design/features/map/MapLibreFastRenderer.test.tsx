@@ -8,7 +8,7 @@ import { MapProvider } from './MapContext';
 const mockMapStyles = vi.hoisted(() => ({
     tiles: ['https://tiles.example/one/{z}/{x}/{y}.png'],
     mapKey: 'test-map',
-    preset: { id: 'street', label: 'Duong pho', tileLyr: 'm', kind: 'raster', supportsApiStyle: true },
+    preset: { id: 'street', label: 'Đường phố', tileLyr: 'm', kind: 'raster', supportsApiStyle: true },
 }));
 
 const createDeferred = <T,>() => {
@@ -168,6 +168,12 @@ const mockMapState = vi.hoisted(() => {
         moveLayer(id: string) {
             this.movedLayers.push(id);
         }
+        removeLayer(id: string) {
+            this.layers.delete(id);
+        }
+        removeSource(id: string) {
+            this.sources.delete(id);
+        }
         remove() {}
 
         on(event: string, ...args: any[]) {
@@ -294,6 +300,7 @@ describe('MapLibreFastRenderer', () => {
             snappedPoint: null,
             viewportRevision: 0,
             mapRenderEngine: 'maplibre-fast',
+            showFeatureGroups: true,
         } as any);
     });
 
@@ -383,7 +390,7 @@ describe('MapLibreFastRenderer', () => {
         });
     });
 
-    it('keeps point features out of the MapLibre source when overlayPoints is enabled', async () => {
+    it('keeps point features out of the main MapLibre source when overlayPoints is enabled', async () => {
         useDesignSync.setState({
             state: {
                 features: {
@@ -407,6 +414,61 @@ describe('MapLibreFastRenderer', () => {
             const data = lastMap?.sources.get('design-fast-features')?.data;
             expect(data.features).toHaveLength(0);
             expect(document.querySelector('[data-map-overlay-canvas="features"]')).toBeTruthy();
+        });
+    });
+
+    it('feeds the cluster source when overlayPoints is enabled and grouping is on', async () => {
+        useDesignSync.setState({
+            showFeatureGroups: true,
+            state: {
+                features: {
+                    'point-1': pointFeature('point-1', { color: '#ef4444', size: 14 }),
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        render(
+            <MapLibreFastRenderer
+                center={[21.02, 105.8]}
+                zoom={20}
+                renderFlags={{ overlayPoints: true }}
+            />
+        );
+
+        await waitFor(() => {
+            const clusterSource = mockMapState.getLastMap()?.sources.get('design-fast-point-clusters-source');
+            expect(clusterSource).toEqual(expect.objectContaining({ cluster: true }));
+            expect(clusterSource?.data.features).toHaveLength(1);
+            expect(clusterSource?.data.features[0].properties.id).toBe('point-1');
+        });
+    });
+
+    it('leaves the cluster source empty when overlayPoints is enabled and grouping is off', async () => {
+        useDesignSync.setState({
+            showFeatureGroups: false,
+            state: {
+                features: {
+                    'point-1': pointFeature('point-1', { color: '#ef4444', size: 14 }),
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        render(
+            <MapLibreFastRenderer
+                center={[21.02, 105.8]}
+                zoom={20}
+                renderFlags={{ overlayPoints: true }}
+            />
+        );
+
+        await waitFor(() => {
+            const clusterSource = mockMapState.getLastMap()?.sources.get('design-fast-point-clusters-source');
+            expect(clusterSource).toEqual(expect.objectContaining({ cluster: false }));
+            expect(clusterSource?.data.features).toHaveLength(0);
         });
     });
 
@@ -535,7 +597,7 @@ describe('MapLibreFastRenderer', () => {
             expect(clusterSource).toEqual(expect.objectContaining({
                 cluster: true,
                 clusterRadius: 48,
-                clusterMaxZoom: 12,
+                clusterMaxZoom: 22,
             }));
             expect(source?.data.features.some((feature: any) => feature.geometry.type === 'LineString')).toBe(true);
             expect(clusterSource?.data.features).toHaveLength(1);
@@ -575,6 +637,37 @@ describe('MapLibreFastRenderer', () => {
 
             expect(clusterSource?.data.features).toHaveLength(1);
             expect(clusterSource?.data.features[0].properties.id).toBe('standalone-point');
+        });
+    });
+
+    it('rebuilds the point source when grouping is enabled after rendering plain points', async () => {
+        useDesignSync.setState({
+            showFeatureGroups: false,
+            state: {
+                features: {
+                    'point-1': pointFeature('point-1'),
+                },
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => {
+            const clusterSource = mockMapState.getLastMap()?.sources.get('design-fast-point-clusters-source');
+            expect(clusterSource).toEqual(expect.objectContaining({ cluster: false }));
+            expect(clusterSource?.data.features).toHaveLength(1);
+        });
+
+        await act(async () => {
+            useDesignSync.setState({ showFeatureGroups: true } as any);
+        });
+
+        await waitFor(() => {
+            const clusterSource = mockMapState.getLastMap()?.sources.get('design-fast-point-clusters-source');
+            expect(clusterSource).toEqual(expect.objectContaining({ cluster: true }));
+            expect(clusterSource?.data.features).toHaveLength(1);
         });
     });
 

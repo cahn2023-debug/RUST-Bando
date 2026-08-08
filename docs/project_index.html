@@ -162,7 +162,7 @@
 
     <main>
         <h1>Project Index & Technical Blueprint</h1>
-        <p>Bản đồ kỹ thuật SSOT cho hệ thống Antigravity RUST (Bando). Cập nhật lần cuối: 10/05/2026 02:30 PM.</p>
+        <p>Bản đồ kỹ thuật SSOT cho hệ thống Antigravity RUST (Bando). Cập nhật lần cuối: 07/08/2026 04:30 PM.</p>
 
         <!-- Structure Section -->
         <section id="structure">
@@ -176,7 +176,9 @@
                     <div>  │   └── <span class="tree-folder">module_gis/</span> <span class="tree-desc">// Tính toán VN2000, DORI, Camera</span></div>
                     <div>  ├── <span class="tree-folder">src/</span></div>
                     <div>  │   ├── <span class="tree-folder">domain/implement/</span></div>
-                    <div>  │   │   ├── <span class="tree-folder">commands/</span> <span class="tree-desc">// Handlers cho Tauri IPC (v2.rs, ai.rs)</span></div>
+                    <div>  │   │   ├── <span class="tree-folder">commands/</span> <span class="tree-desc">// Registry Tauri IPC qua register_tauri_commands! và commands/modules/* facade</span></div>
+                    <div>  │   │   │   ├── <span class="tree-file">mod.rs</span> <span class="tree-desc">// Danh sách command đăng ký, không đổi tên IPC</span></div>
+                    <div>  │   │   │   └── <span class="tree-folder">modules/</span> <span class="tree-desc">// Facade storage/project/sync/media/ai/gis/basemap</span></div>
                     <div>  │   │   └── <span class="tree-folder">modules/v2/</span></div>
                     <div>  │   │       ├── <span class="tree-folder">pipeline/</span> <span class="tree-desc">// EventBus & Storage Worker (Actor System)</span></div>
                     <div>  │   │       ├── <span class="tree-folder">projections/</span> <span class="tree-desc">// Read models & Ingestion logic</span></div>
@@ -185,7 +187,11 @@
                     <div style="margin-top: 1rem;"><span class="tree-folder">src/</span> <span class="tree-desc">// Frontend (React + TS)</span></div>
                     <div>  ├── <span class="tree-folder">modules/design/</span> <span class="tree-desc">// Logic thiết kế core</span></div>
                     <div>  │   ├── <span class="tree-folder">components/core/</span> <span class="tree-desc">// Panels (Property, CAD, Layers)</span></div>
-                    <div>  │   └── <span class="tree-folder">features/map/</span> <span class="tree-desc">// Map Context & Layer management</span></div>
+                    <div>  │   └── <span class="tree-folder">features/map/</span> <span class="tree-desc">// Map Context, MapLibre renderer, adapter, types, services</span></div>
+                    <div>  │       ├── <span class="tree-file">MapLibreFastRenderer.tsx</span> <span class="tree-desc">// React controller/facade cho map lifecycle và interaction</span></div>
+                    <div>  │       ├── <span class="tree-file">mapLibreFastAdapter.ts</span> <span class="tree-desc">// FeatureState -> MapLibre render collection + LOD</span></div>
+                    <div>  │       ├── <span class="tree-file">mapLibreFastTypes.ts</span> <span class="tree-desc">// Render geometry contracts và MapLibrePreviewMetadata</span></div>
+                    <div>  │       └── <span class="tree-folder">renderer/</span> <span class="tree-desc">// Layer/source setup helpers như mapLibreLayerSetup.ts</span></div>
                     <div>  ├── <span class="tree-folder">modules/tool/utils/</span> <span class="tree-desc">// IPC Bridges (designIpc.ts)</span></div>
                     <div>  └── <span class="tree-file">App.tsx</span> <span class="tree-desc">// Main entry UI</span></div>
                 </div>
@@ -201,8 +207,9 @@
                 <div class="mermaid">
                     graph LR
                         UI[React UI] -- "Invoke(update_metadata)" --> DBNC[Debounce/Batch]
-                        DBNC -- "Tauri IPC" --> IPC[Tauri v2.rs]
-                        IPC -- "Bounded Message (1024)" --> EB[EventBus Actor]
+                        DBNC -- "Tauri IPC" --> IPC[register_tauri_commands!]
+                        IPC -- "Facade modules" --> CMD[commands/modules/* -> v2/v2_bridge/gis/basemap handlers]
+                        CMD -- "Bounded Message (1024)" --> EB[EventBus Actor]
                         EB -- "Sequential Write" --> SW[StorageWorker]
                         SW -- "Commit (WAL Mode)" --> DB[(".pmp SQLite")]
                         DB -- "Trigger" --> FTS[FTS5 Search Index]
@@ -243,9 +250,18 @@
                             +apply_v2_events()
                             +sync_state()
                         }
+                        class BasemapWorker {
+                            +serve_tile_cache()
+                            +prefetch_tiles()
+                        }
+                        class GisStreamWorker {
+                            +stream_gis_jobs()
+                        }
                         DomainActor --> EventBus : Send Envelope
                         EventBus --> StorageWorker : Write
                         EventBus --> ProjectionEngine : Replay
+                        DomainActor --> BasemapWorker : Basemap IPC
+                        DomainActor --> GisStreamWorker : GIS stream IPC
                         StorageWorker ..> PmpFile : SQLite Persistence
                 </div>
             </div>
@@ -267,9 +283,15 @@
                     <tbody>
                         <tr>
                             <td><strong>Command not found</strong></td>
-                            <td>Thiếu đăng ký trong <code>main.rs</code></td>
-                            <td>Thêm vào <code>tauri::generate_handler!</code></td>
+                            <td>Thiếu đăng ký trong <code>commands/mod.rs</code> hoặc thiếu re-export facade</td>
+                            <td>Đăng ký trong <code>register_tauri_commands!</code> qua <code>commands/modules/*</code>; giữ nguyên tên command IPC</td>
                             <td><span class="badge badge-fixed">Đã giải quyết</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>MapLibre render drift</strong></td>
+                            <td>Geometry invalid, LOD ẩn bớt feature/label, hoặc layer/source setup lệch giữa renderer và adapter</td>
+                            <td>Giữ <code>buildMapLibreFeatureCollection</code> là adapter ổn định, dùng <code>MapLibrePreviewMetadata</code> chung, và gom layer/source setup trong <code>renderer/mapLibreLayerSetup.ts</code></td>
+                            <td><span class="badge badge-fixed">Đã chuẩn hóa</span></td>
                         </tr>
                         <tr>
                             <td><strong>E0382 (Ownership)</strong></td>
@@ -400,7 +422,7 @@
                 <h3 style="color: var(--warning); margin-top: 0;">⚠️ QUY TẮC CỨNG (STRICT PROTOCOL)</h3>
                 <p>Mọi thay đổi mã nguồn hoặc tính năng mới **PHẢI** tuân thủ quy trình sau:</p>
                 <ol>
-                    <li><strong>Duyệt (Review):</strong> Mở file này (<code>docs/project_index.html</code>) để đối chiếu kiến trúc hiện tại, đảm bảo không phá vỡ Actor Flow hoặc Metadata Schema.</li>
+                    <li><strong>Duyệt (Review):</strong> Mở file này (<code>docs/project_index.html</code>) để đối chiếu kiến trúc kỹ thuật hiện tại, đồng thời dùng <code>docs/INDEX.md</code> làm cổng điều hướng tài liệu đọc được.</li>
                     <li><strong>Code:</strong> Thực thi code theo đúng layer (Domain -> Implementation -> Command).</li>
                     <li><strong>Cập nhật (Sync):</strong> Ngay sau khi code chạy thành công, **PHẢI** cập nhật các thay đổi mới nhất vào file HTML này (Thư mục mới, Command mới, hoặc Lỗi mới phát sinh).</li>
                 </ol>

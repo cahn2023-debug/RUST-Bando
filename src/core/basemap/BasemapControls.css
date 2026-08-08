@@ -106,6 +106,10 @@
   50% { opacity: 0.35; }
 }
 
+.basemap-controls__group--layers {
+  overflow: visible !important;
+}
+
 /* Layer switcher ---------------------------------------------------------- */
 
 .basemap-layers {
@@ -116,46 +120,98 @@
 .basemap-layers__menu {
   position: absolute;
   right: 0;
-  bottom: calc(100% + 6px);
-  min-width: 132px;
+  bottom: calc(100% + 8px);
+  width: 220px;
+  z-index: 100;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  border-radius: 6px;
-  background: #ffffff;
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.95);
+  color: #f8fafc;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  padding: 8px;
+  gap: 6px;
+  backdrop-filter: blur(12px);
+  pointer-events: auto;
 }
 
-.basemap-layers__item {
-  border: 0;
-  background: transparent;
-  padding: 8px 12px;
-  text-align: left;
-  font-size: 11px;
+.basemap-layers__header {
+  font-size: 9px;
+  font-weight: 800;
+  color: #38bdf8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 4px;
+}
+
+.basemap-layers__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.basemap-layers__preset {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px 4px;
+  text-align: center;
+  font-size: 10px;
   font-weight: 600;
-  color: #1f2937;
+  color: #cbd5e1;
   cursor: pointer;
-  white-space: nowrap;
-  transition: background-color 120ms ease;
+  transition: all 120ms ease;
 }
 
-.basemap-layers__item + .basemap-layers__item {
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
+.basemap-layers__preset:hover {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.4);
 }
 
-.basemap-layers__item:hover {
-  background: rgba(15, 23, 42, 0.06);
+.basemap-layers__preset--active {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  font-weight: 700;
 }
 
-.basemap-layers__item:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: -2px;
+.basemap-layers__divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 2px 0;
 }
 
-.basemap-layers__item--active {
-  background: rgba(37, 99, 235, 0.1);
-  color: #1d4ed8;
+.basemap-layers__features {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.basemap-layers__feature-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #cbd5e1;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.basemap-layers__feature-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.basemap-layers__feature-item input[type="checkbox"] {
+  accent-color: #0284c7;
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
 }
 
 /* Measuring tape ---------------------------------------------------------- */

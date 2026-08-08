@@ -19,6 +19,27 @@ pub use crate::domain::implement::commands::v2::{
     reject_ai_action,
 };
 
+pub use crate::domain::implement::commands::v2::{
+    __cmd__get_ai_config,
+    __cmd__update_ai_config,
+    __cmd__set_ai_api_key,
+    __cmd__delete_ai_api_key,
+    __cmd__get_ai_status,
+    __cmd__install_ai_models,
+    __cmd__cancel_ai_model_install,
+    __cmd__remove_ai_models,
+    __cmd__release_ai_memory,
+    __cmd__predict_task,
+    __cmd__analyze_contract_metadata,
+    __cmd__save_ai_correction,
+    __cmd__create_ai_conversation,
+    __cmd__list_ai_conversations,
+    __cmd__send_ai_message,
+    __cmd__cancel_ai_request,
+    __cmd__confirm_ai_action,
+    __cmd__reject_ai_action,
+};
+
 #[macro_export]
 macro_rules! register_ai_commands {
     () => {

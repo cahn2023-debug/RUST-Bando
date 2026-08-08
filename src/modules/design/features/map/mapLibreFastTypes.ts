@@ -62,6 +62,8 @@ export interface MapLibreRenderFeatureProperties {
 export type MapLibreRenderFeature = MapLibreFastFeature<MapLibreFastGeometry, MapLibreRenderFeatureProperties>;
 export type MapLibreRenderFeatureCollection = MapLibreFastFeatureCollection<MapLibreFastGeometry, MapLibreRenderFeatureProperties>;
 
+export type MapLibrePreviewMetadata = { id: string; metadata: any; name?: string };
+
 export interface BuildMapLibreFeatureCollectionInput {
     features: FeatureState[];
     selectedFeatureId?: string | null;
@@ -71,4 +73,5 @@ export interface BuildMapLibreFeatureCollectionInput {
     featureGroups?: Record<string, any>;
     featureNumberMap?: Record<string, string | number>;
     groupThemePreview?: Record<string, any> | null;
+    previewMetadata?: MapLibrePreviewMetadata | null;
 }

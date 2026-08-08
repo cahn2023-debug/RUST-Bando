@@ -39,6 +39,9 @@ const tryRecoveryInitialize = (get: () => DesignSyncStore, projectId: string) =>
     if (now - lastRecoveryInitializeAt <= RECOVERY_INITIALIZE_COOLDOWN_MS) {
         return;
     }
+    if (!shouldRecoverByInitialize()) {
+        return;
+    }
     lastRecoveryInitializeAt = now;
     st.initialize(projectId, st.projectPath ?? undefined);
 };

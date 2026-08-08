@@ -47,6 +47,42 @@ export const MAP_ICON_MANIFEST: Record<string, MapIconConfig> = {
     color: "var(--cad-obj-camera)",
     isCustom: false,
   },
+  cctv: {
+    name: "Camera CCTV",
+    icon: "Camera",
+    color: "var(--cad-obj-camera)",
+    isCustom: false,
+  },
+  ptz: {
+    name: "Camera PTZ",
+    icon: "Video",
+    color: "var(--cad-obj-camera)",
+    isCustom: false,
+  },
+  speed: {
+    name: "Camera Tốc Độ",
+    icon: "Monitor",
+    color: "var(--cad-obj-camera)",
+    isCustom: false,
+  },
+  lpr: {
+    name: "Camera Biển Số (LPR)",
+    icon: "Info",
+    color: "var(--cad-obj-camera)",
+    isCustom: false,
+  },
+  intersection: {
+    name: "Nút Giao Cắt",
+    icon: "Intersection",
+    color: "var(--cad-obj-node)",
+    isCustom: false,
+  },
+  point: {
+    name: "Điểm Khảo Sát",
+    icon: "CircleDot",
+    color: "var(--cad-obj-node)",
+    isCustom: false,
+  },
   node: {
     name: "Node giao cắt chung",
     icon: "CircleDot",

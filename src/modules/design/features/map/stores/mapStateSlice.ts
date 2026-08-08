@@ -4,6 +4,8 @@ import { MapStateSlice, DesignSyncStore } from './types';
 import { MapState } from '@CONTRACT/types';
 import { DesignEventType } from '@CONTRACT/designTypes';
 import { normalizeMapStateForDisplay } from '../../../../tool/utils/normalizeDisplay';
+import { createMapCameraSubSlice } from './mapCameraSubSlice';
+import { applyLayerEventToMapState, removeFeaturesFromRecord } from './mapLayersSubSlice';
 
 
 
@@ -12,21 +14,6 @@ const IS_DEV = import.meta.env.DEV;
 let inboundUpdateTimer: any = null;
 let inboundStateBuffer: MapState | null = null;
 let lastUpdateTimestamp = 0;
-
-const buildViewportSignature = (
-    features: MapState['features'][string][],
-    total: number,
-    truncated: boolean,
-    mapRevision: number
-) => [
-    mapRevision,
-    total,
-    truncated ? 1 : 0,
-    features.map((feature: any) => [
-        feature?.id || '',
-        feature?.updated_at || feature?.updatedAt || feature?.revision || feature?.version || '',
-    ].join('@')).join('|'),
-].join('::');
 
 const parseJsonObject = (value: unknown): Record<string, unknown> | null => {
     if (!value) return null;
@@ -79,137 +66,6 @@ const PRESERVED_METADATA_KEYS = [
 const serializeMetadataLikePayload = (originalPayload: unknown, metadata: Record<string, unknown>) => (
     typeof originalPayload === 'string' ? JSON.stringify(metadata) : metadata
 );
-
-const collectDescendantGroupIds = (state: MapState, rootGroupIds: Iterable<string>) => {
-    const collected = new Set<string>();
-    const pending = Array.from(rootGroupIds).filter(Boolean);
-
-    while (pending.length > 0) {
-        const groupId = pending.pop();
-        if (!groupId || collected.has(groupId)) continue;
-        collected.add(groupId);
-
-        Object.values(state.feature_groups || {}).forEach((group: any) => {
-            if (String(group.parent_id || '') === groupId) {
-                pending.push(group.id);
-            }
-        });
-    }
-
-    return collected;
-};
-
-const collectDescendantRegionIds = (state: MapState, rootRegionIds: Iterable<string>) => {
-    const collected = new Set<string>();
-    const pending = Array.from(rootRegionIds).filter(Boolean);
-
-    while (pending.length > 0) {
-        const regionId = pending.pop();
-        if (!regionId || collected.has(regionId)) continue;
-        collected.add(regionId);
-
-        Object.values(state.regions || {}).forEach((region: any) => {
-            if (String(region.parent_id || '') === regionId) {
-                pending.push(region.id);
-            }
-        });
-    }
-
-    return collected;
-};
-
-const collectFeatureIdsForContainerDelete = (state: MapState, type: string, id: string) => {
-    if (!id) return [];
-
-    const layerIds = new Set<string>();
-    const groupIds = new Set<string>();
-
-    if (type === 'FeatureGroupDeleted') {
-        collectDescendantGroupIds(state, [id]).forEach(groupId => groupIds.add(groupId));
-    } else if (type === 'LayerDeleted') {
-        layerIds.add(id);
-    } else if (type === 'RegionDeleted') {
-        const regionIds = collectDescendantRegionIds(state, [id]);
-        Object.values(state.layers || {}).forEach((layer: any) => {
-            if (regionIds.has(String(layer.region_id || ''))) {
-                layerIds.add(layer.id);
-            }
-        });
-    }
-
-    if (layerIds.size > 0) {
-        Object.values(state.feature_groups || {}).forEach((group: any) => {
-            if (layerIds.has(String(group.layer_id || ''))) {
-                groupIds.add(group.id);
-            }
-        });
-        collectDescendantGroupIds(state, groupIds).forEach(groupId => groupIds.add(groupId));
-    }
-
-    return Object.values(state.features || {})
-        .filter((feature: any) => (
-            groupIds.has(String(feature.group_id || '')) ||
-            layerIds.has(String(feature.layer_id || ''))
-        ))
-        .map((feature: any) => feature.id)
-        .filter(Boolean);
-};
-
-const collectContainerDeleteCascade = (state: MapState, type: string, id: string) => {
-    const regionIds = type === 'RegionDeleted'
-        ? collectDescendantRegionIds(state, [id])
-        : new Set<string>();
-    const layerIds = new Set<string>();
-    const rootGroupIds = new Set<string>();
-
-    if (type === 'LayerDeleted') {
-        layerIds.add(id);
-    } else if (type === 'RegionDeleted') {
-        Object.values(state.layers || {}).forEach((layer: any) => {
-            if (regionIds.has(String(layer.region_id || ''))) {
-                layerIds.add(layer.id);
-            }
-        });
-    } else if (type === 'FeatureGroupDeleted') {
-        rootGroupIds.add(id);
-    }
-
-    if (layerIds.size > 0) {
-        Object.values(state.feature_groups || {}).forEach((group: any) => {
-            if (layerIds.has(String(group.layer_id || ''))) {
-                rootGroupIds.add(group.id);
-            }
-        });
-    }
-
-    const groupIds = collectDescendantGroupIds(state, rootGroupIds);
-    const featureIds = collectFeatureIdsForContainerDelete(state, type, id);
-
-    return { regionIds, layerIds, groupIds, featureIds };
-};
-
-const removeFeaturesFromRecord = <T>(record: Record<string, T>, deletedIds: Set<string>) => {
-    if (deletedIds.size === 0) return record;
-    let changed = false;
-    const next: Record<string, T> = {};
-    Object.entries(record || {}).forEach(([id, value]) => {
-        if (deletedIds.has(id)) {
-            changed = true;
-            return;
-        }
-        next[id] = value;
-    });
-    return changed ? next : record;
-};
-
-const removeIdsFromRecord = <T>(record: Record<string, T> | undefined, deletedIds: Set<string>) => {
-    if (!record || deletedIds.size === 0) return record || {};
-    const next: Record<string, T> = {};
-    Object.entries(record).forEach(([id, value]) => {
-        if (!deletedIds.has(id)) next[id] = value;
-    });
-    return next;
-};
 
 const cleanupDeletedFeatures = (
     state: DesignSyncStore,
@@ -381,72 +237,10 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
     isSaving: false,
     lastDispatchTime: {},
     syncStatus: 0,
-    visibleFeatures: {},
-    visibleFeatureIds: [],
-    featureDetailsCache: {},
-    viewportRevision: 0,
-    viewportSignature: '',
-    isViewportLoading: false,
-    viewportFeatureTotal: 0,
-    isViewportTruncated: false,
-    mapRenderEngine: 'maplibre-fast',
-    renderMetrics: null,
-    openMetrics: null,
+    ...createMapCameraSubSlice(set),
 
     // Giai đoạn 5: Optimistic UI state
     pendingSyncEvents: [],
-
-    setViewportFeatures: (features, total, truncated) => {
-        set((s) => {
-            const viewportSignature = buildViewportSignature(features, total, truncated, s.state?.mapRevision || 0);
-            if (viewportSignature === s.viewportSignature) {
-                return s;
-            }
-            const normalizedFeatures = features.map(feature =>
-                normalizeFeatureForDisplay(feature, undefined, s.state?.feature_groups?.[feature.group_id as string])
-            );
-            const visibleFeatures = Object.fromEntries(normalizedFeatures.map(feature => [feature.id, feature]));
-            let featureDetailsCache = s.featureDetailsCache;
-            if (normalizedFeatures.length > 0) {
-                featureDetailsCache = { ...s.featureDetailsCache };
-                normalizedFeatures.forEach(feature => {
-                    featureDetailsCache[feature.id] = feature;
-                });
-            }
-            return {
-                visibleFeatures,
-                visibleFeatureIds: normalizedFeatures.map(feature => feature.id),
-                viewportFeatureTotal: total,
-                isViewportTruncated: truncated,
-                featureDetailsCache,
-                viewportRevision: s.viewportRevision + 1,
-                viewportSignature
-            };
-        });
-    },
-
-    setViewportLoading: (isViewportLoading) => set({ isViewportLoading }),
-
-    setMapRenderEngine: (mapRenderEngine) => set({ mapRenderEngine }),
-
-    setRenderMetrics: (renderMetrics) => set({ renderMetrics }),
-
-    updateOpenMetrics: (metrics) => set((s) => ({
-        openMetrics: {
-            ...(s.openMetrics || {}),
-            ...metrics
-        }
-    })),
-
-    cacheFeatureDetail: (feature) => set((s) => ({
-        featureDetailsCache: {
-            ...s.featureDetailsCache,
-            [feature.id]: feature
-        },
-        visibleFeatures: s.visibleFeatures[feature.id]
-            ? { ...s.visibleFeatures, [feature.id]: feature }
-            : s.visibleFeatures
-    })),
 
     updateEntityMetadataOptimistic: async (entityType: string, entityId: string, metadata: any) => {
         const { state, projectKey, pendingSyncEvents } = get();
@@ -593,59 +387,29 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 }
                 case 'RegionCreated':
                 case 'RegionUpdated':
-                    if (!newState.regions) newState.regions = {};
-                    newState.regions = {
-                        ...newState.regions,
-                        [payload.id]: {
-                            ...(newState.regions[payload.id] || {}),
-                            ...payload
-                        }
-                    };
+                    applyLayerEventToMapState(newState, type, payload);
                     break;
                 case 'RegionDeleted': {
-                    const cascade = collectContainerDeleteCascade(newState, type, payload.id);
-                    cascade.featureIds.forEach(id => deletedFeatureIds.add(id));
-                    newState.features = removeFeaturesFromRecord(newState.features, deletedFeatureIds);
-                    newState.feature_groups = removeIdsFromRecord(newState.feature_groups, cascade.groupIds);
-                    newState.layers = removeIdsFromRecord(newState.layers, cascade.layerIds);
-                    newState.regions = removeIdsFromRecord(newState.regions, cascade.regionIds);
+                    const result = applyLayerEventToMapState(newState, type, payload);
+                    result?.deletedFeatureIds.forEach(id => deletedFeatureIds.add(id));
                     break;
                 }
                 case 'LayerCreated':
                 case 'LayerUpdated':
-                    if (!newState.layers) newState.layers = {};
-                    newState.layers = {
-                        ...newState.layers,
-                        [payload.id]: {
-                            ...(newState.layers[payload.id] || {}),
-                            ...payload
-                        }
-                    };
+                    applyLayerEventToMapState(newState, type, payload);
                     break;
                 case 'LayerDeleted': {
-                    const cascade = collectContainerDeleteCascade(newState, type, payload.id);
-                    cascade.featureIds.forEach(id => deletedFeatureIds.add(id));
-                    newState.features = removeFeaturesFromRecord(newState.features, deletedFeatureIds);
-                    newState.feature_groups = removeIdsFromRecord(newState.feature_groups, cascade.groupIds);
-                    newState.layers = removeIdsFromRecord(newState.layers, cascade.layerIds);
+                    const result = applyLayerEventToMapState(newState, type, payload);
+                    result?.deletedFeatureIds.forEach(id => deletedFeatureIds.add(id));
                     break;
                 }
                 case 'FeatureGroupCreated':
                 case 'FeatureGroupUpdated':
-                    if (!newState.feature_groups) newState.feature_groups = {};
-                    newState.feature_groups = {
-                        ...newState.feature_groups,
-                        [payload.id]: {
-                            ...(newState.feature_groups[payload.id] || {}),
-                            ...payload
-                        }
-                    };
+                    applyLayerEventToMapState(newState, type, payload);
                     break;
                 case 'FeatureGroupDeleted': {
-                    const cascade = collectContainerDeleteCascade(newState, type, payload.id);
-                    cascade.featureIds.forEach(id => deletedFeatureIds.add(id));
-                    newState.features = removeFeaturesFromRecord(newState.features, deletedFeatureIds);
-                    newState.feature_groups = removeIdsFromRecord(newState.feature_groups, cascade.groupIds);
+                    const result = applyLayerEventToMapState(newState, type, payload);
+                    result?.deletedFeatureIds.forEach(id => deletedFeatureIds.add(id));
                     break;
                 }
                 case 'update_metadata':
@@ -769,59 +533,29 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 }
                 case 'RegionCreated':
                 case 'RegionUpdated':
-                    if (!newState.regions) newState.regions = {};
-                    newState.regions = {
-                        ...newState.regions,
-                        [payload.id]: {
-                            ...(newState.regions[payload.id] || {}),
-                            ...payload
-                        }
-                    };
+                    applyLayerEventToMapState(newState, type, payload);
                     break;
                 case 'RegionDeleted': {
-                    const cascade = collectContainerDeleteCascade(newState, type, payload.id);
-                    cascade.featureIds.forEach(id => deletedFeatureIds.add(id));
-                    newState.features = removeFeaturesFromRecord(newState.features, deletedFeatureIds);
-                    newState.feature_groups = removeIdsFromRecord(newState.feature_groups, cascade.groupIds);
-                    newState.layers = removeIdsFromRecord(newState.layers, cascade.layerIds);
-                    newState.regions = removeIdsFromRecord(newState.regions, cascade.regionIds);
+                    const result = applyLayerEventToMapState(newState, type, payload);
+                    result?.deletedFeatureIds.forEach(id => deletedFeatureIds.add(id));
                     break;
                 }
                 case 'LayerCreated':
                 case 'LayerUpdated':
-                    if (!newState.layers) newState.layers = {};
-                    newState.layers = {
-                        ...newState.layers,
-                        [payload.id]: {
-                            ...(newState.layers[payload.id] || {}),
-                            ...payload
-                        }
-                    };
+                    applyLayerEventToMapState(newState, type, payload);
                     break;
                 case 'LayerDeleted': {
-                    const cascade = collectContainerDeleteCascade(newState, type, payload.id);
-                    cascade.featureIds.forEach(id => deletedFeatureIds.add(id));
-                    newState.features = removeFeaturesFromRecord(newState.features, deletedFeatureIds);
-                    newState.feature_groups = removeIdsFromRecord(newState.feature_groups, cascade.groupIds);
-                    newState.layers = removeIdsFromRecord(newState.layers, cascade.layerIds);
+                    const result = applyLayerEventToMapState(newState, type, payload);
+                    result?.deletedFeatureIds.forEach(id => deletedFeatureIds.add(id));
                     break;
                 }
                 case 'FeatureGroupCreated':
                 case 'FeatureGroupUpdated':
-                    if (!newState.feature_groups) newState.feature_groups = {};
-                    newState.feature_groups = {
-                        ...newState.feature_groups,
-                        [payload.id]: {
-                            ...(newState.feature_groups[payload.id] || {}),
-                            ...payload
-                        }
-                    };
+                    applyLayerEventToMapState(newState, type, payload);
                     break;
                 case 'FeatureGroupDeleted': {
-                    const cascade = collectContainerDeleteCascade(newState, type, payload.id);
-                    cascade.featureIds.forEach(id => deletedFeatureIds.add(id));
-                    newState.features = removeFeaturesFromRecord(newState.features, deletedFeatureIds);
-                    newState.feature_groups = removeIdsFromRecord(newState.feature_groups, cascade.groupIds);
+                    const result = applyLayerEventToMapState(newState, type, payload);
+                    result?.deletedFeatureIds.forEach(id => deletedFeatureIds.add(id));
                     break;
                 }
                 case 'SettingsUpdated':
@@ -901,56 +635,33 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 }
                 case 'RegionCreated':
                 case 'RegionUpdated':
-                    if (!newState.regions) newState.regions = {};
-                    newState.regions = { 
-                        ...newState.regions, 
-                        [payload.id]: { ...(newState.regions[payload.id] || {}), ...payload } 
-                    };
+                    applyLayerEventToMapState(newState, type, payload);
                     break;
                 case 'RegionDeleted': {
                     if (!newState.regions) break;
-                    const cascade = collectContainerDeleteCascade(newState, type, payload.id);
-                    cascade.featureIds.forEach(id => deletedFeatureIds.add(id));
-                    newState.features = removeFeaturesFromRecord(newState.features, deletedFeatureIds);
-                    newState.feature_groups = removeIdsFromRecord(newState.feature_groups, cascade.groupIds);
-                    newState.layers = removeIdsFromRecord(newState.layers, cascade.layerIds);
-                    newState.regions = removeIdsFromRecord(newState.regions, cascade.regionIds);
+                    const result = applyLayerEventToMapState(newState, type, payload);
+                    result?.deletedFeatureIds.forEach(id => deletedFeatureIds.add(id));
                     break;
                 }
                 case 'LayerCreated':
                 case 'LayerUpdated':
-                    if (!newState.layers) newState.layers = {};
-                    newState.layers = { 
-                        ...newState.layers, 
-                        [payload.id]: { ...(newState.layers[payload.id] || {}), ...payload } 
-                    };
+                    applyLayerEventToMapState(newState, type, payload);
                     break;
                 case 'LayerDeleted': {
                     if (!newState.layers) break;
-                    const cascade = collectContainerDeleteCascade(newState, type, payload.id);
-                    cascade.featureIds.forEach(id => deletedFeatureIds.add(id));
-                    newState.features = removeFeaturesFromRecord(newState.features, deletedFeatureIds);
-                    newState.feature_groups = removeIdsFromRecord(newState.feature_groups, cascade.groupIds);
-                    newState.layers = removeIdsFromRecord(newState.layers, cascade.layerIds);
+                    const result = applyLayerEventToMapState(newState, type, payload);
+                    result?.deletedFeatureIds.forEach(id => deletedFeatureIds.add(id));
                     break;
                 }
                 case 'FeatureGroupCreated':
                 case 'FeatureGroupUpdated': {
-                    if (!newState.feature_groups) newState.feature_groups = {};
-                    const gPayload = { ...payload };
-                    if (gPayload.parent_id === '') gPayload.parent_id = null;
-                    newState.feature_groups = { 
-                        ...newState.feature_groups, 
-                        [payload.id]: { ...(newState.feature_groups[payload.id] || {}), ...gPayload } 
-                    };
+                    applyLayerEventToMapState(newState, type, payload, { normalizeGroupParentId: true });
                     break;
                 }
                 case 'FeatureGroupDeleted': {
                     if (!newState.feature_groups) break;
-                    const cascade = collectContainerDeleteCascade(newState, type, payload.id);
-                    cascade.featureIds.forEach(id => deletedFeatureIds.add(id));
-                    newState.features = removeFeaturesFromRecord(newState.features, deletedFeatureIds);
-                    newState.feature_groups = removeIdsFromRecord(newState.feature_groups, cascade.groupIds);
+                    const result = applyLayerEventToMapState(newState, type, payload);
+                    result?.deletedFeatureIds.forEach(id => deletedFeatureIds.add(id));
                     break;
                 }
                 case 'update_metadata':

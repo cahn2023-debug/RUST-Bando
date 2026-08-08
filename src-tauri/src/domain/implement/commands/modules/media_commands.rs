@@ -11,6 +11,19 @@ pub use crate::domain::implement::commands::v2::{
     apply_project_media_recovery,
 };
 
+pub use crate::domain::implement::commands::v2::{
+    __cmd__import_media_asset,
+    __cmd__import_pmp_into_project,
+    __cmd__delete_media_asset,
+    __cmd__replace_media_asset,
+    __cmd__resolve_media_asset,
+    __cmd__get_report_section_site_photos,
+    __cmd__optimize_project_storage,
+    __cmd__get_project_storage_health,
+    __cmd__analyze_project_media_recovery,
+    __cmd__apply_project_media_recovery,
+};
+
 #[macro_export]
 macro_rules! register_media_commands {
     () => {

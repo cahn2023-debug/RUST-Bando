@@ -30,12 +30,12 @@ const basePreset = (
 });
 
 export const BASEMAP_PRESETS: ReadonlyArray<BasemapPreset> = [
-    basePreset({ id: 'street', label: 'Duong pho', title: 'Duong pho', tileLyr: 'm', kind: 'raster', supportsApiStyle: true }),
-    basePreset({ id: 'satellite', label: 'Ve tinh', title: 'Ve tinh', tileLyr: 'y', kind: 'raster', supportsApiStyle: true }),
+    basePreset({ id: 'street', label: 'Đường phố', title: 'Đường phố', tileLyr: 'm', kind: 'raster', supportsApiStyle: true }),
+    basePreset({ id: 'satellite', label: 'Vệ tinh', title: 'Vệ tinh', tileLyr: 'y', kind: 'raster', supportsApiStyle: true }),
     basePreset({
         id: 'heat',
-        label: 'Ban do nhiet',
-        title: 'Ban do nhiet',
+        label: 'Bản đồ nhiệt',
+        title: 'Bản đồ nhiệt',
         tileLyr: 'm',
         kind: 'heat',
         supportsApiStyle: true,
@@ -48,8 +48,8 @@ export const BASEMAP_PRESETS: ReadonlyArray<BasemapPreset> = [
     }),
     basePreset({
         id: 'dark',
-        label: 'Ban do den',
-        title: 'Ban do den',
+        label: 'Bản đồ đen',
+        title: 'Bản đồ đen',
         tileLyr: 'm',
         kind: 'raster',
         supportsApiStyle: true,

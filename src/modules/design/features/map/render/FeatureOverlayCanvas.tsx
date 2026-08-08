@@ -48,17 +48,22 @@ export const FeatureOverlayCanvas = React.forwardRef<FeatureOverlayCanvasHandle,
             return context as WebGL2RenderingContext;
         };
 
+        let resizeRaf: number | null = null;
         const resize = () => {
-            const rect = parent.getBoundingClientRect();
-            const pixelRatio = window.devicePixelRatio || 1;
-            const width = Math.max(1, Math.round(rect.width * pixelRatio));
-            const height = Math.max(1, Math.round(rect.height * pixelRatio));
-            if (canvas.width !== width) canvas.width = width;
-            if (canvas.height !== height) canvas.height = height;
-            canvas.style.width = `${Math.max(1, Math.round(rect.width))}px`;
-            canvas.style.height = `${Math.max(1, Math.round(rect.height))}px`;
-            glRef.current?.viewport?.(0, 0, width, height);
-            schedulerRef.current?.schedule(DirtyFlag.Resize);
+            if (resizeRaf !== null) return;
+            resizeRaf = requestAnimationFrame(() => {
+                resizeRaf = null;
+                const rect = parent.getBoundingClientRect();
+                const pixelRatio = window.devicePixelRatio || 1;
+                const width = Math.max(1, Math.round(rect.width * pixelRatio));
+                const height = Math.max(1, Math.round(rect.height * pixelRatio));
+                if (canvas.width !== width) canvas.width = width;
+                if (canvas.height !== height) canvas.height = height;
+                canvas.style.width = `${Math.max(1, Math.round(rect.width))}px`;
+                canvas.style.height = `${Math.max(1, Math.round(rect.height))}px`;
+                glRef.current?.viewport?.(0, 0, width, height);
+                schedulerRef.current?.schedule(DirtyFlag.Resize);
+            });
         };
 
         glRef.current = getWebGl2Context();

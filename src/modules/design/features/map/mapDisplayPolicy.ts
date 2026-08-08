@@ -1,6 +1,6 @@
 import type { FeatureState } from '@CONTRACT/types';
 
-export const MAP_POINT_CLUSTER_MAX_ZOOM = 12;
+export const MAP_POINT_CLUSTER_MAX_ZOOM = 22;
 export const MAP_POINT_CLUSTER_HIDE_AT_ZOOM = 13;
 export const MAP_INTERSECTION_CHILD_MIN_ZOOM = 15;
 export const MAP_FOV_MIN_ZOOM = 13;

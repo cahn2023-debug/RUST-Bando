@@ -7,6 +7,9 @@ pub use crate::domain::implement::commands::v2::{
     get_project_tree,
     save_recent_projects,
     save_last_opened_project,
+    invoke_design_event_batch,
+    normalize_metadata,
+    find_nearest_snap_point,
     save_project,
     force_save_project,
     update_project_state_v2,
@@ -15,6 +18,32 @@ pub use crate::domain::implement::commands::v2::{
     close_active_project,
     remove_recent_project,
     delete_project,
+    undo_design_event,
+    redo_design_event,
+};
+
+pub use crate::domain::implement::commands::v2::{
+    __cmd__create_pmp_v2,
+    __cmd__load_pmp_file,
+    __cmd__open_project_bootstrap,
+    __cmd__get_project_bootstrap_v2,
+    __cmd__get_active_project,
+    __cmd__get_project_tree,
+    __cmd__save_recent_projects,
+    __cmd__save_last_opened_project,
+    __cmd__invoke_design_event_batch,
+    __cmd__normalize_metadata,
+    __cmd__find_nearest_snap_point,
+    __cmd__save_project,
+    __cmd__force_save_project,
+    __cmd__update_project_state_v2,
+    __cmd__save_project_bom_table,
+    __cmd__get_projects,
+    __cmd__close_active_project,
+    __cmd__remove_recent_project,
+    __cmd__delete_project,
+    __cmd__undo_design_event,
+    __cmd__redo_design_event,
 };
 
 #[macro_export]
@@ -28,6 +57,9 @@ macro_rules! register_project_commands {
         $crate::domain::implement::commands::modules::project_commands::get_project_tree,
         $crate::domain::implement::commands::modules::project_commands::save_recent_projects,
         $crate::domain::implement::commands::modules::project_commands::save_last_opened_project,
+        $crate::domain::implement::commands::modules::project_commands::invoke_design_event_batch,
+        $crate::domain::implement::commands::modules::project_commands::normalize_metadata,
+        $crate::domain::implement::commands::modules::project_commands::find_nearest_snap_point,
         $crate::domain::implement::commands::modules::project_commands::save_project,
         $crate::domain::implement::commands::modules::project_commands::force_save_project,
         $crate::domain::implement::commands::modules::project_commands::update_project_state_v2,
@@ -35,6 +67,8 @@ macro_rules! register_project_commands {
         $crate::domain::implement::commands::modules::project_commands::get_projects,
         $crate::domain::implement::commands::modules::project_commands::close_active_project,
         $crate::domain::implement::commands::modules::project_commands::remove_recent_project,
-        $crate::domain::implement::commands::modules::project_commands::delete_project
+        $crate::domain::implement::commands::modules::project_commands::delete_project,
+        $crate::domain::implement::commands::modules::project_commands::undo_design_event,
+        $crate::domain::implement::commands::modules::project_commands::redo_design_event
     };
 }

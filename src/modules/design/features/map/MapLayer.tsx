@@ -12,9 +12,7 @@ import {
     ZoomToHandler,
 } from '@DESIGN/features/map/MapLayerComponents';
 import { DORILegend } from '@DESIGN/features/map/MapLayerComponents/DORILegend';
-import { MapSettingsPortal } from './MapSettingsPortal';
 import { useMapStyles } from './useMapStyles';
-import { MapSettingsPanel } from './MapSettings/MapSettingsPanel';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { MapLibreFastRenderer } from './MapLibreFastRenderer';
 
@@ -37,7 +35,7 @@ export function MapLayer({
     isMeasureActive = false,
     onMeasureDeactivate = () => {}
 }: MapLayerProps) {
-    const { mapFeatures, setMapFeatures, basemapId, setBasemapId, basemapPresets, activeBasemapPreset, getStyledTiles, mapKey } = useMapStyles();
+    const { activeBasemapPreset, getStyledTiles, mapKey } = useMapStyles();
     const showDORILayers = useDesignSync(s => s.showDORILayers);
     const basemapTiles = getStyledTiles();
 
@@ -62,17 +60,6 @@ export function MapLayer({
                 basemapPreset={activeBasemapPreset}
             />
 
-            <div className="pointer-events-auto">
-                <MapSettingsPortal>
-                    <MapSettingsPanel
-                        mapFeatures={mapFeatures}
-                        setMapFeatures={setMapFeatures}
-                        basemapId={basemapId}
-                        setBasemapId={setBasemapId}
-                        basemapPresets={basemapPresets}
-                    />
-                </MapSettingsPortal>
-            </div>
 
             {showDORILayers && (
                 <div className="absolute bottom-6 right-16 z-cad-map-control pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-300">

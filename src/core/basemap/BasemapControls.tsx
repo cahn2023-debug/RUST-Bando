@@ -3,7 +3,6 @@ import { BASEMAP_PRESETS } from './presets';
 import { useBasemap } from './BasemapContext';
 import { MeasurePanel, type MeasureMode } from './BasemapMeasure';
 import { useBasemapCamera, useBasemapPreset } from './useBasemapState';
-import type { BasemapPresetId } from './types';
 import './BasemapControls.css';
 
 /**
@@ -117,13 +116,16 @@ function ScaleBar() {
     );
 }
 
-function LayerSwitcher({
-    presetId,
-    onSelect,
-}: {
-    presetId: BasemapPresetId;
-    onSelect: (id: BasemapPresetId) => void;
-}) {
+const LAYER_FEATURE_ROWS = [
+    { key: 'roads', label: 'Đường' },
+    { key: 'roadNames', label: 'Nhãn tên đường' },
+    { key: 'buildings', label: 'Vùng / Tòa nhà' },
+    { key: 'pois', label: 'Địa điểm POI' },
+    { key: 'labels', label: 'Hiển thị nhãn' },
+] as const;
+
+function LayerSwitcher() {
+    const { presetId, preferences, setPreset } = useBasemapPreset();
     const [open, setOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -145,14 +147,18 @@ function LayerSwitcher({
 
     const active = BASEMAP_PRESETS.find(preset => preset.id === presetId);
 
+    const handleToggleFeature = (key: keyof typeof preferences, checked: boolean) => {
+        setPreset(presetId, { [key]: checked });
+    };
+
     return (
         <div className="basemap-layers" ref={rootRef}>
             <button
                 type="button"
-                className="basemap-button basemap-layers__trigger"
+                className={`basemap-button basemap-layers__trigger ${open ? 'basemap-button--active' : ''}`}
                 aria-expanded={open}
                 aria-haspopup="menu"
-                title={`Lop ban do: ${active?.label ?? presetId}`}
+                title={`Lớp bản đồ: ${active?.label ?? presetId}`}
                 onClick={() => setOpen(value => !value)}
             >
                 <IconLayers />
@@ -160,25 +166,43 @@ function LayerSwitcher({
 
             {open && (
                 <div className="basemap-layers__menu" role="menu">
-                    {BASEMAP_PRESETS.map(preset => (
-                        <button
-                            key={preset.id}
-                            type="button"
-                            role="menuitemradio"
-                            aria-checked={preset.id === presetId}
-                            className={
-                                preset.id === presetId
-                                    ? 'basemap-layers__item basemap-layers__item--active'
-                                    : 'basemap-layers__item'
-                            }
-                            onClick={() => {
-                                onSelect(preset.id);
-                                setOpen(false);
-                            }}
-                        >
-                            {preset.label}
-                        </button>
-                    ))}
+                    <div className="basemap-layers__header">CÁC LỚP BẢN ĐỒ</div>
+                    <div className="basemap-layers__grid">
+                        {BASEMAP_PRESETS.map(preset => (
+                            <button
+                                key={preset.id}
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={preset.id === presetId}
+                                className={
+                                    preset.id === presetId
+                                        ? 'basemap-layers__preset basemap-layers__preset--active'
+                                        : 'basemap-layers__preset'
+                                }
+                                onClick={() => setPreset(preset.id)}
+                            >
+                                {preset.label}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="basemap-layers__divider" />
+                    <div className="basemap-layers__features">
+                        {LAYER_FEATURE_ROWS.map(({ key, label }) => {
+                            const inputId = `basemap-feature-${key}`;
+                            const isChecked = Boolean(preferences[key as keyof typeof preferences]);
+                            return (
+                                <label key={key} htmlFor={inputId} className="basemap-layers__feature-item">
+                                    <input
+                                        id={inputId}
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={(e) => handleToggleFeature(key as any, e.target.checked)}
+                                    />
+                                    <span>{label}</span>
+                                </label>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
         </div>
@@ -187,7 +211,6 @@ function LayerSwitcher({
 
 export function BasemapControls() {
     const { controller } = useBasemap();
-    const { presetId, setPreset } = useBasemapPreset();
     const camera = useBasemapCamera();
     const [geolocate, setGeolocate] = useState<GeolocateStatus>('idle');
     const [measuring, setMeasuring] = useState(false);
@@ -222,10 +245,10 @@ export function BasemapControls() {
 
     const locateTitle =
         geolocate === 'denied'
-            ? 'Khong co quyen truy cap vi tri'
+            ? 'Không có quyền truy cập vị trí'
             : geolocate === 'unavailable'
-              ? 'Khong xac dinh duoc vi tri'
-              : 'Ve vi tri hien tai';
+              ? 'Không xác định được vị trí'
+              : 'Về vị trí hiện tại';
 
     return (
         <div className="basemap-controls" data-basemap-controls="core">
@@ -233,7 +256,7 @@ export function BasemapControls() {
                 <button
                     type="button"
                     className="basemap-button"
-                    title="Phong to"
+                    title="Phóng to"
                     onClick={() => controller?.zoomBy(1)}
                 >
                     <IconPlus />
@@ -241,7 +264,7 @@ export function BasemapControls() {
                 <button
                     type="button"
                     className="basemap-button"
-                    title="Thu nho"
+                    title="Thu nhỏ"
                     onClick={() => controller?.zoomBy(-1)}
                 >
                     <IconMinus />
@@ -253,7 +276,7 @@ export function BasemapControls() {
                     <button
                         type="button"
                         className="basemap-button"
-                        title="Dat lai huong bac"
+                        title="Đặt lại hướng bắc"
                         onClick={() => controller?.setCamera({ bearing: 0, pitch: 0 }, { animate: true, duration: 300 })}
                     >
                         <span
@@ -281,8 +304,8 @@ export function BasemapControls() {
                 </button>
             </div>
 
-            <div className="basemap-controls__group">
-                <LayerSwitcher presetId={presetId} onSelect={id => setPreset(id)} />
+            <div className="basemap-controls__group basemap-controls__group--layers">
+                <LayerSwitcher />
             </div>
 
             <div className="basemap-controls__group">
@@ -291,7 +314,7 @@ export function BasemapControls() {
                     className={
                         measuring ? 'basemap-button basemap-button--active' : 'basemap-button'
                     }
-                    title="Thuoc do"
+                    title="Thước đo"
                     aria-pressed={measuring}
                     onClick={() => setMeasuring(value => !value)}
                 >

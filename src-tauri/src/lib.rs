@@ -50,6 +50,12 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(crate::domain::implement::commands::v2::ActorState { gateway_tx: tx })
         .invoke_handler(crate::register_tauri_commands!())
+        .on_window_event(|_window, event| match event {
+            tauri::WindowEvent::Resized(_) | tauri::WindowEvent::ScaleFactorChanged { .. } => {
+                // Window resized on native frame - Tauri WebView2 handles auto-reflow
+            }
+            _ => {}
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

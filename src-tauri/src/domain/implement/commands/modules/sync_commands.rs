@@ -8,6 +8,16 @@ pub use crate::domain::implement::commands::v2::{
     mark_outbox_synced,
 };
 
+pub use crate::domain::implement::commands::v2::{
+    __cmd__sync_v2_get_status,
+    __cmd__sync_v2_is_online,
+    __cmd__sync_v2_go_online,
+    __cmd__sync_v2_go_offline,
+    __cmd__sync_v2_start,
+    __cmd__get_pending_sync_outbox,
+    __cmd__mark_outbox_synced,
+};
+
 #[macro_export]
 macro_rules! register_sync_commands {
     () => {

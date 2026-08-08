@@ -70,15 +70,18 @@ export const loadSvgImage = (id: string, svg: string) => {
 
     const promise = (async (): Promise<MapLibreImageData> => {
         const { width, height } = svgSize(svg);
+        const dpr = typeof window !== 'undefined' && window.devicePixelRatio && window.devicePixelRatio > 1 ? Math.min(Math.ceil(window.devicePixelRatio), 2) : 1;
+        const renderWidth = width * dpr;
+        const renderHeight = height * dpr;
         const bitmap = await loadSvgBitmap(svgBlob(svg));
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = renderWidth;
+        canvas.height = renderHeight;
         const context = canvas.getContext('2d');
         if (!context) throw new Error('Canvas 2D context is unavailable');
-        context.clearRect(0, 0, width, height);
-        context.drawImage(bitmap, 0, 0, width, height);
-        return context.getImageData(0, 0, width, height);
+        context.clearRect(0, 0, renderWidth, renderHeight);
+        context.drawImage(bitmap, 0, 0, renderWidth, renderHeight);
+        return context.getImageData(0, 0, renderWidth, renderHeight);
     })();
     imageCache.set(id, promise);
     while (imageCache.size > MAX_IMAGE_CACHE_SIZE) {

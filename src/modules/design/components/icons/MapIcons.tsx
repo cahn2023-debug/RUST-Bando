@@ -174,8 +174,8 @@ export const getIconSvgString = (type: string, color: string, size: number, inde
 
   const common = `width="${size}" height="${size}" viewBox="0 0 24 24" fill="white" stroke="${color}" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round"`;
 
-  // High contrast text style for SVG - Enhanced with thicker stroke and filter
-  const textStyle = `stroke="${textStrokeColor}" stroke-width="1.2" paint-order="stroke" font-family="Arial, sans-serif" font-weight="900" text-anchor="middle" fill="${textColor}" filter="drop-shadow(0 1px 1px rgba(0,0,0,0.25))"`;
+  // High contrast text style for SVG - Enhanced with thick white/black outline stroke and filter
+  const textStyle = `stroke="${textStrokeColor}" stroke-width="2.5" paint-order="stroke" font-family="Arial, sans-serif" font-weight="900" text-anchor="middle" fill="${textColor}" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.6))"`;
 
   let iconContent = '';
   let textContent = '';
@@ -245,8 +245,8 @@ export const getIconSvgString = (type: string, color: string, size: number, inde
   }
 
   let iconBaseRotation = 0;
-  if (['cctv', 'camera', 'ptz', 'speed', 'lpr'].includes(normalizedType)) {
-    iconBaseRotation = 0; // All cameras now match Treeview orientation
+  if (['cctv', 'camera'].includes(normalizedType)) {
+    iconBaseRotation = -45; // Counteract native 45deg path tilt so rotation=0 points North (0deg)
   }
 
   return `

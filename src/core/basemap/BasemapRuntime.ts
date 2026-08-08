@@ -146,9 +146,15 @@ export class BasemapRuntime implements BasemapController {
         this.setLifecycleState('destroyed');
     }
 
+    private resizeRafId: number | null = null;
+
     resize(): void {
-        this.map?.resize();
-        this.publishCamera();
+        if (this.resizeRafId !== null) return;
+        this.resizeRafId = requestAnimationFrame(() => {
+            this.resizeRafId = null;
+            this.map?.resize();
+            this.publishCamera();
+        });
     }
 
     getLifecycleState(): BasemapLifecycleState {

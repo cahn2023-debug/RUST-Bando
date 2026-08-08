@@ -3,6 +3,7 @@ import type {
     BuildMapLibreFeatureCollectionInput,
     MapLibreLodPolicy,
     MapLibreLodPolicyInput,
+    MapLibrePreviewMetadata,
     MapLibreRenderFeature,
     MapLibreRenderFeatureCollection,
     MapLibreRenderFeatureProperties,
@@ -19,6 +20,28 @@ const FULL_FEATURE_LIMIT = 14000;
 
 const DEFAULT_COLOR = '#10b981';
 const SELECTED_COLOR = '#22d3ee';
+
+const getMetadataHash = (meta: any): number => {
+    if (!meta) return 0;
+    if (typeof meta === 'string') {
+        let h = 0;
+        for (let i = 0; i < meta.length; i++) h = (h + meta.charCodeAt(i)) | 0;
+        return h;
+    }
+    if (typeof meta === 'object') {
+        const color = meta.color ?? meta.gis?.color ?? meta.stroke ?? meta.gis?.stroke;
+        const size = meta.size ?? meta.gis?.size ?? meta.weight ?? meta.gis?.weight;
+        let h = 0;
+        if (typeof color === 'string') {
+            for (let i = 0; i < color.length; i++) h = (h + color.charCodeAt(i)) | 0;
+        }
+        if (typeof size === 'number') {
+            h = (h + size) | 0;
+        }
+        return h;
+    }
+    return 0;
+};
 
 const parseObjectCache = new Map<string, Record<string, any>>();
 const parseObject = (value: unknown): Record<string, any> => {
@@ -59,26 +82,34 @@ const simplifyLineCoordinates = (points: [number, number][], tolerance: number):
 
 const getFeatureMetadataWithGroupPreview = (
     feature: FeatureState,
-    groupThemePreview?: Record<string, any> | null
+    groupThemePreview?: Record<string, any> | null,
+    previewMetadata?: MapLibrePreviewMetadata | null
 ) => {
     const metadata = getParsedMetadata(feature);
     const groupPreview = groupThemePreview && feature.group_id
         ? (groupThemePreview[feature.group_id] || {})
         : {};
+    const isPreviewedFeature = Boolean(previewMetadata && (feature.id === previewMetadata.id || feature.id.startsWith(`${previewMetadata.id}::`)));
+    const featurePreview = isPreviewedFeature ? (previewMetadata?.metadata || {}) : {};
+
     return {
         ...metadata,
         ...groupPreview,
+        ...featurePreview,
         gis: {
             ...(metadata.gis || {}),
             ...(groupPreview.gis || {}),
+            ...(featurePreview.gis || {}),
         },
         infrastructure: {
             ...(metadata.infrastructure || {}),
             ...(groupPreview.infrastructure || {}),
+            ...(featurePreview.infrastructure || {}),
         },
         fiber: {
             ...(metadata.fiber || {}),
             ...(groupPreview.fiber || {}),
+            ...(featurePreview.fiber || {}),
         },
     };
 };
@@ -334,13 +365,17 @@ const toRenderFeatures = (
     featureGroups: Record<string, any>,
     featureNumberMap: Record<string, string | number>,
     groupThemePreview?: Record<string, any> | null,
+    previewMetadata?: MapLibrePreviewMetadata | null,
     childPath: string[] = [],
     simplifyVectors = false,
     zoom = 16
 ): MapLibreRenderFeature[] => {
     const selected = feature.id === selectedFeatureId;
+    const isPreviewedFeature = Boolean(previewMetadata && (feature.id === previewMetadata.id || feature.id.startsWith(`${previewMetadata.id}::`)));
     const previewVersion = groupThemePreview ? (groupThemePreview._v ?? JSON.stringify(groupThemePreview)) : '';
-    const cacheKey = `${selected ? 1 : 0}:${featureNumberMap[feature.id] || ''}:${previewVersion}:${simplifyVectors ? 1 : 0}:${zoom < 14 ? 0 : 1}`;
+    const previewMetaHash = isPreviewedFeature ? getMetadataHash(previewMetadata?.metadata) : '';
+    const featureName = (isPreviewedFeature && previewMetadata?.name !== undefined) ? previewMetadata.name : feature.name;
+    const cacheKey = `${selected ? 1 : 0}:${featureNumberMap[feature.id] || ''}:${previewVersion}:${previewMetaHash}:${featureName}:${simplifyVectors ? 1 : 0}:${zoom < 14 ? 0 : 1}`;
 
     let featureCache = featureRenderCache.get(feature);
     if (!featureCache) {
@@ -352,7 +387,7 @@ const toRenderFeatures = (
 
     const geometryInput = geometryInputForFeature(feature);
     const geomType = String(geometryInput.type || feature.geom_type || 'Point').toLowerCase();
-    const metadata = getFeatureMetadataWithGroupPreview(feature, groupThemePreview);
+    const metadata = getFeatureMetadataWithGroupPreview(feature, groupThemePreview, previewMetadata);
     const color = selected ? SELECTED_COLOR : (asColor(styleValueFromMetadata(feature, metadata, 'color')) || DEFAULT_COLOR);
     const size = selected ? Math.max(asSize(styleValueFromMetadata(feature, metadata, 'size')), 12) : asSize(styleValueFromMetadata(feature, metadata, 'size'));
     const isLine = isLineGeomType(feature, metadata);
@@ -368,7 +403,7 @@ const toRenderFeatures = (
                 geom_type: String(geometry?.type || ''),
                 coordinates: geometry,
             } as FeatureState;
-            const children = toRenderFeatures(childFeature, selectedFeatureId, featureGroups, featureNumberMap, groupThemePreview, [feature.id, `g${index}`], simplifyVectors, zoom);
+            const children = toRenderFeatures(childFeature, selectedFeatureId, featureGroups, featureNumberMap, groupThemePreview, previewMetadata, [feature.id, `g${index}`], simplifyVectors, zoom);
             if (children.length === 0) {
                 console.warn('[mapLibreFastAdapter] Skipped invalid GeometryCollection child:', feature.id, index);
             }
@@ -419,7 +454,7 @@ const toRenderFeatures = (
                 parentFeatureId,
                 groupId: feature.group_id,
                 layerId: feature.layer_id,
-                name: feature.name,
+                name: featureName,
                 geomType: 'point' as const,
                 color,
                 size,
@@ -446,7 +481,7 @@ const toRenderFeatures = (
             parentFeatureId,
             groupId: feature.group_id,
             layerId: feature.layer_id,
-            name: feature.name,
+            name: featureName,
             geomType: 'line',
             color: color || DEFAULT_COLOR,
             size: Math.max(size || 3, selected ? 6 : 3),
@@ -472,7 +507,7 @@ const toRenderFeatures = (
             parentFeatureId,
             groupId: feature.group_id,
             layerId: feature.layer_id,
-            name: feature.name,
+            name: featureName,
             geomType: 'polygon' as const,
             color,
             size,
@@ -492,6 +527,7 @@ export const buildMapLibreFeatureCollection = ({
     featureGroups: featureGroupsInput = {},
     featureNumberMap = {},
     groupThemePreview = null,
+    previewMetadata = null,
 }: BuildMapLibreFeatureCollectionInput): {
     collection: MapLibreRenderFeatureCollection;
     lodPolicy: MapLibreLodPolicy;
@@ -517,6 +553,7 @@ export const buildMapLibreFeatureCollection = ({
             featureGroups,
             featureNumberMap || {},
             groupThemePreview,
+            previewMetadata,
             [],
             lodPolicy.simplifyVectors,
             zoom
@@ -560,4 +597,3 @@ export const buildMapLibreFeatureCollection = ({
         lodPolicy,
     };
 };
-
