@@ -18,21 +18,32 @@ export const GlobalSearch: React.FC = () => {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const searchRequestIdRef = useRef(0);
 
     const handleSearch = useCallback(async (q: string) => {
-        if (!q.trim()) {
+        const requestId = ++searchRequestIdRef.current;
+        const trimmedQuery = q.trim();
+
+        if (!trimmedQuery) {
             setResults([]);
+            setSelectedIndex(0);
+            setIsLoading(false);
             return;
         }
         setIsLoading(true);
         try {
-            const data = await invoke<SearchResult[]>("search_universal", { query: q });
+            const data = await invoke<SearchResult[]>("search_universal", { query: trimmedQuery });
+            if (requestId !== searchRequestIdRef.current) return;
             setResults(data);
             setSelectedIndex(0);
         } catch (e) {
+            if (requestId !== searchRequestIdRef.current) return;
             console.error("Search failed:", e);
+            setResults([]);
         } finally {
-            setIsLoading(false);
+            if (requestId === searchRequestIdRef.current) {
+                setIsLoading(false);
+            }
         }
     }, []);
 
@@ -68,6 +79,8 @@ export const GlobalSearch: React.FC = () => {
     }, [isOpen]);
 
     const handleNavigate = (e: React.KeyboardEvent) => {
+        if (results.length === 0) return;
+
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             setSelectedIndex(prev => (prev + 1) % results.length);
@@ -149,7 +162,7 @@ export const GlobalSearch: React.FC = () => {
                                     aria-current={idx === selectedIndex ? 'true' : undefined}
                                     key={`${item.entity_type}-${item.entity_id}`}
                                     onClick={() => handleSelect(item)}
-                                    // onMouseEnter={() => setSelectedIndex(idx)}
+                                    onMouseEnter={() => setSelectedIndex(idx)}
                                     className={clsx(
                                         "flex w-full cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all duration-150",
                                         idx === selectedIndex

@@ -1,0 +1,20 @@
+# Managed by Knowns CLI — do not edit manually.
+# Run 'knowns init' to regenerate.
+
+# Ignore everything by default
+*
+
+# Track these
+!.gitignore
+!config.json
+!docs/
+!docs/**
+!templates/
+!templates/**
+!tasks/
+!tasks/**
+!tombstones/
+!tombstones/tasks/
+!tombstones/tasks/**
+!decisions/
+!decisions/**

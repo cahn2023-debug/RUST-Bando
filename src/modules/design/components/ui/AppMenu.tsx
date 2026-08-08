@@ -135,7 +135,7 @@ export function AppMenu({
         {/* MAIN 2-COLUMN CONTENT */}
         <div className="grid min-h-[420px] grid-cols-1 overflow-y-auto md:grid-cols-12">
           {/* LEFT COLUMN: CORE COMMANDS (5 COLS) */}
-          <div className="col-span-5 flex flex-col justify-between border-r border-cad-border bg-cad-bg p-2">
+          <div className="flex flex-col justify-between border-b border-cad-border bg-cad-bg p-2 md:col-span-5 md:border-b-0 md:border-r">
             <div className="space-y-1">
               <button
                 onClick={() => handleAction(() => onShowCreate?.())}
@@ -294,7 +294,7 @@ export function AppMenu({
           </div>
 
           {/* RIGHT COLUMN: RECENT PROJECTS (7 COLS) */}
-          <div className="col-span-7 flex flex-col justify-between bg-cad-header p-4">
+          <div className="flex flex-col justify-between bg-cad-header p-4 md:col-span-7">
             <div>
               <div className="flex items-center justify-between border-b border-cad-border pb-3">
                 <div className="flex items-center gap-2">
