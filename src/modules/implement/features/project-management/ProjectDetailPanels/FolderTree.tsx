@@ -15,8 +15,15 @@ export function FolderTree({ name, expanded = false, children, onContextMenu }: 
   return (
     <div className="select-none mb-0">
       <div
+        role="button"
+        tabIndex={0}
         className="flex items-center gap-1.5 py-1 px-1.5 hover:bg-cad-elevated rounded-sm cursor-pointer group transition-colors"
         onClick={() => setIsOpen(!isOpen)}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          setIsOpen((value) => !value);
+        }}
         onContextMenu={handleContextMenu}
       >
         <div className="text-cad-text-muted shrink-0 w-4 transition-colors flex justify-center mt-0.5">

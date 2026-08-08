@@ -15,6 +15,16 @@ export function ContractSidebar({ projectId, contractType, onFileSelect }: Contr
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, type: 'folder' | 'file', path?: string } | null>(null);
     const [linkedContract, setLinkedContract] = useState<{ name: string, path: string } | null>(null);
 
+    useEffect(() => {
+        if (!contextMenu) return;
+        const handleOutsidePointer = (event: MouseEvent) => {
+            const target = event.target as HTMLElement;
+            if (!target.closest('[data-contract-context-menu]')) setContextMenu(null);
+        };
+        document.addEventListener('mousedown', handleOutsidePointer);
+        return () => document.removeEventListener('mousedown', handleOutsidePointer);
+    }, [contextMenu]);
+
     const loadContracts = async () => {
         try {
             const contracts: Contract[] = await invoke("get_contracts", { projectId });
@@ -159,16 +169,19 @@ export function ContractSidebar({ projectId, contractType, onFileSelect }: Contr
     );
 
     return (
-        <div className="flex flex-col py-1 px-1 relative h-full" onClick={() => setContextMenu(null)}>
+        <div className="flex flex-col py-1 px-1 relative h-full">
             {contractType === 'INVESTOR' && renderInvestorTree()}
             {contractType === 'SUBCONTRACTOR' && renderSubcontractorTree()}
             {contractType === 'FINANCE' && renderFinanceTree()}
 
             {contextMenu && (
                 <div
+                    role="menu"
+                    tabIndex={-1}
+                    aria-label="Contract context menu"
+                    data-contract-context-menu
                     className="fixed z-cad-dropdown bg-cad-surface border border-cad-border rounded-lg shadow-2xl flex flex-col min-w-[200px] overflow-hidden backdrop-blur-md bg-opacity-95"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
-                    onClick={(e) => e.stopPropagation()}
                 >
                     {contextMenu.type === 'folder' ? (
                         <button

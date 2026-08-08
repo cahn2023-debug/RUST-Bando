@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef } from 'react';
 import {
   FilePlus,
   FolderOpen,
@@ -10,13 +10,13 @@ import {
   Clock,
   ChevronRight,
   HardDriveUpload,
-  X
-} from "lucide-react";
-import { useTranslation } from "react-i18next";
-import { useClickOutside } from "@IMPLEMENT/hooks/useClickOutside";
-import { KeytipBadge } from "./KeytipBadge";
-import { Project } from "@CONTRACT/types";
-import { cn } from "@SHARED/utils/cn";
+  X,
+} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useClickOutside } from '@IMPLEMENT/hooks/useClickOutside';
+import { KeytipBadge } from './KeytipBadge';
+import { Project } from '@CONTRACT/types';
+import { cn } from '@SHARED/utils/cn';
 
 export interface AppMenuProps {
   isOpen: boolean;
@@ -46,21 +46,46 @@ export function AppMenu({
   keytipsActive = false,
 }: AppMenuProps) {
   const { t } = useTranslation();
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useClickOutside(menuRef, onClose, isOpen);
 
   useEffect(() => {
-    if (isOpen) searchInputRef.current?.focus();
+    if (!isOpen) return;
+
+    previouslyFocusedRef.current = document.activeElement as HTMLElement | null;
+    const focusFrame = window.requestAnimationFrame(() => searchInputRef.current?.focus());
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        onCloseRef.current();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocusedRef.current?.focus();
+      previouslyFocusedRef.current = null;
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const filteredProjects = projects.filter((p) =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.path.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProjects = projects.filter(
+    (p) =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.path.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleAction = (action: () => void) => {
@@ -69,169 +94,199 @@ export function AppMenu({
   };
 
   return (
-    <div className="fixed inset-0 z-cad-overlay bg-black/40 backdrop-blur-xs flex items-start justify-start pt-10 pl-2 animate-in fade-in duration-100">
+    <div className="fixed inset-0 z-cad-overlay flex items-start justify-start bg-black/40 p-2 pt-10 backdrop-blur-xs animate-in fade-in duration-100">
       <div
         ref={menuRef}
-        className="w-[780px] bg-[#1E1E1E] border-2 border-[#D32F2F] rounded-lg shadow-[0_25px_60px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col text-cad-text-primary select-none animate-in zoom-in-95 duration-100"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('common.applicationMenu', 'Application menu')}
+        className="flex max-h-[calc(100vh-3rem)] w-[min(780px,calc(100vw-1rem))] flex-col overflow-hidden rounded-lg border-2 border-cad-danger bg-cad-surface text-cad-text-primary shadow-2xl select-none animate-in zoom-in-95 duration-100"
       >
         {/* TOP SEARCH HEADER */}
-        <div className="bg-[#141414] border-b border-[#2A2A2A] px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2 flex-1 max-w-md bg-[#252525] border border-[#383838] rounded px-3 py-1.5 focus-within:border-[#D32F2F] transition-all">
-            <Search size={15} className="text-cad-text-muted" />
+        <div className="flex items-center justify-between border-b border-cad-border bg-cad-header px-4 py-2.5">
+          <div className="flex max-w-md flex-1 items-center gap-2 rounded border border-cad-border bg-cad-elevated px-3 py-1.5 transition-all focus-within:border-cad-accent">
+            <Search size={15} className="text-cad-text-muted" aria-hidden="true" />
             <input
               ref={searchInputRef}
               type="text"
+              aria-label={t('common.searchCommandsProjects', 'Search commands or recent projects')}
               placeholder={t('common.search', 'Search commands or recent projects...')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="bg-transparent border-none outline-none text-xs text-white placeholder:text-cad-text-muted w-full"
+              className="w-full border-none bg-transparent text-xs text-cad-text-primary outline-none placeholder:text-cad-text-muted"
             />
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold tracking-wider text-[#D32F2F] uppercase bg-[#D32F2F]/10 px-2 py-1 rounded border border-[#D32F2F]/20">
-              AutoCAD Style App Menu
+            <span className="rounded border border-cad-danger/20 bg-cad-danger/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-cad-danger">
+              {t('common.applicationMenuStyle', 'Application menu')}
             </span>
             <button
+              type="button"
               onClick={onClose}
-              className="p-1 hover:bg-cad-text-primary/5 rounded text-cad-text-muted hover:text-cad-text-primary transition-colors cursor-pointer"
+              aria-label={t('common.closeApplicationMenu', 'Close application menu')}
+              className="cursor-pointer rounded p-1 text-cad-text-muted transition-colors hover:bg-cad-text-primary/5 hover:text-cad-text-primary"
             >
-              <X size={16} />
+              <X size={16} aria-hidden="true" />
             </button>
           </div>
         </div>
 
         {/* MAIN 2-COLUMN CONTENT */}
-        <div className="grid grid-cols-12 min-h-[420px]">
+        <div className="grid min-h-[420px] grid-cols-1 overflow-y-auto md:grid-cols-12">
           {/* LEFT COLUMN: CORE COMMANDS (5 COLS) */}
-          <div className="col-span-5 border-r border-[#2A2A2A] bg-[#181818] p-2 flex flex-col justify-between">
+          <div className="col-span-5 flex flex-col justify-between border-r border-cad-border bg-cad-bg p-2">
             <div className="space-y-1">
               <button
                 onClick={() => handleAction(() => onShowCreate?.())}
-                className="w-full flex items-center justify-between p-2.5 rounded hover:bg-[#2A2A2A] hover:border-l-4 hover:border-l-[#D32F2F] transition-all text-left group cursor-pointer"
+                className="group flex w-full cursor-pointer items-center justify-between rounded p-2.5 text-left transition-all hover:border-l-4 hover:border-l-cad-danger hover:bg-cad-elevated"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-[#D32F2F]/20 rounded border border-[#D32F2F]/40 text-[#D32F2F] group-hover:scale-105 transition-transform">
-                    <FilePlus size={18} />
+                  <div className="rounded border border-cad-danger/40 bg-cad-danger/20 p-2 text-cad-danger transition-transform group-hover:scale-105">
+                    <FilePlus size={18} aria-hidden="true" />
                   </div>
                   <div>
                     <div className="text-xs font-bold flex items-center gap-1.5">
                       {t('project.createNew', 'Tạo dự án mới')}
                       {keytipsActive && <KeytipBadge label="N" />}
                     </div>
-                    <div className="text-[10px] text-cad-text-muted">Khởi tạo bản vẽ mới</div>
+                    <div className="text-[10px] text-cad-text-muted">
+                      {t('project.createNewDescription', 'Khởi tạo bản vẽ mới')}
+                    </div>
                   </div>
                 </div>
-                <span className="text-[9px] font-mono text-cad-text-muted bg-[#252525] px-1.5 py-0.5 rounded">Ctrl+N</span>
+                <span className="rounded bg-cad-elevated px-1.5 py-0.5 font-mono text-[9px] text-cad-text-muted">
+                  Ctrl+N
+                </span>
               </button>
 
               <button
                 onClick={() => handleAction(() => onNavigateTab?.('HOME'))}
-                className="w-full flex items-center justify-between p-2.5 rounded hover:bg-[#2A2A2A] hover:border-l-4 hover:border-l-[#D32F2F] transition-all text-left group cursor-pointer"
+                className="group flex w-full cursor-pointer items-center justify-between rounded p-2.5 text-left transition-all hover:border-l-4 hover:border-l-cad-danger hover:bg-cad-elevated"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-500/20 rounded border border-blue-500/40 text-blue-400 group-hover:scale-105 transition-transform">
-                    <FolderOpen size={18} />
+                  <div className="rounded border border-cad-accent/40 bg-cad-accent/20 p-2 text-cad-accent transition-transform group-hover:scale-105">
+                    <FolderOpen size={18} aria-hidden="true" />
                   </div>
                   <div>
                     <div className="text-xs font-bold flex items-center gap-1.5">
                       {t('project.openProject', 'Mở dự án')}
                       {keytipsActive && <KeytipBadge label="O" />}
                     </div>
-                    <div className="text-[10px] text-cad-text-muted">Xem danh sách workspace</div>
+                    <div className="text-[10px] text-cad-text-muted">
+                      {t('project.openProjectDescription', 'Xem danh sách workspace')}
+                    </div>
                   </div>
                 </div>
-                <span className="text-[9px] font-mono text-cad-text-muted bg-[#252525] px-1.5 py-0.5 rounded">Ctrl+O</span>
+                <span className="rounded bg-cad-elevated px-1.5 py-0.5 font-mono text-[9px] text-cad-text-muted">
+                  Ctrl+O
+                </span>
               </button>
 
-              <div className="my-1.5 h-px bg-[#2A2A2A]" />
+              <div className="my-1.5 h-px bg-cad-border" aria-hidden="true" />
 
               <button
                 onClick={() => handleAction(() => onSave?.())}
                 disabled={!selectedProject}
                 className={cn(
-                  "w-full flex items-center justify-between p-2.5 rounded transition-all text-left group",
-                  selectedProject ? "hover:bg-[#2A2A2A] hover:border-l-4 hover:border-l-[#D32F2F] cursor-pointer" : "opacity-40 cursor-not-allowed"
+                  'group flex w-full items-center justify-between rounded p-2.5 text-left transition-all',
+                  selectedProject
+                    ? 'cursor-pointer hover:border-l-4 hover:border-l-cad-danger hover:bg-cad-elevated'
+                    : 'cursor-not-allowed opacity-40'
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-500/20 rounded border border-emerald-500/40 text-emerald-400 group-hover:scale-105 transition-transform">
-                    <Save size={18} />
+                  <div className="rounded border border-cad-accent/40 bg-cad-accent/20 p-2 text-cad-accent transition-transform group-hover:scale-105">
+                    <Save size={18} aria-hidden="true" />
                   </div>
                   <div>
                     <div className="text-xs font-bold flex items-center gap-1.5">
                       {t('common.save', 'Lưu bản vẽ')}
                       {keytipsActive && <KeytipBadge label="S" />}
                     </div>
-                    <div className="text-[10px] text-cad-text-muted">Cập nhật thay đổi</div>
+                    <div className="text-[10px] text-cad-text-muted">
+                      {t('project.saveDescription', 'Cập nhật thay đổi')}
+                    </div>
                   </div>
                 </div>
-                <span className="text-[9px] font-mono text-cad-text-muted bg-[#252525] px-1.5 py-0.5 rounded">Ctrl+S</span>
+                <span className="rounded bg-cad-elevated px-1.5 py-0.5 font-mono text-[9px] text-cad-text-muted">
+                  Ctrl+S
+                </span>
               </button>
 
               <button
                 onClick={() => handleAction(() => onForceSave?.())}
                 disabled={!selectedProject}
                 className={cn(
-                  "w-full flex items-center justify-between p-2.5 rounded transition-all text-left group",
-                  selectedProject ? "hover:bg-[#2A2A2A] hover:border-l-4 hover:border-l-[#D32F2F] cursor-pointer" : "opacity-40 cursor-not-allowed"
+                  'group flex w-full items-center justify-between rounded p-2.5 text-left transition-all',
+                  selectedProject
+                    ? 'cursor-pointer hover:border-l-4 hover:border-l-cad-danger hover:bg-cad-elevated'
+                    : 'cursor-not-allowed opacity-40'
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-500/20 rounded border border-amber-500/40 text-amber-400 group-hover:scale-105 transition-transform">
-                    <HardDriveUpload size={18} />
+                  <div className="rounded border border-cad-warn/40 bg-cad-warn/20 p-2 text-cad-warn transition-transform group-hover:scale-105">
+                    <HardDriveUpload size={18} aria-hidden="true" />
                   </div>
                   <div>
                     <div className="text-xs font-bold flex items-center gap-1.5">
-                      Force Save & Checkpoint
+                      {t('project.forceSave', 'Force Save & Checkpoint')}
                       {keytipsActive && <KeytipBadge label="F" />}
                     </div>
-                    <div className="text-[10px] text-cad-text-muted">Flush toàn bộ dữ liệu SQLite</div>
+                    <div className="text-[10px] text-cad-text-muted">
+                      {t('project.forceSaveDescription', 'Flush toàn bộ dữ liệu SQLite')}
+                    </div>
                   </div>
                 </div>
-                <span className="text-[9px] font-mono text-cad-text-muted bg-[#252525] px-1.5 py-0.5 rounded">Ctrl+Shift+S</span>
+                <span className="rounded bg-cad-elevated px-1.5 py-0.5 font-mono text-[9px] text-cad-text-muted">
+                  Ctrl+Shift+S
+                </span>
               </button>
 
               <button
                 onClick={() => handleAction(() => onNavigateTab?.('DESIGN'))}
-                className="w-full flex items-center justify-between p-2.5 rounded hover:bg-[#2A2A2A] hover:border-l-4 hover:border-l-[#D32F2F] transition-all text-left group cursor-pointer"
+                className="group flex w-full cursor-pointer items-center justify-between rounded p-2.5 text-left transition-all hover:border-l-4 hover:border-l-cad-danger hover:bg-cad-elevated"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-500/20 rounded border border-purple-500/40 text-purple-400 group-hover:scale-105 transition-transform">
-                    <Printer size={18} />
+                  <div className="rounded border border-cad-accent/40 bg-cad-accent/20 p-2 text-cad-accent transition-transform group-hover:scale-105">
+                    <Printer size={18} aria-hidden="true" />
                   </div>
                   <div>
                     <div className="text-xs font-bold flex items-center gap-1.5">
-                      In ấn & Xuất bản (Print)
+                      {t('project.printExport', 'In ấn & Xuất bản (Print)')}
                       {keytipsActive && <KeytipBadge label="P" />}
                     </div>
-                    <div className="text-[10px] text-cad-text-muted">Xuất PDF / Khung in CAD</div>
+                    <div className="text-[10px] text-cad-text-muted">
+                      {t('project.printExportDescription', 'Xuất PDF / Khung in CAD')}
+                    </div>
                   </div>
                 </div>
-                <span className="text-[9px] font-mono text-cad-text-muted bg-[#252525] px-1.5 py-0.5 rounded">Ctrl+P</span>
+                <span className="rounded bg-cad-elevated px-1.5 py-0.5 font-mono text-[9px] text-cad-text-muted">
+                  Ctrl+P
+                </span>
               </button>
             </div>
 
-            <div className="space-y-1 pt-2 border-t border-[#2A2A2A]">
+            <div className="space-y-1 border-t border-cad-border pt-2">
               <button
                 onClick={() => handleAction(() => onNavigateTab?.('ADMIN'))}
-                className="w-full flex items-center justify-between p-2 rounded hover:bg-[#2A2A2A] transition-all text-left cursor-pointer"
+                className="flex w-full cursor-pointer items-center justify-between rounded p-2 text-left transition-all hover:bg-cad-elevated"
               >
-                <div className="flex items-center gap-2 text-xs font-medium text-cad-text-secondary hover:text-white">
-                  <Shield size={16} className="text-indigo-400" />
-                  <span>Quản trị Hệ thống</span>
+                <div className="flex items-center gap-2 text-xs font-medium text-cad-text-secondary hover:text-cad-text-primary">
+                  <Shield size={16} className="text-cad-accent" aria-hidden="true" />
+                  <span>{t('project.admin', 'Quản trị hệ thống')}</span>
                   {keytipsActive && <KeytipBadge label="A" />}
                 </div>
-                <ChevronRight size={14} className="text-cad-text-muted" />
+                <ChevronRight size={14} className="text-cad-text-muted" aria-hidden="true" />
               </button>
 
               <button
                 onClick={() => handleAction(() => onLogout?.())}
-                className="w-full flex items-center justify-between p-2 rounded hover:bg-red-500/20 hover:text-red-400 transition-all text-left cursor-pointer"
+                className="flex w-full cursor-pointer items-center justify-between rounded p-2 text-left transition-all hover:bg-cad-danger/10 hover:text-cad-danger"
               >
-                <div className="flex items-center gap-2 text-xs font-medium text-red-400">
-                  <LogOut size={16} />
-                  <span>Đăng xuất / Exit</span>
+                <div className="flex items-center gap-2 text-xs font-medium text-cad-danger">
+                  <LogOut size={16} aria-hidden="true" />
+                  <span>{t('common.logout', 'Đăng xuất')}</span>
                   {keytipsActive && <KeytipBadge label="X" />}
                 </div>
               </button>
@@ -239,51 +294,60 @@ export function AppMenu({
           </div>
 
           {/* RIGHT COLUMN: RECENT PROJECTS (7 COLS) */}
-          <div className="col-span-7 bg-[#141414] p-4 flex flex-col justify-between">
+          <div className="col-span-7 flex flex-col justify-between bg-cad-header p-4">
             <div>
-              <div className="flex items-center justify-between pb-3 border-b border-[#2A2A2A]">
+              <div className="flex items-center justify-between border-b border-cad-border pb-3">
                 <div className="flex items-center gap-2">
-                  <Clock size={16} className="text-[#D32F2F]" />
-                  <span className="text-xs font-black uppercase tracking-wider text-white">Dự án gần đây (Recent Documents)</span>
+                  <Clock size={16} className="text-cad-danger" aria-hidden="true" />
+                  <span className="text-xs font-black uppercase tracking-wider text-cad-text-primary">
+                    {t('project.recentDocuments', 'Dự án gần đây')}
+                  </span>
                 </div>
-                <span className="text-[10px] text-cad-text-muted">{filteredProjects.length} dự án</span>
+                <span className="text-[10px] text-cad-text-muted">
+                  {t('project.projectCount', '{{count}} dự án', { count: filteredProjects.length })}
+                </span>
               </div>
 
               <div className="mt-3 space-y-2 max-h-[320px] overflow-y-auto pr-1">
                 {filteredProjects.length === 0 ? (
                   <div className="py-10 text-center text-xs text-cad-text-muted">
-                    Không tìm thấy dự án phù hợp
+                    {t('project.noProjectMatches', 'Không tìm thấy dự án phù hợp')}
                   </div>
                 ) : (
                   filteredProjects.map((project) => (
-                    <div
+                    <button
+                      type="button"
                       key={project.path}
                       onClick={() => handleAction(() => onOpenProject?.(project.path))}
                       className={cn(
-                        "p-2.5 rounded border transition-all cursor-pointer flex items-center justify-between group",
+                        'group flex w-full cursor-pointer items-center justify-between rounded border p-2.5 text-left transition-all',
                         selectedProject?.path === project.path
-                          ? "bg-[#D32F2F]/15 border-[#D32F2F]/50"
-                          : "bg-[#1E1E1E] border-[#2A2A2A] hover:bg-[#252525] hover:border-[#383838]"
+                          ? 'border-cad-danger/50 bg-cad-danger/15'
+                          : 'border-cad-border bg-cad-surface hover:border-cad-text-secondary hover:bg-cad-elevated'
                       )}
                     >
-                      <div className="flex-1 min-w-0 pr-3">
-                        <div className="text-xs font-bold text-white group-hover:text-[#D32F2F] transition-colors truncate">
+                      <div className="min-w-0 flex-1 pr-3">
+                        <div className="truncate text-xs font-bold text-cad-text-primary transition-colors group-hover:text-cad-danger">
                           {project.name}
                         </div>
-                        <div className="text-[10px] text-cad-text-muted truncate mt-0.5 font-mono">
+                        <div className="mt-0.5 truncate font-mono text-[10px] text-cad-text-muted">
                           {project.path}
                         </div>
                       </div>
-                      <ChevronRight size={16} className="text-cad-text-muted group-hover:text-white group-hover:translate-x-0.5 transition-all" />
-                    </div>
+                      <ChevronRight
+                        size={16}
+                        className="text-cad-text-muted transition-all group-hover:translate-x-0.5 group-hover:text-cad-text-primary"
+                        aria-hidden="true"
+                      />
+                    </button>
                   ))
                 )}
               </div>
             </div>
 
-            <div className="pt-3 border-t border-[#2A2A2A] flex items-center justify-between text-[10px] text-cad-text-muted">
-              <span>Bando CAD Project Manager v1.2.0</span>
-              <span>Bấm Esc để đóng</span>
+            <div className="flex items-center justify-between border-t border-cad-border pt-3 text-[10px] text-cad-text-muted">
+              <span>{t('common.applicationVersion', 'Bando CAD Project Manager v1.2.0')}</span>
+              <span>{t('common.pressEscapeToClose', 'Bấm Esc để đóng')}</span>
             </div>
           </div>
         </div>

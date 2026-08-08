@@ -317,42 +317,42 @@ export const BoxSummary: React.FC<BoxSummaryProps> = ({ inline = true }) => {
 
                 <th className="relative px-2 py-2.5 text-[9px] font-black text-cad-text-muted uppercase tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50" style={{ width: columnWidths.content }}>
                   Nội dung
-                  <div onMouseDown={(e) => onMouseDown(e, 'content')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
+                  <div role="separator" aria-orientation="vertical" aria-label="Resize content column" onMouseDown={(e) => onMouseDown(e, 'content')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
                     <div className="absolute right-0 top-0 h-full w-[1px] bg-cad-border/30 group-hover:bg-cad-accent" />
                   </div>
                 </th>
 
                 <th className="relative px-1 py-2.5 text-[9px] font-black text-cad-text-muted uppercase tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50" style={{ width: columnWidths.type }}>
                   Loại
-                  <div onMouseDown={(e) => onMouseDown(e, 'type')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
+                  <div role="separator" aria-orientation="vertical" aria-label="Resize type column" onMouseDown={(e) => onMouseDown(e, 'type')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
                     <div className="absolute right-0 top-0 h-full w-[1px] bg-cad-border/30 group-hover:bg-cad-accent" />
                   </div>
                 </th>
 
                 <th className="relative px-1 py-2.5 text-[9px] font-black text-cad-text-muted uppercase tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50" style={{ width: columnWidths.lng }}>
                   X (Kinh độ)
-                  <div onMouseDown={(e) => onMouseDown(e, 'lng')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
+                  <div role="separator" aria-orientation="vertical" aria-label="Resize longitude column" onMouseDown={(e) => onMouseDown(e, 'lng')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
                     <div className="absolute right-0 top-0 h-full w-[1px] bg-cad-border/30 group-hover:bg-cad-accent" />
                   </div>
                 </th>
 
                 <th className="relative px-1 py-2.5 text-[9px] font-black text-cad-text-muted uppercase tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50" style={{ width: columnWidths.lat }}>
                   Y (Vĩ độ)
-                  <div onMouseDown={(e) => onMouseDown(e, 'lat')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
+                  <div role="separator" aria-orientation="vertical" aria-label="Resize latitude column" onMouseDown={(e) => onMouseDown(e, 'lat')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
                     <div className="absolute right-0 top-0 h-full w-[1px] bg-cad-border/30 group-hover:bg-cad-accent" />
                   </div>
                 </th>
 
                 <th className="relative px-2 py-2.5 text-[9px] font-black text-cad-text-muted uppercase tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50" style={{ width: columnWidths.note }}>
                   Ghi chú
-                  <div onMouseDown={(e) => onMouseDown(e, 'note')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
+                  <div role="separator" aria-orientation="vertical" aria-label="Resize note column" onMouseDown={(e) => onMouseDown(e, 'note')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
                     <div className="absolute right-0 top-0 h-full w-[1px] bg-cad-border/30 group-hover:bg-cad-accent" />
                   </div>
                 </th>
 
                 <th className="relative px-2 py-2.5 text-[9px] font-black text-cad-text-muted uppercase tracking-tighter border-b border-cad-border/50 bg-cad-elevated/50" style={{ width: columnWidths.actions }}>
                   Thao tác
-                  <div onMouseDown={(e) => onMouseDown(e, 'actions')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
+                  <div role="separator" aria-orientation="vertical" aria-label="Resize actions column" onMouseDown={(e) => onMouseDown(e, 'actions')} className="absolute right-0 top-0 h-full w-2 cursor-col-resize hover:bg-cad-accent/40 z-20 group" title="Kéo để chỉnh độ rộng">
                     <div className="absolute right-0 top-0 h-full w-[1px] bg-cad-border/30 group-hover:bg-cad-accent" />
                   </div>
                 </th>

@@ -27,11 +27,12 @@ export const PaletteSidebar: React.FC = () => {
                     const isActive = activePaletteId === id;
 
                     return (
-                        <div
+                        <button
+                            type="button"
                             key={id}
                             className={cn(
                                 "group relative flex w-full cursor-pointer items-center justify-center transition-all",
-                                isActive ? "text-cad-accent" : "text-cad-text-muted hover:text-white"
+                                isActive ? "text-cad-accent" : "text-cad-text-muted hover:text-cad-text-primary"
                             )}
                             onMouseEnter={() => !config.isPinned && expandPalette(id)}
                             onClick={() => togglePalette(id)}
@@ -65,7 +66,7 @@ export const PaletteSidebar: React.FC = () => {
                             {config.isPinned && isActive && (
                                 <div className="absolute bottom-1 right-0 top-1 w-0.5 rounded-l-full bg-cad-accent shadow-[0_0_10px_rgba(16,185,129,0.32)]" />
                             )}
-                        </div>
+                        </button>
                     );
                 })}
             </div>

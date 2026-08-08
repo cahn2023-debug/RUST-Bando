@@ -100,79 +100,86 @@ export const GlobalSearch: React.FC = () => {
     return (
         <div className="fixed inset-0 z-cad-overlay flex items-start justify-center pt-[15vh] px-4 font-sans pointer-events-none">
             {/* Backdrop */}
-            <div
+            <button
+                type="button"
+                aria-label="Close search"
                 className="absolute inset-0 bg-black/60 backdrop-blur-md pointer-events-auto"
                 onClick={() => setIsOpen(false)}
             />
 
             {/* Search Box */}
-            <div className="relative w-full max-w-xl bg-[#0a0a0a] border border-white/10 rounded-xl overflow-hidden shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] pointer-events-auto ring-1 ring-white/5">
-                <div className="flex items-center px-4 h-14 border-b border-white/5">
-                    <Search className="w-4 h-4 text-white/30 mr-3" />
+            <div role="dialog" aria-modal="true" aria-label="Global search" className="relative w-full max-w-xl overflow-hidden rounded-xl border border-cad-border bg-cad-bg shadow-xl ring-1 ring-cad-border/50 pointer-events-auto">
+                <div className="flex h-14 items-center border-b border-cad-border px-4">
+                    <Search className="mr-3 h-4 w-4 text-cad-text-muted" aria-hidden="true" />
                     <input
                         ref={inputRef}
                         type="text"
+                        aria-label="Search tasks, files, and blueprints"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         onKeyDown={handleNavigate}
                         placeholder="Search for tasks, files, blueprints..."
-                        className="flex-1 bg-transparent border-none outline-none text-white text-sm placeholder:text-white/20"
+                        className="flex-1 border-none bg-transparent text-sm text-cad-text-primary outline-none placeholder:text-cad-text-muted"
                     />
                     <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-cad-text-primary/5 border border-cad-text-primary/10 text-[10px] text-cad-text-primary/40 font-bold uppercase tracking-tighter">
                         <Command className="w-2.5 h-2.5" />
                         <span>K</span>
                     </div>
                     <button
+                        type="button"
+                        aria-label="Close search"
                         onClick={() => setIsOpen(false)}
                         className="ml-3 p-1 rounded-md hover:bg-cad-text-primary/5 text-cad-text-primary/20 hover:text-cad-text-primary/60 transition-colors"
                     >
-                        <X className="w-4 h-4" />
+                        <X className="h-4 w-4" aria-hidden="true" />
                     </button>
                 </div>
 
                 <div className="max-h-[60vh] overflow-y-auto p-2">
                     {isLoading && results.length === 0 ? (
                         <div className="px-4 py-8 flex flex-col items-center justify-center gap-3">
-                            <div className="w-5 h-5 border-2 border-white/10 border-t-white/60 rounded-full animate-spin" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/20">Omni-Searching...</span>
+                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-cad-border border-t-cad-text-secondary" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-cad-text-muted">Omni-Searching...</span>
                         </div>
                     ) : results.length > 0 ? (
                         <div className="space-y-1">
                             {results.map((item, idx) => (
-                                <div
+                                <button
+                                    type="button"
+                                    aria-current={idx === selectedIndex ? 'true' : undefined}
                                     key={`${item.entity_type}-${item.entity_id}`}
                                     onClick={() => handleSelect(item)}
                                     // onMouseEnter={() => setSelectedIndex(idx)}
                                     className={clsx(
-                                        "px-3 py-2.5 rounded-lg border flex items-center gap-3 cursor-pointer transition-all duration-150",
+                                        "flex w-full cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all duration-150",
                                         idx === selectedIndex
-                                            ? "bg-cad-text-primary/5 border-cad-text-primary/20 shadow-sm"
+                                            ? "border-cad-border bg-cad-text-primary/5 shadow-sm"
                                             : "bg-transparent border-transparent hover:bg-cad-text-primary/5"
                                     )}
                                 >
                                     <div className={clsx(
-                                        "p-2 rounded-lg bg-black/40 border border-white/5 group-hover:border-white/10 transition-colors",
-                                        idx === selectedIndex && "border-white/20"
+                                        "rounded-lg border border-cad-border/50 bg-cad-bg p-2 transition-colors",
+                                        idx === selectedIndex && "border-cad-border"
                                     )}>
                                         {getIcon(item.entity_type)}
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-bold text-white/80 line-clamp-1">{item.name}</div>
-                                        <div className="text-[9px] font-black uppercase tracking-widest text-white/30 truncate mt-0.5">
+                                        <div className="line-clamp-1 text-xs font-bold text-cad-text-primary">{item.name}</div>
+                                        <div className="mt-0.5 truncate text-[9px] font-black uppercase tracking-widest text-cad-text-muted">
                                             {item.entity_type} • {item.project_id.slice(0, 8)}
                                         </div>
                                     </div>
                                     {idx === selectedIndex && (
-                                        <div className="text-[10px] text-white/20 animate-pulse">
+                                        <div className="animate-pulse text-[10px] text-cad-text-muted">
                                             ↵ Enter
                                         </div>
                                     )}
-                                </div>
+                                </button>
                             ))}
                         </div>
                     ) : query.length > 0 ? (
                         <div className="px-4 py-8 text-center">
-                            <div className="text-white/20 text-[10px] font-black uppercase tracking-[0.2em]">No entities found</div>
+                            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-cad-text-muted">No entities found</div>
                         </div>
                     ) : (
                         <div className="px-4 py-6 text-center select-none">
@@ -202,7 +209,7 @@ export const GlobalSearch: React.FC = () => {
                             <span className="text-[9px] text-white/30 font-bold uppercase">Open</span>
                         </div>
                     </div>
-                    <div className="text-[9px] text-white/20 font-black tracking-widest uppercase">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-cad-text-muted">
                         Omni-Search v4.0.2
                     </div>
                 </div>

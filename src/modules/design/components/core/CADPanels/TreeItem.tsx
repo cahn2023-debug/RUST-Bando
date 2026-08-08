@@ -94,16 +94,17 @@ export const TreeItem = React.memo(({
       aria-selected={selected}
       aria-level={level + 1}
       tabIndex={0}
+      onClick={onClick}
       onKeyDown={handleKeyDown}
     >
       <div
+        role="presentation"
         className={cn(
           "flex items-center justify-between hover:bg-cad-accent/5 px-2 py-1 relative rounded-sm cursor-pointer group transition-all select-none",
           expanded && "bg-cad-accent/[0.02] border-b border-cad-border",
           isDropTarget && "ring-1 ring-cad-accent bg-cad-accent/10",
           className
         )}
-        onClick={onClick}
         onDoubleClick={onDoubleClick}
         onContextMenu={onContextMenu}
         onMouseDown={onMouseDown}

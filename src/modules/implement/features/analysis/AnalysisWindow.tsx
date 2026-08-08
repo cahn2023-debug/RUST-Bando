@@ -155,6 +155,7 @@ const AnalysisWindow: React.FC = () => {
     return (
         <div ref={windowRootRef} className="fixed inset-0 min-h-0 min-w-0 bg-cad-bg overflow-hidden flex flex-col">
             <div
+                role="presentation"
                 data-tauri-drag-region
                 onMouseDown={(event) => {
                     if (event.currentTarget === event.target || (event.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {
@@ -162,10 +163,10 @@ const AnalysisWindow: React.FC = () => {
                     }
                 }}
                 onDoubleClick={() => getCurrentWebviewWindow()?.toggleMaximize()}
-                className="h-10 shrink-0 border-b border-[#1A1A1A] bg-[#2B2B2B] flex items-center justify-between pl-2 pr-0 select-none"
+                className="flex h-10 shrink-0 select-none items-center justify-between border-b border-cad-border bg-cad-header pl-2 pr-0"
             >
                 <div data-tauri-drag-region className="flex items-center gap-2 min-w-0 pointer-events-none">
-                    <div className="w-7 h-7 flex items-center justify-center bg-[#A70000] rounded-sm ml-1">
+                                    <div className="ml-1 flex h-7 w-7 items-center justify-center rounded-sm bg-cad-danger">
                         <span className="text-white font-black text-sm italic">P</span>
                     </div>
                     <span data-tauri-drag-region className="text-xs font-bold text-white tracking-wide truncate ml-1">
@@ -193,7 +194,7 @@ const AnalysisWindow: React.FC = () => {
                     >
                         {isMaximized ? (
                             <div className="relative w-3 h-3 border border-white top-[1px] left-[1px]">
-                                <div className="absolute -top-1 -right-1 w-3 h-3 border border-white bg-[#2B2B2B]" />
+                                <div className="absolute -right-1 -top-1 h-3 w-3 border border-cad-text-primary bg-cad-header" />
                             </div>
                         ) : (
                             <Square className="w-3 h-3" />
@@ -201,7 +202,7 @@ const AnalysisWindow: React.FC = () => {
                     </button>
                     <button
                         onClick={() => getCurrentWebviewWindow()?.close()}
-                        className="w-11 h-full flex items-center justify-center text-white hover:bg-[#E81123] transition-colors"
+                        className="flex h-full w-11 items-center justify-center text-cad-text-primary transition-colors hover:bg-cad-danger"
                         aria-label="Close analysis window"
                     >
                         <X className="w-4.5 h-4.5" />

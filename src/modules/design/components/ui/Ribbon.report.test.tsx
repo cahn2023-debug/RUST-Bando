@@ -1,29 +1,29 @@
-import type React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { Ribbon } from "./Ribbon";
+import type React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { Ribbon } from './Ribbon';
 
 const mocks = vi.hoisted(() => ({
   setAnyDialogOpen: vi.fn(),
 }));
 
-vi.mock("react-i18next", () => ({
+vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-vi.mock("@IMPLEMENT/stores/useDesignSync", () => {
+vi.mock('@IMPLEMENT/stores/useDesignSync', () => {
   const store = {
     undo: vi.fn(),
     redo: vi.fn(),
     isCoordinatePanelOpen: false,
     toggleCoordinatePanel: vi.fn(),
-    drawingMode: "none",
+    drawingMode: 'none',
     setDrawingMode: vi.fn(),
-    selectedGroupId: "group-1",
+    selectedGroupId: 'group-1',
     setAnyDialogOpen: mocks.setAnyDialogOpen,
     state: {
-      regions: { r1: { id: "r1", parent_id: null, name: "Region", description: null } },
-      layers: { l1: { id: "l1", region_id: "r1", name: "Layer", is_visible: true } },
+      regions: { r1: { id: 'r1', parent_id: null, name: 'Region', description: null } },
+      layers: { l1: { id: 'l1', region_id: 'r1', name: 'Layer', is_visible: true } },
       feature_groups: {},
       features: {},
       settings: {},
@@ -42,7 +42,7 @@ vi.mock("@IMPLEMENT/stores/useDesignSync", () => {
     queueEvents: vi.fn(),
   };
   const useDesignSync = (selector?: (state: typeof store) => unknown) => {
-    if (typeof selector === "function") {
+    if (typeof selector === 'function') {
       return selector(store);
     }
     return store;
@@ -51,60 +51,89 @@ vi.mock("@IMPLEMENT/stores/useDesignSync", () => {
   return { useDesignSync };
 });
 
-vi.mock("@CORE/stores/useSettingsStore", () => ({
+vi.mock('@CORE/stores/useSettingsStore', () => ({
   useSettingsStore: () => ({ enableAi: false, setEnableAi: vi.fn() }),
 }));
 
-vi.mock("@CORE/stores/useLayoutStore", () => ({
+vi.mock('@CORE/stores/useLayoutStore', () => ({
   useLayoutStore: () => ({ togglePalette: vi.fn(), activePaletteId: null }),
 }));
 
-vi.mock("@CORE/stores/useAuthStore", () => ({
+vi.mock('@CORE/stores/useAuthStore', () => ({
   useAuthStore: () => ({ user: null }),
 }));
 
-vi.mock("@IMPLEMENT/hooks/useRibbonActions", () => ({
+vi.mock('@IMPLEMENT/hooks/useRibbonActions', () => ({
   useRibbonActions: () => ({ openStandaloneWindow: vi.fn(), onReleaseAiMemory: vi.fn() }),
 }));
 
-vi.mock("@IMPLEMENT/hooks/useClickOutside", () => ({
+vi.mock('@IMPLEMENT/hooks/useClickOutside', () => ({
   useClickOutside: vi.fn(),
 }));
 
-vi.mock("@IMPLEMENT/services/exportService", () => ({
+vi.mock('@IMPLEMENT/services/exportService', () => ({
   exportProjectData: vi.fn(),
 }));
 
-vi.mock("@IMPLEMENT/lib/tauri", () => ({
+vi.mock('@IMPLEMENT/lib/tauri', () => ({
   safeInvoke: vi.fn(),
 }));
 
-vi.mock("@IMPLEMENT/features/files/ImportDialog", () => ({
+vi.mock('@IMPLEMENT/features/files/ImportDialog', () => ({
   ImportDialog: () => <div>Import dialog</div>,
 }));
 
-vi.mock("@DESIGN/features/reports/word/ReportExportDialog", () => ({
+vi.mock('@DESIGN/features/reports/word/ReportExportDialog', () => ({
   ReportExportDialog: () => <div role="dialog">Report export dialog</div>,
 }));
 
-vi.mock("@DESIGN/features/map/MapLayerComponents/VisibilityTool", () => ({
+vi.mock('@DESIGN/features/map/MapLayerComponents/VisibilityTool', () => ({
   VisibilityTool: () => <button>Visibility</button>,
 }));
 
-vi.mock("@DESIGN/features/map/Palette/SystemConfigPanel", () => ({
+vi.mock('@DESIGN/features/map/Palette/SystemConfigPanel', () => ({
   SystemConfigPanel: () => <div>System config</div>,
 }));
 
-vi.mock("@DESIGN/features/map/Palette/PaletteContext", () => ({
+vi.mock('@DESIGN/features/map/Palette/PaletteContext', () => ({
   PaletteProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
-describe("Ribbon report action", () => {
-  it("opens the report dialog from the Design data group", () => {
-    render(<Ribbon activeTab="DESIGN" onTabChange={vi.fn()} project={{ id: 1, name: "Demo" } as never} />);
+describe('Ribbon report action', () => {
+  it('exposes a keyboard-operable tab set with one shared panel', () => {
+    const onTabChange = vi.fn();
+    render(
+      <Ribbon
+        activeTab="HOME"
+        onTabChange={onTabChange}
+        project={{ id: 1, name: 'Demo' } as never}
+      />
+    );
 
-    fireEvent.click(screen.getByRole("button", { name: /BÁO CÁO/i }));
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.length).toBeGreaterThan(1);
+    expect(tabs.every((tab) => tab.getAttribute('aria-controls') === 'ribbon-panel')).toBe(true);
+    expect(tabs.find((tab) => tab.getAttribute('aria-selected') === 'true')).toHaveAttribute(
+      'tabindex',
+      '0'
+    );
+    expect(
+      tabs
+        .filter((tab) => tab.getAttribute('aria-selected') !== 'true')
+        .every((tab) => tab.getAttribute('tabindex') === '-1')
+    ).toBe(true);
 
-    expect(screen.getByRole("dialog")).toHaveTextContent("Report export dialog");
+    fireEvent.keyDown(tabs[0], { key: 'ArrowRight' });
+    expect(onTabChange).toHaveBeenCalledWith('DESIGN');
+  });
+
+  it('opens the report dialog from the Design data group', () => {
+    render(
+      <Ribbon activeTab="DESIGN" onTabChange={vi.fn()} project={{ id: 1, name: 'Demo' } as never} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /BÁO CÁO/i }));
+
+    expect(screen.getByRole('dialog')).toHaveTextContent('Report export dialog');
   });
 });

@@ -124,20 +124,20 @@ export const AnalysisSyncPreviewModal: React.FC<AnalysisSyncPreviewModalProps> =
                           <span className="block text-[9px] font-bold text-cad-text-muted uppercase mb-1">Baseline</span>
                           <span className="font-mono text-cad-text-secondary">{String(c.baselineValue || '(Trống)')}</span>
                         </div>
-                        <div className={cn("p-2 rounded border transition-all cursor-pointer", currentRes === 'DESIGN' ? "bg-cad-accent/15 border-cad-accent" : "bg-cad-bg/50 border-cad-border/30 hover:border-cad-accent/50")} onClick={() => handleResolve(c.id, 'DESIGN')}>
+                        <button type="button" className={cn("w-full p-2 rounded border text-left transition-all cursor-pointer", currentRes === 'DESIGN' ? "bg-cad-accent/15 border-cad-accent" : "bg-cad-bg/50 border-cad-border/30 hover:border-cad-accent/50")} onClick={() => handleResolve(c.id, 'DESIGN')}>
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-[9px] font-bold text-cad-text-muted uppercase">DESIGN</span>
                             {currentRes === 'DESIGN' && <Check size={12} className="text-cad-accent" />}
                           </div>
                           <span className="font-mono font-bold text-cad-text-primary">{String(c.designValue || '(Trống)')}</span>
-                        </div>
-                        <div className={cn("p-2 rounded border transition-all cursor-pointer", currentRes === 'EXCEL' ? "bg-emerald-500/15 border-emerald-500" : "bg-cad-bg/50 border-cad-border/30 hover:border-emerald-500/50")} onClick={() => handleResolve(c.id, 'EXCEL')}>
+                        </button>
+                        <button type="button" className={cn("w-full p-2 rounded border text-left transition-all cursor-pointer", currentRes === 'EXCEL' ? "bg-emerald-500/15 border-emerald-500" : "bg-cad-bg/50 border-cad-border/30 hover:border-emerald-500/50")} onClick={() => handleResolve(c.id, 'EXCEL')}>
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-[9px] font-bold text-emerald-400 uppercase">Excel</span>
                             {currentRes === 'EXCEL' && <Check size={12} className="text-emerald-400" />}
                           </div>
                           <span className="font-mono font-bold text-emerald-300">{String(c.excelValue || '(Trống)')}</span>
-                        </div>
+                        </button>
                       </div>
                     </div>
                   );

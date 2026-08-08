@@ -86,11 +86,10 @@ export function CreateProjectModal({ onClose, onSuccess }: Props) {
 
   return (
     <div className="fixed inset-0 z-cad-overlay flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="cad-overlay" onClick={onClose} />
+      <button type="button" className="cad-overlay border-0 p-0" onClick={onClose} aria-label="Đóng hộp thoại" tabIndex={-1} />
 
       <div
         className="cad-dialog relative w-full max-w-md animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="h-1 bg-gradient-to-r from-transparent via-cad-accent to-transparent" />
         <div className="flex items-center justify-between border-b border-cad-border px-5 py-4">

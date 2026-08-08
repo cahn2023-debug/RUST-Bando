@@ -33,10 +33,17 @@ export function KanbanView({ tasks, onUpdateStatus, onClick }: KanbanViewProps) 
               {columnTasks.map(t => (
                 <div
                   key={t.id}
+                  role="button"
+                  tabIndex={0}
                   draggable
                   onDragStart={(e) => e.dataTransfer.setData("taskId", t.id)}
                   className="bg-cad-bg border border-cad-border p-3 hover:border-cad-accent transition-all cursor-grab active:cursor-grabbing group"
                   onClick={() => t.target_file_path && onClick(t.target_file_path)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    if (t.target_file_path) onClick(t.target_file_path);
+                  }}
                 >
                   <div className="text-[11px] font-bold text-white mb-2 uppercase tracking-tight">{t.name}</div>
                   {t.target_file_path && (

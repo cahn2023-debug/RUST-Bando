@@ -1583,6 +1583,18 @@ fn build_project_value(
     updated_at: Option<String>,
     metadata_json: Option<Value>,
 ) -> Value {
+    let metadata_obj = metadata_json.as_ref().and_then(Value::as_object);
+    let core_metadata = metadata_obj
+        .and_then(|metadata| metadata.get("core"))
+        .and_then(Value::as_object);
+    let metadata_string = |key: &str| {
+        core_metadata
+            .and_then(|core| core.get(key))
+            .or_else(|| metadata_obj.and_then(|metadata| metadata.get(key)))
+            .and_then(Value::as_str)
+            .map(str::to_string)
+    };
+
     json!({
         "id": uuid_from_text_fallback(&id),
         "name": name,
@@ -1593,12 +1605,12 @@ fn build_project_value(
         "created_at": created_at.unwrap_or_default(),
         "updated_at": updated_at.unwrap_or_default(),
         "metadata_json": metadata_json,
-        "contract_number": Value::Null,
-        "investor": Value::Null,
-        "contractor": Value::Null,
-        "signed_date": Value::Null,
-        "duration": Value::Null,
-        "end_date": Value::Null
+        "contract_number": metadata_string("contract_number"),
+        "investor": metadata_string("investor"),
+        "contractor": metadata_string("contractor"),
+        "signed_date": metadata_string("signed_date"),
+        "duration": metadata_string("duration"),
+        "end_date": metadata_string("end_date")
     })
 }
 
@@ -2192,10 +2204,27 @@ pub async fn predict_task(
 pub async fn analyze_contract_metadata(
     text: Option<String>,
     content: Option<String>,
+    path: Option<String>,
     metadata: Option<Value>,
 ) -> Result<serde_json::Value, String> {
     let source = text
         .or(content)
+        .or_else(|| {
+            path.as_ref().and_then(|path| {
+                let lower = path.to_lowercase();
+                if lower.ends_with(".pdf") {
+                    pdf_extract::extract_text(path).ok()
+                } else if lower.ends_with(".txt")
+                    || lower.ends_with(".md")
+                    || lower.ends_with(".csv")
+                {
+                    std::fs::read_to_string(path).ok()
+                } else {
+                    None
+                }
+            })
+        })
+        .or(path)
         .or_else(|| metadata.map(|value| value.to_string()))
         .ok_or_else(|| "Missing contract metadata input".to_string())?;
     Ok(ai::analyze_contract_metadata(source))
@@ -4181,12 +4210,24 @@ pub async fn force_save_project(state: State<'_, ActorState>) -> Result<(), Stri
 pub async fn save_project_bom_table(
     state: State<'_, ActorState>,
     projectId: String,
-    bomData: Value,
+    bomData: Option<Value>,
+    bomTable: Option<Value>,
+    metadata: Option<Value>,
 ) -> Result<(), String> {
     log::info!("[V2] save_project_bom_table for project: {}", projectId);
+    let bom_table = bomData
+        .or(bomTable)
+        .or_else(|| {
+            metadata
+                .as_ref()
+                .and_then(|value| value.get("bom_table").cloned())
+        })
+        .unwrap_or_else(|| json!([]));
+    let core = metadata.unwrap_or_else(|| json!({}));
     let patch = json!({
+        "core": core,
         "custom": {
-            "bom_table": bomData
+            "bom_table": bom_table
         }
     });
 

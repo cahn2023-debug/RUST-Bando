@@ -76,12 +76,19 @@ export const EditableCell = memo(({
     return (
         <div
             data-editable-cell
+            role="button"
+            tabIndex={0}
             className={cn(
                 'cursor-text hover:bg-cad-accent/10 rounded px-1 -mx-1 min-h-[1.5rem] flex items-center transition-colors',
                 className
             )}
             onClick={() => setIsEditing(true)}
             onDoubleClick={() => setIsEditing(true)}
+            onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                setIsEditing(true);
+            }}
             title="Click để sửa"
         >
             <span className="truncate">{value || <span className="text-cad-text-muted italic opacity-30">N/A</span>}</span>

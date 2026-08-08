@@ -77,8 +77,15 @@ export const RecentWorkspaces: React.FC<RecentWorkspacesProps> = ({
                         {projects.map((p) => (
                             <div
                                 key={`${p.id}-${p.path}`}
+                                role="button"
+                                tabIndex={0}
                                 className="group cad-card flex cursor-pointer items-start gap-4 p-5 transition-all hover:border-cad-accent/50 hover:bg-cad-elevated"
                                 onClick={() => onSelectProject(p)}
+                                onKeyDown={(event) => {
+                                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                                    event.preventDefault();
+                                    onSelectProject(p);
+                                }}
                             >
                                 <div className="flex h-11 w-11 items-center justify-center rounded-md border border-cad-border bg-cad-bg text-cad-accent transition-transform group-hover:scale-105">
                                     <HardDrive size={24} />

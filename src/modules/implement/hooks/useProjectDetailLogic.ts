@@ -302,7 +302,7 @@ export function useProjectDetailLogic(project: Project, onProjectUpdate?: () => 
 
         await safeInvoke('save_project_bom_table', {
           projectId,
-          bomTable: correctedData.bom_table || [],
+          bomData: correctedData.bom_table || [],
           metadata: {
             contract_number: correctedData.contract_number ?? project.contract_number,
             investor: correctedData.investor ?? project.investor,

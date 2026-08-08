@@ -207,24 +207,30 @@ export const PalettePanel = React.memo(({ id, children, fillDock = false }: Pale
                 {isFloating ? (
                     <>
                         {/* Edges */}
-                        <div className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-cad-accent/50 z-10" onMouseDown={handleResize('n')} />
-                        <div className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-cad-accent/50 z-10" onMouseDown={handleResize('s')} />
-                        <div className="absolute top-0 bottom-0 left-0 w-1 cursor-ew-resize hover:bg-cad-accent/50 z-10" onMouseDown={handleResize('w')} />
-                        <div className="absolute top-0 bottom-0 right-0 w-1 cursor-ew-resize hover:bg-cad-accent/50 z-10" onMouseDown={handleResize('e')} />
+                        <div role="separator" aria-orientation="horizontal" aria-label="Resize palette top edge" className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-cad-accent/50 z-10" onMouseDown={handleResize('n')} />
+                        <div role="separator" aria-orientation="horizontal" aria-label="Resize palette bottom edge" className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize hover:bg-cad-accent/50 z-10" onMouseDown={handleResize('s')} />
+                        <div role="separator" aria-orientation="vertical" aria-label="Resize palette left edge" className="absolute top-0 bottom-0 left-0 w-1 cursor-ew-resize hover:bg-cad-accent/50 z-10" onMouseDown={handleResize('w')} />
+                        <div role="separator" aria-orientation="vertical" aria-label="Resize palette right edge" className="absolute top-0 bottom-0 right-0 w-1 cursor-ew-resize hover:bg-cad-accent/50 z-10" onMouseDown={handleResize('e')} />
 
                         {/* Corners */}
-                        <div className="absolute top-0 left-0 w-2 h-2 cursor-nwse-resize z-20" onMouseDown={handleResize('nw')} />
-                        <div className="absolute top-0 right-0 w-2 h-2 cursor-nesw-resize z-20" onMouseDown={handleResize('ne')} />
-                        <div className="absolute bottom-0 left-0 w-2 h-2 cursor-nesw-resize z-20" onMouseDown={handleResize('sw')} />
-                        <div className="absolute bottom-0 right-0 w-2 h-2 cursor-nwse-resize z-20" onMouseDown={handleResize('se')} />
+                        <div role="separator" aria-label="Resize palette top-left corner" className="absolute top-0 left-0 w-2 h-2 cursor-nwse-resize z-20" onMouseDown={handleResize('nw')} />
+                        <div role="separator" aria-label="Resize palette top-right corner" className="absolute top-0 right-0 w-2 h-2 cursor-nesw-resize z-20" onMouseDown={handleResize('ne')} />
+                        <div role="separator" aria-label="Resize palette bottom-left corner" className="absolute bottom-0 left-0 w-2 h-2 cursor-nesw-resize z-20" onMouseDown={handleResize('sw')} />
+                        <div role="separator" aria-label="Resize palette bottom-right corner" className="absolute bottom-0 right-0 w-2 h-2 cursor-nwse-resize z-20" onMouseDown={handleResize('se')} />
                     </>
                 ) : isBottomDocked ? (
                     <div
+                        role="separator"
+                        aria-orientation="horizontal"
+                        aria-label="Resize palette height"
                         className="absolute left-0 right-0 top-0 h-1 cursor-ns-resize hover:bg-cad-accent transition-colors z-10"
                         onMouseDown={handleResize('n')}
                     />
                 ) : (
                     <div
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label="Resize palette width"
                         className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-cad-accent transition-colors z-10"
                         onMouseDown={handleResize('w')}
                     />

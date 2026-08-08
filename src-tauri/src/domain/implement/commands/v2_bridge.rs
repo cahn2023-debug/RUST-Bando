@@ -2,6 +2,7 @@ use crate::domain::implement::commands::v2::ActorState;
 use crate::domain::implement::modules::v2::pipeline::eventbus::StorageCommand;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::path::Path;
 use tauri::State;
 use url::Url;
 
@@ -39,6 +40,65 @@ async fn exec_query(state: &ActorState, sql: &str, params: Vec<String>) -> Resul
         .await
         .map_err(|e| e.to_string())?;
     rx.await.map_err(|e| e.to_string())?
+}
+
+async fn exec_unit(state: &ActorState, sql: &str, params: Vec<String>) -> Result<(), String> {
+    exec_query(state, sql, params).await.map(|_| ())
+}
+
+fn first_row(rows: Value) -> Value {
+    rows.as_array()
+        .and_then(|items| items.first())
+        .cloned()
+        .unwrap_or_else(|| json!({}))
+}
+
+fn opt_string(value: Option<String>) -> String {
+    value.unwrap_or_default()
+}
+
+fn value_string(value: &Value, key: &str) -> String {
+    value
+        .get(key)
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .to_string()
+}
+
+fn value_array(value: &Value, key: &str) -> Value {
+    value.get(key).cloned().unwrap_or_else(|| json!([]))
+}
+
+fn open_path_with_system(path: &str) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", path])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    #[allow(unreachable_code)]
+    Err("Opening files is not supported on this platform".to_string())
 }
 
 fn empty_design_state() -> Value {
@@ -385,12 +445,10 @@ pub async fn query_projection_v2(
         "bom_metadata" => {
             // Lỗi #6: Query custom.bom_table từ metadata_json dùng json_extract
             let sql = "
-                SELECT json_extract(metadata_json, '$.custom.bom_table') as bom
-                FROM files 
-                WHERE project_id = ?1 
-                AND metadata_json IS NOT NULL
-                AND json_valid(metadata_json)
-                AND metadata_json LIKE '%\"custom\"%'
+                SELECT metadata_json
+                FROM projects
+                WHERE id = ?1
+                LIMIT 1
             ";
 
             let (tx, rx) = tokio::sync::oneshot::channel();
@@ -402,7 +460,13 @@ pub async fn query_projection_v2(
 
             let rows = rx.await.map_err(|e| e.to_string())??;
             // Trả về structure đúng spec frontend mong đợi
-            Ok(json!({ "bom_table": rows.as_array().cloned().unwrap_or_default() }))
+            let metadata = extract_project_metadata(&rows);
+            let core = metadata.get("core").cloned().unwrap_or_else(|| json!({}));
+            let custom = metadata.get("custom").cloned().unwrap_or_else(|| json!({}));
+            Ok(json!({
+                "metadata": core,
+                "bom_table": custom.get("bom_table").cloned().unwrap_or_else(|| json!([]))
+            }))
         }
         "task_dependencies" | "content_types" | "tasks" | "notes" | "contracts" => {
             Ok(json!({ "items": [], "status": "empty" }))
@@ -1527,7 +1591,19 @@ pub async fn get_tasks(
     let project_id = project_id
         .or(projectId)
         .ok_or_else(|| "Missing project_id".to_string())?;
-    let sql = "SELECT * FROM files WHERE project_id = ?1 AND (extension = 'task' OR metadata_json LIKE '%\"type\":\"task\"%')";
+    let sql = "
+        SELECT id, project_id,
+        json_extract(metadata_json, '$.parent_id') AS parent_id,
+        COALESCE(json_extract(metadata_json, '$.name'), filename) AS name,
+        json_extract(metadata_json, '$.start_date') AS start_date,
+        json_extract(metadata_json, '$.end_date') AS end_date,
+        COALESCE(json_extract(metadata_json, '$.is_completed'), 0) AS is_completed,
+        COALESCE(json_extract(metadata_json, '$.status'), 'todo') AS status,
+        json_extract(metadata_json, '$.color') AS color,
+        json_extract(metadata_json, '$.target_file_path') AS target_file_path
+        FROM files
+        WHERE project_id = ?1 AND (extension = 'task' OR json_extract(metadata_json, '$.type') = 'task')
+    ";
     let (tx, rx) = tokio::sync::oneshot::channel();
     state
         .gateway_tx
@@ -1555,7 +1631,15 @@ pub async fn get_notes(
     let project_id = project_id
         .or(projectId)
         .ok_or_else(|| "Missing project_id".to_string())?;
-    let sql = "SELECT * FROM files WHERE project_id = ?1 AND (extension = 'note' OR metadata_json LIKE '%\"type\":\"note\"%')";
+    let sql = "
+        SELECT id, project_id,
+        COALESCE(json_extract(metadata_json, '$.title'), filename) AS title,
+        json_extract(metadata_json, '$.content') AS content,
+        json_extract(metadata_json, '$.target_file_path') AS target_file_path,
+        created_at
+        FROM files
+        WHERE project_id = ?1 AND (extension = 'note' OR json_extract(metadata_json, '$.type') = 'note')
+    ";
     let (tx, rx) = tokio::sync::oneshot::channel();
     state
         .gateway_tx
@@ -1583,7 +1667,20 @@ pub async fn get_contracts(
     let project_id = project_id
         .or(projectId)
         .ok_or_else(|| "Missing project_id".to_string())?;
-    let sql = "SELECT * FROM files WHERE project_id = ?1 AND (extension = 'contract' OR metadata_json LIKE '%\"type\":\"contract\"%')";
+    let sql = "
+        SELECT id, project_id,
+        COALESCE(json_extract(metadata_json, '$.name'), filename) AS name,
+        json_extract(metadata_json, '$.contract_number') AS contract_number,
+        json_extract(metadata_json, '$.vendor') AS vendor,
+        json_extract(metadata_json, '$.value') AS value,
+        json_extract(metadata_json, '$.signed_date') AS signed_date,
+        json_extract(metadata_json, '$.notes') AS notes,
+        json_extract(metadata_json, '$.file_path') AS file_path,
+        COALESCE(json_extract(metadata_json, '$.has_analysis'), 0) AS has_analysis,
+        created_at
+        FROM files
+        WHERE project_id = ?1 AND (extension = 'contract' OR json_extract(metadata_json, '$.type') = 'contract')
+    ";
     let (tx, rx) = tokio::sync::oneshot::channel();
     state
         .gateway_tx
@@ -1611,7 +1708,17 @@ pub async fn get_materials(
     let project_id = project_id
         .or(projectId)
         .ok_or_else(|| "Missing project_id".to_string())?;
-    let sql = "SELECT * FROM files WHERE project_id = ?1 AND (extension = 'material' OR metadata_json LIKE '%\"type\":\"material\"%')";
+    let sql = "
+        SELECT id, project_id,
+        COALESCE(json_extract(metadata_json, '$.name'), filename) AS name,
+        COALESCE(json_extract(metadata_json, '$.unit'), 'm') AS unit,
+        COALESCE(json_extract(metadata_json, '$.unit_cost'), 0) AS unit_cost,
+        json_extract(metadata_json, '$.category') AS category,
+        json_extract(metadata_json, '$.specs') AS specs,
+        created_at
+        FROM files
+        WHERE project_id = ?1 AND (extension = 'material' OR json_extract(metadata_json, '$.type') = 'material')
+    ";
     let (tx, rx) = tokio::sync::oneshot::channel();
     state
         .gateway_tx
@@ -1627,6 +1734,672 @@ pub async fn get_materials(
 
     let rows = rx.await.map_err(|e| e.to_string())??;
     Ok(rows.as_array().cloned().unwrap_or_default())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+#[allow(clippy::too_many_arguments)]
+pub async fn create_task(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    parent_id: Option<String>,
+    parentId: Option<String>,
+    name: String,
+    start_date: Option<String>,
+    startDate: Option<String>,
+    end_date: Option<String>,
+    endDate: Option<String>,
+    color: Option<String>,
+    status: Option<String>,
+) -> Result<Value, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let metadata = json!({
+        "type": "task",
+        "parent_id": parent_id.or(parentId),
+        "name": name,
+        "start_date": start_date.or(startDate),
+        "end_date": end_date.or(endDate),
+        "is_completed": false,
+        "status": status.unwrap_or_else(|| "todo".to_string()),
+        "color": color
+    });
+    let rel_path = format!("tasks/{}.task", id);
+    exec_query(
+        &state,
+        "INSERT INTO files (id, project_id, rel_path, filename, extension, file_size, metadata_json)
+         VALUES (?1, ?2, ?3, ?4, 'task', 0, ?5)
+         RETURNING id, project_id, json_extract(metadata_json, '$.parent_id') AS parent_id,
+         COALESCE(json_extract(metadata_json, '$.name'), filename) AS name,
+         json_extract(metadata_json, '$.start_date') AS start_date,
+         json_extract(metadata_json, '$.end_date') AS end_date,
+         COALESCE(json_extract(metadata_json, '$.is_completed'), 0) AS is_completed,
+         COALESCE(json_extract(metadata_json, '$.status'), 'todo') AS status,
+         json_extract(metadata_json, '$.color') AS color,
+         json_extract(metadata_json, '$.target_file_path') AS target_file_path",
+        vec![id, project_id, rel_path, value_string(&metadata, "name"), metadata.to_string()],
+    )
+    .await
+    .map(first_row)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn delete_task(
+    state: State<'_, ActorState>,
+    task_id: Option<String>,
+    taskId: Option<String>,
+) -> Result<(), String> {
+    let task_id = task_id
+        .or(taskId)
+        .ok_or_else(|| "Missing task_id".to_string())?;
+    exec_unit(
+        &state,
+        "DELETE FROM files WHERE id = ?1 AND extension = 'task'",
+        vec![task_id],
+    )
+    .await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn update_task_status(
+    state: State<'_, ActorState>,
+    task_id: Option<String>,
+    taskId: Option<String>,
+    status: String,
+) -> Result<(), String> {
+    let task_id = task_id
+        .or(taskId)
+        .ok_or_else(|| "Missing task_id".to_string())?;
+    exec_unit(
+        &state,
+        "UPDATE files SET metadata_json = json_set(metadata_json, '$.status', ?2), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1 AND extension = 'task'",
+        vec![task_id, status],
+    )
+    .await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn update_task_dates(
+    state: State<'_, ActorState>,
+    task_id: Option<String>,
+    taskId: Option<String>,
+    start_date: Option<String>,
+    startDate: Option<String>,
+    end_date: Option<String>,
+    endDate: Option<String>,
+) -> Result<(), String> {
+    let task_id = task_id
+        .or(taskId)
+        .ok_or_else(|| "Missing task_id".to_string())?;
+    exec_unit(
+        &state,
+        "UPDATE files SET metadata_json = json_set(metadata_json, '$.start_date', ?2, '$.end_date', ?3), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1 AND extension = 'task'",
+        vec![task_id, opt_string(start_date.or(startDate)), opt_string(end_date.or(endDate))],
+    )
+    .await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn create_note(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    title: String,
+    content: Option<String>,
+) -> Result<Value, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let metadata = json!({ "type": "note", "title": title, "content": content });
+    let rel_path = format!("notes/{}.note", id);
+    exec_query(
+        &state,
+        "INSERT INTO files (id, project_id, rel_path, filename, extension, file_size, metadata_json)
+         VALUES (?1, ?2, ?3, ?4, 'note', 0, ?5)
+         RETURNING id, project_id, COALESCE(json_extract(metadata_json, '$.title'), filename) AS title,
+         json_extract(metadata_json, '$.content') AS content,
+         json_extract(metadata_json, '$.target_file_path') AS target_file_path,
+         created_at",
+        vec![id, project_id, rel_path, value_string(&metadata, "title"), metadata.to_string()],
+    )
+    .await
+    .map(first_row)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn delete_note(
+    state: State<'_, ActorState>,
+    note_id: Option<String>,
+    noteId: Option<String>,
+) -> Result<(), String> {
+    let note_id = note_id
+        .or(noteId)
+        .ok_or_else(|| "Missing note_id".to_string())?;
+    exec_unit(
+        &state,
+        "DELETE FROM files WHERE id = ?1 AND extension = 'note'",
+        vec![note_id],
+    )
+    .await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+#[allow(clippy::too_many_arguments)]
+pub async fn create_contract(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    name: String,
+    contract_number: Option<String>,
+    contractNumber: Option<String>,
+    vendor: Option<String>,
+    value: Option<f64>,
+    signed_date: Option<String>,
+    signedDate: Option<String>,
+    notes: Option<String>,
+    file_path: Option<String>,
+    filePath: Option<String>,
+) -> Result<Value, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let metadata = json!({
+        "type": "contract",
+        "name": name,
+        "contract_number": contract_number.or(contractNumber),
+        "vendor": vendor,
+        "value": value,
+        "signed_date": signed_date.or(signedDate),
+        "notes": notes,
+        "file_path": file_path.or(filePath),
+        "has_analysis": false
+    });
+    let rel_path = format!("contracts/{}.contract", id);
+    exec_query(
+        &state,
+        "INSERT INTO files (id, project_id, rel_path, filename, extension, file_size, metadata_json)
+         VALUES (?1, ?2, ?3, ?4, 'contract', 0, ?5)
+         RETURNING id, project_id, COALESCE(json_extract(metadata_json, '$.name'), filename) AS name,
+         json_extract(metadata_json, '$.contract_number') AS contract_number,
+         json_extract(metadata_json, '$.vendor') AS vendor,
+         json_extract(metadata_json, '$.value') AS value,
+         json_extract(metadata_json, '$.signed_date') AS signed_date,
+         json_extract(metadata_json, '$.notes') AS notes,
+         json_extract(metadata_json, '$.file_path') AS file_path,
+         COALESCE(json_extract(metadata_json, '$.has_analysis'), 0) AS has_analysis,
+         created_at",
+        vec![id, project_id, rel_path, value_string(&metadata, "name"), metadata.to_string()],
+    )
+    .await
+    .map(first_row)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn delete_contract(
+    state: State<'_, ActorState>,
+    contract_id: Option<String>,
+    contractId: Option<String>,
+) -> Result<(), String> {
+    let contract_id = contract_id
+        .or(contractId)
+        .ok_or_else(|| "Missing contract_id".to_string())?;
+    exec_unit(
+        &state,
+        "DELETE FROM files WHERE id = ?1 AND extension = 'contract'",
+        vec![contract_id],
+    )
+    .await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+#[allow(clippy::too_many_arguments)]
+pub async fn create_material(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    name: String,
+    code: Option<String>,
+    unit: Option<String>,
+    base_price: Option<f64>,
+    basePrice: Option<f64>,
+    category: Option<String>,
+) -> Result<Value, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let id = uuid::Uuid::new_v4().to_string();
+    let metadata = json!({
+        "type": "material",
+        "name": name,
+        "unit": unit.unwrap_or_else(|| "m".to_string()),
+        "unit_cost": base_price.or(basePrice).unwrap_or(0.0),
+        "category": category,
+        "specs": code
+    });
+    let rel_path = format!("materials/{}.material", id);
+    exec_query(
+        &state,
+        "INSERT INTO files (id, project_id, rel_path, filename, extension, file_size, metadata_json)
+         VALUES (?1, ?2, ?3, ?4, 'material', 0, ?5)
+         RETURNING id, project_id, COALESCE(json_extract(metadata_json, '$.name'), filename) AS name,
+         COALESCE(json_extract(metadata_json, '$.unit'), 'm') AS unit,
+         COALESCE(json_extract(metadata_json, '$.unit_cost'), 0) AS unit_cost,
+         json_extract(metadata_json, '$.category') AS category,
+         json_extract(metadata_json, '$.specs') AS specs,
+         created_at",
+        vec![id, project_id, rel_path, value_string(&metadata, "name"), metadata.to_string()],
+    )
+    .await
+    .map(first_row)
+}
+
+#[tauri::command]
+pub async fn delete_material(state: State<'_, ActorState>, id: String) -> Result<(), String> {
+    exec_unit(
+        &state,
+        "DELETE FROM files WHERE id = ?1 AND extension = 'material'",
+        vec![id],
+    )
+    .await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+#[allow(clippy::too_many_arguments)]
+pub async fn update_project_details(
+    state: State<'_, ActorState>,
+    id: String,
+    contract_number: Option<String>,
+    investor: Option<String>,
+    contractor: Option<String>,
+    signed_date: Option<String>,
+    duration: Option<String>,
+    end_date: Option<String>,
+) -> Result<(), String> {
+    let patch = json!({
+        "core": {
+            "contract_number": contract_number,
+            "investor": investor,
+            "contractor": contractor,
+            "signed_date": signed_date,
+            "duration": duration,
+            "end_date": end_date
+        }
+    });
+    exec_unit(
+        &state,
+        "UPDATE projects SET metadata_json = json_patch(metadata_json, json(?2)), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1",
+        vec![id, patch.to_string()],
+    )
+    .await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn save_contract_analysis(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    path: Option<String>,
+    data: Value,
+) -> Result<Value, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let patch = json!({
+        "core": data,
+        "custom": { "bom_table": data.get("bom_table").cloned().unwrap_or_else(|| json!([])) }
+    });
+    exec_unit(
+        &state,
+        "UPDATE projects SET metadata_json = json_patch(metadata_json, json(?2)), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?1",
+        vec![project_id.clone(), patch.to_string()],
+    )
+    .await?;
+    if let Some(path) = path {
+        exec_unit(
+            &state,
+            "UPDATE files SET metadata_json = json_patch(metadata_json, json(?3)), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE project_id = ?1 AND json_extract(metadata_json, '$.file_path') = ?2",
+            vec![project_id, path, json!({ "has_analysis": true, "analysis": data }).to_string()],
+        )
+        .await?;
+    }
+    Ok(data)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn update_and_sync_contract_metadata(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    path: Option<String>,
+) -> Result<Value, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let metadata = extract_project_metadata(
+        &exec_query(
+            &state,
+            "SELECT metadata_json FROM projects WHERE id = ?1 LIMIT 1",
+            vec![project_id.clone()],
+        )
+        .await?,
+    );
+    let mut core = metadata.get("core").cloned().unwrap_or_else(|| json!({}));
+    if let Some(obj) = core.as_object_mut() {
+        obj.entry("bom_table".to_string()).or_insert_with(|| {
+            metadata
+                .get("custom")
+                .and_then(|custom| custom.get("bom_table"))
+                .cloned()
+                .unwrap_or_else(|| json!([]))
+        });
+        if let Some(path) = path {
+            obj.insert("source_path".to_string(), json!(path));
+        }
+    }
+    Ok(core)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn update_entity_metadata_v2(
+    state: State<'_, ActorState>,
+    request: Value,
+) -> Result<(), String> {
+    let project_id = value_string(&request, "project_id");
+    let entity_id = value_string(&request, "entity_id");
+    let entity_type = value_string(&request, "entity_type");
+    if project_id.is_empty() || entity_id.is_empty() || entity_type != "feature" {
+        return Err("Only feature metadata updates are supported".to_string());
+    }
+    let metadata = request
+        .get("metadata")
+        .cloned()
+        .unwrap_or_else(|| json!({}));
+    exec_unit(
+        &state,
+        "UPDATE features SET properties_json = ?3, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE project_id = ?1 AND id = ?2",
+        vec![project_id, entity_id, metadata.to_string()],
+    )
+    .await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn deduplicate_features(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+) -> Result<Value, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let rows = exec_query(
+        &state,
+        "SELECT COUNT(*) AS feature_count FROM features WHERE project_id = ?1",
+        vec![project_id],
+    )
+    .await?;
+    Ok(
+        json!({ "status": "ok", "feature_count": rows.as_array().and_then(|rows| rows.first()).and_then(|row| row.get("feature_count")).cloned().unwrap_or(json!(0)) }),
+    )
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn deduplicate_project_data(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+) -> Result<Value, String> {
+    deduplicate_features(state, project_id, projectId).await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn get_content_fields(
+    type_id: Option<String>,
+    typeId: Option<String>,
+) -> Result<Vec<Value>, String> {
+    let _ = type_id.or(typeId);
+    Ok(vec![])
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn get_content_items(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    type_id: Option<String>,
+    typeId: Option<String>,
+) -> Result<Vec<Value>, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let type_id = type_id
+        .or(typeId)
+        .ok_or_else(|| "Missing type_id".to_string())?;
+    let rows = exec_query(
+        &state,
+        "SELECT id, json_extract(metadata_json, '$.content_type_id') AS content_type_id, project_id,
+         COALESCE(json_extract(metadata_json, '$.name'), filename) AS name,
+         COALESCE(json_extract(metadata_json, '$.data_json'), '{}') AS data_json,
+         created_at, updated_at
+         FROM files
+         WHERE project_id = ?1 AND extension = 'content_item' AND json_extract(metadata_json, '$.content_type_id') = ?2",
+        vec![project_id, type_id],
+    )
+    .await?;
+    Ok(rows.as_array().cloned().unwrap_or_default())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+#[allow(clippy::too_many_arguments)]
+pub async fn save_content_item(
+    state: State<'_, ActorState>,
+    content_type_id: Option<String>,
+    contentTypeId: Option<String>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+    name: String,
+    data_json: Option<String>,
+    dataJson: Option<String>,
+    id: Option<String>,
+) -> Result<Value, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let content_type_id = content_type_id
+        .or(contentTypeId)
+        .ok_or_else(|| "Missing content_type_id".to_string())?;
+    let id = id
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let metadata = json!({
+        "type": "content_item",
+        "content_type_id": content_type_id,
+        "name": name,
+        "data_json": data_json.or(dataJson).unwrap_or_else(|| "{}".to_string())
+    });
+    let rel_path = format!(
+        "content/{}/{}.json",
+        value_string(&metadata, "content_type_id"),
+        id
+    );
+    exec_query(
+        &state,
+        "INSERT INTO files (id, project_id, rel_path, filename, extension, file_size, metadata_json)
+         VALUES (?1, ?2, ?3, ?4, 'content_item', 0, ?5)
+         ON CONFLICT(id) DO UPDATE SET filename = excluded.filename, metadata_json = excluded.metadata_json, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         RETURNING id, json_extract(metadata_json, '$.content_type_id') AS content_type_id, project_id,
+         COALESCE(json_extract(metadata_json, '$.name'), filename) AS name,
+         COALESCE(json_extract(metadata_json, '$.data_json'), '{}') AS data_json,
+         created_at, updated_at",
+        vec![id, project_id, rel_path, value_string(&metadata, "name"), metadata.to_string()],
+    )
+    .await
+    .map(first_row)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn delete_content_item(
+    state: State<'_, ActorState>,
+    item_id: Option<String>,
+    itemId: Option<String>,
+) -> Result<(), String> {
+    let item_id = item_id
+        .or(itemId)
+        .ok_or_else(|| "Missing item_id".to_string())?;
+    exec_unit(
+        &state,
+        "DELETE FROM files WHERE id = ?1 AND extension = 'content_item'",
+        vec![item_id],
+    )
+    .await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn get_execution_groups(
+    state: State<'_, ActorState>,
+    project_id: Option<String>,
+    projectId: Option<String>,
+) -> Result<Vec<Value>, String> {
+    let project_id = project_id
+        .or(projectId)
+        .ok_or_else(|| "Missing project_id".to_string())?;
+    let rows = exec_query(
+        &state,
+        "SELECT id, project_id, COALESCE(json_extract(metadata_json, '$.name'), filename) AS name,
+         COALESCE(json_extract(metadata_json, '$.description'), '') AS description,
+         COALESCE(json_extract(metadata_json, '$.status'), 'todo') AS status,
+         COALESCE(json_extract(metadata_json, '$.due_date'), '') AS due_date,
+         COALESCE(json_extract(metadata_json, '$.assignee'), '') AS assignee,
+         COALESCE(json_extract(metadata_json, '$.color'), 'emerald') AS color,
+         COALESCE(json_extract(metadata_json, '$.bom_item_uids'), '[]') AS bom_item_uids
+         FROM files WHERE project_id = ?1 AND extension = 'execution_group'",
+        vec![project_id],
+    )
+    .await?;
+    Ok(rows.as_array().cloned().unwrap_or_default())
+}
+
+#[tauri::command]
+pub async fn upsert_execution_group(
+    state: State<'_, ActorState>,
+    group: Value,
+) -> Result<Value, String> {
+    let project_id = value_string(&group, "project_id");
+    if project_id.is_empty() {
+        return Err("Missing project_id".to_string());
+    }
+    let id = group
+        .get("id")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let name = value_string(&group, "name");
+    let metadata = json!({
+        "type": "execution_group",
+        "name": name,
+        "description": value_string(&group, "description"),
+        "status": value_string(&group, "status"),
+        "due_date": value_string(&group, "due_date"),
+        "assignee": value_string(&group, "assignee"),
+        "color": value_string(&group, "color"),
+        "bom_item_uids": value_array(&group, "bom_item_uids")
+    });
+    let rel_path = format!("execution-groups/{}.group", id);
+    exec_query(
+        &state,
+        "INSERT INTO files (id, project_id, rel_path, filename, extension, file_size, metadata_json)
+         VALUES (?1, ?2, ?3, ?4, 'execution_group', 0, ?5)
+         ON CONFLICT(id) DO UPDATE SET filename = excluded.filename, metadata_json = excluded.metadata_json, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         RETURNING id, project_id, COALESCE(json_extract(metadata_json, '$.name'), filename) AS name,
+         COALESCE(json_extract(metadata_json, '$.description'), '') AS description,
+         COALESCE(json_extract(metadata_json, '$.status'), 'todo') AS status,
+         COALESCE(json_extract(metadata_json, '$.due_date'), '') AS due_date,
+         COALESCE(json_extract(metadata_json, '$.assignee'), '') AS assignee,
+         COALESCE(json_extract(metadata_json, '$.color'), 'emerald') AS color,
+         COALESCE(json_extract(metadata_json, '$.bom_item_uids'), '[]') AS bom_item_uids",
+        vec![id, project_id, rel_path, value_string(&metadata, "name"), metadata.to_string()],
+    )
+    .await
+    .map(first_row)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn get_audit_logs(
+    state: State<'_, ActorState>,
+    limit: Option<i64>,
+) -> Result<Vec<Value>, String> {
+    let limit = limit.unwrap_or(50).clamp(1, 500).to_string();
+    let rows = exec_query(
+        &state,
+        "SELECT id, event_type AS action_type, entity_type AS table_name, entity_id AS record_id,
+         created_at AS timestamp, device_id AS user_email, payload_json AS new_values_json
+         FROM events ORDER BY global_seq DESC LIMIT ?1",
+        vec![limit],
+    )
+    .await?;
+    Ok(rows.as_array().cloned().unwrap_or_default())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn list_ai_messages(
+    state: State<'_, ActorState>,
+    conversation_id: Option<String>,
+    conversationId: Option<String>,
+) -> Result<Vec<Value>, String> {
+    let conversation_id = conversation_id
+        .or(conversationId)
+        .ok_or_else(|| "Missing conversation_id".to_string())?;
+    let rows = exec_query(
+        &state,
+        "SELECT id, conversation_id, project_id, role, content, provider, model,
+         token_usage_json, citations_json, created_at
+         FROM ai_messages
+         WHERE conversation_id = ?1
+         ORDER BY created_at ASC",
+        vec![conversation_id],
+    )
+    .await?;
+    Ok(rows.as_array().cloned().unwrap_or_default())
+}
+
+#[tauri::command]
+pub fn open_file_external(path: String) -> Result<(), String> {
+    open_path_with_system(&path)
+}
+
+#[tauri::command]
+pub fn open_containing_folder(path: String) -> Result<(), String> {
+    let folder = Path::new(&path)
+        .parent()
+        .and_then(Path::to_str)
+        .unwrap_or(&path);
+    open_path_with_system(folder)
 }
 
 /// Stub cho các lệnh V1 đã deprecated

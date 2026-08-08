@@ -1,12 +1,12 @@
-import { Save, RotateCcw, RotateCw, Search, Sun, Moon, User } from "lucide-react";
-import { useAuthStore } from "@CORE/stores/useAuthStore";
-import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
-import { useThemeStore } from "@CORE/stores/themeStore";
-import { useTranslation } from "react-i18next";
-import { cn } from "@SHARED/utils/cn";
-import { StorageHealthIndicator } from "./StorageHealthIndicator";
-import { LanguageSwitcher } from "./LanguageSwitcher";
-import { KeytipBadge } from "./KeytipBadge";
+import { Save, RotateCcw, RotateCw, Search, Sun, Moon, User } from 'lucide-react';
+import { useAuthStore } from '@CORE/stores/useAuthStore';
+import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
+import { useThemeStore } from '@CORE/stores/themeStore';
+import { useTranslation } from 'react-i18next';
+import { cn } from '@SHARED/utils/cn';
+import { StorageHealthIndicator } from './StorageHealthIndicator';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { KeytipBadge } from './KeytipBadge';
 
 interface TopToolbarProps {
   onSave: () => void;
@@ -16,21 +16,27 @@ interface TopToolbarProps {
   keytipsActive?: boolean;
 }
 
-export function TopToolbar({ onSave, onUndo, onRedo, onOpenAppMenu, keytipsActive = false }: TopToolbarProps) {
+export function TopToolbar({
+  onSave,
+  onUndo,
+  onRedo,
+  onOpenAppMenu,
+  keytipsActive = false,
+}: TopToolbarProps) {
   const { user } = useAuthStore();
   const syncStatus = useDesignSync((s) => s.syncStatus);
   const { resolvedTheme, toggleTheme } = useThemeStore();
   const { t } = useTranslation();
 
   return (
-    <div className="cad-toolbar select-none flex items-center justify-between px-2 bg-cad-header border-b border-cad-border h-9">
+    <div className="cad-toolbar select-none px-2">
       <div className="flex items-center gap-1.5">
         {/* AUTOCAD RED 'P' APP MENU BUTTON */}
         <button
           onClick={onOpenAppMenu}
           className="relative group flex items-center justify-center w-7 h-7 bg-cad-danger hover:bg-cad-danger/80 transition-all rounded shadow-md cursor-pointer border border-cad-danger/50"
-          title="Application Menu (Alt+F)"
-          aria-label="Application menu"
+          title={t('common.applicationMenu', 'Application menu')}
+          aria-label={t('common.applicationMenu', 'Application menu')}
         >
           <span className="text-white font-black text-sm italic group-hover:scale-110 transition-transform">
             P
@@ -49,10 +55,13 @@ export function TopToolbar({ onSave, onUndo, onRedo, onOpenAppMenu, keytipsActiv
           <button
             onClick={onSave}
             className="cad-icon-button relative p-1.5 rounded hover:bg-cad-text-primary/10 transition-colors"
-            title="Save (Ctrl+S)"
-            aria-label="Save project"
+            title={t('common.saveShortcut', 'Save (Ctrl+S)')}
+            aria-label={t('project.saveProject', 'Save project')}
           >
-            <Save size={15} className={syncStatus !== 0 ? "text-cad-warn" : "text-cad-text-muted"} />
+            <Save
+              size={15}
+              className={syncStatus !== 0 ? 'text-cad-warn' : 'text-cad-text-muted'}
+            />
             {syncStatus !== 0 && (
               <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-cad-warn" />
             )}
@@ -70,8 +79,8 @@ export function TopToolbar({ onSave, onUndo, onRedo, onOpenAppMenu, keytipsActiv
           <button
             onClick={onUndo}
             className="cad-icon-button relative p-1.5 rounded hover:bg-cad-text-primary/10 transition-colors"
-            title="Undo (Ctrl+Z)"
-            aria-label="Undo"
+            title={t('common.undoShortcut', 'Undo (Ctrl+Z)')}
+            aria-label={t('common.undo', 'Undo')}
           >
             <RotateCcw size={15} />
             {keytipsActive && (
@@ -83,8 +92,8 @@ export function TopToolbar({ onSave, onUndo, onRedo, onOpenAppMenu, keytipsActiv
           <button
             onClick={onRedo}
             className="cad-icon-button relative p-1.5 rounded hover:bg-cad-text-primary/10 transition-colors"
-            title="Redo (Ctrl+Y)"
-            aria-label="Redo"
+            title={t('common.redoShortcut', 'Redo (Ctrl+Y)')}
+            aria-label={t('common.redo', 'Redo')}
           >
             <RotateCw size={15} />
             {keytipsActive && (
@@ -98,9 +107,13 @@ export function TopToolbar({ onSave, onUndo, onRedo, onOpenAppMenu, keytipsActiv
 
       <div className="flex items-center gap-3">
         <div className="relative">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-cad-text-muted" />
+          <Search
+            size={13}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-cad-text-muted"
+          />
           <input
             type="text"
+            aria-label={t('common.searchCommandsProjects', 'Search projects or commands')}
             placeholder={t('common.search', 'Search projects or commands...')}
             className="cad-search w-52 focus:w-64 text-[11px] pl-7 py-1"
           />
@@ -114,13 +127,17 @@ export function TopToolbar({ onSave, onUndo, onRedo, onOpenAppMenu, keytipsActiv
           <button
             onClick={toggleTheme}
             className={cn(
-              "flex items-center justify-center w-6 h-6 rounded border transition-all cursor-pointer shadow-[0_0_8px_rgba(16,185,129,0.25)]",
+              'flex h-6 w-6 cursor-pointer items-center justify-center rounded border transition-all shadow-md',
               resolvedTheme === 'dark'
-                ? "border-cad-accent/90 bg-cad-accent/10 text-cad-warn hover:bg-cad-accent/20 hover:border-cad-accent"
-                : "border-cad-accent/90 bg-cad-accent/10 text-cad-text-secondary hover:bg-cad-accent/20 hover:border-cad-accent"
+                ? 'border-cad-accent/90 bg-cad-accent/10 text-cad-warn hover:bg-cad-accent/20 hover:border-cad-accent'
+                : 'border-cad-accent/90 bg-cad-accent/10 text-cad-text-secondary hover:bg-cad-accent/20 hover:border-cad-accent'
             )}
-            title={resolvedTheme === 'dark' ? t('settings.light', 'Switch to Light Mode') : t('settings.dark', 'Switch to Dark Mode')}
-            aria-label="Toggle Theme"
+            title={
+              resolvedTheme === 'dark'
+                ? t('settings.light', 'Switch to Light Mode')
+                : t('settings.dark', 'Switch to Dark Mode')
+            }
+            aria-label={t('settings.toggleTheme', 'Toggle theme')}
           >
             {resolvedTheme === 'dark' ? (
               <Sun size={14} className="text-cad-warn stroke-[2.2]" aria-hidden="true" />
@@ -135,14 +152,16 @@ export function TopToolbar({ onSave, onUndo, onRedo, onOpenAppMenu, keytipsActiv
         <div className="flex items-center gap-2">
           <div className="flex flex-col items-end">
             <span className="text-[10px] font-bold leading-none capitalize text-cad-text-primary">
-              {user?.email?.split('@')[0] || "Anonymous"}
+              {user?.email?.split('@')[0] || t('common.anonymous', 'Anonymous')}
             </span>
             <span className="text-[8px] font-medium uppercase tracking-[0.14em] text-cad-accent">
-              {'role' in (user ?? {}) ? ((user as { role?: string }).role || "Staff Engineer") : "Staff Engineer"}
+              {'role' in (user ?? {})
+                ? (user as { role?: string }).role || t('common.staffEngineer', 'Staff Engineer')
+                : t('common.staffEngineer', 'Staff Engineer')}
             </span>
           </div>
           <div className="flex h-6 w-6 items-center justify-center rounded-full border border-cad-border bg-gradient-to-br from-cad-accent to-cad-active shadow-lg shadow-cad-accent/10">
-            <User size={13} className="text-white" />
+            <User size={13} className="text-white" aria-hidden="true" />
           </div>
         </div>
       </div>

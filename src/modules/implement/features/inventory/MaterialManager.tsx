@@ -30,7 +30,7 @@ export function MaterialManager({ projectId }: Props) {
   const loadMaterials = async () => {
     try {
       setLoading(true);
-      const data = await invoke<Material[]>("get_materials");
+      const data = await invoke<Material[]>("get_materials", { projectId });
       setMaterials(data);
     } catch (err) {
       console.error("Error loading materials:", err);
@@ -53,6 +53,7 @@ export function MaterialManager({ projectId }: Props) {
     if (!newMaterial.name) return;
     try {
       await invoke("create_material", {
+        projectId,
         name: newMaterial.name,
         code: newMaterial.specs || null,
         unit: newMaterial.unit || "m",

@@ -15,11 +15,18 @@ export function TaskRow({ task, index, onToggle, onSelect, onDelete }: TaskRowPr
   const isFolder = task.status === 'folder';
   return (
     <div
+      role="button"
+      tabIndex={0}
       className={cn(
         "flex h-9 border-b border-cad-border text-[11px] items-center cursor-pointer group transition-colors relative",
         isFolder ? "bg-cad-bg/40" : "hover:bg-cad-elevated"
       )}
       onClick={() => task.target_file_path && onSelect(task.target_file_path)}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        if (task.target_file_path) onSelect(task.target_file_path);
+      }}
     >
       <div className="w-8 shrink-0 text-center font-mono text-[9px] text-cad-text-muted border-r border-cad-border h-full flex items-center justify-center">{index + 1}</div>
       <div className="flex-1 flex items-center gap-3 px-3 truncate">

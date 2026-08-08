@@ -131,6 +131,7 @@ export const DesignRibbonTools = ({
                 {showSystemConfig && (
                     <Portal>
                         <div
+                            role="presentation"
                             className="fixed z-cad-dropdown shadow-2xl flex flex-col min-w-[450px] overflow-hidden rounded-xl"
                             onMouseDown={(e) => e.stopPropagation()}
                             style={{

@@ -179,7 +179,15 @@ export const AdminPanel: React.FC = () => {
                                 </div>
                                 <div
                                     className="flex-1 cursor-pointer overflow-hidden"
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={() => {
+                                        const details = document.getElementById(`log-details-${log.id}`);
+                                        if (details) details.classList.toggle('hidden');
+                                    }}
+                                    onKeyDown={(event) => {
+                                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                                        event.preventDefault();
                                         const details = document.getElementById(`log-details-${log.id}`);
                                         if (details) details.classList.toggle('hidden');
                                     }}

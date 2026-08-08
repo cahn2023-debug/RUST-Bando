@@ -34,9 +34,9 @@ export function CalendarView({ days, tasks, month, onMonthChange, onClick }: Cal
                      <div className={cn("text-[9px] font-mono text-right p-1", today ? "text-cad-accent font-bold" : "text-cad-text-muted")}>{format(day, "d")}</div>
                      <div className="flex-1 overflow-y-auto flex flex-col gap-1 no-scrollbar">
                         {dayTasks.map(t => (
-                           <div key={t.id} onClick={() => t.target_file_path && onClick(t.target_file_path)} className={cn("text-[8px] px-1.5 py-0.5 rounded-sm truncate font-bold cursor-pointer uppercase tracking-tighter border", t.is_completed ? "bg-cad-elevated text-cad-text-muted line-through" : "bg-cad-accent/10 text-cad-accent border-cad-accent/20 hover:bg-cad-accent/20")}>
+                           <button type="button" key={t.id} onClick={() => t.target_file_path && onClick(t.target_file_path)} className={cn("w-full text-left text-[8px] px-1.5 py-0.5 rounded-sm truncate font-bold cursor-pointer uppercase tracking-tighter border", t.is_completed ? "bg-cad-elevated text-cad-text-muted line-through" : "bg-cad-accent/10 text-cad-accent border-cad-accent/20 hover:bg-cad-accent/20")}>
                               {t.name}
-                           </div>
+                           </button>
                         ))}
                      </div>
                   </div>

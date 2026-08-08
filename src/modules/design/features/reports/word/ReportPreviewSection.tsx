@@ -236,6 +236,12 @@ export function ReportPreviewSection({
       {activeSection ? (
         <section key={activeSection.id} id={activeSection.anchor} className="mb-10 break-inside-avoid">
           <h2 className="text-xl font-bold mb-3">{activeSection.title} <span className="text-slate-500">({activeSection.displayType})</span></h2>
+          {activeSection.photoWarnings.length > 0 && (
+            <div role="alert" className="mb-3 rounded border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+              <p className="font-bold">Cảnh báo ảnh hiện trường</p>
+              {activeSection.photoWarnings.map((warning) => <p key={warning}>{warning}</p>)}
+            </div>
+          )}
           {activeMapImageSrc ? (
             <img src={activeMapImageSrc} alt={activeSection.title} loading="lazy" className="w-full max-h-[360px] object-contain border mb-3" />
           ) : (
@@ -270,6 +276,11 @@ export function ReportPreviewSection({
               <h3 className="font-bold text-base text-slate-900">{detail.label}: {detail.feature.name}</h3>
               <p><strong>Loại:</strong> {detail.displayType}</p>
               <p><strong>Mô tả:</strong> {detail.description || "-"}</p>
+              {detail.photoWarnings.length > 0 && (
+                <div role="alert" className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                  {detail.photoWarnings.map((warning) => <p key={warning}>{warning}</p>)}
+                </div>
+              )}
               {detail.startPoint && <p><strong>Điểm đầu:</strong> {detail.startPoint[1].toFixed(6)}, {detail.startPoint[0].toFixed(6)}</p>}
               {detail.endPoint && <p><strong>Điểm cuối:</strong> {detail.endPoint[1].toFixed(6)}, {detail.endPoint[0].toFixed(6)}</p>}
               {detail.connectedNames.length > 0 && <p><strong>Kết nối/tuyến đi qua:</strong> {detail.connectedNames.join(", ")}</p>}

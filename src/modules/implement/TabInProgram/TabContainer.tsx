@@ -24,12 +24,22 @@ export const TabContainer: React.FC<TabContainerProps> = ({ onTabSwitch, onTabCl
     if (tabs.length === 0) return null;
 
     return (
-        <div className="tab-container cad-scrollbar pointer-events-auto">
+        <div className="tab-container cad-scrollbar pointer-events-auto" role="tablist" aria-label="Open project tabs">
             {tabs.map((tab) => (
                 <div
                     key={tab.id}
+                    role="tab"
+                    aria-selected={activeTabId === tab.id}
+                    tabIndex={activeTabId === tab.id ? 0 : -1}
                     className={`tab-item ${activeTabId === tab.id ? 'active' : ''}`}
                     onClick={() => handleTabClick(tab.id)}
+                    onKeyDown={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            handleTabClick(tab.id);
+                        }
+                    }}
                     title={tab.path}
                 >
                     <span className="tab-name">{tab.name}</span>

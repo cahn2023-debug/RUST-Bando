@@ -80,9 +80,11 @@ export const FeatureItem = React.memo(({
     <div className="flex flex-col" data-drag-id={dragId} data-drag-type={dragType}>
       <div
         id={`sidebar-feature-${feature.id}`}
+        role="button"
+        tabIndex={0}
         onClick={(e) => {
           e.stopPropagation();
-          onSelect(e);
+          onSelect(e as unknown as React.MouseEvent);
           if (hasChildren) {
             onToggleExpand();
           }
@@ -90,6 +92,13 @@ export const FeatureItem = React.memo(({
         onDoubleClick={(e) => {
           e.stopPropagation();
           onZoomTo();
+        }}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter" && e.key !== " ") return;
+          e.preventDefault();
+          e.stopPropagation();
+          onSelect(e as unknown as React.MouseEvent);
+          if (hasChildren) onToggleExpand();
         }}
         className={cn(
           "group/feat relative flex cursor-pointer select-none items-center justify-between rounded-sm px-1 py-1 transition-all",

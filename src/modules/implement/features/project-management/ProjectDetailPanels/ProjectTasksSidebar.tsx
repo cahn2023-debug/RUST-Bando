@@ -85,9 +85,16 @@ export function ProjectTasksSidebar({
                         {groupTasks.map((t: TaskItem) => (
                            <div
                               key={t.id}
+                              role="button"
+                              tabIndex={0}
                               draggable
                               onDragStart={(e) => e.dataTransfer.setData("taskId", t.id)}
                               onClick={() => t.target_file_path && onSelect(t.target_file_path)}
+                              onKeyDown={(event) => {
+                                 if (event.key !== 'Enter' && event.key !== ' ') return;
+                                 event.preventDefault();
+                                 if (t.target_file_path) onSelect(t.target_file_path);
+                              }}
                               className="bg-cad-surface px-2 py-1.5 border border-cad-border hover:border-cad-accent cursor-pointer flex items-center justify-between"
                            >
                               <div className="flex items-center gap-2 overflow-hidden">

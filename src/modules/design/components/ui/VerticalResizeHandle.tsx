@@ -51,6 +51,9 @@ export const VerticalResizeHandle: React.FC<VerticalResizeHandleProps> = ({ onRe
 
   return (
     <div
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label="Resize panel"
       onMouseDown={startResizing}
       className={cn(
         "h-1.5 w-full cursor-row-resize z-cad-panel group flex items-center justify-center transition-all relative",

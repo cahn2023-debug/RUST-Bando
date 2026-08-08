@@ -299,29 +299,39 @@ const hydrateReportPhotoAssets = async (
     return resolved.filter((photo): photo is ReportPhoto => !!photo);
   };
 
-  const sections = await Promise.all(model.sections.map(async (section) => ({
-    ...section,
-    photos: await resolvePhotos(section.photos, section.title),
-    details: await Promise.all(section.details.map(async (detail) => {
-      const photos = await resolvePhotos(detail.photos, detail.feature.name || detail.feature.id);
+  const sections = await Promise.all(model.sections.map(async (section) => {
+    const photos = await resolvePhotos(section.photos, section.title);
+    const details = await Promise.all(section.details.map(async (detail) => {
+      const detailPhotos = await resolvePhotos(detail.photos, detail.feature.name || detail.feature.id);
       return {
         ...detail,
-        photos,
+        photos: detailPhotos,
         photoWarnings: [
           ...detail.photoWarnings,
-          ...photos
+          ...detailPhotos
             .filter((photo) => !!photo.warning && !photo.dataUrl)
             .map((photo) => photo.warning as string),
         ],
       };
-    })),
-  })));
+    }));
+    const sectionPhotoWarnings = photos
+      .filter((photo) => !!photo.warning && !photo.dataUrl)
+      .map((photo) => photo.warning as string);
+
+    return {
+      ...section,
+      photos,
+      details,
+      photoWarnings: Array.from(new Set([
+        ...section.photoWarnings,
+        ...sectionPhotoWarnings,
+        ...details.flatMap((detail) => detail.photoWarnings),
+      ])),
+    };
+  }));
   return {
     ...model,
-    sections: sections.map((section) => ({
-      ...section,
-      photoWarnings: section.details.flatMap((detail) => detail.photoWarnings),
-    })),
+    sections,
   };
 };
 

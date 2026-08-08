@@ -6,6 +6,8 @@ export function FileItem({ name, onSelect, onContextMenu, isActive, path }: { na
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       draggable={!!path}
       onDragStart={(e) => {
         if (path) {
@@ -13,6 +15,12 @@ export function FileItem({ name, onSelect, onContextMenu, isActive, path }: { na
         }
       }}
       onClick={(e) => { e.stopPropagation(); onSelect && onSelect(); }}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        e.stopPropagation();
+        onSelect?.();
+      }}
       onContextMenu={(e) => {
         if (onContextMenu) {
           e.preventDefault();

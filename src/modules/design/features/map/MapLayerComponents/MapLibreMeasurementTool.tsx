@@ -225,7 +225,7 @@ export function MapLibreMeasurementTool({ active, mode = 'distance', onDeactivat
         <div
             className="measure-panel pointer-events-auto absolute bottom-6 right-6 z-cad-panel bg-cad-surface border border-cad-border p-3 rounded shadow-lg"
             role="group"
-            onClick={stopEvent}
+            onPointerDown={stopEvent}
             onMouseDown={stopEvent}
             onContextMenu={preventEvent}
         >

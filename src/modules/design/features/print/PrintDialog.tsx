@@ -136,6 +136,7 @@ export function PrintDialog({ onClose }: PrintDialogProps) {
       )}>
         {/* Header */}
         <div
+          role="presentation"
           onMouseDown={(e) => {
             // Chỉ bắt đầu kéo nếu click vào chính header hoặc các phần tử không tương tác
             if (e.currentTarget === e.target || (e.target as HTMLElement).hasAttribute('data-tauri-drag-region')) {

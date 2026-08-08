@@ -1769,7 +1769,6 @@ export const PropertyPanel: React.FC = () => {
           // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
           tabIndex={0}
           onPaste={handleMediaPaste}
-          onClick={(event) => event.currentTarget.focus()}
         >
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-cad-text-muted uppercase">
@@ -1825,13 +1824,14 @@ export const PropertyPanel: React.FC = () => {
                 </div>
               ))
             ) : (
-              <div
+              <button
+                type="button"
                 onClick={startCamera}
                 className="col-span-2 py-8 border border-dashed border-cad-border rounded flex flex-col items-center justify-center gap-2 text-cad-text-muted cursor-pointer hover:border-cad-accent/40 transition-colors"
               >
-                <ImageIcon className="w-5 h-5" />
+                <ImageIcon className="w-5 h-5" aria-hidden="true" />
                 <span className="text-[9px] font-black uppercase tracking-widest">No photos attached</span>
-              </div>
+              </button>
             )}
           </div>
         </section>

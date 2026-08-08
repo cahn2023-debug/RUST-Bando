@@ -877,21 +877,23 @@ export function DrawingExplorer() {
       {/* Context Menu Overlay */}
       {contextMenu && (
         <div 
+          role="menu"
+          tabIndex={-1}
+          aria-label="Context menu"
           className="fixed z-cad-dropdown bg-cad-surface border border-cad-border rounded-md shadow-2xl py-1 min-w-[120px]"
           style={{ top: contextMenu.y, left: contextMenu.x }}
-          onClick={() => setContextMenu(null)}
         >
           {contextMenu.type === 'feature' && (
             <>
               <button
                 className="w-full text-left px-3 py-1.5 text-[9px] text-cad-text-primary hover:bg-cad-elevated transition-colors uppercase tracking-wider font-bold"
-                onClick={() => openCoordinateEditor(contextMenu.data as FeatureState)}
+                onClick={() => { openCoordinateEditor(contextMenu.data as FeatureState); setContextMenu(null); }}
               >
                 Chỉnh sửa tọa độ
               </button>
               <button
                 className="w-full text-left px-3 py-1.5 text-[9px] text-cad-text-primary hover:bg-cad-elevated transition-colors uppercase tracking-wider font-bold"
-                onClick={() => handleProperties(contextMenu.data as FeatureState)}
+                onClick={() => { handleProperties(contextMenu.data as FeatureState); setContextMenu(null); }}
               >
                 Properties
               </button>
@@ -899,7 +901,7 @@ export function DrawingExplorer() {
           )}
           <button 
             className="w-full text-left px-3 py-1.5 text-[9px] hover:bg-cad-danger/10 text-cad-danger transition-colors uppercase tracking-wider font-bold"
-            onClick={() => setDeleteModal({ isOpen: true, type: contextMenu.type as any, id: contextMenu.id, name: contextMenu.data.name })}
+            onClick={() => { setDeleteModal({ isOpen: true, type: contextMenu.type as any, id: contextMenu.id, name: contextMenu.data.name }); setContextMenu(null); }}
           >
             Delete
           </button>

@@ -48,6 +48,9 @@ export const ResizeHandle: React.FC<ResizeHandleProps> = ({ direction, onResize,
 
   return (
     <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize panel"
       onMouseDown={startResizing}
       className={cn(
         "absolute top-0 bottom-0 w-1.5 cursor-col-resize z-cad-panel group flex items-center justify-center transition-all",

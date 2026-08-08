@@ -253,7 +253,19 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
 
       {/* Lightbox / SlideShow */}
       {viewingImageIndex !== null && (
-        <div className="fixed inset-0 z-cad-modal-nested bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setViewingImageIndex(null)}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image preview"
+          tabIndex={-1}
+          className="fixed inset-0 z-cad-modal-nested bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setViewingImageIndex(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setViewingImageIndex(null);
+          }}
+        >
           <div className="absolute top-6 right-6 flex gap-3">
               <button onClick={(e) => { e.stopPropagation(); downloadImage(imageUrls[viewingImageIndex]); }} className="p-3 bg-cad-text-primary/10 hover:bg-cad-text-primary/20 text-cad-text-primary rounded-full border border-cad-text-primary/10"><Download className="w-5 h-5" /></button>
               <button onClick={() => setViewingImageIndex(null)} className="p-3 bg-cad-text-primary/10 hover:bg-cad-text-primary/20 text-cad-text-primary rounded-full border border-cad-text-primary/10"><X className="w-5 h-5" /></button>
@@ -262,7 +274,7 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
             {imageUrls.length > 1 && (
               <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(p => p! > 0 ? p! - 1 : imageUrls.length - 1); }} className="p-4 bg-cad-text-primary/5 hover:bg-cad-text-primary/10 text-cad-text-primary rounded-full"><ChevronLeft className="w-8 h-8" /></button>
             )}
-            <img src={imageUrls[viewingImageIndex]} className="max-w-full max-h-[75vh] object-contain rounded-xl shadow-2xl border border-white/10" onClick={(e) => e.stopPropagation()} />
+            <img src={imageUrls[viewingImageIndex]} alt="Selected feature" className="max-w-full max-h-[75vh] object-contain rounded-xl shadow-2xl border border-white/10" />
             {imageUrls.length > 1 && (
               <button onClick={(e) => { e.stopPropagation(); setViewingImageIndex(p => p! < imageUrls.length - 1 ? p! + 1 : 0); }} className="p-4 bg-cad-text-primary/5 hover:bg-cad-text-primary/10 text-cad-text-primary rounded-full"><ChevronRight className="w-8 h-8" /></button>
             )}
@@ -356,8 +368,16 @@ export const FeatureEditor: React.FC<FeatureEditorProps> = ({
                   return (
                     <div
                       key={idx}
+                      role="button"
+                      tabIndex={0}
                       className={`rounded-2xl border-2 transition-all overflow-hidden ${isSelected ? 'border-cad-accent bg-cad-accent/10 shadow-md' : 'border-cad-border bg-cad-surface'}`}
                       onClick={() => onVertexSelect?.(idx)}
+                      onKeyDown={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                        event.preventDefault();
+                        onVertexSelect?.(idx);
+                      }}
                     >
                       <div className="p-3 flex items-center justify-between cursor-pointer">
                         <div className="flex items-center gap-3">

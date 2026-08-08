@@ -444,6 +444,7 @@ export function AnalysisTable<TData extends { id: string | number }>({
         )}>
             {/* Header */}
             <div
+                role="presentation"
                 onMouseDown={(e) => {
                     if (isStandalone && (e.currentTarget === e.target || (e.target as HTMLElement).hasAttribute('data-tauri-drag-region'))) {
                         getCurrentWebviewWindow()?.startDragging();
@@ -660,6 +661,8 @@ export function AnalysisTable<TData extends { id: string | number }>({
                 {/* The Table */}
                 <div
                     ref={scrollContainerRef}
+                    role="grid"
+                    aria-label="Analysis data grid"
                     // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
                     tabIndex={0}
                     onKeyDown={handleTableKeyDown}
@@ -699,9 +702,10 @@ export function AnalysisTable<TData extends { id: string | number }>({
                                                 }}
                                             >
                                                 {!isPlaceholder && (
-                                                    <div
+                                                    <button
+                                                        type="button"
                                                         className={cn(
-                                                            "flex items-center justify-center gap-2 select-none h-full w-full",
+                                                            "flex h-full w-full items-center justify-center gap-2 select-none border-0 bg-transparent p-0 text-inherit",
                                                             header.column.getCanSort() && "cursor-pointer hover:text-cad-accent"
                                                         )}
                                                         onClick={header.column.getToggleSortingHandler()}
@@ -711,11 +715,14 @@ export function AnalysisTable<TData extends { id: string | number }>({
                                                             asc: <ArrowUp size={10} className="text-cad-accent shrink-0" />,
                                                             desc: <ArrowDown size={10} className="text-cad-accent shrink-0" />,
                                                         }[header.column.getIsSorted() as string] ?? null}
-                                                    </div>
+                                                    </button>
                                                 )}
 
                                                 {/* Resize Handle */}
                                                 <div
+                                                    role="separator"
+                                                    aria-orientation="vertical"
+                                                    aria-label="Resize column"
                                                     onMouseDown={header.getResizeHandler()}
                                                     onTouchStart={header.getResizeHandler()}
                                                     className={cn(
@@ -737,13 +744,11 @@ export function AnalysisTable<TData extends { id: string | number }>({
                                         "hover:bg-cad-accent/5 transition-colors group/row",
                                         row.getIsSelected() && "bg-cad-accent/10"
                                     )}
-                                    onClick={() => {
-                                        // Selection handling logic here if needed
-                                    }}
                                     onContextMenu={(event) => openRowContextMenu(event, row.original)}
                                 >
                                     {row.getVisibleCells().map(cell => (
                                         <td
+                                            role="gridcell"
                                             key={cell.id}
                                             ref={(node) => {
                                                 const key = getCellKey(rowIndex, cell.column.id);
@@ -787,6 +792,9 @@ export function AnalysisTable<TData extends { id: string | number }>({
                     {rowContextMenu && (
                         <div
                             data-row-context-menu
+                            role="menu"
+                            tabIndex={-1}
+                            aria-label="Row actions"
                             className="absolute z-cad-dropdown min-w-40 rounded-md border border-cad-border bg-cad-elevated shadow-xl shadow-black/30 p-1"
                             style={{ left: rowContextMenu.x, top: rowContextMenu.y }}
                             onMouseDown={(event) => event.stopPropagation()}

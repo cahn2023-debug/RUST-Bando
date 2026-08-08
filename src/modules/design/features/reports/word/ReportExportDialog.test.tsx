@@ -149,6 +149,7 @@ describe('ReportExportDialog', () => {
     await waitFor(() => expect(screen.getAllByText('Báo cáo nghiệm thu tuyến 1').length).toBeGreaterThan(0));
     await waitFor(() => expect(resolveMediaAsset).toHaveBeenCalledWith('project-1', 'missing-photo', 'D:/projects/demo.pmp'));
     await waitFor(() => expect(screen.getAllByText('missing-photo').length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByRole('alert')[0]).toHaveTextContent('Không resolve được ảnh'));
 
     fireEvent.click(screen.getByText('Xuất Word'));
 
