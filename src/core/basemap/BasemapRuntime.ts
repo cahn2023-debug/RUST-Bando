@@ -79,16 +79,29 @@ export class BasemapRuntime implements BasemapController {
         this.setLifecycleState('mounting');
         this.setLifecycleState('surface-ready');
 
-        await registerTileServiceWorker();
-        registerBasemapTileProtocol({ timeoutMs: this.config.tileRequestTimeoutMs });
+        if (!this.config.vietnamBasemap) {
+            await registerTileServiceWorker();
+            registerBasemapTileProtocol({ timeoutMs: this.config.tileRequestTimeoutMs });
+        }
 
         const tileUrls = this.resolveTileUrls();
+        const provider = this.config.vietnamBasemap;
+        let providerStyle: maplibregl.StyleSpecification | undefined;
+        if (provider) {
+            try {
+                providerStyle = await provider.client.styleDocument(provider.styleId);
+            } catch (error) {
+                this.setLifecycleState('failed');
+                console.warn('[Basemap] vietnam-provider-style-failed', error);
+                return;
+            }
+        }
         const camera = this.config.initialCamera;
         let map: maplibregl.Map;
         try {
             map = new maplibregl.Map({
                 container,
-                style: createBasemapStyle(tileUrls),
+                style: providerStyle ?? createBasemapStyle(tileUrls),
                 center: camera.center,
                 zoom: camera.zoom,
                 bearing: camera.bearing,
@@ -121,7 +134,7 @@ export class BasemapRuntime implements BasemapController {
             this.setLifecycleState('interactive');
             // Warm the cache only once the map is drawing — the visible viewport
             // should win the race for bandwidth over the background pyramid.
-            if (this.config.warmCacheOnLaunch && !this.cancelPrefetch) {
+            if (!this.config.vietnamBasemap && this.config.warmCacheOnLaunch && !this.cancelPrefetch) {
                 this.cancelPrefetch = scheduleBasemapPrefetch({
                     presetId: this.presetId,
                     preferences: this.preferences,
@@ -227,6 +240,12 @@ export class BasemapRuntime implements BasemapController {
         this.presetId = presetId;
         this.preferences = { ...this.preferences, ...preferences, presetId };
 
+        if (this.config.vietnamBasemap) {
+            storePreferences(this.getPreferences());
+            this.emitPreset();
+            return;
+        }
+
         if (!this.map) {
             this.config = { ...this.config, initialPresetId: presetId };
             storePreferences(this.getPreferences());
@@ -319,7 +338,9 @@ export class BasemapRuntime implements BasemapController {
 
     private handleMapError(event: any): void {
         const sourceId = event?.sourceId || event?.source?.id;
-        if (sourceId && sourceId !== BASEMAP_SOURCE_ID) return;
+        const expectedSourceId = this.config.vietnamBasemap?.sourceId ?? BASEMAP_SOURCE_ID;
+        if (sourceId && this.config.vietnamBasemap?.sourceId && sourceId !== expectedSourceId) return;
+        if (sourceId && !this.config.vietnamBasemap && sourceId !== expectedSourceId) return;
 
         const now = Date.now();
         if (this.lifecycleState !== 'degraded') {

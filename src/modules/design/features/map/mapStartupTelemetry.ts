@@ -1,3 +1,5 @@
+import { logger } from '@SHARED/utils/logger';
+
 export type StartupMilestone =
   | "host-mounted"
   | "container-sized"
@@ -62,7 +64,7 @@ export function markMapStartup(milestone: StartupMilestone, details?: Record<str
     }
   }
 
-  console.info(`[MapStartup] +${elapsedMs}ms - ${milestone}`, details || "");
+  logger.debug(`[MapStartup] +${elapsedMs}ms - ${milestone}`, details || "");
 }
 
 export function getMapStartupReport(): Record<string, number> {

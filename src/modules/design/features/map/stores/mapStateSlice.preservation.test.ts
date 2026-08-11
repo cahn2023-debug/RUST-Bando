@@ -99,6 +99,7 @@ beforeEach(() => {
         visibleFeatureIds: [],
         featureDetailsCache: {},
         viewportRevision: 0,
+        viewportQueryRevision: 0,
         viewportSignature: '',
         selectedFeatureId: null,
         hoverId: null,
@@ -147,6 +148,7 @@ describe('Preservation 2.A — Non-Large Project: rawFeatures Remains Data Sourc
 
         // Non-large project: isLargeProject must remain false (mode unchanged)
         expect(storeAfter.state?.isLargeProject).toBe(false);
+        expect(storeAfter.viewportQueryRevision).toBe(0);
     });
 
     /**
@@ -190,6 +192,7 @@ describe('Preservation 2.A — Non-Large Project: rawFeatures Remains Data Sourc
 
         // Non-large project mode unchanged
         expect(storeAfter.state?.isLargeProject).toBe(false);
+        expect(storeAfter.viewportQueryRevision).toBe(0);
     });
 
     /**
@@ -319,6 +322,7 @@ describe('Preservation 2.B — Viewport Pipeline: setViewportFeatures() Correctl
         const feature1 = makeFeaturePayload('viewport-feature-1');
         const feature2 = makeFeaturePayload('viewport-feature-2', [106.665, 10.765]);
         const viewportRevisionBefore = useDesignSync.getState().viewportRevision;
+        const viewportQueryRevisionBefore = useDesignSync.getState().viewportQueryRevision;
 
         // Simulate result of queryVisibleFeaturesV2 (called after moveend)
         useDesignSync.getState().setViewportFeatures([feature1 as any, feature2 as any], 2, false);
@@ -339,6 +343,7 @@ describe('Preservation 2.B — Viewport Pipeline: setViewportFeatures() Correctl
             storeAfter.viewportRevision,
             'viewportRevision must increment after setViewportFeatures()'
         ).toBeGreaterThan(viewportRevisionBefore);
+        expect(storeAfter.viewportQueryRevision).toBe(viewportQueryRevisionBefore);
     });
 
     /**
@@ -383,6 +388,7 @@ describe('Preservation 2.B — Viewport Pipeline: setViewportFeatures() Correctl
         });
 
         const viewportRevisionBefore = useDesignSync.getState().viewportRevision;
+        const viewportQueryRevisionBefore = useDesignSync.getState().viewportQueryRevision;
 
         useDesignSync.getState().applyPatchToState({
             success: true,
@@ -401,6 +407,7 @@ describe('Preservation 2.B — Viewport Pipeline: setViewportFeatures() Correctl
             storeAfter.viewportRevision,
             'FeatureCreated on large project must increment viewportRevision to trigger viewport pipeline'
         ).toBeGreaterThan(viewportRevisionBefore);
+        expect(storeAfter.viewportQueryRevision).toBeGreaterThan(viewportQueryRevisionBefore);
     });
 });
 

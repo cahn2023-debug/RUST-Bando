@@ -62,6 +62,7 @@ const mockMapState = vi.hoisted(() => {
     };
 
     let lastMap: any = null;
+    let deferRenderLayerHydration = false;
 
     class MockMap {
         sources = new Map<string, SourceRecord>();
@@ -127,16 +128,22 @@ const mockMapState = vi.hoisted(() => {
         }
 
         addLayer(layer: any, beforeId?: string) {
+            const isRenderLayer = layer.type === 'symbol' || layer.type === 'circle';
+            const storedLayer = isRenderLayer
+                ? deferRenderLayerHydration
+                    ? { ...layer, layout: undefined, __pendingLayout: layer.layout || {} }
+                    : { ...layer, layout: layer.layout || {} }
+                : layer;
             if (beforeId && this.layers.has(beforeId)) {
                 const entries = Array.from(this.layers.entries());
                 this.layers.clear();
                 for (const [id, existingLayer] of entries) {
-                    if (id === beforeId) this.layers.set(layer.id, layer);
+                    if (id === beforeId) this.layers.set(storedLayer.id, storedLayer);
                     this.layers.set(id, existingLayer);
                 }
                 return;
             }
-            this.layers.set(layer.id, layer);
+            this.layers.set(storedLayer.id, storedLayer);
         }
 
         getLayer(id: string) {
@@ -190,7 +197,20 @@ const mockMapState = vi.hoisted(() => {
                 requestAnimationFrame(handler);
                 return;
             }
+            if (event === 'styledata') {
+                this.on(event, handler);
+                return;
+            }
             handler();
+        }
+
+        hydrateRenderLayers() {
+            this.layers.forEach(layer => {
+                if (layer.__pendingLayout) {
+                    layer.layout = layer.__pendingLayout;
+                    delete layer.__pendingLayout;
+                }
+            });
         }
 
         emit(event: string, payload?: any) {
@@ -202,6 +222,7 @@ const mockMapState = vi.hoisted(() => {
         MockMap,
         getLastMap: () => lastMap,
         clearLastMap: () => { lastMap = null; },
+        setDeferRenderLayerHydration: (value: boolean) => { deferRenderLayerHydration = value; },
     };
 });
 
@@ -240,6 +261,7 @@ describe('MapLibreFastRenderer', () => {
         mockMapStyles.mapKey = 'test-map';
         mockMapStyles.preset = { id: 'street', label: 'Duong pho', tileLyr: 'm', kind: 'raster', supportsApiStyle: true };
         mockMapState.clearLastMap();
+        mockMapState.setDeferRenderLayerHydration(false);
         vi.mocked(queryVisibleFeaturesV2).mockReset();
         vi.mocked(queryVisibleFeaturesV2).mockResolvedValue({
             features: [],
@@ -304,6 +326,7 @@ describe('MapLibreFastRenderer', () => {
             currentDrawingPoints: [],
             snappedPoint: null,
             viewportRevision: 0,
+            viewportQueryRevision: 0,
             mapRenderEngine: 'maplibre-fast',
             showFeatureGroups: true,
             groupThemePreview: null,
@@ -340,19 +363,51 @@ describe('MapLibreFastRenderer', () => {
                 id: 'camera-1',
                 iconKey: icon,
                 isCamera: true,
-                color: '#10b981',
-                displaySize: 36,
+                color: '#6366f1',
+                iconColor: '#6366f1',
+                displaySize: 24,
                 labelIndex: '1',
             }));
             const iconImageId = data.features[0].properties.iconImageId;
             expect(iconImageId).toContain(`design-point-${icon}`);
             expect(lastMap?.images.has(iconImageId)).toBe(true);
             expect(lastMap?.imageData.get(iconImageId)).toEqual(expect.objectContaining({
-                width: 36,
-                height: 36,
+                width: 24,
+                height: 24,
                 data: expect.any(Uint8ClampedArray),
             }));
             expect(lastMap?.triggerRepaint).toHaveBeenCalled();
+        });
+    });
+
+    it('waits for render layer hydration before publishing point data', async () => {
+        mockMapState.setDeferRenderLayerHydration(true);
+        useDesignSync.setState({
+            state: {
+                features: {
+                    'camera-1': pointFeature('camera-1', { icon: 'cctv', size: 24 }),
+                },
+                feature_groups: { 'group-1': { type: 'CAMERA', name: 'Camera' } },
+                isLargeProject: false,
+            } as any,
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => expect(mockMapState.getLastMap()).toBeTruthy());
+        const map = mockMapState.getLastMap();
+        const clusterSource = map.sources.get('design-fast-point-clusters-source');
+        expect(clusterSource?.setData).not.toHaveBeenCalled();
+
+        await act(async () => {
+            map.hydrateRenderLayers();
+            map.emit('styledata');
+        });
+
+        await waitFor(() => {
+            expect(clusterSource?.setData).toHaveBeenCalled();
+            const data = clusterSource?.data;
+            expect(data.features[0].properties.iconImageId).toContain('design-point-cctv');
         });
     });
 
@@ -636,6 +691,7 @@ describe('MapLibreFastRenderer', () => {
             expect(clusterSource).toEqual(expect.objectContaining({
                 cluster: true,
                 clusterRadius: 48,
+                maxzoom: 23,
                 clusterMaxZoom: 22,
             }));
             expect(source?.data.features.some((feature: any) => feature.geometry.type === 'LineString')).toBe(true);
@@ -975,6 +1031,65 @@ describe('MapLibreFastRenderer', () => {
             );
             expect(useDesignSync.getState().visibleFeatures['visible-1']).toBeDefined();
             expect(useDesignSync.getState().visibleFeatures['visible-1'].id).toBe('visible-1');
+        });
+    });
+
+    it('requeries viewport features after a large-project feature event', async () => {
+        const createdFeature = pointFeature('created-1', { color: '#ef4444', size: 14 });
+        let featureEventApplied = false;
+        vi.mocked(queryVisibleFeaturesV2).mockImplementation(async () => featureEventApplied
+            ? {
+                features: [createdFeature as any],
+                total: 1,
+                returned: 1,
+                truncated: false,
+                limit: 10000,
+                revision: 9,
+                requestId: 2,
+            }
+            : {
+                features: [],
+                total: 0,
+                returned: 0,
+                truncated: false,
+                limit: 10000,
+                revision: 9,
+                requestId: 1,
+            });
+
+        useDesignSync.setState({
+            projectId: 'project-1',
+            state: {
+                features: {},
+                feature_groups: { 'group-1': { type: 'NODE', name: 'Node' } },
+                isLargeProject: true,
+                viewportFeatureLimit: 10000,
+                mapRevision: 9,
+            } as any,
+            viewportQueryRevision: 0,
+        } as any);
+
+        render(<MapLibreFastRenderer center={[21.02, 105.8]} zoom={20} />);
+
+        await waitFor(() => expect(queryVisibleFeaturesV2).toHaveBeenCalled());
+        const queryCountBeforeEvent = vi.mocked(queryVisibleFeaturesV2).mock.calls.length;
+        featureEventApplied = true;
+
+        await act(async () => {
+            useDesignSync.getState().applyPatchToState({
+                success: true,
+                event_id: 'event-create-renderer',
+                applied_event: {
+                    type: 'FeatureCreated',
+                    payload: createdFeature as any,
+                },
+                side_effects: [],
+            });
+        });
+
+        await waitFor(() => {
+            expect(vi.mocked(queryVisibleFeaturesV2).mock.calls.length).toBeGreaterThan(queryCountBeforeEvent);
+            expect(useDesignSync.getState().visibleFeatures['created-1']).toBeDefined();
         });
     });
 

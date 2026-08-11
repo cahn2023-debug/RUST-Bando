@@ -41,7 +41,7 @@ export const flattenFeature = (
   if (!metadata) {
     try {
       metadata = typeof f.metadata === 'string' ? JSON.parse(f.metadata) : (f.metadata || {});
-    } catch (e) {
+    } catch {
       metadata = {};
     }
   }
@@ -142,7 +142,7 @@ export const flattenFeature = (
       }
       row['coordinates_summary'] = safeTruncate(coords, 500);
     }
-  } catch (e) {
+  } catch {
     // Silently ignore coord errors for flattening
   }
 

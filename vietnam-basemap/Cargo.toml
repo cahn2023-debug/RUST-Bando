@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "crates/basemap_contract",
+    "crates/basemap_builder",
+    "crates/basemap_service",
+    "crates/basemap_offline",
+    "crates/basemap_release",
+]
+resolver = "2"

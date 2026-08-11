@@ -1,5 +1,10 @@
 import type maplibregl from 'maplibre-gl';
 import { getIconSvgString } from '@DESIGN/components/icons/MapIcons';
+import {
+    normalizeFeatureColor,
+    normalizeFeatureSize,
+    normalizeIconKey,
+} from '@TOOL/utils/featureSymbolStyle';
 import type { MapLibreRenderFeatureCollection } from '../mapLibreFastTypes';
 
 export type MapLibreImageData = {
@@ -20,12 +25,6 @@ export const clearMapImageCache = () => {
     imageCache.clear();
     imageLoadInFlight.clear();
 };
-
-const escapeSvgText = (value: unknown) => (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? String(value) : '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 
 const svgBlob = (svg: string) => new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
 
@@ -93,26 +92,14 @@ export const loadSvgImage = (id: string, svg: string) => {
 };
 
 export const iconSvgForFeature = (properties: Record<string, any>) => {
-    const color = String(properties.color || '#6366f1');
-    const size = Number(properties.displaySize || properties.size || 24);
-    const labelIndex = escapeSvgText(properties.labelIndex || '');
-    if (properties.isIntersection) {
-        const textColor = ['#ffffff', 'white', '#fff'].includes(color.toLowerCase().trim()) ? '#111827' : '#ffffff';
-        return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none">
-            <g transform="rotate(45 12 12)" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M8 2 L8 8 L2 8"/>
-                <path d="M16 2 L16 8 L22 8"/>
-                <path d="M22 16 L16 16 L16 22"/>
-                <path d="M8 22 L8 16 L2 16"/>
-            </g>
-            ${labelIndex ? `<text x="12" y="15" font-family="Arial, sans-serif" font-size="8" font-weight="900" text-anchor="middle" fill="${textColor}" stroke="rgba(0,0,0,0.7)" stroke-width="1" paint-order="stroke">${labelIndex}</text>` : ''}
-        </svg>`;
-    }
+    const color = normalizeFeatureColor(properties.iconColor ?? properties.color);
+    const size = normalizeFeatureSize(properties.displaySize ?? properties.size);
+    const iconKey = properties.isIntersection ? 'intersection' : normalizeIconKey(properties.iconKey);
     return getIconSvgString(
-        String(properties.iconKey || 'cctv'),
+        iconKey,
         color,
         size,
-        labelIndex,
+        properties.labelIndex,
         Number(properties.rotation || 0)
     );
 };

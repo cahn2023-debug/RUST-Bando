@@ -109,7 +109,7 @@ export function Ribbon({
                 ? 'CLOUD READY'
                 : 'MODEL REQUIRED';
         setAiStatusLabel(label);
-      } catch (error) {
+      } catch {
         if (!cancelled) {
           setAiStatusLabel(enableAi ? 'MODEL REQUIRED' : 'AI OFF');
         }

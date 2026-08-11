@@ -18,6 +18,7 @@ import type { FeatureState } from '@CONTRACT/types';
 import type { MapLibreRenderFeatureCollection } from './mapLibreFastTypes';
 import { useMapContext } from './MapContext';
 import { useBasemap } from '@/core/basemap';
+import { logger } from '@SHARED/utils/logger';
 import { getRenderableFeatureById } from './featureLookup';
 import { CameraBridge, DirtyFlag, FeatureOverlayCanvas, resolveMapRenderFlags, type FeatureOverlayCanvasHandle, type MapRenderFlags } from './render';
 import { saveBootstrapMetadata } from './bootstrapMetadata';
@@ -29,6 +30,7 @@ import { buildPointClusteringCollections, resolvePointOverlayRenderFlags } from 
 import {
     BASEMAP_RETRY_DELAYS_MS,
     BASEMAP_SOURCE_ID,
+    areDesignRenderLayersHydrated,
     DRAWING_SOURCE_ID,
     EDIT_MIDPOINT_LAYER_ID,
     EDIT_SOURCE_ID,
@@ -385,6 +387,7 @@ export function MapLibreFastRenderer({
     const setViewportLoading = useDesignSync(s => s.setViewportLoading);
     const setRenderMetrics = useDesignSync(s => s.setRenderMetrics);
     const updateOpenMetrics = useDesignSync(s => s.updateOpenMetrics);
+    const viewportQueryRevision = useDesignSync(s => s.viewportQueryRevision);
 
     // Destructure slices for use throughout the component
     const { features, rawFeatures, featureDetailsCache, mapState, isLargeProject, featureGroups,
@@ -416,6 +419,7 @@ export function MapLibreFastRenderer({
     const bindCompleteReportedRef = React.useRef(false);
     /** Cancellation token for the active progressive render chain. Increment to cancel previous chain. */
     const progressiveRenderEpochRef = React.useRef(0);
+    const styleHydrationEpochRef = React.useRef(0);
     /** Tracks progressive batch rendering progress exposed to the loading indicator. { rendered, total } (Task 4.5) */
     const [batchProgress, setBatchProgress] = React.useState<BatchProgress>({ rendered: 0, total: 0 });
     const pendingLoadedIconsRef = React.useRef<Map<string, { image: MapLibreImageData; preloadMs: number }>>(new Map());
@@ -1097,7 +1101,7 @@ export function MapLibreFastRenderer({
                 if (!firstViewportQueryReportedRef.current) {
                     firstViewportQueryReportedRef.current = true;
                     updateOpenMetrics({ firstViewportQueryMs: viewportQueryMs });
-                    console.info('[OpenPerf] First viewport query complete', {
+                    logger.debug('[OpenPerf] First viewport query complete', {
                         projectId,
                         firstViewportQueryMs: viewportQueryMs,
                         returned: response.returned ?? response.features?.length ?? 0,
@@ -1122,7 +1126,7 @@ export function MapLibreFastRenderer({
             .finally(() => {
                 if (requestId === requestRef.current) setViewportLoading(false);
             });
-    }, [isLargeProject, mapHiddenIds, mapRevision, projectId, setRenderMetrics, setViewportFeatures, setViewportLoading, updateOpenMetrics, viewportFeatureLimit, viewportTick]);
+    }, [isLargeProject, mapHiddenIds, mapRevision, projectId, setRenderMetrics, setViewportFeatures, setViewportLoading, updateOpenMetrics, viewportFeatureLimit, viewportQueryRevision, viewportTick]);
 
     // Basemap tiles.
     //
@@ -1209,6 +1213,22 @@ export function MapLibreFastRenderer({
             const frameStart = now();
             const { collection, lodPolicy, sourceBuildMs } = renderCollectionResult;
 
+            const deferUntilSymbolLayersHydrated = (callback: () => void) => {
+                const epoch = ++styleHydrationEpochRef.current;
+                let settled = false;
+                const check = () => {
+                    if (settled || epoch !== styleHydrationEpochRef.current || mapRef.current !== map) return;
+                    if (!areDesignRenderLayersHydrated(map)) {
+                        requestAnimationFrame(check);
+                        return;
+                    }
+                    settled = true;
+                    callback();
+                };
+                map.once('styledata', check);
+                requestAnimationFrame(check);
+            };
+
             const applyData = () => {
                 const layerSetupKey = [
                     lodPolicy.clusterPoints ? 'cluster' : 'plain',
@@ -1230,6 +1250,10 @@ export function MapLibreFastRenderer({
                     layerSetupKeyRef.current = layerSetupKey;
                     lastSetDataKeyRef.current = null;
                     lastClusterSetDataKeyRef.current = null;
+                }
+                if (!areDesignRenderLayersHydrated(map)) {
+                    deferUntilSymbolLayersHydrated(applyData);
+                    return;
                 }
                 const iconKey = String(iconReadyRevision);
                 let displayCollection = preparedPointImagesRef.current?.collection === collection
@@ -1280,8 +1304,8 @@ export function MapLibreFastRenderer({
                     clusterPoints: lodPolicy.clusterPoints,
                     overlayPoints: renderFlags.overlayEnabled && renderFlags.overlayPoints,
                 });
-                const dataKey = `${stableJsonKey(mainCollection)}::icons:${iconReadyRevision}`;
-                const clusterDataKey = `${stableJsonKey(clusterCollection)}::cluster:${lodPolicy.clusterPoints ? 'points' : 'empty'}::icons:${iconReadyRevision}`;
+                const dataKey = `${mainCollection.features.length === 0 ? 'empty' : renderCacheKey}::icons:${iconReadyRevision}`;
+                const clusterDataKey = `${clusterCollection.features.length === 0 ? 'empty' : renderCacheKey}::cluster:${lodPolicy.clusterPoints ? 'points' : 'empty'}:${renderFlags.overlayEnabled && renderFlags.overlayPoints ? 'overlay' : 'no-overlay'}::icons:${iconReadyRevision}`;
                 const setDataStart = now();
                 let didSetData = false;
                 let didSetClusterData = false;
@@ -1305,7 +1329,7 @@ export function MapLibreFastRenderer({
                             firstPaintReportedRef.current = true;
                             const firstMapPaintMs = now() - frameStart;
                             updateOpenMetrics({ firstMapPaintMs });
-                            console.info('[OpenPerf] First map paint complete', {
+                            logger.debug('[OpenPerf] First map paint complete', {
                                 ...(useDesignSync.getState().openMetrics || {}),
                                 firstSetDataMs: mapLibreSetDataMs,
                                 firstMapPaintMs,

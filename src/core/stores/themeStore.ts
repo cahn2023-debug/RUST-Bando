@@ -35,7 +35,7 @@ const syncTauriTheme = async (resolvedTheme: 'light' | 'dark') => {
     if (win && 'setTheme' in win && typeof (win as any).setTheme === 'function') {
       await (win as any).setTheme(resolvedTheme);
     }
-  } catch (e) {
+  } catch {
     // Ignore error in web environments
   }
 };

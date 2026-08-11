@@ -1,0 +1,14 @@
+[package]
+name = "basemap_builder"
+version = "0.1.0"
+edition = "2021"
+description = "Configurable release builder for the Vietnam Basemap Platform"
+license = "MIT"
+
+[dependencies]
+basemap_contract = { path = "../basemap_contract" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"

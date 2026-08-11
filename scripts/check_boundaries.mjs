@@ -22,7 +22,12 @@ const walk = (directory) => {
 const violations = [];
 for (const absolutePath of walk(sourceRoot)) {
   const relativePath = path.relative(root, absolutePath).replaceAll('\\', '/');
-  if (relativePath === 'src/modules/implement/lib/tauri.ts' || relativePath === 'src/test-setup.ts' || isTestFile(relativePath)) {
+  if (
+    relativePath === 'src/modules/implement/lib/tauri.ts'
+    || relativePath === 'src/infrastructure/tauri/invoke.ts'
+    || relativePath === 'src/test-setup.ts'
+    || isTestFile(relativePath)
+  ) {
     continue;
   }
 

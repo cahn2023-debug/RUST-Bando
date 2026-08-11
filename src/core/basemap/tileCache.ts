@@ -217,7 +217,7 @@ async function retryTileFetch(entry: RetryEntry): Promise<ArrayBuffer> {
             if (response.status >= 400 && response.status < 500 && response.status !== 429) {
                 break;
             }
-        } catch (_networkError) {
+        } catch {
             // Network / timeout error
             entry.attempts += 1;
             entry.lastStatus = undefined;
@@ -258,7 +258,7 @@ async function loadThroughCache(url: string): Promise<{ data: ArrayBuffer }> {
         let response: Response;
         try {
             response = await fetchWithTimeout(upstream, handlerOptions.timeoutMs);
-        } catch (_networkError) {
+        } catch {
             // Network error or timeout — enqueue for retry
             const queueKey = `${sourceKey}/${z}/${x}/${y}`;
             const existing = retryQueue.get(queueKey);

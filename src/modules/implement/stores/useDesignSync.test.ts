@@ -44,6 +44,7 @@ describe('useDesignSync Store', () => {
             visibleFeatureIds: [],
             featureDetailsCache: {},
             viewportRevision: 0,
+            viewportQueryRevision: 0,
             viewportSignature: '',
             drawingMode: 'none',
             editingFeatureId: null,

@@ -13,13 +13,18 @@ import { getCoordinates } from './coordinateCache';
 import { getParsedCoordinates } from '@TOOL/utils/featureUtils';
 import { getFeatureDisplayInfo, isCameraIcon } from '@TOOL/utils/featureDisplay';
 import { getFeatureMetadataValue, getParsedMetadata } from '@TOOL/utils/featureMetadata';
+import {
+    DEFAULT_FEATURE_COLOR,
+    DEFAULT_LINE_COLOR,
+    normalizeFeatureColor,
+    normalizeFeatureSize,
+} from '@TOOL/utils/featureSymbolStyle';
 import { MAP_POINT_CLUSTER_HIDE_AT_ZOOM, MAP_INTERSECTION_CHILD_MIN_ZOOM, isMapIntersectionChild } from './mapDisplayPolicy';
 
 const SUMMARY_FEATURE_LIMIT = 1800;
 const DETAIL_FEATURE_LIMIT = 6000;
 const FULL_FEATURE_LIMIT = 14000;
 
-const DEFAULT_COLOR = '#10b981';
 const SELECTED_COLOR = '#22d3ee';
 
 const getMetadataHash = (meta: any): number => {
@@ -137,19 +142,7 @@ const styleValueFromMetadata = (feature: FeatureState, metadata: Record<string, 
     return val;
 };
 
-const asColor = (value: unknown) => {
-    if (typeof value !== 'string') return null;
-    const trimmed = value.trim();
-    if (trimmed.startsWith('#') || trimmed.startsWith('rgb') || trimmed.startsWith('hsl') || /^[a-z]+$/i.test(trimmed)) {
-        return trimmed;
-    }
-    return null;
-};
-
-const asSize = (value: unknown) => {
-    const size = Number(value);
-    return Number.isFinite(size) && size > 0 ? Math.min(size, 100) : 8;
-};
+const asColor = (value: unknown, fallback: string) => normalizeFeatureColor(value, fallback);
 
 const asRotation = (value: unknown) => {
     const rotation = Number(value);
@@ -418,9 +411,14 @@ const toRenderFeatures = (
 
     const geometryInput = geometryInputForFeature(feature);
     const geomType = String(geometryInput.type || feature.geom_type || 'Point').toLowerCase();
-    const color = selected ? SELECTED_COLOR : (asColor(styleValueFromMetadata(feature, metadata, 'color')) || DEFAULT_COLOR);
-    const size = selected ? Math.max(asSize(styleValueFromMetadata(feature, metadata, 'size')), 12) : asSize(styleValueFromMetadata(feature, metadata, 'size'));
     const isLine = isLineGeomType(feature, metadata);
+    const baseSize = normalizeFeatureSize(styleValueFromMetadata(feature, metadata, 'size'), isLine ? 'line' : 'point');
+    const iconColor = asColor(
+        styleValueFromMetadata(feature, metadata, 'color'),
+        isLine ? DEFAULT_LINE_COLOR : DEFAULT_FEATURE_COLOR,
+    );
+    const color = selected ? SELECTED_COLOR : iconColor;
+    const size = selected ? Math.max(baseSize, 12) : baseSize;
     const childId = feature.id;
     const parentFeatureId = childPath.length > 0 ? childPath[0] : (feature.id.includes('::') ? feature.id.split('::')[0] : undefined);
 
@@ -454,10 +452,8 @@ const toRenderFeatures = (
     if (kind === 'point') {
         const displayInfo = getFeatureDisplayInfo(feature, group?.type, group?.name, metadata);
         const rawDisplaySize = metadata.gis?.size ?? metadata.size ?? feature?.properties?.size ?? size;
-        const baseDisplaySize = asSize(rawDisplaySize);
-        const displaySize = displayInfo.isIntersection || displayInfo.isCamera
-            ? Math.floor(baseDisplaySize * 1.5)
-            : baseDisplaySize;
+        const baseDisplaySize = normalizeFeatureSize(rawDisplaySize, 'point');
+        const displaySize = selected ? Math.max(baseDisplaySize, 12) : baseDisplaySize;
         const rotation = asRotation(getFeatureMetadataValue(feature, 'gis.rotation', 'rotation', metadata));
         const labelIndex = String(featureNumberMap[feature.id] || '1');
         const pointIconKey = isCameraIcon(displayInfo.iconKey) ? displayInfo.iconKey : (
@@ -468,7 +464,7 @@ const toRenderFeatures = (
             ? [
                 'design-point',
                 imageIdSafe(pointIconKey),
-                imageIdSafe(displayInfo.color || color),
+                imageIdSafe(iconColor),
                 imageIdSafe(displaySize),
                 imageIdSafe(labelIndex),
                 imageIdSafe(rotation),
@@ -486,6 +482,7 @@ const toRenderFeatures = (
                 name: featureName,
                 geomType: 'point' as const,
                 color,
+                iconColor,
                 size,
                 selected,
                 iconKey: pointIconKey,
@@ -512,7 +509,7 @@ const toRenderFeatures = (
             layerId: feature.layer_id,
             name: featureName,
             geomType: 'line',
-            color: color || DEFAULT_COLOR,
+            color,
             size: Math.max(size || 3, selected ? 6 : 3),
             selected,
         };

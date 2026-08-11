@@ -61,6 +61,20 @@ describe('mapLibreFastAdapter', () => {
         expect(collection.features[0].properties.size).toBe(91);
     });
 
+    it('uses the shared point color fallback when metadata has no color', () => {
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [pointFeature('default-color', [105.8, 21.02], {
+                metadata: JSON.stringify({ size: 18 }),
+            })],
+            zoom: 20,
+        });
+
+        expect(collection.features[0].properties).toEqual(expect.objectContaining({
+            color: '#6366f1',
+            iconColor: '#6366f1',
+        }));
+    });
+
     it('prioritizes GIS size over metadata and properties size', () => {
         const { collection } = buildMapLibreFeatureCollection({
             features: [pointFeature('p1', [105.8, 21.02], {
@@ -215,10 +229,10 @@ describe('mapLibreFastAdapter', () => {
             isIntersection: false,
             color: '#2563eb',
             rotation: 45,
-            displaySize: 48,
+            displaySize: 32,
             labelIndex: '12',
         }));
-        expect(collection.features[0].properties.iconImageId).toBe('design-point-ptz-2563eb-48-12-45');
+        expect(collection.features[0].properties.iconImageId).toBe('design-point-ptz-2563eb-32-12-45');
         expect(collection.features[0].properties.iconImageId).not.toContain('--');
     });
 
@@ -323,7 +337,7 @@ describe('mapLibreFastAdapter', () => {
             iconKey: 'intersection',
             isCamera: false,
             isIntersection: true,
-            displaySize: 45,
+            displaySize: 30,
             labelIndex: 'N1',
         }));
     });
@@ -343,7 +357,7 @@ describe('mapLibreFastAdapter', () => {
             selected: true,
             iconKey: 'cctv',
             isCamera: true,
-            displaySize: 36,
+            displaySize: 24,
             labelIndex: '3',
         }));
     });

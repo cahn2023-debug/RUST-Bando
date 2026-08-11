@@ -25,7 +25,7 @@ i18n
     fallbackLng: 'vi',
     defaultNS: 'common',
     supportedLngs: ['vi', 'en'],
-    debug: import.meta.env.DEV,
+    debug: import.meta.env.VITE_DEBUG_LOGS === 'true',
     
     interpolation: {
       escapeValue: false, // React already escapes

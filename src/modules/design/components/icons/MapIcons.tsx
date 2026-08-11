@@ -1,5 +1,10 @@
 // Map icons from Bandoso_V4
 import { LucideProps } from 'lucide-react';
+import {
+  normalizeFeatureColor,
+  normalizeFeatureSize,
+  normalizeIconKey,
+} from '@TOOL/utils/featureSymbolStyle';
 
 export interface IconProps extends LucideProps {
   className?: string;
@@ -147,47 +152,39 @@ export const PolylineIcon = ({ className, ...props }: IconProps) => (
 );
 
 export const getIntersectionSvgString = (color: string, size: number = 40, index?: number | string) => {
-  const isWhite = ['#ffffff', 'white', '#fff', 'rgb(255, 255, 255)', 'rgba(255, 255, 255, 1)'].includes(color.toLowerCase().trim());
-  const textColor = isWhite ? '#111827' : '#ffffff';
-  const textShadow = isWhite 
-    ? '-1px -1px 0 rgba(255,255,255,0.8), 1px -1px 0 rgba(255,255,255,0.8), -1px 1px 0 rgba(255,255,255,0.8), 1px 1px 0 rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.2)' 
-    : '-1px -1px 0 rgba(0,0,0,0.7), 1px -1px 0 rgba(0,0,0,0.7), -1px 1px 0 rgba(0,0,0,0.7), 1px 1px 0 rgba(0,0,0,0.7), 0 2px 4px rgba(0,0,0,0.5)';
-
-  return `<div class="relative z-10" style="filter: saturate(0.96) drop-shadow(0 1px 1px rgba(0,0,0,0.18));">
-        <svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="transform origin-center">
-          <g transform="rotate(45 12 12)">
-            <path d="M8 2 L8 8 L2 8" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M16 2 L16 8 L22 8" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M22 16 L16 16 L16 22" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M8 22 L8 16 L2 16" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-          </g>
-        </svg>
-        ${index ? `<div class="absolute inset-0 flex items-center justify-center font-black" style="font-size: 14px; color: ${textColor}; text-shadow: ${textShadow};">${index}</div>` : ''}
-      </div>`;
-}
+  return getIconSvgString('intersection', color, size, index);
+};
 
 export const getIconSvgString = (type: string, color: string, size: number, index?: number | string, rotation: number = 0) => {
-  const normalizedType = String(type || 'default').toLowerCase();
-  const isWhite = ['#ffffff', 'white', '#fff', 'rgb(255, 255, 255)', 'rgba(255, 255, 255, 1)'].includes(color.toLowerCase().trim());
+  const normalizedType = normalizeIconKey(type);
+  const normalizedColor = normalizeFeatureColor(color);
+  const normalizedSize = normalizeFeatureSize(size);
+  const isWhite = ['#ffffff', 'white', '#fff', 'rgb(255, 255, 255)', 'rgba(255, 255, 255, 1)'].includes(normalizedColor.toLowerCase().trim());
   const textColor = isWhite ? '#111827' : '#ffffff';
   const textStrokeColor = isWhite ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)';
 
-  const common = `width="${size}" height="${size}" viewBox="0 0 24 24" fill="white" stroke="${color}" stroke-width="0.75" stroke-linecap="round" stroke-linejoin="round"`;
+  const common = `width="${normalizedSize}" height="${normalizedSize}" viewBox="0 0 24 24" fill="white" stroke="${normalizedColor}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"`;
 
-  // High contrast text style for SVG - Enhanced with thick white/black outline stroke and filter
-  const textStyle = `stroke="${textStrokeColor}" stroke-width="2.5" paint-order="stroke" font-family="Arial, sans-serif" font-weight="900" text-anchor="middle" fill="${textColor}" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.6))"`;
+  // High contrast text style for SVG with a thick white/black outline stroke
+  const textStyle = `stroke="${textStrokeColor}" stroke-width="2.5" paint-order="stroke" font-family="Arial, sans-serif" font-weight="900" text-anchor="middle" fill="${textColor}"`;
 
   let iconContent = '';
   let textContent = '';
 
   const textX = 12;
   const textY = normalizedType === 'speed' ? 14.5 : (normalizedType === 'ptz' ? 18.5 : (normalizedType === 'lpr' ? 16.5 : 14.5));
-  const fontSize = normalizedType === 'cctv' || normalizedType === 'camera' ? 8 : 9;
+  const fontSize = normalizedType === 'cctv' ? 8 : 9;
 
-  const brightenFilter = `filter: saturate(0.98) drop-shadow(0 1px 1px rgba(0,0,0,0.18));`;
+  const escapedIndex = index === undefined || index === ''
+    ? ''
+    : String(index)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
 
-  if (index !== undefined && index !== '') {
-    textContent = `<text x="${textX}" y="${textY}" font-size="${fontSize}" ${textStyle}>${index}</text>`;
+  if (escapedIndex) {
+    textContent = `<text x="${textX}" y="${textY}" font-size="${fontSize}" ${textStyle}>${escapedIndex}</text>`;
   }
 
   switch (normalizedType) {
@@ -212,13 +209,22 @@ export const getIconSvgString = (type: string, color: string, size: number, inde
       `;
       break;
     case 'cctv':
-    case 'camera':
       iconContent = `
         <g transform="rotate(45 12 12)">
           <path d="M16.7 4a2 2 0 0 0-1.4.6l-8.3 8.3a2 2 0 0 0 .6 2.8l2.9 2.9a2 2 0 0 0 2.8-.6l8.3-8.3A2 2 0 0 0 21 8.3L19.7 5a2 2 0 0 0-3-1Z" fill="white" />
           <path d="m14 7 3.3 3.3" />
           <path d="M4.6 20.4 8 17" />
           <path d="M2 22h4" />
+        </g>
+      `;
+      break;
+    case 'intersection':
+      iconContent = `
+        <g transform="rotate(45 12 12)">
+          <path d="M8 2 L8 8 L2 8" />
+          <path d="M16 2 L16 8 L22 8" />
+          <path d="M22 16 L16 16 L16 22" />
+          <path d="M8 22 L8 16 L2 16" />
         </g>
       `;
       break;
@@ -234,23 +240,21 @@ export const getIconSvgString = (type: string, color: string, size: number, inde
       `;
       break;
     case 'default':
-    case 'point':
     case 'point_circle':
-    case 'circle':
     default:
       iconContent = `
-        <circle cx="12" cy="12" r="8.5" fill="${color}" stroke="white" stroke-width="1.5" />
+        <circle cx="12" cy="12" r="8.5" fill="${normalizedColor}" stroke="white" stroke-width="1.5" />
       `;
       break;
   }
 
   let iconBaseRotation = 0;
-  if (['cctv', 'camera'].includes(normalizedType)) {
+  if (normalizedType === 'cctv') {
     iconBaseRotation = -45; // Counteract native 45deg path tilt so rotation=0 points North (0deg)
   }
 
   return `
-    <svg xmlns="http://www.w3.org/2000/svg" ${common} style="${brightenFilter}">
+    <svg xmlns="http://www.w3.org/2000/svg" ${common}>
       <g transform="rotate(${rotation + iconBaseRotation} 12 12)">
         ${iconContent}
       </g>

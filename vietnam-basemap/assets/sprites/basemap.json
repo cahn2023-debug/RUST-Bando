@@ -1,0 +1,6 @@
+{
+  "airport": { "width": 24, "height": 24, "x": 0, "y": 0, "pixelRatio": 1, "visible": true },
+  "hospital": { "width": 24, "height": 24, "x": 24, "y": 0, "pixelRatio": 1, "visible": true },
+  "school": { "width": 24, "height": 24, "x": 48, "y": 0, "pixelRatio": 1, "visible": true },
+  "station": { "width": 24, "height": 24, "x": 72, "y": 0, "pixelRatio": 1, "visible": true }
+}

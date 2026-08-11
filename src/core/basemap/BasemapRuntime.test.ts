@@ -109,6 +109,34 @@ describe('BasemapRuntime', () => {
         expect(source.tiles.every((tile: unknown) => typeof tile === 'string' && tile.length > 0)).toBe(true);
     });
 
+    it('uses a resolved Vietnam basemap style through the provider boundary', async () => {
+        const style = {
+            version: 8,
+            sources: {
+                'vn-basemap': {
+                    type: 'vector',
+                    tiles: ['http://basemap.local/tiles/{z}/{x}/{y}.mvt'],
+                },
+            },
+            layers: [],
+        } as any;
+        const runtime = new BasemapRuntime();
+        const provider = {
+            client: {
+                styleDocument: vi.fn().mockResolvedValue(style),
+            },
+            styleId: 'engineering',
+            sourceId: 'vn-basemap',
+        } as any;
+
+        await runtime.initialize(document.createElement('div'), { vietnamBasemap: provider });
+
+        expect(provider.client.styleDocument).toHaveBeenCalledWith('engineering');
+        expect(mapState.getLastMap().options.style).toBe(style);
+        expect(mapState.getLastMap().getSource('vn-basemap')).toBeDefined();
+        expect(mapState.getLastMap().getSource('basemap')).toBeUndefined();
+    });
+
     it('updates preset through raster source instead of rebuilding the map', async () => {
         const runtime = new BasemapRuntime();
         await runtime.initialize(document.createElement('div'));

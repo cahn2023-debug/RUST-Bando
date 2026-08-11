@@ -231,7 +231,7 @@ const processAndAddImages = async (
     let metadata: MediaExportMetadata = {};
     try {
       metadata = typeof f.metadata === 'string' ? JSON.parse(f.metadata) : f.metadata;
-    } catch (e) {
+    } catch {
       continue;
     }
 
@@ -428,7 +428,7 @@ export const exportGroupToKMZ = async (state: MapState, groupId: string, groupNa
         let metadata: MediaExportMetadata = {};
         try {
           metadata = typeof f.metadata === 'string' ? JSON.parse(f.metadata) : f.metadata;
-        } catch (e) {
+        } catch {
           continue;
         }
 

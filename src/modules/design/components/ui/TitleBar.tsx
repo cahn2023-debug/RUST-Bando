@@ -79,7 +79,7 @@ export function TitleBar({ project, titleOverride, showExtraControls = true, onS
 
         const interval = setInterval(updateMaximized, 500);
         return () => clearInterval(interval);
-      } catch (e) {
+      } catch {
         console.warn("Not running in Tauri environment, skipping window controls init");
       }
     };

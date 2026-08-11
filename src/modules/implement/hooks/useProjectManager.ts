@@ -9,6 +9,16 @@ import { openProjectBootstrap } from "@SHARED/utils/designIpc";
 import { invalidateAll } from "@DESIGN/features/map/coordinateCache";
 import { resetTelemetry } from "@DESIGN/features/map/mapStartupTelemetry";
 
+const debugGroup = (...args: unknown[]) => {
+    if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.group(...args);
+};
+const debugGroupEnd = () => {
+    if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.groupEnd();
+};
+const debugInfo = (...args: unknown[]) => {
+    if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.info(...args);
+};
+
 const normalizeProject = (project: Project | null | undefined): Project | null => {
     if (!project || !project.path) {
         return null;
@@ -75,8 +85,8 @@ export function useProjectManager() {
 
     const loadProjects = async () => {
         const requestId = ++requestIdRef.current;
-        console.group(`[useProjectManager] loadProjects Process #${requestId}`);
-        console.info("Starting loadProjects sequence...");
+        debugGroup(`[useProjectManager] loadProjects Process #${requestId}`);
+        debugInfo("Starting loadProjects sequence...");
 
         setLoadingProjects(true);
         let hydratedProject: Project | null = normalizeProject(selectedProjectRef.current);
@@ -89,17 +99,17 @@ export function useProjectManager() {
 
             if (requestId !== requestIdRef.current) {
                 console.warn("Request ID mismatch (Stale request), aborting hydration.");
-                console.groupEnd();
+                debugGroupEnd();
                 return;
             }
 
             const activeProject = activeProjectResult.status === "fulfilled"
                 ? normalizeProject(activeProjectResult.value)
                 : null;
-            console.info("Backend Active Project Result:", activeProject?.name || "None");
+            debugInfo("Backend Active Project Result:", activeProject?.name || "None");
 
             if (isProjectLoadable(activeProject)) {
-                console.info(`[useProjectManager] Hydrating active project from backend: ${activeProject.name}`);
+                debugInfo(`[useProjectManager] Hydrating active project from backend: ${activeProject.name}`);
                 hydratedProject = activeProject;
             }
 
@@ -123,7 +133,7 @@ export function useProjectManager() {
                 currentProjects = (Array.isArray(recentProjectsResult.value) ? recentProjectsResult.value : [])
                     .map(normalizeProject)
                     .filter((project): project is Project => project !== null);
-                console.info(`Loaded ${currentProjects.length} recent projects from backend`);
+                debugInfo(`Loaded ${currentProjects.length} recent projects from backend`);
                 localStorage.setItem("recent_pmps", JSON.stringify(currentProjects));
             } else {
                 console.warn("Backend recent projects not available, falling back to localStorage:", recentProjectsResult.reason);
@@ -139,7 +149,7 @@ export function useProjectManager() {
                 }
             }
 
-            console.info("Final Hydrated Project:", hydratedProject?.name || "None");
+            debugInfo("Final Hydrated Project:", hydratedProject?.name || "None");
             hydratedProject = backfillProjectPath(hydratedProject, currentProjects);
 
             // Update recent projects and selectedProject state immediately — no need to wait for bootstrap
@@ -190,7 +200,7 @@ export function useProjectManager() {
             if (requestId === requestIdRef.current) {
                 setLoadingProjects(false);
             }
-            console.groupEnd();
+            debugGroupEnd();
         }
     };
 
@@ -272,12 +282,12 @@ export function useProjectManager() {
         const requestId = ++requestIdRef.current;
         const openStart = performance.now();
         let selectedPathForCleanup: string | null = null;
-        console.group(`[useProjectManager] handleOpenProject Process #${requestId}`);
-        console.info("Path to open:", pathToOpen || "Manual selection");
+        debugGroup(`[useProjectManager] handleOpenProject Process #${requestId}`);
+        debugInfo("Path to open:", pathToOpen || "Manual selection");
 
         try {
             if (indexingTimeoutRef.current) {
-                console.info("Clearing existing indexing timeout...");
+                debugInfo("Clearing existing indexing timeout...");
                 clearTimeout(indexingTimeoutRef.current);
                 indexingTimeoutRef.current = null;
             }
@@ -310,7 +320,7 @@ export function useProjectManager() {
             const syncState = useDesignSync.getState();
             const pathAlreadyActive = syncState.projectPath === selectedPath || syncState.projectKey === selectedPath;
             if (pathAlreadyActive && syncState.state && !syncState.isLoading && !syncState.error) {
-                console.info(`[useProjectManager] Project already loaded at path, skipping bootstrap: ${selectedPath}`);
+                debugInfo(`[useProjectManager] Project already loaded at path, skipping bootstrap: ${selectedPath}`);
                 const existingProject = projectsRef.current.find(p => p.path === selectedPath);
                 if (existingProject) {
                     applyOpenedProject(existingProject, false);
@@ -320,7 +330,7 @@ export function useProjectManager() {
 
             const isNetworkPath = selectedPath.includes('Shared drives') || selectedPath.startsWith('\\\\') || selectedPath.toLowerCase().includes('google drive') || selectedPath.toLowerCase().includes('onedrive');
             const timeoutMs = isNetworkPath ? 120_000 : 30_000;
-            console.info(`[useProjectManager] Attempting to bootstrap PMP file: ${selectedPath} (NetworkPath: ${isNetworkPath}, Timeout: ${timeoutMs / 1000}s)`);
+            debugInfo(`[useProjectManager] Attempting to bootstrap PMP file: ${selectedPath} (NetworkPath: ${isNetworkPath}, Timeout: ${timeoutMs / 1000}s)`);
             const bootstrapStart = performance.now();
             const bootstrap = await Promise.race([
                 openProjectBootstrap(selectedPath, requestId),
@@ -344,21 +354,21 @@ export function useProjectManager() {
             };
             if (bootstrap.openRequestId && bootstrap.openRequestId !== requestId) {
                 console.warn("Open request ID mismatch (Stale bootstrap), aborting.");
-                console.groupEnd();
+                debugGroupEnd();
                 return false;
             }
             const migratedProject = normalizeProject(bootstrap.project as Project);
-            console.info("open_project_bootstrap result:", migratedProject?.name || "Null");
+            debugInfo("open_project_bootstrap result:", migratedProject?.name || "Null");
 
             if (requestId !== requestIdRef.current) {
                 console.warn("Request ID mismatch (Stale open request), aborting.");
-                console.groupEnd();
+                debugGroupEnd();
                 return false;
             }
 
             let recoveredProject = migratedProject;
             if (!isProjectLoadable(recoveredProject)) {
-                console.info("[useProjectManager] load_pmp_file returned null, attempting fallback to active project...");
+                debugInfo("[useProjectManager] load_pmp_file returned null, attempting fallback to active project...");
                 recoveredProject = normalizeProject(await invoke<Project | null>("get_active_project"));
             }
 
@@ -367,15 +377,14 @@ export function useProjectManager() {
                 const project = optimisticProject
                     ? mergeProjectMetadata(optimisticProject, recoveredProject)
                     : recoveredProject;
-                console.info(`[useProjectManager] Successfully resolved project: ${project.name} (ID: ${project.id})`);
+                debugInfo(`[useProjectManager] Successfully resolved project: ${project.name} (ID: ${project.id})`);
 
                 const currentSyncState = useDesignSync.getState();
                 const isAlreadyLoaded = currentSyncState.projectId === project.id && currentSyncState.state && !currentSyncState.isLoading;
 
-                applyOpenedProject(project, true);
-                // Wrap initialize() in startTransition + defer to free the click handler immediately
-                // instead of blocking for the full initialize duration.
+                // Defer project state commits with initialization so the click task can yield promptly.
                 startTransition(() => {
+                    applyOpenedProject(project, true);
                     void currentSyncState.initialize(project.id, project.path, {
                         forceReload: !isAlreadyLoaded,
                         bootstrap
@@ -407,7 +416,7 @@ export function useProjectManager() {
             if (selectedPathForCleanup && openingPathRef.current === selectedPathForCleanup) {
                 openingPathRef.current = null;
             }
-            console.groupEnd();
+            debugGroupEnd();
         }
 
         return false;
@@ -456,7 +465,7 @@ export function useProjectManager() {
         try {
             const config = await invoke<{ recent_pmps: Project[] }>("get_app_config");
             if (config.recent_pmps && config.recent_pmps.length > 0) {
-                console.info(`Restoring ${config.recent_pmps.length} projects from config...`);
+                debugInfo(`Restoring ${config.recent_pmps.length} projects from config...`);
                 const normalizedProjects = config.recent_pmps
                     .map(normalizeProject)
                     .filter((project): project is Project => project !== null);
@@ -479,12 +488,12 @@ export function useProjectManager() {
     };
 
     const handleCloseProject = async () => {
-        console.info("[useProjectManager] Closing active project...");
+        debugInfo("[useProjectManager] Closing active project...");
         try {
             await projectApi.closeProject();
             selectedProjectRef.current = null;
             setSelectedProject(null);
-            console.info("[useProjectManager] Project closed successfully.");
+            debugInfo("[useProjectManager] Project closed successfully.");
         } catch (e) {
             console.error("[useProjectManager] Failed to close project:", e);
         }

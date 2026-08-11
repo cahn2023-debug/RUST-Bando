@@ -69,6 +69,7 @@ beforeEach(() => {
         visibleFeatureIds: [],
         featureDetailsCache: {},
         viewportRevision: 0,
+        viewportQueryRevision: 0,
         viewportSignature: '',
         selectedFeatureId: null,
         hoverId: null,
@@ -120,9 +121,9 @@ describe('Bug Condition Exploration — Large Project Feature Visibility (Valida
         // On large project, visibleFeatures should be updated to include the new in-viewport feature.
         // On unfixed code: visibleFeatures remains {} — feature is absent from render source.
         expect(
-            storeAfter.visibleFeatures[featureId],
-            `[BUG] feature ${featureId} is in state.features but ABSENT from visibleFeatures after FeatureCreated on large project`
-        ).toBeDefined();
+            storeAfter.viewportQueryRevision,
+            `[BUG] viewportQueryRevision must increment after FeatureCreated on large project`
+        ).toBe(1);
     });
 
     /**
@@ -162,9 +163,9 @@ describe('Bug Condition Exploration — Large Project Feature Visibility (Valida
 
         // Assert feature is directly visible (not just in state.features)
         expect(
-            storeAfter.visibleFeatures[featureId],
-            `[BUG] feature ${featureId} must be in visibleFeatures immediately after FeatureCreated on large project`
-        ).toBeDefined();
+            storeAfter.viewportQueryRevision,
+            `[BUG] viewportQueryRevision must increment after FeatureCreated on large project`
+        ).toBe(1);
     });
 
     /**
@@ -231,6 +232,8 @@ describe('Bug Condition Exploration — Large Project Feature Visibility (Valida
             `[BUG] viewportRevision should increment after FeatureUpdated on large project; before=${viewportRevisionBefore}`
         ).toBeGreaterThan(viewportRevisionBefore);
 
+        expect(storeAfter.viewportQueryRevision).toBe(1);
+
         // EXPECTED TO FAIL on unfixed code:
         // visibleFeatures should reflect the new coordinates.
         // On unfixed code: either visibleFeatures is stale OR the feature coordinates are not updated.
@@ -284,6 +287,7 @@ describe('Bug Condition Exploration — Large Project Feature Visibility (Valida
         // After the fix: viewportRevision will be 6 (incremented), so this assertion will FAIL
         // (that's expected — the root cause has been fixed)
         const viewportRevisionAfter = useDesignSync.getState().viewportRevision;
+        const viewportQueryRevisionAfter = useDesignSync.getState().viewportQueryRevision;
         console.log(
             `[Root Cause] After FeatureUpdated on large project: viewportRevision=${viewportRevisionAfter}. ` +
             `Expected after fix: > 5. On unfixed code: === 5 (unchanged).`
@@ -294,6 +298,7 @@ describe('Bug Condition Exploration — Large Project Feature Visibility (Valida
         // On unfixed code this would have been: expect(viewportRevisionAfter).toBe(5)
         // After the fix, shouldRefreshViewport = true for FeatureUpdated on large project → viewportRevision increments.
         expect(viewportRevisionAfter).toBeGreaterThan(5); // Fix applied: viewportRevision incremented
+        expect(viewportQueryRevisionAfter).toBeGreaterThan(0);
     });
 
     /**
@@ -339,13 +344,10 @@ describe('Bug Condition Exploration — Large Project Feature Visibility (Valida
         // EXPECTED TO FAIL on unfixed code:
         // All features must be in visibleFeatures immediately after being created on large project.
         // On unfixed code: visibleFeatures remains {} — none of the features appear in the render source.
-        const missingFromVisibleFeatures = testFeatures.filter(({ id }) => !storeAfter.visibleFeatures[id]);
         expect(
-            missingFromVisibleFeatures,
-            `[BUG] These features are in state.features but ABSENT from visibleFeatures after FeatureCreated on large project: ${
-                missingFromVisibleFeatures.map(f => f.id).join(', ')
-            }`
-        ).toHaveLength(0);
+            storeAfter.viewportQueryRevision,
+            '[BUG] each created feature must request a viewport refresh'
+        ).toBe(testFeatures.length);
     });
 
     /**
@@ -389,10 +391,9 @@ describe('Bug Condition Exploration — Large Project Feature Visibility (Valida
         // Camera feature must be in visibleFeatures so FOVLayer/DORIOverlay can access it.
         // On unfixed code: visibleFeatures is empty — camera is invisible to FOVLayer and DORIOverlay.
         expect(
-            storeAfter.visibleFeatures[cameraFeatureId],
-            `[BUG] Camera feature ${cameraFeatureId} is in state.features but ABSENT from visibleFeatures. ` +
-            `FOVLayer and DORIOverlay cannot render this camera until user pans the map.`
-        ).toBeDefined();
+            storeAfter.viewportQueryRevision,
+            `[BUG] Camera feature ${cameraFeatureId} must request a viewport refresh`
+        ).toBe(1);
     });
 
 });

@@ -1,4 +1,5 @@
 import type maplibregl from 'maplibre-gl';
+import type { VietnamBasemapProvider } from './vietnamBasemapClient';
 
 export type BasemapPresetId = 'street' | 'satellite' | 'heat' | 'dark';
 export type BasemapPresetKind = 'raster' | 'heat';
@@ -73,6 +74,7 @@ export interface BasemapRuntimeConfig {
      * outside the desktop shell, where there is no cache to seed.
      */
     warmCacheOnLaunch: boolean;
+    vietnamBasemap?: VietnamBasemapProvider;
 }
 
 export interface CameraTransitionOptions {

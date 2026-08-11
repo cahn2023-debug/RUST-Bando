@@ -2,6 +2,14 @@ import { Circle, MapPin } from "lucide-react";
 import { Intersection, PolylineIcon, CameraCCTV, CameraPTZ, CameraSpeed, CameraLPR } from '../../design/components/icons/MapIcons';
 import { getParsedMetadata, safeString } from "./featureMetadata";
 import type { FeatureProperties, IconType } from '@CONTRACT/types';
+import {
+  DEFAULT_FEATURE_COLOR,
+  DEFAULT_LINE_COLOR,
+  normalizeFeatureColor,
+  normalizeIconKey,
+} from './featureSymbolStyle';
+
+export { normalizeIconKey };
 
 /**
  * Camera icon types
@@ -52,27 +60,6 @@ export const SYMBOL_ICON_OPTIONS: Array<{ id: IconType; label: string; component
 export const isCameraIcon = (icon?: string): boolean => {
     if (!icon) return false;
     return CAMERA_ICONS.includes(icon.toLowerCase());
-};
-
-export const normalizeIconKey = (icon: unknown): IconType => {
-    switch (safeString(icon).toLowerCase()) {
-        case 'cctv':
-        case 'camera':
-            return 'cctv';
-        case 'ptz':
-            return 'ptz';
-        case 'speed':
-            return 'speed';
-        case 'lpr':
-            return 'lpr';
-        case 'intersection':
-            return 'intersection';
-        case 'point_circle':
-        case 'circle':
-            return 'point_circle';
-        default:
-            return 'default';
-    }
 };
 
 export const getObjectTypeForIcon = (icon: IconType): string => {
@@ -301,7 +288,10 @@ export const getFeatureDisplayInfo = (feature: any, groupType?: string, groupNam
     return {
         label: displayType,
         tailwindColor: colorClass,
-        color: meta.gis?.color || meta.color || feature?.properties?.color || (isLine ? '#10b981' : '#6366f1'),
+        color: normalizeFeatureColor(
+            meta.gis?.color ?? meta.color ?? feature?.properties?.color,
+            isLine ? DEFAULT_LINE_COLOR : DEFAULT_FEATURE_COLOR,
+        ),
         icon: IconComponent,
         iconKey: iconKey,
         objectType: symbol.objectType,

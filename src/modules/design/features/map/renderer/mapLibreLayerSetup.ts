@@ -29,6 +29,15 @@ export const EDIT_SOURCE_ID = 'design-fast-edit-handles';
 export const EDIT_VERTEX_LAYER_ID = 'design-fast-edit-vertices';
 export const EDIT_MIDPOINT_LAYER_ID = 'design-fast-edit-midpoints';
 const EDIT_SNAP_LINK_LAYER_ID = 'design-fast-edit-snap-links';
+export const DESIGN_RENDER_LAYER_IDS = [
+    POINT_CLUSTER_COUNT_LAYER_ID,
+    POINT_ICON_LAYER_ID,
+    POINT_LABEL_LAYER_ID,
+    LABEL_LAYER_ID,
+    POINT_CLUSTER_LAYER_ID,
+    POINT_GLOW_LAYER_ID,
+    POINT_LAYER_ID,
+] as const;
 export const MAP_MAX_ZOOM = 23;
 const MAP_MAX_NATIVE_ZOOM = 20;
 export const BASEMAP_RETRY_DELAYS_MS = [1000, 3000] as const;
@@ -101,6 +110,17 @@ export const moveLayerToTop = (map: maplibregl.Map, layerId: string) => {
 
 const addMapLayer = (map: maplibregl.Map, layer: maplibregl.AddLayerObject, beforeId?: string) => {
     map.addLayer(layer, beforeId);
+};
+
+export const areDesignRenderLayersHydrated = (map: maplibregl.Map) => {
+    try {
+        return DESIGN_RENDER_LAYER_IDS.every(layerId => {
+            const layer = map.getLayer(layerId) as { layout?: unknown } | undefined;
+            return Boolean(layer?.layout);
+        });
+    } catch {
+        return false;
+    }
 };
 
 export const ensureBasemapOverlayLayers = (map: maplibregl.Map, preset?: MapBasemapPreset | null) => {
@@ -226,6 +246,7 @@ export const ensureDesignLayers = (map: maplibregl.Map, clusterPoints: boolean, 
             promoteId: 'id',
             cluster: clusterPoints,
             clusterRadius: 48,
+            maxzoom: MAP_POINT_CLUSTER_MAX_ZOOM + 1,
             clusterMaxZoom: MAP_POINT_CLUSTER_MAX_ZOOM,
         });
     }

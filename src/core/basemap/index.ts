@@ -1,6 +1,19 @@
 export { BasemapContext, BasemapProvider, useBasemap, useOptionalBasemapController } from './BasemapContext';
 export { BasemapRuntime, createBasemapRuntime } from './BasemapRuntime';
 export { PersistentBasemapHost } from './PersistentBasemapHost';
+export {
+    createVietnamBasemapClient,
+    fetchVietnamBasemapManifest,
+    validateVietnamBasemapManifest,
+} from './vietnamBasemapClient';
+export type {
+    VietnamBasemapAssets,
+    VietnamBasemapClient,
+    VietnamBasemapManifest,
+    VietnamBasemapMode,
+    VietnamBasemapProvider,
+    VietnamBasemapStyleReference,
+} from './vietnamBasemapClient';
 export { BasemapControls } from './BasemapControls';
 export { MeasurePanel, formatArea, formatDistance, sphericalArea, totalLength } from './BasemapMeasure';
 export type { MeasureMode } from './BasemapMeasure';

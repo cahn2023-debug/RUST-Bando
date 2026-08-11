@@ -26,6 +26,7 @@ export const createMapCameraSubSlice = (set: MapStateSet): Pick<
     | 'visibleFeatureIds'
     | 'featureDetailsCache'
     | 'viewportRevision'
+    | 'viewportQueryRevision'
     | 'viewportSignature'
     | 'isViewportLoading'
     | 'viewportFeatureTotal'
@@ -44,6 +45,7 @@ export const createMapCameraSubSlice = (set: MapStateSet): Pick<
     visibleFeatureIds: [],
     featureDetailsCache: {},
     viewportRevision: 0,
+    viewportQueryRevision: 0,
     viewportSignature: '',
     isViewportLoading: false,
     viewportFeatureTotal: 0,

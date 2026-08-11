@@ -1,0 +1,13 @@
+[package]
+name = "basemap_offline"
+version = "0.1.0"
+edition = "2021"
+description = "Offline release package resolver for the Vietnam Basemap Platform"
+license = "MIT"
+
+[dependencies]
+basemap_contract = { path = "../basemap_contract" }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"

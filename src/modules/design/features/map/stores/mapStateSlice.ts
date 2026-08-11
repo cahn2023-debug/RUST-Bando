@@ -1,5 +1,4 @@
 import { StateCreator } from 'zustand';
-import { normalizeFeatureForDisplay } from '../../../../tool/utils/normalizeDisplay';
 import { MapStateSlice, DesignSyncStore } from './types';
 import { MapState } from '@CONTRACT/types';
 import { DesignEventType } from '@CONTRACT/designTypes';
@@ -336,9 +335,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         const deletedFeatureIds = new Set<string>();
         const updatedFeatureIds = new Set<string>();
         let shouldRefreshViewport = false;
-        // Track new feature payloads that should be injected into visibleFeatures immediately
-        // on large project (viewport-first mode) without waiting for the async queryVisibleFeaturesV2 IPC call.
-        const newLargeProjectFeatures = new Map<string, any>();
+        let shouldQueryViewport = false;
 
         const applySingle = (event: DesignEventType) => {
             const { type, payload } = event as any;
@@ -347,18 +344,14 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 case 'FeatureUpdated': {
                     if (type === 'FeatureCreated' && hasRenderableCoordinates(payload)) {
                         shouldRefreshViewport = true;
-                        // On large project, directly inject new features into visibleFeatures
-                        // so they appear immediately without waiting for the async queryVisibleFeaturesV2 path.
-                        // Guard: only inject non-default features (default point placeholders are excluded).
-                        if (currentState.isLargeProject && !isDefaultPointProperties(payload.properties)) {
-                            newLargeProjectFeatures.set(payload.id, payload);
-                        }
+                        if (currentState.isLargeProject) shouldQueryViewport = true;
                     }
                     if (type === 'FeatureUpdated' && currentState.isLargeProject) {
                         // FeatureUpdated on large project: trigger viewport refresh so queryVisibleFeaturesV2
                         // is called again. Also, syncUpdatedFeatureCaches (below) will update the feature
                         // in visibleFeatures if it is already present there.
                         shouldRefreshViewport = true;
+                        shouldQueryViewport = true;
                     }
                     const currentFeature = resolveFeatureById(storeState, newState, payload.id);
                     if (IS_DEV && type === 'FeatureUpdated') {
@@ -445,41 +438,12 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
             const cacheUpdates = syncUpdatedFeatureCaches(s, updatedFeatureIds, normalizedState);
             const deleteUpdates = cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState);
 
-            // On large project, inject newly created non-default features directly into visibleFeatures
-            // so they appear immediately without waiting for the async queryVisibleFeaturesV2 IPC path.
-            let injectUpdates: Partial<typeof s> = {};
-            if (newLargeProjectFeatures.size > 0) {
-                const nextVisibleFeatures = { ...(cacheUpdates.visibleFeatures ?? s.visibleFeatures) };
-                let nextVisibleFeatureIds = [...(s.visibleFeatureIds)];
-                const featureDetailsCache = { ...(cacheUpdates.featureDetailsCache ?? s.featureDetailsCache) };
-                newLargeProjectFeatures.forEach((_payload, id) => {
-                    const normalizedFeature = normalizedState.features?.[id];
-                    if (normalizedFeature) {
-                        const featureWithGroup = normalizeFeatureForDisplay(
-                            normalizedFeature,
-                            undefined,
-                            normalizedState.feature_groups?.[normalizedFeature.group_id as string]
-                        );
-                        nextVisibleFeatures[id] = featureWithGroup;
-                        if (!nextVisibleFeatureIds.includes(id)) {
-                            nextVisibleFeatureIds = [...nextVisibleFeatureIds, id];
-                        }
-                        featureDetailsCache[id] = featureWithGroup;
-                    }
-                });
-                injectUpdates = {
-                    visibleFeatures: nextVisibleFeatures,
-                    visibleFeatureIds: nextVisibleFeatureIds,
-                    featureDetailsCache,
-                };
-            }
-
             return {
                 state: normalizedState,
                 ...(shouldRefreshViewport ? { viewportRevision: s.viewportRevision + 1 } : {}),
+                ...(shouldQueryViewport ? { viewportQueryRevision: s.viewportQueryRevision + 1 } : {}),
                 ...cacheUpdates,
                 ...deleteUpdates,
-                ...injectUpdates,
             };
         });
         if (IS_DEV) {
@@ -496,6 +460,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         const deletedFeatureIds = new Set<string>();
         const updatedFeatureIds = new Set<string>();
         let shouldRefreshViewport = false;
+        let shouldQueryViewport = false;
 
         const applySingle = (event: DesignEventType) => {
             const { type, payload } = event as any;
@@ -504,6 +469,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 case 'FeatureUpdated': {
                     if (type === 'FeatureCreated' && hasRenderableCoordinates(payload)) {
                         shouldRefreshViewport = true;
+                        if (currentState.isLargeProject) shouldQueryViewport = true;
+                    }
+                    if (type === 'FeatureUpdated' && currentState.isLargeProject) {
+                        shouldRefreshViewport = true;
+                        shouldQueryViewport = true;
                     }
                     if (IS_DEV && type === 'FeatureUpdated') {
                         const currentFeature = resolveFeatureById(storeState, newState, payload.id);
@@ -578,6 +548,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         set((s) => ({
             state: normalizedState,
             ...(shouldRefreshViewport ? { viewportRevision: s.viewportRevision + 1 } : {}),
+            ...(shouldQueryViewport ? { viewportQueryRevision: s.viewportQueryRevision + 1 } : {}),
             ...syncUpdatedFeatureCaches(s, updatedFeatureIds, normalizedState),
             ...cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState)
         }));
@@ -595,6 +566,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         const deletedFeatureIds = new Set<string>();
         const updatedFeatureIds = new Set<string>();
         let shouldRefreshViewport = false;
+        let shouldQueryViewport = false;
 
         const apply = (ev: DesignEventType) => {
             const { type, payload } = ev as any;
@@ -605,6 +577,11 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
                 case 'FeatureUpdated': {
                     if (type === 'FeatureCreated' && hasRenderableCoordinates(payload)) {
                         shouldRefreshViewport = true;
+                        if (currentState.isLargeProject) shouldQueryViewport = true;
+                    }
+                    if (type === 'FeatureUpdated' && currentState.isLargeProject) {
+                        shouldRefreshViewport = true;
+                        shouldQueryViewport = true;
                     }
                     if (!newState.features) newState.features = {};
                     const currentFeature = resolveFeatureById(storeState, newState, payload.id);
@@ -689,6 +666,7 @@ export const createMapStateSlice: StateCreator<DesignSyncStore, [], [], MapState
         set((s) => ({
             state: normalizedState,
             ...(shouldRefreshViewport ? { viewportRevision: s.viewportRevision + 1 } : {}),
+            ...(shouldQueryViewport ? { viewportQueryRevision: s.viewportQueryRevision + 1 } : {}),
             ...syncUpdatedFeatureCaches(s, updatedFeatureIds, normalizedState),
             ...cleanupDeletedFeatures(s, deletedFeatureIds, normalizedState)
         }));

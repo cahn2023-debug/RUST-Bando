@@ -30,6 +30,16 @@ import { buildToggleOriginEvents } from '@DESIGN/features/map/network/networkTop
 import { buildFiberRouteDisplay } from '@DESIGN/features/map/network/fiberRouteDisplay';
 import { getTemplateFieldValue, getTemplateTypeIdForFeature, normalizeProjectSettings } from '@TOOL/utils/objectDataTemplates';
 import { confirmUserAction } from '@SHARED/utils/userConfirmation';
+import {
+  DEFAULT_FEATURE_COLOR,
+  LINE_STROKE_SIZE_MAX,
+  LINE_STROKE_SIZE_MIN,
+  POINT_SYMBOL_SIZE_MAX,
+  POINT_SYMBOL_SIZE_MIN,
+  normalizeFeatureColor,
+  normalizeFeatureSize,
+  normalizeIconKey,
+} from '@TOOL/utils/featureSymbolStyle';
 
 interface SegmentItem {
   id?: string | number;
@@ -54,19 +64,8 @@ const asNumberValue = (value: unknown, fallback = 0): number => {
   return fallback;
 };
 
-const POINT_SYMBOL_SIZE_MIN = 4;
-const POINT_SYMBOL_SIZE_MAX = 100;
-const LINE_STROKE_SIZE_MIN = 1;
-const LINE_STROKE_SIZE_MAX = 32;
-
-const clampNumber = (value: number, min: number, max: number): number =>
-  Math.min(max, Math.max(min, value));
-
 const normalizeSymbolSize = (value: unknown, isPolyline: boolean): number => {
-  const fallback = isPolyline ? 4 : 32;
-  const min = isPolyline ? LINE_STROKE_SIZE_MIN : POINT_SYMBOL_SIZE_MIN;
-  const max = isPolyline ? LINE_STROKE_SIZE_MAX : POINT_SYMBOL_SIZE_MAX;
-  return clampNumber(asNumberValue(value, fallback), min, max);
+  return normalizeFeatureSize(value, isPolyline ? 'line' : 'point');
 };
 
 const asStringArray = (value: unknown): string[] =>
@@ -252,7 +251,16 @@ const preparePropertyMetadata = (metaInput: unknown, properties?: FeaturePropert
     standardizedMeta.size = metaToSave.size;
   }
 
-  return normalizeFeatureMetadataForPersistence(standardizedMeta, properties);
+  const persisted = normalizeFeatureMetadataForPersistence(standardizedMeta, properties);
+  const color = normalizeFeatureColor(persisted.gis?.color ?? persisted.color, DEFAULT_FEATURE_COLOR);
+  return {
+    ...persisted,
+    color,
+    gis: {
+      ...(persisted.gis || {}),
+      color,
+    },
+  };
 };
 
 export const PropertyPanel: React.FC = () => {
@@ -799,10 +807,11 @@ export const PropertyPanel: React.FC = () => {
   };
 
   const handleIconChange = (icon: IconType) => {
+    const normalizedIcon = normalizeIconKey(icon);
     const nextMeta = {
       ...(localMeta || {}),
-      icon,
-      type: getTypeForIcon(icon),
+      icon: normalizedIcon,
+      type: getTypeForIcon(normalizedIcon),
     } as FeatureMetadata;
 
     setLocalMeta(nextMeta);
@@ -810,7 +819,7 @@ export const PropertyPanel: React.FC = () => {
       setPreview(selectedFeatureId, nextMeta, localName);
     }
 
-    if (isCameraIcon(icon)) {
+    if (isCameraIcon(normalizedIcon)) {
       openCameraPalettes();
     }
   };
@@ -867,7 +876,7 @@ export const PropertyPanel: React.FC = () => {
             };
           });
         }
-      } catch (e) {
+      } catch {
         setLocalName(safeString(feature.name) || '');
         setLocalMeta({});
       }

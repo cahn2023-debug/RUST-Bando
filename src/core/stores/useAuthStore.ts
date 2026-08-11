@@ -123,7 +123,7 @@ export const initAuth = () => {
           const isStandalone = win.label !== 'main';
           useAuthStore.setState({ isStandalone, tauriLabel: win.label });
         }
-      } catch (e) {
+      } catch {
         console.warn("[Auth] Tauri window detection unavailable.");
       }
 
@@ -142,7 +142,7 @@ export const initAuth = () => {
           console.warn("[Auth] No active backend user found. Initializing default local engineer session.");
           useAuthStore.getState().setUser(defaultDesktopUser);
         }
-      } catch (err) {
+      } catch {
         console.warn("[Auth] Backend user hydration skipped; setting default local user.");
         useAuthStore.getState().setUser({
           id: 'desktop-local-user',
