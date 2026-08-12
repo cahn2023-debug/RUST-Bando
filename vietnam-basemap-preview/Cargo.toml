@@ -7,3 +7,4 @@ members = [
     "crates/basemap_release",
 ]
 resolver = "2"
+exclude = ["src-tauri"]

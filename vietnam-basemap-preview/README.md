@@ -112,3 +112,51 @@ npm run build
 cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
+
+## Vietnam Basemap Platform workspace
+
+This directory is the standalone workspace for both the read-only desktop
+preview and the reusable Vietnam Basemap Platform. The platform owns source
+metadata, versioned release packages, styles, fonts/glyphs, sprites, tile
+assets, and the online/offline manifest contract. It does not own application
+features, project data, the legacy Tauri backend, or the SQLite database.
+
+Release packages expose the following basemap-only contract:
+
+```text
+manifest.json
+tiles/
+styles/
+fonts/
+sprites/
+```
+
+Run platform checks from this directory:
+
+```bash
+npm run check:platform
+```
+
+The command runs Cargo formatting, checks, and tests for all platform crates.
+Preview Tauri checks remain separate:
+
+```bash
+npm run check:tauri
+```
+
+The standalone combined gate is:
+
+```bash
+npm run check
+```
+
+The temporary debug EXE/PDB artifacts are written to
+`../dist/basemap-preview-debug/`. Existing unrelated content in `../dist/`
+is preserved.
+
+## Legacy rollback snapshot
+
+Before consolidation, the legacy application source was archived at
+`../BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application/`.
+Its sibling `manifest.json` records file sizes and SHA-256 hashes; generated
+targets and runtime databases are kept separately under the same BAK archive.

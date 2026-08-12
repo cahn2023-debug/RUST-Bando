@@ -1,0 +1,3387 @@
+﻿{
+    "archive":  "BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application-active",
+    "createdAt":  "2026-08-12T11:00:22.6724199Z",
+    "fileCount":  676,
+    "files":  [
+                  {
+                      "path":  "design-system/bando-network-graph/MASTER.md",
+                      "bytes":  716,
+                      "sha256":  "8e3868db62c8302faa5a75ad43ed274c9da2a64cd4ad904da8918fd6fe085477"
+                  },
+                  {
+                      "path":  "design-system/MASTER.md",
+                      "bytes":  9861,
+                      "sha256":  "6c482b76c2f2e812256a6991681ee439a6f4b4f39d1c0ab246bbae181912511b"
+                  },
+                  {
+                      "path":  "design-system/rust-cad/MASTER.md",
+                      "bytes":  711,
+                      "sha256":  "d3cdcbafc8dd1341002e47aef4f243e1dec9209b765dd0ddf78ef10d1ce34fb3"
+                  },
+                  {
+                      "path":  "public/basemap-sw.js",
+                      "bytes":  4978,
+                      "sha256":  "81a30f2a415988fa3f463b2a375d1de970f012aaff72b47ff942918f96849420"
+                  },
+                  {
+                      "path":  "public/tauri.svg",
+                      "bytes":  2605,
+                      "sha256":  "3f32698a9cb64f4d06d4df89ecb903418347589a17d297208a7f68741a8b5672"
+                  },
+                  {
+                      "path":  "public/vite.svg",
+                      "bytes":  1497,
+                      "sha256":  "4a748afd443918bb16591c834c401dae33e87861ab5dbad0811c3a3b4a9214fb"
+                  },
+                  {
+                      "path":  "root/.eslintrc.json",
+                      "bytes":  2725,
+                      "sha256":  "eaf454cf5cd4f26bbf06099770f17ac4623029d8dc2f595a1ae81debb6e3ca31"
+                  },
+                  {
+                      "path":  "root/.prettierignore",
+                      "bytes":  450,
+                      "sha256":  "c070ba09bdf12a9e79e014eaf64884ef0cd4b91ad614930b0d0f32aa5cb9d51a"
+                  },
+                  {
+                      "path":  "root/.prettierrc",
+                      "bytes":  202,
+                      "sha256":  "a3aa9a4d15c530878f9c56e01b0a721a0496c17ffb832479ec6df3cbae289176"
+                  },
+                  {
+                      "path":  "root/build_release_msi.bat",
+                      "bytes":  1368,
+                      "sha256":  "19ac9ef16982280f2f268c53ea8d9ddac9f5910bb715449beabe99b77e104fa4"
+                  },
+                  {
+                      "path":  "root/build_release_msi.ps1",
+                      "bytes":  2399,
+                      "sha256":  "2f428d486906829e747abdcf0e533f1c1dff86755f2261b92481fa16af1eb5af"
+                  },
+                  {
+                      "path":  "root/DESIGN.md",
+                      "bytes":  1487,
+                      "sha256":  "5802b8c8b8b9542e238a67c0ea8a7941b07d97987ae9cb82fdfb83964a5a83ad"
+                  },
+                  {
+                      "path":  "root/index.html",
+                      "bytes":  2528,
+                      "sha256":  "0eed1b2e7a81a6bbe0841bcc48e18d2d708bcdcb768ef73469c538a63328b25d"
+                  },
+                  {
+                      "path":  "root/package-lock.json",
+                      "bytes":  484546,
+                      "sha256":  "28ad01d5ba5b5dcc0ccb4fde96a5412bf25519b8a9433aa57ad5c765a6246963"
+                  },
+                  {
+                      "path":  "root/tsconfig.json",
+                      "bytes":  1318,
+                      "sha256":  "35bee7b77db21cfea8e5e3f711316f660a4ad4a60cf907e50bd1657b5915848f"
+                  },
+                  {
+                      "path":  "root/tsconfig.node.json",
+                      "bytes":  223,
+                      "sha256":  "6ec602b8aa146888c76f0b41ca3515f91f95919f6e6417a4670decaba8fcb982"
+                  },
+                  {
+                      "path":  "root/vite.config.ts",
+                      "bytes":  1523,
+                      "sha256":  "f1443dd5318ddf173a49a9e84e78f693b52de1dd32a6bb83af968ba289054f00"
+                  },
+                  {
+                      "path":  "root/vitest.config.ts",
+                      "bytes":  1610,
+                      "sha256":  "0beab7fc724d35caabe91bbdd5e347a8836a37417bb4b42b601f1bdd460415fd"
+                  },
+                  {
+                      "path":  "scripts/aggregate_changes.py",
+                      "bytes":  3253,
+                      "sha256":  "2c8561e73234845d883c8d4a8d0f5ca4d7600c5e6afcfec3a31e48a6b3a4f2b3"
+                  },
+                  {
+                      "path":  "scripts/aggregate_codebase.ps1",
+                      "bytes":  1878,
+                      "sha256":  "dc00cfff3245ba5a3e91a2a5c4b2c406be6c4c7e71abfab5f53ad01e4ad512cc"
+                  },
+                  {
+                      "path":  "scripts/aggregate_markdown.ps1",
+                      "bytes":  1555,
+                      "sha256":  "6bcf7f4ffdabcbd8df73448a21e7dc175beb544b6139191ebe6967386618be3f"
+                  },
+                  {
+                      "path":  "scripts/analyze_pmp_tmp.py",
+                      "bytes":  2177,
+                      "sha256":  "3acb3c35309afada14961279282751940d586f1e281614cbe50f6707ddad6e95"
+                  },
+                  {
+                      "path":  "scripts/check_boundaries.mjs",
+                      "bytes":  1604,
+                      "sha256":  "3b69cbd777856d4ad32e4ff83c92bbcd912aa440f29f6ddbc23549cc61c5d4d7"
+                  },
+                  {
+                      "path":  "scripts/check_db.rs",
+                      "bytes":  1736,
+                      "sha256":  "49b32035cc1b3244cfc5ea4fbd7ed852f4d685e57c26b28ad699722940b5df9c"
+                  },
+                  {
+                      "path":  "scripts/check_encoding.mjs",
+                      "bytes":  4658,
+                      "sha256":  "3e9e926f493102a7215d8a11c3d88d15bf7a5bcebe64a17e3438a937aa4ab8e5"
+                  },
+                  {
+                      "path":  "scripts/check_events.py",
+                      "bytes":  841,
+                      "sha256":  "f52302844b597fe8eea96d4854ab860ac0e61a8678fd34c5c364acbc5763f518"
+                  },
+                  {
+                      "path":  "scripts/check_features.py",
+                      "bytes":  1129,
+                      "sha256":  "f360b768078502351577a571d2587ba2a37f4ca49d851697eeea8ae06a0d46c7"
+                  },
+                  {
+                      "path":  "scripts/check_pmp.py",
+                      "bytes":  1905,
+                      "sha256":  "15b2c7021874bea9ca09da719eb0e405414b864f3372528df481a002ecb60f1c"
+                  },
+                  {
+                      "path":  "scripts/check_polylines_root.py",
+                      "bytes":  2304,
+                      "sha256":  "fb7e1b637170170855db1d75ef714c6e899655b38d4104f86d2e04dee71a004b"
+                  },
+                  {
+                      "path":  "scripts/cleanup_firestore.ts",
+                      "bytes":  3340,
+                      "sha256":  "904df7a8bb3ec63e65a6b57c3ddc457dedf655e7875ff388f07aa849c33ed356"
+                  },
+                  {
+                      "path":  "scripts/CODEBASE_MAP.md",
+                      "bytes":  62,
+                      "sha256":  "e23891c29818ca8b4473a1891b12e5c4b72464eab3cf7aa6f7f4b49e79ae5d40"
+                  },
+                  {
+                      "path":  "scripts/db_repair_final.py",
+                      "bytes":  1905,
+                      "sha256":  "0b6a89f35feb0c67b224dfbc0f55104ef2d854e849b95a1e501367be184662de"
+                  },
+                  {
+                      "path":  "scripts/debug_polyline_data.py",
+                      "bytes":  1969,
+                      "sha256":  "8abc15939db0c6014a21bfd850b5d3bdd193d1ff7ee8d770411e55b5671c04ad"
+                  },
+                  {
+                      "path":  "scripts/deep_inspect_db.py",
+                      "bytes":  2012,
+                      "sha256":  "b3ed076ed5a41e5e123fc902e87bad79c2c59de2ce0eb9f846cd69ae466edb92"
+                  },
+                  {
+                      "path":  "scripts/diagnostic_v2.py",
+                      "bytes":  1758,
+                      "sha256":  "d37d51fc35624416b1d22bc0b0a1f272a5396829d313fdae2fc06e4b8cc57939"
+                  },
+                  {
+                      "path":  "scripts/dump_events.py",
+                      "bytes":  480,
+                      "sha256":  "017ba7aa2a97835383d30a45abbf4a9a92bd7eac649e461daf37117f91d71d16"
+                  },
+                  {
+                      "path":  "scripts/extract_f1.py",
+                      "bytes":  1068,
+                      "sha256":  "8fee620cb5fe62b101fe13866cbf012d9766e1b61fdd4f54d727aadb773ef974"
+                  },
+                  {
+                      "path":  "scripts/find_polyline.py",
+                      "bytes":  1359,
+                      "sha256":  "efab1975d2b808f0ff0e6264f963bcbd5ea04dcfd6152e0feb0e94847369d6f6"
+                  },
+                  {
+                      "path":  "scripts/find_unused_rs.py",
+                      "bytes":  2490,
+                      "sha256":  "ecef6ad5e68a1f3e075afc43f159ff09f2be28e5c086a4a22c7eafc3feb0f4bf"
+                  },
+                  {
+                      "path":  "scripts/graph_generator.py",
+                      "bytes":  8864,
+                      "sha256":  "f042232b3e48a66f1b27191c83b56207bf9ed93cf03481c70998e7fada1b1c8e"
+                  },
+                  {
+                      "path":  "scripts/index_system.ps1",
+                      "bytes":  2861,
+                      "sha256":  "21f51a5561c3ed7669f8866a31be1cc8c58597ae7de99a548e96926680d8c5fa"
+                  },
+                  {
+                      "path":  "scripts/inspect_design_events.py",
+                      "bytes":  2130,
+                      "sha256":  "05286e9e63be0354d91acd4d53442bc5fc50ce2159d073c6b56f93d8de59f4cc"
+                  },
+                  {
+                      "path":  "scripts/inspect_ids.py",
+                      "bytes":  1654,
+                      "sha256":  "9768490a521d74d62f50b25afc3dd6ff6b35b7d20e3b1e1c2bebbbd447f7d8be"
+                  },
+                  {
+                      "path":  "scripts/inspect_pmp.py",
+                      "bytes":  1641,
+                      "sha256":  "19c84455910c620b5cd82250b94ab8df4b6b84d901d5deffaaedfd2157f75aee"
+                  },
+                  {
+                      "path":  "scripts/inspect_snapshot_features.py",
+                      "bytes":  2199,
+                      "sha256":  "f77c3e3451406c2603bce4c4545b443b021ba3a793b0719efe6bb09063a94cc2"
+                  },
+                  {
+                      "path":  "scripts/inspect_snapshot_v2.py",
+                      "bytes":  2614,
+                      "sha256":  "b3feec1f33d443895ba92445b7880289401ce1088b5739c36650ab1b05b6174d"
+                  },
+                  {
+                      "path":  "scripts/install_protoc.ps1",
+                      "bytes":  598,
+                      "sha256":  "c02c3acba06204fedde1460aead098085429f0ef9346c17be40cb7f0b2e9b731"
+                  },
+                  {
+                      "path":  "scripts/list_all_tables.py",
+                      "bytes":  931,
+                      "sha256":  "fc2a869ccc9a0288ac36318e92f3eb00f8a59e3525ad9bd4eebd140528b3b18f"
+                  },
+                  {
+                      "path":  "scripts/list_plugin_files.py",
+                      "bytes":  220,
+                      "sha256":  "a886cae29d5708387ea5ff67b888e08412e5f34719d238a8611eea6fd84582b9"
+                  },
+                  {
+                      "path":  "scripts/list_pmp_tables.py",
+                      "bytes":  1846,
+                      "sha256":  "3860af9d89d494ce2a62400a7d19754412155e8db69559d4eb3c2b545cf9e3a9"
+                  },
+                  {
+                      "path":  "scripts/list_tables.py",
+                      "bytes":  564,
+                      "sha256":  "af50e8159b945c52203fa43a2bd6802b27dbc149955bd01c051c505dfd79836f"
+                  },
+                  {
+                      "path":  "scripts/list_tables_sqlite.py",
+                      "bytes":  791,
+                      "sha256":  "539463e38d9e6669c6d048a983bef9d9d04eefbc5227fa9af49551b43febdc68"
+                  },
+                  {
+                      "path":  "scripts/list_tables_v1.py",
+                      "bytes":  1199,
+                      "sha256":  "d3caba82798435241f96281acfa486c633e33553fed66b3402a6df5b6a24f4b8"
+                  },
+                  {
+                      "path":  "scripts/list_tables_v2.py",
+                      "bytes":  944,
+                      "sha256":  "80b308e1c713bc7ebb7db1f20623d4ef28eca6eb82682379fc30448f14f39d56"
+                  },
+                  {
+                      "path":  "scripts/map_perf_benchmark.py",
+                      "bytes":  8926,
+                      "sha256":  "d43bf58bbbf3c148160cb99688e9498e1a0416a1f40991aa430ddc219e00c9eb"
+                  },
+                  {
+                      "path":  "scripts/peek_coords.py",
+                      "bytes":  530,
+                      "sha256":  "f0850646a4c65c599f159801c4c4ee6e66c4d80cdffd03fc553db5eace4e0baa"
+                  },
+                  {
+                      "path":  "scripts/peek_db.py",
+                      "bytes":  1542,
+                      "sha256":  "f2a541f023ce4e37b83bbb325d4597dcbf7ed9aa318e592a2073b7c8292efb6a"
+                  },
+                  {
+                      "path":  "scripts/perf_gen.py",
+                      "bytes":  2056,
+                      "sha256":  "6cbd4d507f3ad42d08f46b8c023bdaef87a314353393280b526cff807e54b072"
+                  },
+                  {
+                      "path":  "scripts/perf_smoke_pmp_open.py",
+                      "bytes":  4338,
+                      "sha256":  "2764bd5ad6f8310d1251f234fd3dc33b7a5995f2c951e4c9c6414aa685946738"
+                  },
+                  {
+                      "path":  "scripts/pgo_optimize.ps1",
+                      "bytes":  1088,
+                      "sha256":  "7b1735f3c4f858367abbaca466b53f30e836950f9e837dc1582233febd1986bc"
+                  },
+                  {
+                      "path":  "scripts/probe_db.py",
+                      "bytes":  961,
+                      "sha256":  "04f4a485adf52ff9fc717438de2a020d41489b8a52e1b5075edd3934945edddf"
+                  },
+                  {
+                      "path":  "scripts/repair_mojibake.mjs",
+                      "bytes":  5933,
+                      "sha256":  "21df4bf639ff9740de537ecdb131d9ee57ef583fd9139d5996f8be490d997d88"
+                  },
+                  {
+                      "path":  "scripts/run_all_checks.ps1",
+                      "bytes":  3097,
+                      "sha256":  "89ec908b9398dbd0a55e1205a28a43d1794f2573dc72f7e7086c8b2f4b31d305"
+                  },
+                  {
+                      "path":  "scripts/test_all.bat",
+                      "bytes":  7282,
+                      "sha256":  "459006afb4af9ca0b8b3033e43d179015c2628d4280fb0b4534965e41d480e09"
+                  },
+                  {
+                      "path":  "scripts/test_backend.bat",
+                      "bytes":  9655,
+                      "sha256":  "679f55d41d21461ea20ff4813f35bb649edbfc1060868b6437f14cdabf2eea36"
+                  },
+                  {
+                      "path":  "scripts/test_comprehensive.py",
+                      "bytes":  41356,
+                      "sha256":  "16aeb0af5c764131def74a4fe6742f1eb857c96b02fbff582ad24d2b2a5c8662"
+                  },
+                  {
+                      "path":  "scripts/test_feature_move_logic.py",
+                      "bytes":  6052,
+                      "sha256":  "9ae9e9ebef7a76a864334c6bba1112e6644c68fad275b086409a12e597210fae"
+                  },
+                  {
+                      "path":  "scripts/test_quick.bat",
+                      "bytes":  1745,
+                      "sha256":  "5c0db55704faa2a361b1a8e1ccb6720d1a7973f8d28f4aa3287120b74d9a90c3"
+                  },
+                  {
+                      "path":  "scripts/watch_graph.ps1",
+                      "bytes":  154,
+                      "sha256":  "110fdc94bf0ea5b59d7ac50105d30d90cae9f1be470263dd595e60d405cba4a2"
+                  },
+                  {
+                      "path":  "src/contracts/postgis.ts",
+                      "bytes":  743,
+                      "sha256":  "367b7327e0c8549f46136656f454d8699d4691673adba2bcf4cd4913cf98eccb"
+                  },
+                  {
+                      "path":  "src/contracts/public.ts",
+                      "bytes":  752,
+                      "sha256":  "297d45754124361e65c8a7da98309b7f28af88029a9044c0779a29339c84ba6a"
+                  },
+                  {
+                      "path":  "src/contracts/tauri-api/ai.ts",
+                      "bytes":  901,
+                      "sha256":  "23b665f14a3d8dc12a8d971a6393466d5a6bd33dc5ad677cba1a6101827c682e"
+                  },
+                  {
+                      "path":  "src/contracts/tauri-api/basemap.ts",
+                      "bytes":  769,
+                      "sha256":  "a3170e981a3d2928c77d01b3b070ad5f9792e7d98daf7a7b6d141eafe7730a49"
+                  },
+                  {
+                      "path":  "src/contracts/tauri-api/fiber.ts",
+                      "bytes":  1430,
+                      "sha256":  "72dfc0656885f29eadb08cd908481ea9595959454e8f6293e07c8a3d8ca0ea71"
+                  },
+                  {
+                      "path":  "src/contracts/tauri-api/file.ts",
+                      "bytes":  445,
+                      "sha256":  "4b98fe61576517f11d5bd14b9fea6d654e6cb7ec92e8b9ec6479b09de04a39f5"
+                  },
+                  {
+                      "path":  "src/contracts/tauri-api/gis.ts",
+                      "bytes":  1026,
+                      "sha256":  "16c7823c1dd315ea753f9b489864396ff587a8335cbed558314dbc38f5bf9fb8"
+                  },
+                  {
+                      "path":  "src/contracts/tauri-api/index.ts",
+                      "bytes":  274,
+                      "sha256":  "e1b87eea98b2ca49a5db19ac4cca2c96f745181debfa55d485b04a65dc50c782"
+                  },
+                  {
+                      "path":  "src/contracts/tauri-api/map.ts",
+                      "bytes":  634,
+                      "sha256":  "97ab8ba33c63f5186878993fea6f86bfadb1571bd75daf8eb5a5ad7a166379d8"
+                  },
+                  {
+                      "path":  "src/contracts/tauri-api/media.ts",
+                      "bytes":  1499,
+                      "sha256":  "4cce7341eb80160f377ff337523929993c0aa9da445806681511f7e7855ebb0f"
+                  },
+                  {
+                      "path":  "src/contracts/tauri-api/project.ts",
+                      "bytes":  2102,
+                      "sha256":  "fe182fc54bec7cbe1d8412f7afdb90b44824c6cb915b71492f4b96dc1f4fb6db"
+                  },
+                  {
+                      "path":  "src/contracts/tauri-api/runtime.ts",
+                      "bytes":  1118,
+                      "sha256":  "0b7edc818a9def9d7d5be483566065fa913d8c59e7cc62e771d4a93251cc2083"
+                  },
+                  {
+                      "path":  "src/contracts/tauri-api/storage.ts",
+                      "bytes":  2515,
+                      "sha256":  "9962e6ad39d8ae79ee2fe057b3a2a09bc211cd6dee65279f4ca5719ec809ed27"
+                  },
+                  {
+                      "path":  "src/contracts/tauri-api/sync.ts",
+                      "bytes":  778,
+                      "sha256":  "81fa1bbf00a87f1921aab0eb3fbf1157faaf6329baf423649cdba719fa90455d"
+                  },
+                  {
+                      "path":  "src/contracts/tauri-api/tauri-api.test.ts",
+                      "bytes":  1336,
+                      "sha256":  "30251ceab9982fe182d3a0010e476ae174b62e175ac9684f75ced23a59fa5e6c"
+                  },
+                  {
+                      "path":  "src/core/basemap/basemapBoundary.test.ts",
+                      "bytes":  1291,
+                      "sha256":  "89de603b034cc64bf3ae166cacc80c7607f94225a9d957e77608633a6f25b088"
+                  },
+                  {
+                      "path":  "src/core/basemap/BasemapContext.tsx",
+                      "bytes":  1315,
+                      "sha256":  "f7b1dcd36f4de1bd2e3ef5d1c61a838ac8cc20cc48980177c8cc23eac721aadc"
+                  },
+                  {
+                      "path":  "src/core/basemap/BasemapControls.css",
+                      "bytes":  6787,
+                      "sha256":  "ef1ef32784ca3f73737563998ca2b3f8f6551ab44a66453f64e3ce67573b1326"
+                  },
+                  {
+                      "path":  "src/core/basemap/BasemapControls.tsx",
+                      "bytes":  12559,
+                      "sha256":  "c2d9bd116ad23bf144ed1613bbdfd37209d6f8bbef7156d2e2d603778dcadda6"
+                  },
+                  {
+                      "path":  "src/core/basemap/BasemapMeasure.tsx",
+                      "bytes":  10660,
+                      "sha256":  "eece20ae77356c2291d770bb9b361de2b15c7fd1aa4af88d3be76e6b75fed0eb"
+                  },
+                  {
+                      "path":  "src/core/basemap/BasemapRuntime.test.ts",
+                      "bytes":  7892,
+                      "sha256":  "6281a62ecea0fab9963c4c3596204edc6ba69d7369cb85f02a69968bca784434"
+                  },
+                  {
+                      "path":  "src/core/basemap/BasemapRuntime.ts",
+                      "bytes":  15276,
+                      "sha256":  "e3e7210ae73433c3c445551d9444764f5999b09b11b98e4eb3fcb411b0da2033"
+                  },
+                  {
+                      "path":  "src/core/basemap/basemapStorage.ts",
+                      "bytes":  3212,
+                      "sha256":  "2899777b2ff3623b7ef87dea3c691995538912f7e26f585eaaafa887cf3f1349"
+                  },
+                  {
+                      "path":  "src/core/basemap/basemapStyle.test.ts",
+                      "bytes":  1684,
+                      "sha256":  "5634ad66192dc68b5c582b5e429704dfc2666e879c4b30eb49be3de88041cd50"
+                  },
+                  {
+                      "path":  "src/core/basemap/index.ts",
+                      "bytes":  2208,
+                      "sha256":  "95ff4884f6cfa816bc1861389c4708ff1c0ce453b59cee130609dd52cc9cfa72"
+                  },
+                  {
+                      "path":  "src/core/basemap/PersistentBasemapHost.test.tsx",
+                      "bytes":  5205,
+                      "sha256":  "7738c0e2fe4a8ba912550857c1de4df9134a14e2f9183172a16e561b38713db8"
+                  },
+                  {
+                      "path":  "src/core/basemap/PersistentBasemapHost.tsx",
+                      "bytes":  2420,
+                      "sha256":  "2a4d3e5f8baf1fbef86882cb084edbb4e3ec4222a9db324ecb31b1011b09fe9c"
+                  },
+                  {
+                      "path":  "src/core/basemap/PersistentMapHost.css",
+                      "bytes":  488,
+                      "sha256":  "8d5c55d36ba6a648603d668276970697494ee83d268cafdb2c636e530ba5a5b9"
+                  },
+                  {
+                      "path":  "src/core/basemap/presets.ts",
+                      "bytes":  3029,
+                      "sha256":  "3eebc765d9d647470b8150bfd4b52347a5b9310cc78f40f92475b4d12147bada"
+                  },
+                  {
+                      "path":  "src/core/basemap/style.ts",
+                      "bytes":  2295,
+                      "sha256":  "adf532643d4ed1e4fba55b7be8a6286a3813ff851487b7fd00c8300a64bf1c92"
+                  },
+                  {
+                      "path":  "src/core/basemap/tileCache.test.ts",
+                      "bytes":  6062,
+                      "sha256":  "5aea5f59e8f317d9405a4c7b2cbdcea93f0b9a22b37900687d718c7ca3599989"
+                  },
+                  {
+                      "path":  "src/core/basemap/tileCache.ts",
+                      "bytes":  13701,
+                      "sha256":  "0e45af532d039425fe8ae27995b06e4342f23a194365d605133f6e85738bb931"
+                  },
+                  {
+                      "path":  "src/core/basemap/tilePlaceholder.ts",
+                      "bytes":  677,
+                      "sha256":  "9db0e2480c8dec393ef0a16fbc43c9bd0af7546194eefa68ca4838d4b8ccdcf9"
+                  },
+                  {
+                      "path":  "src/core/basemap/tilePrefetch.ts",
+                      "bytes":  5586,
+                      "sha256":  "adf7a3a26d6d1d64082dc569d33ec4e24b41e7a33132b68badc0c1544853d772"
+                  },
+                  {
+                      "path":  "src/core/basemap/tileServiceWorker.ts",
+                      "bytes":  578,
+                      "sha256":  "79d0a1cfd4b6ff634386d93e1661645adf4472c772bb27a525cd724357df771d"
+                  },
+                  {
+                      "path":  "src/core/basemap/types.ts",
+                      "bytes":  3260,
+                      "sha256":  "f5c304626fda5008c1b276283ccfb6b38511afea20c4353f61bcfc49ef7246df"
+                  },
+                  {
+                      "path":  "src/core/basemap/useBasemapState.ts",
+                      "bytes":  3954,
+                      "sha256":  "4ab5c0bdd7ee03fa0434069b1c52679e731380f3a925239072c4a2bebfc758c9"
+                  },
+                  {
+                      "path":  "src/core/basemap/vietnamBasemapClient.test.ts",
+                      "bytes":  5793,
+                      "sha256":  "5b134e4b710a09d7eb77277334531330d3da331a5e509c4926b8beeccdacc2f2"
+                  },
+                  {
+                      "path":  "src/core/basemap/vietnamBasemapClient.ts",
+                      "bytes":  8329,
+                      "sha256":  "07a57533572b0838079fb3d8a2954c07ea33cf84d21ceae7363f8848e13cdaa2"
+                  },
+                  {
+                      "path":  "src/core/stores/index.ts",
+                      "bytes":  132,
+                      "sha256":  "055e1a39699d8b55bfc32e677a49a2a44062b09b5343b0f5952a0754b768f0f5"
+                  },
+                  {
+                      "path":  "src/core/stores/slices/layoutMigration.ts",
+                      "bytes":  13634,
+                      "sha256":  "9bd28fd81d8402414425e38637ca93bec2700db77e532c6183ad9ef6d2f01173"
+                  },
+                  {
+                      "path":  "src/core/stores/slices/layoutSlice.ts",
+                      "bytes":  8138,
+                      "sha256":  "ab5e3762bdab500bf44a32d68ffcc3b294121f1ac724034668cb77872be2441f"
+                  },
+                  {
+                      "path":  "src/core/stores/slices/mapSlice.ts",
+                      "bytes":  419,
+                      "sha256":  "fe9440f42202f0e2e0d9c78af99f6d56a86d8e8d7fde6c3eb02a8e494fd5dc67"
+                  },
+                  {
+                      "path":  "src/core/stores/slices/modalSlice.ts",
+                      "bytes":  443,
+                      "sha256":  "ae4d62debca1b6a5980b5e2e371022a40033e6e0d2548521ee3c9b71d72a8f92"
+                  },
+                  {
+                      "path":  "src/core/stores/slices/projectSlice.ts",
+                      "bytes":  407,
+                      "sha256":  "9debaa5c0873f90d3dfc8ad87a0ff554e42c33edb024be080d83293a4e04c2f4"
+                  },
+                  {
+                      "path":  "src/core/stores/slices/types.ts",
+                      "bytes":  1728,
+                      "sha256":  "11b26ea5f414e5c389d269b135a8121b5db1e439279b3fff3843a9aef4b6d05b"
+                  },
+                  {
+                      "path":  "src/core/stores/themeStore.ts",
+                      "bytes":  2923,
+                      "sha256":  "d1d140497e4a06abd594eeb057624e002ca87284bc8a0c05af073d7944908be4"
+                  },
+                  {
+                      "path":  "src/core/stores/useAuthStore.ts",
+                      "bytes":  5243,
+                      "sha256":  "1b8a8be11a98a8046f44a565dfd6348dceab8fe8b55867409c96d6481c4aaf2b"
+                  },
+                  {
+                      "path":  "src/core/stores/useLayoutStore.ts",
+                      "bytes":  1011,
+                      "sha256":  "ce63267ca3892340a77ed5c1b0bf3ac3ca4db18c1a157b18c0e822895d10c5b7"
+                  },
+                  {
+                      "path":  "src/core/stores/useSettingsStore.ts",
+                      "bytes":  2010,
+                      "sha256":  "dc68cb567d3f680219eac5597f908b104cf891d8661d72cff915134388814fa9"
+                  },
+                  {
+                      "path":  "src/modules/analytics/AnalyticsDashboard.test.tsx",
+                      "bytes":  3198,
+                      "sha256":  "c02752c971f9e920a0e79862f57c3dea5ece2e54402b530338ce876084b65574"
+                  },
+                  {
+                      "path":  "src/modules/analytics/AnalyticsDashboard.tsx",
+                      "bytes":  5225,
+                      "sha256":  "265df154e14cef91ca81dedf9ad115f5247283ce70676e55b10dc871aff85195"
+                  },
+                  {
+                      "path":  "src/modules/analytics/components/ExtensionDistribution.tsx",
+                      "bytes":  3922,
+                      "sha256":  "2ba60a390f32d24559452e17b1ad53d1b7c0d382360ecc33597da3d7cc832466"
+                  },
+                  {
+                      "path":  "src/modules/analytics/components/StatCard.tsx",
+                      "bytes":  1152,
+                      "sha256":  "d41eee3fdbabd81d73553bb64899755250a1a4a175beb21c0a89b34969cd16c8"
+                  },
+                  {
+                      "path":  "src/modules/analytics/components/TopFiles.tsx",
+                      "bytes":  3522,
+                      "sha256":  "f13e70c4834c0e8404e78bee602b31afe4bcdad00a92c3bb127c87214d811742"
+                  },
+                  {
+                      "path":  "src/modules/analytics/GisDashboardV2.tsx",
+                      "bytes":  4465,
+                      "sha256":  "85f8cf85eae6f030c70660644199e7edb6915ec4ab21db5fbd24216cbe62548e"
+                  },
+                  {
+                      "path":  "src/modules/contract/designTypes.ts",
+                      "bytes":  14652,
+                      "sha256":  "55ccf4066e2c3655a95e037e7da05d8e019848d2e5ec888af8596664930ca7a8"
+                  },
+                  {
+                      "path":  "src/modules/contract/types.ts",
+                      "bytes":  7165,
+                      "sha256":  "7b17235f0fa24be88931877f01d57ddb30da4dc783c8d2542cb8dd32dcae8c4b"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADCanvas.tsx",
+                      "bytes":  2068,
+                      "sha256":  "5b5745d3262e907f8fbe60d42a580407264dc4ab4230862f0fe09c40836b1a80"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADNavigation.tsx",
+                      "bytes":  2001,
+                      "sha256":  "11a414a742b2bbf22aa6a47a78873172c29f7545a347fe2ba51bdcd7713357c8"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/CommandPrompt.tsx",
+                      "bytes":  2401,
+                      "sha256":  "1e7ad45eec43065ba2543f03fcf535bb0e7a0cd8ca5052479313d16133cd989e"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/DrawingExplorer.test.tsx",
+                      "bytes":  4226,
+                      "sha256":  "0539d8e43f7f25a6083bf3c06423f6822e744a14758bbe9ac7c54b8bb61720ce"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/DrawingExplorer.tsx",
+                      "bytes":  40241,
+                      "sha256":  "d533863725f79a7d2fdd7e13ed091cd148f7f63ebbf59e057e26590f31bf1de2"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/EditableText.tsx",
+                      "bytes":  1948,
+                      "sha256":  "9f691da8258bc70ce274795f6eefee39c1830b766bc31a3b1af8c82885c90818"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/Explorer/ExplorerFilterBar.tsx",
+                      "bytes":  2911,
+                      "sha256":  "ebfdef92adcac6e5e41715259e6567ad7faf8335e141f8b3809a9b62b54bd71c"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/Explorer/ExplorerHeader.tsx",
+                      "bytes":  3509,
+                      "sha256":  "28c9f797c46380216ac5bfb88590b5bc592c895749fc06a51342a3ef8f8c9197"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/Explorer/ExplorerModals.tsx",
+                      "bytes":  2921,
+                      "sha256":  "b0c934546189199f13d7cc252c82158f30f02543e2af7966bc67a438d6512579"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/Explorer/index.ts",
+                      "bytes":  175,
+                      "sha256":  "cfdd0d4bb47324fa059642633bdc7a77d1f70beafd6c9a7763f1e1e9e6dc74c9"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/Explorer/useFlattenedTree.test.ts",
+                      "bytes":  8914,
+                      "sha256":  "a78998581171764a706db1c5da2c3f11fc6e80661451c239b6f9edef85bb0970"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/Explorer/useFlattenedTree.test.tsx",
+                      "bytes":  1245,
+                      "sha256":  "2a675f88757537d57bcf295d388cd963772e8ebee098a8d527f945bea390f73a"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/Explorer/useFlattenedTree.ts",
+                      "bytes":  16686,
+                      "sha256":  "738945749d29a4a389320d36238e872c9fbb958c2103291dd58fc7352654c1c4"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/Explorer/useVirtualDrag.test.ts",
+                      "bytes":  6758,
+                      "sha256":  "68413ed9281288b5313bd26218eec4f6796889359fbd912a5b2a8f3cef10bef3"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/Explorer/useVirtualDrag.ts",
+                      "bytes":  16731,
+                      "sha256":  "aa90b70e7a92c8356c53ec164904358738f00476b31d504f70943cecbea870ae"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/FeatureIcon.tsx",
+                      "bytes":  1038,
+                      "sha256":  "47d92cd4d920b9bc26f320a0e8c1ee442cbf867cfc9a7425047c21e6e108e4d6"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/FeatureItem.tsx",
+                      "bytes":  7232,
+                      "sha256":  "23d7b6568ea3fd3f22cc6f49f1bf720f251268b3ab603414953c83add7f8c4a4"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/GroupIcon.tsx",
+                      "bytes":  1480,
+                      "sha256":  "a0b6c6e8d4908cf8fb828ea5094921ae0c92d0a475deff7003fd54eb2f7a0608"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/index.ts",
+                      "bytes":  470,
+                      "sha256":  "eea47c9fc6361ae87cdb034bdecc6e5dd312d1d0e6f362c23e3566211ac70ceb"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/MappingDialog.tsx",
+                      "bytes":  9022,
+                      "sha256":  "d86e172f613f14afa85f0222fa8c09b8bd0f390e7f786ee138a6041e3f0b77f6"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CADPanels/TreeItem.tsx",
+                      "bytes":  7373,
+                      "sha256":  "8bc8ed8a48faf69a949a6e934403330918905f4752173bbef1d41a3e59514c33"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/CoordinatePanel.tsx",
+                      "bytes":  1252,
+                      "sha256":  "15d5f196e886022d4c53e13ed86a7524e04f0663f803921fd65adc71e8452f91"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/FeatureEditor.tsx",
+                      "bytes":  30454,
+                      "sha256":  "c3734fa47ed32999ae28a1fee0d3d742897c637494a6dbfc97c644d8bb77340c"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/PropertyPanel.test.tsx",
+                      "bytes":  41532,
+                      "sha256":  "0b4e79924d0a14effb563d568be35ac643324ffa3948c6963879cca3f06fc2b2"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/PropertyPanel.tsx",
+                      "bytes":  87707,
+                      "sha256":  "8997718642796f85eff8f47254219486ad94c213625bb9d4dc83eedf60f7d583"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/PropertyPanel/PropertyFields.tsx",
+                      "bytes":  1370,
+                      "sha256":  "c0a84d8357a0811d177925ba45258f90e0bb4eab8064a015943bb38174b9de84"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/PropertyPanel/PropertyImportControls.tsx",
+                      "bytes":  6118,
+                      "sha256":  "86e032a2e26392a46b11e234e460261d0e46a21a545be2b848daba1fdbdc10ea"
+                  },
+                  {
+                      "path":  "src/modules/design/components/core/PropertyPanel/usePropertyPanel.ts",
+                      "bytes":  5957,
+                      "sha256":  "b693b5406e0fa994fe18f79412c999f1ccceb751dd2e02f21c35a668764a89b8"
+                  },
+                  {
+                      "path":  "src/modules/design/components/CustomIcons.tsx",
+                      "bytes":  1999,
+                      "sha256":  "5ea8131fd7449170f998ada74fd6f8f4a7794ee68c8eddde50f6a088a37351d2"
+                  },
+                  {
+                      "path":  "src/modules/design/components/icons/CameraIcons.tsx",
+                      "bytes":  277,
+                      "sha256":  "150a2fc21b4839052c92b865c9f5e37903715afe0ef55b6820373bdf94fdbdae"
+                  },
+                  {
+                      "path":  "src/modules/design/components/icons/MapIcons.test.tsx",
+                      "bytes":  1756,
+                      "sha256":  "3e108e0f56745167f1f455dbc82876d8ec589826085a0a48806429177016def1"
+                  },
+                  {
+                      "path":  "src/modules/design/components/icons/MapIcons.tsx",
+                      "bytes":  8065,
+                      "sha256":  "4e0c5fbc874813594e25268ed54316b653f6e40d808673810e45a8264d8b7e6c"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/AnalysisTable.tsx",
+                      "bytes":  50722,
+                      "sha256":  "3dd50e447214fa03f5fae3ff554ad6f1c4e09ab84dafd6fabd1b4c4bb0b5b87d"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/AppMenu.tsx",
+                      "bytes":  17009,
+                      "sha256":  "af9c0c322a5871f435d9c6f9e711d54eac4c065fd1e42b64a7de778eda0282ea"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/BOMSummaryPanel.tsx",
+                      "bytes":  14784,
+                      "sha256":  "b7831f5dd89430bdd8a7820d80b0a6d1b94f80922b44003447cc61aaff79eed1"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/Button.tsx",
+                      "bytes":  5631,
+                      "sha256":  "49d946c7a7b3791b3ddd8ec22114fa060c886f368e2a004c193e1d2190db4e01"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/CommandLine.tsx",
+                      "bytes":  1418,
+                      "sha256":  "7fb18ea88dd65108a927a877986308bee3d0d1706271e360e81f982458695ca0"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/DeleteConfirmationModal.tsx",
+                      "bytes":  3874,
+                      "sha256":  "bf06e5fda960fa813db226cbe40ad6599934002485934a611c8b15c6063dab4e"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/ErrorBoundary.tsx",
+                      "bytes":  3880,
+                      "sha256":  "c30e2d0544bf1834f4b9e8b1e273635f1b338eb5ec5aa1332966db7c6a4ffbb9"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/ExportProgressModal.tsx",
+                      "bytes":  3354,
+                      "sha256":  "3d55ecbba3117a5ee33b6e8be31db349bd33cc0e91215f89e2a138f3c3ee0504"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/IconSelector.tsx",
+                      "bytes":  1458,
+                      "sha256":  "321e697066165ae3d1edcfc337265f6d512243b6808f9d390a994e3209cfab9a"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/ImageEditorModal.test.tsx",
+                      "bytes":  9383,
+                      "sha256":  "0fda359c2abb2b3236d1072baa4c77e93dad6e9203c8eee6f22e1d9eaf44bfd7"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/ImageEditorModal.tsx",
+                      "bytes":  45493,
+                      "sha256":  "7ad6bd115f5b98e538606e4b5e6a515013ceb3c0de397bb3f4b66a91c6b13221"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/KeytipBadge.tsx",
+                      "bytes":  692,
+                      "sha256":  "ae6c4449217903baba0f837fcb64f16b1925f71b1d9cd9328781e79c5420990a"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/LanguageSwitcher.tsx",
+                      "bytes":  1215,
+                      "sha256":  "3d53986d162d0d29beb0c3c64d21e5d84c96e3867c20ee0f10ae27683003ebde"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/Modal.tsx",
+                      "bytes":  5254,
+                      "sha256":  "a31f1cbf7fab126519454811dc5b6d7957cb94bde10c8c8021bc2a99ec0354b3"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/PaletteSystem.tsx",
+                      "bytes":  11075,
+                      "sha256":  "73bc5402c84dfebf0d8e73acdca2ee73aebbde1d1135aa527dcc3b86455dcd66"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/PerformanceOverlay.tsx",
+                      "bytes":  9689,
+                      "sha256":  "99858b62c87d363ca3acf7c7b34fc083debed004bcfa26d0ffb1271166b6f9b9"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/Portal.tsx",
+                      "bytes":  784,
+                      "sha256":  "3e896e8698cf91f6236641bde5b24cbf0fdada1b27697cfa47dba64e0b04af9e"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/ResizeHandle.tsx",
+                      "bytes":  2177,
+                      "sha256":  "ca7982e4d25432aab3843da1b22e4e3d8c5cba4f8c796414471d6f78d2ce256b"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/Ribbon.report.test.tsx",
+                      "bytes":  4422,
+                      "sha256":  "7293cf0818d91dabcf5c46296799af80da9cd22bc39fa361b03bf6a2b2688dd9"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/Ribbon.tsx",
+                      "bytes":  12264,
+                      "sha256":  "e61f4277fec78ca5d1f8ba8f467a5457fcf84750317195e8b3ecb67c4e32ed36"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/RibbonComponents.tsx",
+                      "bytes":  1905,
+                      "sha256":  "1f9326619f422dd6f602f5affa86d32aaed450c0a08b80bead9a34bdd8181786"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/RibbonTabContent.tsx",
+                      "bytes":  13098,
+                      "sha256":  "a1b33c969a67ef8804bb0b10da563739e46a6e772eb4017aa2dc9f1912a00868"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/StatusBar.tsx",
+                      "bytes":  1214,
+                      "sha256":  "85d1be52dfc05775f873862ffa572357a88e7fc5d4674551e135b1d1ada9b459"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/StorageHealthIndicator.tsx",
+                      "bytes":  13372,
+                      "sha256":  "f310ee62090bc801aa9f643dced6195a11491e8d94b17f4724ca84056ae48934"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/SyncController.tsx",
+                      "bytes":  2560,
+                      "sha256":  "9468b12204379acee1266d905fdb5f6443b00430166e97a0e7594b0911ff2ad5"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/TechnicalSpecsPanel.test.tsx",
+                      "bytes":  2128,
+                      "sha256":  "95a9108a947632753e5d292fd855ec0e24ded230823dbfb9d994ea7ed5b84ff3"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/TechnicalSpecsPanel.tsx",
+                      "bytes":  10516,
+                      "sha256":  "a5f125181111780b2c3fc3d05c1235a7d612beeaccff48d3fa354c67bfe29db2"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/ThemeModal.test.ts",
+                      "bytes":  2147,
+                      "sha256":  "0844312bb2c571ec2ee2127cc44f0dbda8eb06bf9d2b8d20fc55fce399b0eee9"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/ThemeModal.tsx",
+                      "bytes":  28419,
+                      "sha256":  "754085e0ca062a89b4363df2463876fb9029836031085e77f03e7108c327e640"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/TitleBar.tsx",
+                      "bytes":  15616,
+                      "sha256":  "43f9876a84014ed4204970101f62b384feb558ca1c03366b69719c3e821958e6"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/Toolbar.tsx",
+                      "bytes":  5448,
+                      "sha256":  "0406f75f39b58f4aa09cbb2934cc1a59a085bd0922ad1ef6e93fcbe8607d4b66"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/TopToolbar.tsx",
+                      "bytes":  6857,
+                      "sha256":  "073a5735341abd44a61c1dc75ebe95975e404b5aab37d970d2dc97a23442fc20"
+                  },
+                  {
+                      "path":  "src/modules/design/components/ui/VerticalResizeHandle.tsx",
+                      "bytes":  2192,
+                      "sha256":  "ae000384f77a337cf01b02821f6413d789985f6b0f6369eb6c3c0380e4d49ff9"
+                  },
+                  {
+                      "path":  "src/modules/design/components/VirtualFileGrid.tsx",
+                      "bytes":  3779,
+                      "sha256":  "620c1b16aeb9da39a7f9df0ca61e7b06a7a395225a8a8af1c7c9594c2ceb7fb8"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/__tests__/coordinateCache.test.ts",
+                      "bytes":  3287,
+                      "sha256":  "69a751f250888426b24b484521e30e7d5bd69dfdece917a45f6eb52d30b4e034"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/__tests__/MapLibreFastRenderer.test.ts",
+                      "bytes":  7142,
+                      "sha256":  "629604751b3f3c79a14864112fb84fe7824e9a9f0abb7b4944953b775faeb101"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/__tests__/mapStartupTelemetry.test.ts",
+                      "bytes":  7960,
+                      "sha256":  "ba48922b314b0f87efcf6ddcd432abf6d51762b5dd23511f48a0c8799631719f"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/bootstrapMetadata.ts",
+                      "bytes":  1418,
+                      "sha256":  "3995b95136f0504eaa3cf9814c5abb8cc0aa9df76967ab075b38505ad23697a8"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/components/MapCanvasView.tsx",
+                      "bytes":  561,
+                      "sha256":  "c7d9c11fbb90d52c4ba9cf412525f91cc3f4329e7e5cfaea0358e2f5bff3b4b9"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/components/MapOverlayContainer.tsx",
+                      "bytes":  697,
+                      "sha256":  "09e25265585366a8dcf1a7426a6f1e1202506e8d7e860062e472b65d018e8082"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/coordinateCache.ts",
+                      "bytes":  2510,
+                      "sha256":  "3d973b898a9ac72c9da69f2cfa2f6fc1400850674a31efdc73b89d09e2bab46f"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/featureLookup.ts",
+                      "bytes":  542,
+                      "sha256":  "e959699f7a42a3b1cdcd63e83d0c05f05fbd9a7a84eec3bfe512c93dc33af40f"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/hooks/useGisStreamCollector.ts",
+                      "bytes":  2209,
+                      "sha256":  "ce767275bc753b2d01154be7f26c6fbbff573211f2efebdec7922fc82072824d"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/hooks/useMapInteractions.ts",
+                      "bytes":  907,
+                      "sha256":  "68e1adcdfcd86966cb52e887d7d790eac985bfda0c93efe898497a9166762813"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/hooks/useMapLayerRender.ts",
+                      "bytes":  689,
+                      "sha256":  "db3788191fee5464e0ea7d2b7f9b355de7ff0a36726dbf2219fc2e16862e9b78"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/hooks/useMapLifecycle.ts",
+                      "bytes":  1313,
+                      "sha256":  "5f902e0dbfd7314fe7f8ad8af1aeaf9ad1c362edbbc938a931a7805830085ac4"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/IMPLEMENTATION_GUIDE.md",
+                      "bytes":  7026,
+                      "sha256":  "36193d62e74060fd087b0e9f4b29a150ea1327e5359f1e0796b141625ae11190"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/index.ts",
+                      "bytes":  254,
+                      "sha256":  "eab5413b9fde30e1c8ddf6a41f6f22d46081efda195f9543ad96fbeef2c3f425"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapContext.tsx",
+                      "bytes":  1502,
+                      "sha256":  "93604bb316fb0a213f988689bb6ff9062e16958a41edb51f274810ddaee3d9e2"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/mapDisplayPolicy.ts",
+                      "bytes":  1936,
+                      "sha256":  "550cd98c32bd7866ed87c3eb3de251333699b217d327f19611e2254d96581611"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapErrorBoundaries.tsx",
+                      "bytes":  2197,
+                      "sha256":  "34a3359bb8e12abbec17786d9616bd94af7ef4b71e6dc127331e1c68c8dc5c4b"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayer.css",
+                      "bytes":  1827,
+                      "sha256":  "5f28c881f08df584bdb0bc4d1e2af96e688ea151a1589cc6878353300382ecfd"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayer.tsx",
+                      "bytes":  2815,
+                      "sha256":  "91e51cdd6dd13716f57bdbfd08815e403eef39971965589e9c83c2bc59bb73be"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/BoxSummary.tsx",
+                      "bytes":  26193,
+                      "sha256":  "ca91a0306c7e04013e202678e48c75595c6ae286d1fe660e0708e5aa50b28f89"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/DORILegend.tsx",
+                      "bytes":  1948,
+                      "sha256":  "c4d23dc84a4107fdacd9251e6c0f170038d302aebd09a25caadd704d66b38c1f"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/DORIOverlay.tsx",
+                      "bytes":  7040,
+                      "sha256":  "9478a4d0503ffb998a040de6b680a9ada50c6028696894890a0d31db8f897d07"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/FOVLayer.test.ts",
+                      "bytes":  4085,
+                      "sha256":  "a8a66780fa5eeb93a2be7798f6f7ace50c2b61550100093ecb8547f6d8329d9b"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/FOVLayer.tsx",
+                      "bytes":  9699,
+                      "sha256":  "24437cd01a8fbb5baee604c4aee9a6c934fe9ba956242618a4ac4a9c6b30fcce"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/index.ts",
+                      "bytes":  352,
+                      "sha256":  "4665fe192c0a1518e71051cba39dccacc5b5a7b2313ec4d47db337c4b900fb2c"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/InteractivePPM.tsx",
+                      "bytes":  7315,
+                      "sha256":  "9338dcf8183e0c01aa72e5bbb57fe12b1bc94c3fd4c911b4f43e63968663edb0"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/MapCaptureHandler.test.tsx",
+                      "bytes":  4500,
+                      "sha256":  "5d6d0e9c0f89fa4ec39c38f04073172b2ce9613d3cfd79e609cb4cdceb1520ca"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/MapCaptureHandler.tsx",
+                      "bytes":  12165,
+                      "sha256":  "061e477406a1cb33cf432e50a35ee099793362f0c480bebc6ca52ff070283121"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/mapCaptureValidation.test.ts",
+                      "bytes":  1642,
+                      "sha256":  "ff5d0045c61fcda2ce867ce3e3aa9ec70d842f009a8bf1f01d808be8d4ced14d"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/mapCaptureValidation.ts",
+                      "bytes":  2621,
+                      "sha256":  "c13d1591d36d3c89e19a41e217c4560c7ee770eb15ede5e87ce2e5b41969ad7e"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/MapLibreBoxSelection.tsx",
+                      "bytes":  6405,
+                      "sha256":  "5a400574e79b0c4413ad71602360a53ecc7950118ba3c614b9ade4b9f3976724"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/MapLibreMeasurementTool.tsx",
+                      "bytes":  9309,
+                      "sha256":  "080236fc5d1bb3d5fa5342f0964ae6f5bc497fe8f1cb87a73f7665b1dd77aff1"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/MapSearchBar.tsx",
+                      "bytes":  9878,
+                      "sha256":  "b45aac17fcaea0aeba79762e0be9129379d60c9c6076a03854446c02e0087216"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/SharedMapComponents.tsx",
+                      "bytes":  5573,
+                      "sha256":  "5b37e822d9808e69d2ed1bdd61987d5f0048ce580c96dad146a37c07e2c940ad"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/StreetViewControl.tsx",
+                      "bytes":  11508,
+                      "sha256":  "8bdc4dbadcc4d9785e3526871f0d624037211d859aa627a5b23d9c9e706d22f1"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/StreetViewPage.tsx",
+                      "bytes":  3013,
+                      "sha256":  "44596999d909aaafc4d14efaec30b453c14c2a71124410f7713845999e1829a6"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/VisibilityTool.tsx",
+                      "bytes":  18085,
+                      "sha256":  "8e2b1aa91cc5092032cf4aaf9b63f218c9c09832f957ab2326f61710fdc50138"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/ZoomExtendControl.test.tsx",
+                      "bytes":  4656,
+                      "sha256":  "935c71c62e976b5243caf63597da416dd332146af8ad96987dd6b5f0bc484769"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/ZoomExtendControl.tsx",
+                      "bytes":  5246,
+                      "sha256":  "ab3dc31e1a708a533a57bc69ef682d2819c673a05b3c712c89904140b95156ec"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/ZoomToHandler.test.tsx",
+                      "bytes":  3510,
+                      "sha256":  "a81a53711a1d9253a81e56c5bf0c279666cff5fe014c1b1955f6bf8b3a4b1288"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLayerComponents/ZoomToHandler.tsx",
+                      "bytes":  8652,
+                      "sha256":  "0286c557cbac1cf925b39c156ae91b73abffd434ab4372ab1a21c33b28b0f70b"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/mapLibreFastAdapter.test.ts",
+                      "bytes":  28700,
+                      "sha256":  "fd5aff6e046a8eefb1529e674e01ec51e3eb492afad1672282e3626855ff3806"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/mapLibreFastAdapter.ts",
+                      "bytes":  24601,
+                      "sha256":  "12df6cdaeacc79d673e8db1384f18c3a5f045caad4c1f7c31983c0df8dc55f04"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLibreFastRenderer.test.tsx",
+                      "bytes":  59923,
+                      "sha256":  "2ad8d914dcc2c9e2f90549e97c8bd5948d7733d8235920b5df6ed398ec2b72a4"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapLibreFastRenderer.tsx",
+                      "bytes":  65731,
+                      "sha256":  "2126ea392151e90ae53301d10099934dac764af4634bdcf6db6c8cc0edbb6c41"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/mapLibreFastTypes.ts",
+                      "bytes":  2576,
+                      "sha256":  "57431653ab0ae67a0178a192d4ee3db3870554fc47fbb409e3ba5baf1755e150"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/mapPerformance.ts",
+                      "bytes":  319,
+                      "sha256":  "56f6dd900f7ff9dfbc6cae60fe5ba3cf4347924c5ceb49aa6675837ca119afcd"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/mapRenderMetrics.test.ts",
+                      "bytes":  817,
+                      "sha256":  "d46661e5a7afb6238ffd2cde652d4bbf0316afd12890a5de1deae8ac651d47be"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/mapRenderMetrics.ts",
+                      "bytes":  1381,
+                      "sha256":  "3de181ffcf3cf607e078dc17e87b727bc2663a587b2e37f9e9775bdf15a5c274"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/mapStartupTelemetry.ts",
+                      "bytes":  3040,
+                      "sha256":  "c65e943f911fa0b0c1e942fa65f3a9f025b6ec0dc788c8744a193c49c381006e"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapToolbar.css",
+                      "bytes":  1194,
+                      "sha256":  "d6ceb9239bb0534e8a29511754cc905b13c882d171fb5fcd884553282c50cf9d"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/MapToolbar.tsx",
+                      "bytes":  2148,
+                      "sha256":  "e93a911279a9deb21934685c453b57c46949bcc30a4ab774fe78cc5c79df893d"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/__tests__/NetworkConnectionCreation.test.ts",
+                      "bytes":  4793,
+                      "sha256":  "fab67402bf4b3bf878ac98e26e373712ff8496e9a520e4845a292e004452b5f7"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/__tests__/NetworkGraphService.test.ts",
+                      "bytes":  5237,
+                      "sha256":  "1e5e8b35bf5f7161a72ac81982e9e862ae240d1a226533135dd616dfe2dacfdd"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/fiberGeometryValidation.test.ts",
+                      "bytes":  2423,
+                      "sha256":  "c238168c06ac33f1e0b2c68120cff9f31438c2eecd92682c0031dd0190b5e464"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/fiberGeometryValidation.ts",
+                      "bytes":  5132,
+                      "sha256":  "5bc6d6e936586f18d084c8c5c7d805e9ce30feadc861956d4e321eb7dce861fe"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/fiberGraphService.ts",
+                      "bytes":  3079,
+                      "sha256":  "2f8d937c467371ad77bca0f2c6fc9585d564d45d0bc16a1d47d7f2004867f81e"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/fiberPolylineMaterializer.test.ts",
+                      "bytes":  7875,
+                      "sha256":  "a497926c425e4207839ad772fd8b2dc2bff8fba0e60ab240da50edcf809b3a2d"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/fiberPolylineMaterializer.ts",
+                      "bytes":  14753,
+                      "sha256":  "7d555bb2b99355b928bed4c76a5198685914a20f2d9433e935f8e0ffc47f8fdd"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/fiberRouteDisplay.test.ts",
+                      "bytes":  2745,
+                      "sha256":  "0a30420df19fd098d4bb5212e3288b23e5d20b2669773b48f3c623737d23b7cb"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/fiberRouteDisplay.ts",
+                      "bytes":  2944,
+                      "sha256":  "3befdf3c4f1ca946fc163cb850094d8b74343fe1acdf13655267c69636c33ddc"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/fiberService.ts",
+                      "bytes":  10733,
+                      "sha256":  "f8c48f1ab0324bc5fd7b145a0b47988cd317a417a1ad808adaedb4da5a941958"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/fiberUiModel.test.ts",
+                      "bytes":  4932,
+                      "sha256":  "55378c845a9e105653f2fd16bbe87623c3e84357dfaf534dd8e804d64fca5476"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/fiberUiModel.ts",
+                      "bytes":  7627,
+                      "sha256":  "f522aff15cb6ab4768b4918f785fbc64760edd2d38de231a54e21edc8791da02"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/fiberValidation.ts",
+                      "bytes":  1164,
+                      "sha256":  "58ceb330ffb6797106c801c41be13716fb1bd747cbf5c87d55107bb38d2e3197"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/NetworkConnectionCreation.ts",
+                      "bytes":  4494,
+                      "sha256":  "b0b5408c1584adac7422e57ae98ec3563790a2a25ba53db04dc8f079e5af2691"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/NetworkConnectionDraft.test.ts",
+                      "bytes":  3489,
+                      "sha256":  "41bc619e10075be1e5ae2deb698052601564d70c968e828d886a4dc696a70df3"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/NetworkConnectionDraft.ts",
+                      "bytes":  1024,
+                      "sha256":  "cdb3834304bc90d4875b215ecf91ee8947cc1bfb39c22fbf608cc5aaaf6ac215"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/NetworkEndpoint.ts",
+                      "bytes":  4250,
+                      "sha256":  "3a66d577403b718e94753420bd02e16b6df1beb677c2eed9d9983782c9299843"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/NetworkGraphAggregation.test.ts",
+                      "bytes":  4272,
+                      "sha256":  "a9c07ceb038c1f16bd2feb7ebfcd8e6ae1bea720b59bab901422e72dcbcf2a43"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/NetworkGraphAggregation.ts",
+                      "bytes":  7820,
+                      "sha256":  "6d1aafef1ed1437714a85592a2121435875b9de89f2656a6e9536b809bb767ef"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/NetworkGraphService.test.ts",
+                      "bytes":  15459,
+                      "sha256":  "9bcdc1353dacbf76b9ccf4ff17fcb2b8b34c3695b8a7130f6660e57a1406c81e"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/NetworkGraphService.ts",
+                      "bytes":  22323,
+                      "sha256":  "a5c109debba64131551c601626a8f9a1d8ac56e14fffd2c75392560b5bab257c"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/NetworkStatusAdapter.test.ts",
+                      "bytes":  1696,
+                      "sha256":  "1317c916ac390a232a686c50d1352a0ccd91362759766c1d6b8adf0abd18c522"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/NetworkStatusAdapter.ts",
+                      "bytes":  3228,
+                      "sha256":  "267aeb32a4ed7bf5e9194afe385a6bf7b6ec8eac1819be318be6650162e24c2f"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/networkTopology.test.ts",
+                      "bytes":  2220,
+                      "sha256":  "40438652bc4273d70454a05faa72e7a17e429953f8fa99752bf63cb0631430ee"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/networkTopology.ts",
+                      "bytes":  16895,
+                      "sha256":  "253cd54b0eb3d44d3f2aa318a35e2070833c5eecc5877b9f678c37aba9fbe1d1"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/useNetworkStatusStore.test.ts",
+                      "bytes":  5571,
+                      "sha256":  "3508379bf2a326400768ca1374a6545ce7237c3b7d622ac362e9c524c15985e4"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/network/useNetworkStatusStore.ts",
+                      "bytes":  3721,
+                      "sha256":  "9228163662d087868f54a5af682da5cb662718f3e4904b0617fa7232d782a2a3"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/AiAssistantPanel.test.tsx",
+                      "bytes":  5150,
+                      "sha256":  "f6637aa78b307fd1e59f2034da2c2a45f863830a1e3d62f720e0e65cb76e6420"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/AiAssistantPanel.tsx",
+                      "bytes":  36543,
+                      "sha256":  "a9796676aa1159d785cb309a58497e7fbb435956e53b4d371774b0924f45c604"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/CameraHudFallback.tsx",
+                      "bytes":  12558,
+                      "sha256":  "2717cafcbecc0667c04ae3d86bc210c472746b7d41203a0e7b474f61397ec29a"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/CameraViewPanel.tsx",
+                      "bytes":  35006,
+                      "sha256":  "edfe6d947402506cd19d8ac058a5ea5ca8db26c576ed3c3dcccc41ad1325f595"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/DeviceConfigPanel.tsx",
+                      "bytes":  18901,
+                      "sha256":  "599129ed56f70880f8290367c24b412e0cbb0618480f0989ff61b4faa324a802"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/EquipmentPanel.tsx",
+                      "bytes":  6919,
+                      "sha256":  "0f5278768f66bb296c75abf185c2dbc987face44355967cb802a0b796285cc7d"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/EquipmentUI/OneEndEquipmentUI.tsx",
+                      "bytes":  2455,
+                      "sha256":  "49fa0d2db79690943a7b7f23e870fa1dfddfdffd529d8a0e5e8cc37a5014b2bf"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/EquipmentUI/TwoEndEquipmentUI.tsx",
+                      "bytes":  2639,
+                      "sha256":  "6486d7181eef599c56014871131feb59ddf14d5059adbe06a80d992a4482567d"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/eventBus.ts",
+                      "bytes":  1447,
+                      "sha256":  "79066b5572c4e25803e0e09ce2eb8591bb8583007f62dd3c14989efc91f5dc90"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/FiberCapacityPanel.tsx",
+                      "bytes":  4789,
+                      "sha256":  "971c75dbc304342ffa69d880f9d3e789d8e62c4e06ceb7a6ef397f5b5ab70235"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/FiberCircuitPanel.tsx",
+                      "bytes":  4110,
+                      "sha256":  "5bccf7ef3e63101ce99f8a3b569e2d448fd9b3430bb2dd0a7b6dd75d38c4ce8e"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/FiberInspector.tsx",
+                      "bytes":  49113,
+                      "sha256":  "85082a63387af17448ae70f386a67294635b097628aa00995d33132b9573939a"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/FiberSpliceDiagramModal.test.tsx",
+                      "bytes":  20315,
+                      "sha256":  "924f50d61dac9eeae21eabf76a40b301ffbdaee6fc7408e7597b12c17b570734"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/FiberSpliceDiagramModal.tsx",
+                      "bytes":  56456,
+                      "sha256":  "22f29706addcb23580732eb85cbe32a946487c5475d06a60d3efc8c88dff07e3"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/fiberSpliceDiagramModel.test.ts",
+                      "bytes":  2334,
+                      "sha256":  "2a6e1eb41db5b028cfde68bb1b627f1b20e7dda80e2dec003b9a87309eafa0c5"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/fiberSpliceDiagramModel.ts",
+                      "bytes":  2737,
+                      "sha256":  "8d64ee8be078a4376a8148d22936dcd8028aa6f3b29929e4fbdda2ccbeec24a1"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/index.ts",
+                      "bytes":  120,
+                      "sha256":  "29b00c3ebc529de76ed5e17fcab9c53d28b6ab2b94cfdff2be77c39ac59599d2"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/InteractiveStreetViewPreview.test.tsx",
+                      "bytes":  4903,
+                      "sha256":  "166be25ab2799d557e3c55cb07089560e2bf3e63c6de9b1e19d8bde87b62e4f5"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/InteractiveStreetViewPreview.tsx",
+                      "bytes":  3579,
+                      "sha256":  "1ce08b29a1ada1d98f6a0bd74be31456332487d123bf080abc6437a9c2ead844"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/NetworkGraphPanel.tsx",
+                      "bytes":  89137,
+                      "sha256":  "1574e8653cd1f49ffb10c2cfacc64ebca85fc939ba1c2572d1e43ce43c1eb86d"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/NetworkNodeWidget.tsx",
+                      "bytes":  4173,
+                      "sha256":  "9cceb01ca6f81443b51c1b403d69fb6e6e993d2d60484f060463016f4ec04ba0"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/PaletteContext.tsx",
+                      "bytes":  780,
+                      "sha256":  "66a439bd0929dc9d26e8cddf0ce630b149d66717c8020a30db585692c5cb99d5"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/PalettePanel.tsx",
+                      "bytes":  12439,
+                      "sha256":  "ee5c0ecd4732deb377b492170f07cdf9333d2ee2796efa2791e4ca3339a39355"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/PaletteRegistry.ts",
+                      "bytes":  2126,
+                      "sha256":  "822dcfe41e187b48b90c5450218433e73186b4492fff54095bac10d83d59491e"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/PaletteSidebar.tsx",
+                      "bytes":  3856,
+                      "sha256":  "6a64454dbe2d045aa35ec07143a9ba18995cd69f85cab0270e513e80409f9103"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/RecognitionSimulator.tsx",
+                      "bytes":  6733,
+                      "sha256":  "fc5ddfe12c32d598093d2f5f13b52f2e6493b3507b7d967012b992dde2d8613f"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/StaticCameraPreview.test.tsx",
+                      "bytes":  8856,
+                      "sha256":  "04466623cf20ba9f7067fbad08b4301a97708bda50f3b2ffb117b3e82ab3b683"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/StaticStreetViewPreview.tsx",
+                      "bytes":  15441,
+                      "sha256":  "65031d90961722875c232f139983f5cef09b6bc3c350988f832aa41ad490b5ae"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/StreetViewJS.tsx",
+                      "bytes":  11062,
+                      "sha256":  "61f1f22b111470163f47170881fe31c8bdcf346755a6cf6d6069ee07c74cb41a"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/Palette/SystemConfigPanel.tsx",
+                      "bytes":  20886,
+                      "sha256":  "1d86155ea8144bd87f9e1c26e2a0d8180f0b0102e236a71cb1539920ceae0421"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/polylineSnapMarkers.test.ts",
+                      "bytes":  4152,
+                      "sha256":  "b0693b056e8a07e137fd992b2af3205c8131730ea75fa880d259f37a70454e81"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/polylineSnapMarkers.ts",
+                      "bytes":  5227,
+                      "sha256":  "cd62fb7e58638fd52c813320e0c9694e729683df851660cb9c997db6c13424f1"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/progressiveRender.ts",
+                      "bytes":  5170,
+                      "sha256":  "fb9562f5595b7089cdf1da3726cb88cd295eb74f9ab0deb2a188d5a70bd212a9"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/README.md",
+                      "bytes":  5214,
+                      "sha256":  "313a71ba2ee9f1abedf038fb4ea0166ec3acc2f27c338f8e33be39bb0bc97442"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/CameraBridge.ts",
+                      "bytes":  955,
+                      "sha256":  "c5d87245852a218e7e8fd84de40e6d9522791401ae9ed6fe93ef6529622bcc46"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/FeatureOverlayCanvas.tsx",
+                      "bytes":  5338,
+                      "sha256":  "5fd157291c68013305482ab073a1ed550d1f599723304eb8f576387c8a89bed8"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/FeatureOverlayRenderer.test.ts",
+                      "bytes":  1798,
+                      "sha256":  "3b15e50d47a50c1a9249b356f2ee8e6fcecdcea09a78a1500b5d7af6f418e7f5"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/FeatureOverlayRenderer.ts",
+                      "bytes":  959,
+                      "sha256":  "328e7e904e86b3aa5a1602a649b44833b625aec7a5345b5b9ecf45967422ec22"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/FeatureRenderStore.test.ts",
+                      "bytes":  1265,
+                      "sha256":  "a81f6339f8d484a26c11c0720293c3ff68ca102c1becf3366c0f6b953915b26f"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/FeatureRenderStore.ts",
+                      "bytes":  5348,
+                      "sha256":  "6380e34183e994361e8e9b212c0d603df80f9ba1e2a0fcef6f17bead900a8573"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/FeatureSpatialIndex.test.ts",
+                      "bytes":  820,
+                      "sha256":  "d9ae39d2f21118a80cd942501aa3c82b3e8066d15bd52b29cb86c723d066ab28"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/FeatureSpatialIndex.ts",
+                      "bytes":  1055,
+                      "sha256":  "3236d3a5102505a9682df56a3ebd056a80ce18cd783dafaaa0352893e2aaab93"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/GpuBufferPool.test.ts",
+                      "bytes":  526,
+                      "sha256":  "c8b51fc419264df9ef71ca08a95f6c91d07fa4b22ce49115038f9b69eb960f24"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/GpuBufferPool.ts",
+                      "bytes":  1438,
+                      "sha256":  "4db75e9d2055df46f1810722590ac5f9867491e5f89c95d42dc3272ffd5537f3"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/index.ts",
+                      "bytes":  365,
+                      "sha256":  "cf390d05ada7f90b4b55d39cceabd0901dc76487d76db174c76d03be25bd6ec2"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/MapCaptureCompositor.test.ts",
+                      "bytes":  1398,
+                      "sha256":  "f1cfdfd54c9d7cc7e7b8e73af660a3399194098eb8708b81a43ccbdd9e31b3dd"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/MapCaptureCompositor.ts",
+                      "bytes":  1721,
+                      "sha256":  "f4a359a86da91585214035b6535debb15a082b1580a040aa7823a042676f3534"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/MapRenderFlags.test.ts",
+                      "bytes":  714,
+                      "sha256":  "a6391c5bf739eb711aa1e67c6d471e27b7a598fe6c6afda70093de8bf263a2a7"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/OverlayScheduler.test.ts",
+                      "bytes":  1942,
+                      "sha256":  "a288494f746982c42bdba229c2a8ec54134cf34578f96710924b134de5683a5c"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/OverlayScheduler.ts",
+                      "bytes":  1248,
+                      "sha256":  "c2a940cea767c5eb5da116facc63d94b8016802b95138d40ede0208444f520ed"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/overlayTypes.ts",
+                      "bytes":  2271,
+                      "sha256":  "a7f02b11aa28d593e6e581d8f9d200545f206d24086426a0b575cc33fd4ffda5"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/render/PointRenderer.ts",
+                      "bytes":  2512,
+                      "sha256":  "5e808e0f6e7215b0973256e5f2f247b5b3920a49cbddf86fbc489afd1376adad"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/renderer/BasemapCanvasView.tsx",
+                      "bytes":  716,
+                      "sha256":  "3c62fcd74179e96fa249b4067c5b63a5633d4a27cf09ca3a818342d07b418554"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/renderer/DatabaseLayerContainer.tsx",
+                      "bytes":  2176,
+                      "sha256":  "28cf4f742f965ad29513dd4690803c417183f22a4e7b06b017a547d69564edf5"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/renderer/index.ts",
+                      "bytes":  362,
+                      "sha256":  "f1b7228277b6e84bcd0aae9b5f266de5b0fc054c14e182b8dd4f333d32bdc136"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/renderer/mapLibreLayerSetup.ts",
+                      "bytes":  24573,
+                      "sha256":  "ce385850db85aee537cb02ae612e84ea82e5af07c1eee7d7de3b5bc5c5e2394d"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/renderer/OverlayInteractionLayer.tsx",
+                      "bytes":  1428,
+                      "sha256":  "8603231a9011b7c0b8d439fa9c58bf0b651740839def4db47f827a0a3bae6539"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/renderer/useMapInteractions.ts",
+                      "bytes":  1958,
+                      "sha256":  "f5c530fc6badc6feaa8617180c760ca20c224031be933c29c7d6b09e765d43e3"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/renderer/useMapLayerRender.ts",
+                      "bytes":  1150,
+                      "sha256":  "bc1b43d5cdd27175ddc9ad1954278a3211231228b36d152b56759fd347a91826"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/renderer/useMapLifecycle.ts",
+                      "bytes":  1635,
+                      "sha256":  "484126ceae81c504da8d85e4122740859bd9a7ca6456863108224fa1da6cd3ed"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/services/mapFeatureService.ts",
+                      "bytes":  700,
+                      "sha256":  "40dcd6282e08ec5b82e9ff862d16fd3aa63c47a425d2727f140c77a4f0956b0f"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/services/mapImageService.test.ts",
+                      "bytes":  589,
+                      "sha256":  "e56178cd8609f844f69fc5f2e49bc32c9441326a623c93a50f128d1d3c53be06"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/services/mapImageService.ts",
+                      "bytes":  5954,
+                      "sha256":  "4b15d96e826b6c1957ae999021e64f52d256a9bf229c89a46dd24e13814d028f"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/services/mapOverlayBuilder.ts",
+                      "bytes":  2275,
+                      "sha256":  "7a739540a833dd2b1e6306f2ae09f639153194fb762db0f3fe54f509240209be"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/services/mapPointClustering.test.ts",
+                      "bytes":  3703,
+                      "sha256":  "afdb2b79b050e523fcb58f7e91bf02dcb618816a5f373abe4f3ffc9d5c5e1d95"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/services/mapPointClustering.ts",
+                      "bytes":  1863,
+                      "sha256":  "1a09efe8edfe4a6e2a8963b1e14d47cb2fd96d044db61577663f861a49262376"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/services/mapTileService.ts",
+                      "bytes":  922,
+                      "sha256":  "1fb1fde5385a7d82d2e5edb35dcd579a866ca6eba0a3ef584a09e3b53215c9f8"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/stores/designActionSlice.ts",
+                      "bytes":  11360,
+                      "sha256":  "51f5d865aa02ec2c8e08225d5cf1460dae907e410f2216d5212a0b72034e66e7"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/stores/drawingSlice.ts",
+                      "bytes":  14045,
+                      "sha256":  "fc40ee4dd1a126d60bbe77756e07f271766403b7d25af232b1961c8ba1ec8e42"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/stores/initializationSlice.test.ts",
+                      "bytes":  4838,
+                      "sha256":  "5888ee97997b2acf0322770e2f4f9e1f458d090d9e30ac4db8577c03a4fc4c30"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/stores/initializationSlice.ts",
+                      "bytes":  15134,
+                      "sha256":  "0c631ff10fbc9fbf958ee094a755bc2a2d8c7799ddfed2ab41e99dd51e77c7a3"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/stores/mapCameraSubSlice.ts",
+                      "bytes":  3665,
+                      "sha256":  "2005060336bcf712de53cdbd2391fe91331d1cd75032b509e4f6a50087591d85"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/stores/mapLayersSubSlice.ts",
+                      "bytes":  7555,
+                      "sha256":  "842345298f825af51e23ccaa0e045f81eb7da2367877d097efcf55c55d566b66"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/stores/mapStateSlice.bug-exploration.test.ts",
+                      "bytes":  18082,
+                      "sha256":  "8088e87833f3a43f9c3130e06f7f9d470831e5858b518a4e8d37ae308a4af552"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/stores/mapStateSlice.preservation.test.ts",
+                      "bytes":  37671,
+                      "sha256":  "2c1c841850ba34f1b41ce1eace7039f721ed0069c944762f3794d42652e52969"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/stores/mapStateSlice.ts",
+                      "bytes":  29141,
+                      "sha256":  "52e84f8694d6697618099a075e70b7bebbb9ec75dd7f9484545d4e3fd5503fca"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/stores/selectionSlice.ts",
+                      "bytes":  3185,
+                      "sha256":  "2988601871472f4104c026278b76b56b59ffac3ed8d89f4fd43f4aa37402ce73"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/stores/types.ts",
+                      "bytes":  9403,
+                      "sha256":  "7ac100d5dea1a72b0e0af55bf27caa36c4cc72dcf5fbd7d85a4b808265da2d26"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/stores/uiControlSlice.ts",
+                      "bytes":  3157,
+                      "sha256":  "eb1c2ea62bc41567ef638422123b02adc2b381697a6e0c6004833c9157a0ac0b"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/stores/uiSyncSlice.ts",
+                      "bytes":  10731,
+                      "sha256":  "b8ec6d492f0d475e93b1d3478f4822d6d83685a06e80bbf5be4b357baff55916"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/styles/dataColors.ts",
+                      "bytes":  4268,
+                      "sha256":  "d0561ba0e6665f4fdd7c7663917721690eddad76cd82d304d65d8ec1b24d085a"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/useMapStyles.test.ts",
+                      "bytes":  4451,
+                      "sha256":  "154c073524279b972b1ca1d9ecfa453c25fea55bdb43dd8e766ddceeb2690906"
+                  },
+                  {
+                      "path":  "src/modules/design/features/map/useMapStyles.ts",
+                      "bytes":  3530,
+                      "sha256":  "f47a608b89e5e7bd3a7b7340352bc9c536de8caa504c94e351e4fa2fddd0ad42"
+                  },
+                  {
+                      "path":  "src/modules/design/features/print/printColors.ts",
+                      "bytes":  1440,
+                      "sha256":  "dc2232d8722654ee009f43c85afbadef08632344e00ab9af5a4c7e4a2f9b7027"
+                  },
+                  {
+                      "path":  "src/modules/design/features/print/PrintDialog.tsx",
+                      "bytes":  9939,
+                      "sha256":  "a0bc10f721b13642027d922f561d6b5cf0fc5050d50a65f150eb53fe8a7605ae"
+                  },
+                  {
+                      "path":  "src/modules/design/features/print/printDialogUtils.ts",
+                      "bytes":  371,
+                      "sha256":  "dfb0fade3fc89032d460870cccc987c7f2063521a60537103789f7229ab1f5ff"
+                  },
+                  {
+                      "path":  "src/modules/design/features/print/PrintExportControls.tsx",
+                      "bytes":  2182,
+                      "sha256":  "2cf7c0e5fa946666f340522fc754d8d7cefa30a799ee9b740e2dea124b9b3f1c"
+                  },
+                  {
+                      "path":  "src/modules/design/features/print/PrintPageSetup.tsx",
+                      "bytes":  8944,
+                      "sha256":  "892f5383ed350488806caf4306109ea8ed1edaeaade0a08f0e219eac89c274d0"
+                  },
+                  {
+                      "path":  "src/modules/design/features/print/PrintPreview.tsx",
+                      "bytes":  5371,
+                      "sha256":  "7e996299b0b43ab40b0879fbcd30b0614be9809e9c2ad7d76c34969442b68507"
+                  },
+                  {
+                      "path":  "src/modules/design/features/print/PrintWindow.tsx",
+                      "bytes":  1449,
+                      "sha256":  "f6c53f04377fa6bf1d8e71ea8dab8dc2f40cb7f9b3f3bd3bf3778ca4695788a4"
+                  },
+                  {
+                      "path":  "src/modules/design/features/print/usePrintExport.ts",
+                      "bytes":  6860,
+                      "sha256":  "aad17e71bef4cb8a1c8198c91ac6f3864ded340dcfe01f53976e0fe425f569aa"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/components/GisMetricsCard.tsx",
+                      "bytes":  1139,
+                      "sha256":  "59c6421ba71e3640c6e61a28e4709e07a938e3f6dce4443ded70ffd24d46321c"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/components/LandCategoryTable.tsx",
+                      "bytes":  2519,
+                      "sha256":  "0255f6d35b67f5261897e92556907228386b1de9523331f667ad262efce26719"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/hooks/useGisReport.ts",
+                      "bytes":  1413,
+                      "sha256":  "ad920c7a7fc5874d89deb2633aaca26e5cbb3270ba30859e5c917e9fc3a74d2c"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/ReportDashboard.tsx",
+                      "bytes":  4655,
+                      "sha256":  "1e312a4869bab23213ab10e7fcfcc3dc6c5144adc03651e4f415d70169a51d24"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/ReportDialogHeader.tsx",
+                      "bytes":  988,
+                      "sha256":  "3a80a165e6380e097b63b0e0bb4788513881afcb57302bfc351077c53171bbc1"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/reportDocx.test.ts",
+                      "bytes":  3752,
+                      "sha256":  "22e3f955c6d53bf7f132b99f74af8f18da389e2a007d2da1d6ca0d69df01b6b8"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/reportDocx.ts",
+                      "bytes":  19621,
+                      "sha256":  "f567f09abfa86633ada935f2f5b0538469159b634e2abf136071123cd0bb6b41"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/ReportExportDialog.test.tsx",
+                      "bytes":  7053,
+                      "sha256":  "3e7c23f4a6b2d80a619da5dff2b1f183208dc89335392b62d22fe166762f9bba"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/ReportExportDialog.tsx",
+                      "bytes":  2717,
+                      "sha256":  "0e59c19b94e7560d8aa3d42ea8a3bef3d9d9c7771fddb2004caa82874ba2f2cf"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/reportFileSave.test.ts",
+                      "bytes":  1468,
+                      "sha256":  "ea71e998d1aedae228013723c7fc235227e3e618d1b2814c7e0e99ca4158f5be"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/reportFileSave.ts",
+                      "bytes":  601,
+                      "sha256":  "5256713fa588bf95de3c2e0ad1358a88572b745998336e62aed184a1f936df9c"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/reportModel.test.ts",
+                      "bytes":  8101,
+                      "sha256":  "71928c8bb7f027bc607161051268a439a49dcaa6ed4383adad5974b13285ad1b"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/reportModel.ts",
+                      "bytes":  33645,
+                      "sha256":  "68b980734f17d7ea34c373647edd5af3d36b0d37dd9b7ea2134019aa8202eac0"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/ReportOptionsForm.tsx",
+                      "bytes":  7050,
+                      "sha256":  "1c89f31e4f0ef5ca18826bfece6cd1018c375a3450e70b6bad7f223807df9382"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/ReportPreviewSection.tsx",
+                      "bytes":  13859,
+                      "sha256":  "17b13a58c2089e99259ff420164de7dd756c51a8702f5e91b75f23f22de194fb"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/reportSitePhotoRepository.ts",
+                      "bytes":  666,
+                      "sha256":  "8aa507bc8fdcc3870fad9b938cb258b953ab18b9bf49b1bce2c18d4b1796c197"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/reportSitePhotoTypes.ts",
+                      "bytes":  604,
+                      "sha256":  "c36cbec0b747d1ff400343778bbcbd229e031a34112227e41799a990f6d6b7d7"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/reportTemporaryAssetStore.ts",
+                      "bytes":  835,
+                      "sha256":  "8b8032ef7a7df92ac1e1d049fe660031910c4df464d9566bef6575d8cb8a3627"
+                  },
+                  {
+                      "path":  "src/modules/design/features/reports/word/useReportDialogState.ts",
+                      "bytes":  21995,
+                      "sha256":  "2de5ef04490e7e86bf8e3387de9054b4563bbcb6d73771a4abc40b10be896911"
+                  },
+                  {
+                      "path":  "src/modules/design/hooks/useDrawingInteraction.test.tsx",
+                      "bytes":  20827,
+                      "sha256":  "e7e0cade2c72a678a785a6880c78b7cfd249dac4561b6d5547f661b43f9f02d0"
+                  },
+                  {
+                      "path":  "src/modules/design/hooks/useDrawingInteraction.ts",
+                      "bytes":  12666,
+                      "sha256":  "53224fd7b67acb27b22919a3c0f75a2207c683d21a0ca8cfa9016da4d56d5f17"
+                  },
+                  {
+                      "path":  "src/modules/design/hooks/useKeytips.ts",
+                      "bytes":  1261,
+                      "sha256":  "5a0728a758d8fcb4c3533438f587aa450827b2a2d687af5402904f47a1f2a233"
+                  },
+                  {
+                      "path":  "src/modules/design/hooks/useSyncV2.test.tsx",
+                      "bytes":  2433,
+                      "sha256":  "d93c52fd8e307e7e8dd682306704a70129e1db731249ef9103e30f0a7c687ba9"
+                  },
+                  {
+                      "path":  "src/modules/design/hooks/useSyncV2.ts",
+                      "bytes":  2859,
+                      "sha256":  "1213cea5f4b913471d421bf0fdee7c7aeed4181982f7ac00931b2db596c83270"
+                  },
+                  {
+                      "path":  "src/modules/design/index.css",
+                      "bytes":  16196,
+                      "sha256":  "7c2d00c81fd290ed10f7566a6b89b6c7604978f408b86dbc69c944a64975a727"
+                  },
+                  {
+                      "path":  "src/modules/design/index.ts",
+                      "bytes":  53,
+                      "sha256":  "b0376af1413443d3a0427f20be862b5cfa7b5e0b25ce9feee709b4b2d3e72d6f"
+                  },
+                  {
+                      "path":  "src/modules/design/mapIconManifest.ts",
+                      "bytes":  2082,
+                      "sha256":  "5b80ea406e41b77061ebe21c596a4dda4745b7f4a58f3e94d6d3d3c8fa09d9ac"
+                  },
+                  {
+                      "path":  "src/modules/design/recognition-sim-license.png",
+                      "bytes":  74649,
+                      "sha256":  "f313f0dae952b467e995563eed4d74de346fa3fbf137c2bd968cd75c676c0407"
+                  },
+                  {
+                      "path":  "src/modules/home/App.tsx",
+                      "bytes":  15779,
+                      "sha256":  "7a40508a7ad90bf5c31e048148b44c4abcba6946782a2c1bc09b62522f05487d"
+                  },
+                  {
+                      "path":  "src/modules/home/App.workspace.test.tsx",
+                      "bytes":  5117,
+                      "sha256":  "fa3ef101fb8acc607a4b4fcaf07492cac8d3129a28a2bc30db1ff97ad9f56809"
+                  },
+                  {
+                      "path":  "src/modules/home/AppBootstrap.tsx",
+                      "bytes":  617,
+                      "sha256":  "bdc85c8d1a0706076001767d4baa13056b152cf903bdea48e4cb3ea0c5876e9e"
+                  },
+                  {
+                      "path":  "src/modules/home/AppLoader.tsx",
+                      "bytes":  1448,
+                      "sha256":  "d06142f8911a6446718005fd7ec2ce9950be6b841bf0805d65c3d5c86a80acee"
+                  },
+                  {
+                      "path":  "src/modules/home/GlobalModals.tsx",
+                      "bytes":  2179,
+                      "sha256":  "29ca5b9715e29e87504f5d67cba0d759d6d8b76d209c49c4bf7a0f297a39e894"
+                  },
+                  {
+                      "path":  "src/modules/home/main.tsx",
+                      "bytes":  2668,
+                      "sha256":  "f09d23727cd659b79a79929924055d4a4a1592aaa7ddcb774871e9bd8e8f6575"
+                  },
+                  {
+                      "path":  "src/modules/home/WorkspaceGrid.css",
+                      "bytes":  2595,
+                      "sha256":  "dd1aaa9b0ff46b8102b40b3dd98e8bdf775b186fde998f2be6a3398e1dfb1da4"
+                  },
+                  {
+                      "path":  "src/modules/i18n/index.ts",
+                      "bytes":  1305,
+                      "sha256":  "3338c842e560c4caa81177ae3b4a886dd5837b54547b430bf5cea4f08daf7cc9"
+                  },
+                  {
+                      "path":  "src/modules/i18n/locales/en/common.json",
+                      "bytes":  4927,
+                      "sha256":  "f12afe5ea7e2e869a032a62147edf65a4eefca70b0ea4c55cb7e506d95afd0c1"
+                  },
+                  {
+                      "path":  "src/modules/i18n/locales/vi/common.json",
+                      "bytes":  5639,
+                      "sha256":  "4a9318ae8d93baf5ca8923f5f23d557c37bb16581c3dc3bb064a7512e3444aab"
+                  },
+                  {
+                      "path":  "src/modules/implement/__tests__/comprehensive.test.tsx",
+                      "bytes":  28698,
+                      "sha256":  "d9dd1139870dda57649a06d6a90ae829688c21330b5bf432568e3850d7338b14"
+                  },
+                  {
+                      "path":  "src/modules/implement/components/import/ImportReviewDialog.tsx",
+                      "bytes":  5970,
+                      "sha256":  "c68ac3f469d24b1e158c304d96df0ab58e46f7742b2a118bcdd860869259cd9b"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/admin/AdminPanel.tsx",
+                      "bytes":  14072,
+                      "sha256":  "81809e50881a553369e9e5444656ff976a52e8f1e0431ff135115a4dc95d059f"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/analysis/AnalysisCells.tsx",
+                      "bytes":  4550,
+                      "sha256":  "0c823850295f3d4bacc03703ac8642e50f93f1f26c430074e73d23c6600c10ff"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/analysis/analysisColumns.test.ts",
+                      "bytes":  2033,
+                      "sha256":  "c18080dc0dd0e6e2f5867f4e3d4dfb200f35fd57fb2580f63653d1b3544331ee"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/analysis/analysisColumns.ts",
+                      "bytes":  4019,
+                      "sha256":  "c25a70388a71e2aee07177b6d5f9d1f79a626a357e9ac815a52fb9618ca1d7c0"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/analysis/AnalysisDialog.tsx",
+                      "bytes":  34638,
+                      "sha256":  "e6d6afbfadde506cbcb163954c88b2215ea0fc0f820961a06f79981df3afac2c"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/analysis/analysisHierarchy.test.ts",
+                      "bytes":  4875,
+                      "sha256":  "c883fe9d298d68e08fdf85ec4fe7767501f1af5dd4edfe2e0caaaabdf988050f"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/analysis/analysisHierarchy.ts",
+                      "bytes":  7897,
+                      "sha256":  "3cffbb690679cc9ea97a2ec3988d6105e35b25a85a17ede9c91c9aae54d3e041"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/analysis/AnalysisSyncPreviewModal.tsx",
+                      "bytes":  12235,
+                      "sha256":  "ccce6c25d5d747a17d3b45de0443caa0546e6fb88d6958714d0bef030e9047b3"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/analysis/AnalysisWindow.tsx",
+                      "bytes":  10095,
+                      "sha256":  "4d8f39eaede14c91f604c80e4935e25373772bc02173f7f98e690563490b3d37"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/auth/AuthOverlay.tsx",
+                      "bytes":  8132,
+                      "sha256":  "7cee8dfdef0a97a1f46bdb81c60b383066480681e9c731abf1d4129e36afa2fa"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/contract/ContractAnalysisView.tsx",
+                      "bytes":  17840,
+                      "sha256":  "74d96385ef474d629055979a2eeef2bbfba238fe26053efc1ed88786dce2db29"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/contract/ContractManager.tsx",
+                      "bytes":  6560,
+                      "sha256":  "14aa922f3075096576bd4a66056f25a81962199ca56b70ad6c5412bbf36df776"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/contract/ContractSidebar.tsx",
+                      "bytes":  10137,
+                      "sha256":  "cbf4de9f39402d0258c52a8220af1219695bf6c3a558f4c34ac0d63a7f0dea34"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/files/DynamicContentManager.tsx",
+                      "bytes":  10153,
+                      "sha256":  "b18ce18a4d6e056473bb7c9814d7aa2f34f3e51d0212bfc935267fd5eea63403"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/files/FilePreview.tsx",
+                      "bytes":  3485,
+                      "sha256":  "6e6bd216f8418ef9fa53674898895198e03877a1c3982843c7ec05d42c8c58a1"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/files/ImportDialog.test.tsx",
+                      "bytes":  4863,
+                      "sha256":  "44d4a77d0e964fb24a2166d18ff67d47642414affb5b29c753f1fbc4ed682b57"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/files/ImportDialog.tsx",
+                      "bytes":  22320,
+                      "sha256":  "f6ed530c6fd135ae904acae7d1fd81a3d737f8a6e11d7059e78bdd1394c743ab"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/graph/GraphManagement.tsx",
+                      "bytes":  3098,
+                      "sha256":  "3b97573627a8ab67cb91046ff06cc384e21dfa696ba8071d30a8eb610a3555fe"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/inventory/MaterialManager.tsx",
+                      "bytes":  13935,
+                      "sha256":  "f0e24142aaf3db184344f88751a7e7464ed1974e1cd1661a1733c6ece1b59bdc"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/CreateProjectModal.test.tsx",
+                      "bytes":  2063,
+                      "sha256":  "a4ceb6a84737a364e579ff757495ff07b311c2a47635ece44fcb8efb3edb9edd"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/CreateProjectModal.tsx",
+                      "bytes":  6523,
+                      "sha256":  "764f71e0b3ee18ef924448b1c748a6f9fd0329ceb8bb73e23a1374a65b4e8bb5"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/GlobalSearchV2.tsx",
+                      "bytes":  3140,
+                      "sha256":  "3ee6e194e3a4a7a349d9fd1bd65136c9b13d6280c1947907053c205069a872a8"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/HomeDashboard.tsx",
+                      "bytes":  6764,
+                      "sha256":  "b3996e14e0881330d0787dc04cfdce9d3967dd3917d432e3bb6074e450b3dfc0"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectDetail.tsx",
+                      "bytes":  4983,
+                      "sha256":  "6ec95f111921144a84e971883853bed76eeeeef27511847b8f1902bdee8cde5c"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectDetailPanels/CADInput.tsx",
+                      "bytes":  779,
+                      "sha256":  "d90ae662e0fde65a558b2167eecb161688aa5b5be34619322d26dcb9f3ead844"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectDetailPanels/CalendarView.tsx",
+                      "bytes":  3046,
+                      "sha256":  "09e41a030aae53a636cb1631992c4760183caa79b1090b222de2fd432a16ffdf"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectDetailPanels/FileItem.tsx",
+                      "bytes":  1508,
+                      "sha256":  "8935cb6670208ba2e614d15c4b03c9473332729e31e9a1392ab41e1a8faf94ca"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectDetailPanels/FolderTree.tsx",
+                      "bytes":  1598,
+                      "sha256":  "c02526220e32bf885688c597fb452e0599fad0450c66ef83987d675d3ad215c7"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectDetailPanels/GanttTimeline.tsx",
+                      "bytes":  8710,
+                      "sha256":  "3acd4f3554b17180693f99a2036d8704de8c22b56ddf3e684f9134bc26976269"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectDetailPanels/index.ts",
+                      "bytes":  286,
+                      "sha256":  "ec7086520833eefbab6763e0ea1010ef18a2e25e0fb78352ac67610fbc89fb80"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectDetailPanels/KanbanView.tsx",
+                      "bytes":  2749,
+                      "sha256":  "9e7785aa9c142f17cd062d19fdaef897dd5c900eb393f888153188a42df3df62"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectDetailPanels/ProjectNotesSidebar.tsx",
+                      "bytes":  2570,
+                      "sha256":  "ad7d4fde9f4cee34a34b3166c38e4f5eaaf2c4044969c8ddf6c82c2c6d2a53a3"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectDetailPanels/ProjectTasksSidebar.tsx",
+                      "bytes":  8022,
+                      "sha256":  "761edbf539bf85f5bcaab27c1f1101e1f99505bc27edfb6956ecb710f3d72d00"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectDetailPanels/TaskRow.tsx",
+                      "bytes":  2502,
+                      "sha256":  "d7dfddacfda53e09f36264cc32541069953c681f3910c37214aa9e482fe7222f"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectMainView.tsx",
+                      "bytes":  6116,
+                      "sha256":  "46a70ae1c5568e7f54d8a45e44f338c68797a6087fc932f68e1867154519bccb"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectOverlayLayer.tsx",
+                      "bytes":  2422,
+                      "sha256":  "67334f262504ff84ebd7850186c4581b180db9bfeaf5becb1286573ea8a69b95"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/ProjectSidebar.tsx",
+                      "bytes":  3835,
+                      "sha256":  "92cbe6ff1461904732d8f2ad92874d1d02647ce806ff7916658469cfee928fd1"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/RecentWorkspaces.tsx",
+                      "bytes":  7026,
+                      "sha256":  "0af12091603d9b90559da93df0f3bbabef56b9e02e591baefe071183dcc5c0e0"
+                  },
+                  {
+                      "path":  "src/modules/implement/features/project-management/StatsCard.tsx",
+                      "bytes":  1860,
+                      "sha256":  "3a5545fa58b869fa3b22efe471ba5ac853a1ba482004828a4560e2e747d71025"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/index.ts",
+                      "bytes":  274,
+                      "sha256":  "4bf56365e9bd9c0016fb4d698a8ab185ac6b7b82b02360bbafa7d955e53d81a2"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/projectPathUtils.test.ts",
+                      "bytes":  1724,
+                      "sha256":  "689b3dcc7b6bc0523aa6139e473f134c1b7a091e80cf7c8a2002d134ee81274c"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/projectPathUtils.ts",
+                      "bytes":  520,
+                      "sha256":  "b7667fc8d9802e54ae4d1332cd0915489a7c25cce9e9cf3128c7f077f1b2a361"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useAppBootstrap.ts",
+                      "bytes":  5287,
+                      "sha256":  "017ad588160d3c50b9d7eaaf57f534b1c15c5a757ba1ab1ae99b9e425b11c136"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useCamera.ts",
+                      "bytes":  2911,
+                      "sha256":  "e52ab96e6e4b4873683d0568dbfceff36369168922ae73db6b5d475d3b92fb33"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useCanvasInteraction.ts",
+                      "bytes":  907,
+                      "sha256":  "f60aee2c2fdcbcf0e4fbb37b9bf8e6c1f7f1232a4b6de9f1b1fb3a0b59937879"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useClickOutside.ts",
+                      "bytes":  622,
+                      "sha256":  "86d3a0998d39961b03c9799549f39c63bfd2ebdd1029914b5baa612230ba9376"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useDesignFeatures.ts",
+                      "bytes":  11849,
+                      "sha256":  "8869afd125b23d55fcdc96912f3e1082f2da96a900361215591526af26f8c842"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useMapSearch.ts",
+                      "bytes":  2946,
+                      "sha256":  "8e958d4fef0ab7bee2d72692bc7f07e61d27794eb874f32ce54e0084303c2205"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useProjectData.ts",
+                      "bytes":  6411,
+                      "sha256":  "343dd28cb85cf9e04bea9a29c47e8a5d0d4a0517b89bcf5054bf46ae40d5b1b1"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useProjectDetailLogic.ts",
+                      "bytes":  12130,
+                      "sha256":  "252bc951afcf20557aec11e500d593fda0ab1f96c74a175f65dcfe0ea7389337"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useProjectManager.test.tsx",
+                      "bytes":  11824,
+                      "sha256":  "1d046f6451cc039b620a4e2cd8f11832cf65601438cc06a1e1ea497bf4764e10"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useProjectManager.ts",
+                      "bytes":  23469,
+                      "sha256":  "530d88f2f730ba28f18b8d8fefd65f35598902bfd8e0a93642022ec0da042f9c"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useResizablePanels.ts",
+                      "bytes":  1529,
+                      "sha256":  "89b5cc30b647fd11949293abbc44149854ffa4467096d295a0fbee2180c96568"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useRibbonActions.ts",
+                      "bytes":  4479,
+                      "sha256":  "c903c8c86f64b44b11718af268b3de41c10dddc408416223b36b6072a4e74fcf"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useSnap.test.ts",
+                      "bytes":  2627,
+                      "sha256":  "0ba33c0a48c440b73d324d08c5cb696d16fdc8411e576a1f1cbd5900b1f432c2"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useSnap.ts",
+                      "bytes":  4493,
+                      "sha256":  "d97e11a5af5792a10eb0e994801140378983e2aeae88e8fc34af2e36c5fa5b67"
+                  },
+                  {
+                      "path":  "src/modules/implement/hooks/useTopology.ts",
+                      "bytes":  1539,
+                      "sha256":  "01a104ab8fff9cd2cd87b71cd7a3efa5067301397d1254e97e3e7636cd6ea6ff"
+                  },
+                  {
+                      "path":  "src/modules/implement/lib/.gitignore",
+                      "bytes":  64,
+                      "sha256":  "3702182ba1a9e3c4f11de0914dfcc4f2a78496e8c8e01f4f1d64b3bd201e162a"
+                  },
+                  {
+                      "path":  "src/modules/implement/lib/firebase.ts",
+                      "bytes":  253,
+                      "sha256":  "92f28bd07aa0b3f2352f72fc068aaa868346c1d758337819298f70e2aa31136b"
+                  },
+                  {
+                      "path":  "src/modules/implement/lib/firestoreSync.ts",
+                      "bytes":  990,
+                      "sha256":  "a02126de880446b78beb444a1f86017ee9c3f82f70d569c11500a4c1b2f989b1"
+                  },
+                  {
+                      "path":  "src/modules/implement/lib/tauri.ts",
+                      "bytes":  4179,
+                      "sha256":  "dbdc90f6d0082d14706b2021fced66570dc5e0851ba335cc013605aa222d426f"
+                  },
+                  {
+                      "path":  "src/modules/implement/services/analysisService.test.ts",
+                      "bytes":  4531,
+                      "sha256":  "10f280ee268b7dcbb982d224c2eeefff7051ca68f373f2cc5cdcc275a725db57"
+                  },
+                  {
+                      "path":  "src/modules/implement/services/analysisService.ts",
+                      "bytes":  36567,
+                      "sha256":  "035a4b4ea5693104e3836b28cb486fe01add394f2be692ab6e6e98fd1e661bea"
+                  },
+                  {
+                      "path":  "src/modules/implement/services/bomService.ts",
+                      "bytes":  5978,
+                      "sha256":  "658d34e4636beb798471c96d57d0aca1774da00d0a7e69b86b258822318695e6"
+                  },
+                  {
+                      "path":  "src/modules/implement/services/designSyncService.ts",
+                      "bytes":  1593,
+                      "sha256":  "0864b9046ac1c9fa8be2c07e0541f5dbde3b9157c187a219cca8b0f46ece0a41"
+                  },
+                  {
+                      "path":  "src/modules/implement/services/exportService.ts",
+                      "bytes":  16399,
+                      "sha256":  "e3458c81e0128646db57d8c8b4618910ed415994a1a41351209008a2ba149b4a"
+                  },
+                  {
+                      "path":  "src/modules/implement/services/importService.test.ts",
+                      "bytes":  15623,
+                      "sha256":  "c592f95528af1e5faa521f20a420ca9f013400b5c834f01c8ebcadfdf79cdfcd"
+                  },
+                  {
+                      "path":  "src/modules/implement/services/importService.ts",
+                      "bytes":  24590,
+                      "sha256":  "7792844e97efac5cf0d81321399f8cc12621dbf84ddbab8f8bf1972ab40ac3db"
+                  },
+                  {
+                      "path":  "src/modules/implement/services/mediaAssetService.ts",
+                      "bytes":  1622,
+                      "sha256":  "d504a387221e6e4638c8e1acf2cd767ab58fada185b48c77ee8cab89f333768a"
+                  },
+                  {
+                      "path":  "src/modules/implement/services/projectStorageService.test.ts",
+                      "bytes":  3177,
+                      "sha256":  "b8c75524a53fe2cd0ee0a4293442760ed7abd04ce2fb6766dc8e3dafa68699df"
+                  },
+                  {
+                      "path":  "src/modules/implement/services/projectStorageService.ts",
+                      "bytes":  1291,
+                      "sha256":  "e2be789e2834cdc75d6476f189c9d7ded8799e9616bfd8dd63890cf5241204b6"
+                  },
+                  {
+                      "path":  "src/modules/implement/stores/goog_maps_polyline.test.ts",
+                      "bytes":  6172,
+                      "sha256":  "24c783482abc87d2dacf8b33d2c5c4f1c5d92961460cd3a62ad07dc4b9f215f0"
+                  },
+                  {
+                      "path":  "src/modules/implement/stores/useAuthStore.test.ts",
+                      "bytes":  1338,
+                      "sha256":  "ed33f55a6bf1661edeb8d81fd4f50c89e535e7efe1b72cb66f96f4bcecbd4110"
+                  },
+                  {
+                      "path":  "src/modules/implement/stores/useDesignSync.test.ts",
+                      "bytes":  28868,
+                      "sha256":  "e4f318cf484e8b4fda57b3317e628f327853e38efe2b536e8f0f5c172d0f5c11"
+                  },
+                  {
+                      "path":  "src/modules/implement/stores/useDesignSync.ts",
+                      "bytes":  1638,
+                      "sha256":  "96c9ff6ece9ba0e0d6f7d3e60afcf62517d670abc4c05e8d5ab8472be29f3ae5"
+                  },
+                  {
+                      "path":  "src/modules/implement/stores/useExportStore.ts",
+                      "bytes":  1010,
+                      "sha256":  "bb551bc645fe5b17f909ae35719697558f348ddf4878565e1206607cce16cc6a"
+                  },
+                  {
+                      "path":  "src/modules/implement/stores/useFeatureStore.ts",
+                      "bytes":  890,
+                      "sha256":  "41f5a877cce981a44c98b08379af71454a863f3ed3de87717b793cd7a00d11c5"
+                  },
+                  {
+                      "path":  "src/modules/implement/stores/useLayerStore.ts",
+                      "bytes":  719,
+                      "sha256":  "fd846c04b4ea4a875a683b05af70819e1f593f1d5ebc94e30b3dca2ded864e47"
+                  },
+                  {
+                      "path":  "src/modules/implement/stores/useLayoutStore.test.ts",
+                      "bytes":  3098,
+                      "sha256":  "c8fc6dbdad39af3a978b47de556e3faf77a13052a5d7fd14d3969710300e3cf9"
+                  },
+                  {
+                      "path":  "src/modules/implement/stores/useRegionStore.ts",
+                      "bytes":  506,
+                      "sha256":  "264d9fa0ffc5d9641c91a320fa39ff5d533dd1e4c640b8f44898fc0369329325"
+                  },
+                  {
+                      "path":  "src/modules/implement/stores/vertex_fix.test.ts",
+                      "bytes":  1031,
+                      "sha256":  "b84f80ba17631358ea47e9019a7e403715e8f05f6b3018d0f0366b0a730e9f87"
+                  },
+                  {
+                      "path":  "src/modules/implement/TabInProgram/TabContainer.css",
+                      "bytes":  1960,
+                      "sha256":  "14bfc1804c26b1a21d7770c92373fd5c3eb59b1c5d58458e39c2d8b709ff1ab3"
+                  },
+                  {
+                      "path":  "src/modules/implement/TabInProgram/TabContainer.tsx",
+                      "bytes":  2035,
+                      "sha256":  "acfbde361fa729555263f2cbcc0eeae0ff2e4fc6f1fd2d614edf5f9786d44c01"
+                  },
+                  {
+                      "path":  "src/modules/implement/TabInProgram/useTabStore.ts",
+                      "bytes":  1852,
+                      "sha256":  "4f2f0f079774c60f385d16a4704f894193bc65994579775d30d4dc850baf6976"
+                  },
+                  {
+                      "path":  "src/modules/tool/components/GlobalSearch.tsx",
+                      "bytes":  11788,
+                      "sha256":  "a261092b4b15bc5f50475683830ad7a6defce88fb7d56ca51675a8c224afadd4"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/accessibility.ts",
+                      "bytes":  20792,
+                      "sha256":  "66dc4b45356bd6f2643eb04a761ef6b2f76471c837ccf81ec15996eab9dfbdf7"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/cameraMath.test.ts",
+                      "bytes":  2878,
+                      "sha256":  "fbfbd8c72efb929f929202104c660974ce92d5718c10cea1695cb1f33c8f199c"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/dataFlattening.test.ts",
+                      "bytes":  2936,
+                      "sha256":  "032f4648854ee52d45043b6b29bd24eb952d80cef336f5a85b870dfb92a7438a"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/dataFlattening.ts",
+                      "bytes":  6326,
+                      "sha256":  "7293cdf3d26b1e41c18c55b1ed6b278b6d8cdfb53737df36dbbcb2cf20a6238b"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/designEvents.ts",
+                      "bytes":  2761,
+                      "sha256":  "265a4d49e230e249c58367598859eafda5c629abd8096ba847326d9367dbd4f4"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/designIpc.test.ts",
+                      "bytes":  1979,
+                      "sha256":  "f6d637e4a3d0139bb41b85fa8a1d21db2037a4007d4f36cc5fc5b843a9a5f5ab"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/designLogic.ts",
+                      "bytes":  1676,
+                      "sha256":  "ccdacfa2c8339ec865732832618786fa0c5b8ecf052c7c23b9bf3506e845513b"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/errorHandling.test.ts",
+                      "bytes":  5889,
+                      "sha256":  "4a741b5c2e708e62c4fde9e587f4e1f0691face3f1f3f8b37f7fa32c99b26f64"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/errorHandling.ts",
+                      "bytes":  4760,
+                      "sha256":  "1c17903c6ed48ca3571e46ebc7bf93d8e00a9f50452e4500d0e7165d8c324b09"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/featureDisplay.test.ts",
+                      "bytes":  4975,
+                      "sha256":  "e0e70b8dfb487781dbc6770525abad30265f5b6120a0d5a41821100a62fb1dfc"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/featureDisplay.ts",
+                      "bytes":  16591,
+                      "sha256":  "0fbf98b7bb55ce7059babac8cac1568bdff2c0482f27975443081c236715d630"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/featureMapping.test.ts",
+                      "bytes":  5291,
+                      "sha256":  "ebdb5fc7911ca63e76d02fa8dd5e99700b0632746ef9ba799e5fcd42b979d7b1"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/featureMapping.ts",
+                      "bytes":  21708,
+                      "sha256":  "498e7bf7b7eae5773e10db9463f7d435e747286e826c2f39309381f396857ed8"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/featureMetadata.test.ts",
+                      "bytes":  3278,
+                      "sha256":  "0a65b0ae7ddbe3a0e1954d6eea4db0f7b24e0003b0d05e0aa630caebe0301891"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/featureMetadata.ts",
+                      "bytes":  7810,
+                      "sha256":  "57869a09cbfbef6b1e95438149799f7b9ed98152ea8b4e9a9a258bb2fba65bc3"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/featurePersistence.test.ts",
+                      "bytes":  5814,
+                      "sha256":  "ad71bec0ab8df57991c2652ba6e43edd0bd652e2f2c338b523ceb385b65e322f"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/featurePersistence.ts",
+                      "bytes":  5721,
+                      "sha256":  "8befd8df658cebd2689010840912b2237ec1c20980ed7c443a8fbea0eed75410"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/featureSymbolStyle.test.ts",
+                      "bytes":  1067,
+                      "sha256":  "52a8c08692d6a0f5e88ea466755895d56efae78a161880fe095d7d628e610e53"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/featureSymbolStyle.ts",
+                      "bytes":  1884,
+                      "sha256":  "e35163df10e6ed3635d7081ac32c368e705c521c2d83063b9da78a035c67335b"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/featureUtils.ts",
+                      "bytes":  278,
+                      "sha256":  "bed57b4b9812ebc51ff9d7ed66fa500c1d85a43cabeb9d08f90d30deab246e43"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/googleMapsLoader.ts",
+                      "bytes":  3877,
+                      "sha256":  "1ff86bbd81b24f1ad9c7a7a950ff2d849a2fdb8dda7cd306a0bd303f3e21eee3"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/googleMapsRuntime.ts",
+                      "bytes":  1701,
+                      "sha256":  "913a7e15c7fd4b0318215f14dd7789fc0f858bac8d783d092a39c1eedf2e29f9"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/lazyWithRetry.test.ts",
+                      "bytes":  1592,
+                      "sha256":  "3edbf52544940ce380f55b31757609950efde38b441631e1782d7d0ca4667c79"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/metadataNormalization.test.ts",
+                      "bytes":  4989,
+                      "sha256":  "d134b967228a5f292937d19824273fd3d583d2a3cab8e26e88e399e248c4c703"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/metadataNormalization.ts",
+                      "bytes":  11115,
+                      "sha256":  "93b2dff47f39d80a490db4a390cf36ae91c2f6af8bec618e12f9ddf6dede524c"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/normalizeDisplay.test.ts",
+                      "bytes":  9067,
+                      "sha256":  "52e03ceea8381bdfb9d858d9c0bf5112b9d809dae17c5fcf92c48699613bbe9e"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/normalizeDisplay.ts",
+                      "bytes":  9203,
+                      "sha256":  "c3d01bc5f68f69abe6c0807f0e30cb9c0a8a4cbf40dc1b18d1eb077b3ff3b00e"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/objectDataTemplates.ts",
+                      "bytes":  11550,
+                      "sha256":  "30017804b5acd41c3140c28ac1af18a157648642215bccc532ccbfcc3f6ffe5f"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/selectionUtils.ts",
+                      "bytes":  4960,
+                      "sha256":  "e1ce39db0e30238efb28883e646dcc46d9e0d6779de1ade98aedd11362a1b51a"
+                  },
+                  {
+                      "path":  "src/modules/tool/utils/vietnameseSearch.ts",
+                      "bytes":  2587,
+                      "sha256":  "3b5573e1b746229a6a83aea88ad501e3a589410d51da1a87d9e1b629235d0c7f"
+                  },
+                  {
+                      "path":  "src/shared/components/ui/index.ts",
+                      "bytes":  477,
+                      "sha256":  "3e69ded54ea1a4b608a1bf2d4532f5ba2d8cf16f6131b95514e4df1e8dcf810e"
+                  },
+                  {
+                      "path":  "src/shared/services/gisService.ts",
+                      "bytes":  2695,
+                      "sha256":  "60bdb4e82dd6bc6dce20911dad82dde88c67f0dda24d229208b08fa830fd602f"
+                  },
+                  {
+                      "path":  "src/shared/utils/bincodeDecoder.ts",
+                      "bytes":  8399,
+                      "sha256":  "cc8909391b73f36f42db5d50eb5608a60746295d6921858cd42bf13a3cd78687"
+                  },
+                  {
+                      "path":  "src/shared/utils/cameraMath.ts",
+                      "bytes":  9382,
+                      "sha256":  "c0ac16170b7eb97b694b51623a851f2e671e2529786c4a080a08f0f81cdfb2cb"
+                  },
+                  {
+                      "path":  "src/shared/utils/cn.ts",
+                      "bytes":  169,
+                      "sha256":  "9304a861c8673bee09e0f12de31773abbde503b02e59dfd74763ddec2e37cf05"
+                  },
+                  {
+                      "path":  "src/shared/utils/coordinates.ts",
+                      "bytes":  208,
+                      "sha256":  "ccf1c4e2a2cef5217ca68e0717fbc8b0cd60316dec2eded00f1cf37768526ed1"
+                  },
+                  {
+                      "path":  "src/shared/utils/csv.ts",
+                      "bytes":  2178,
+                      "sha256":  "d4c1dbba2672f2de27662be512caa29f2b0a378a4e294034211119348be6de0c"
+                  },
+                  {
+                      "path":  "src/shared/utils/designIpc.ts",
+                      "bytes":  16290,
+                      "sha256":  "14ad801d15b9fa386a06cc95fbc84c51b7c136e2b21eca1a8cde1ef9eb4d353c"
+                  },
+                  {
+                      "path":  "src/shared/utils/geoUtils.ts",
+                      "bytes":  731,
+                      "sha256":  "99855d51e4bb71c4d468b734a8dba7829afc124a9c9ea168129b93f3f276a0b1"
+                  },
+                  {
+                      "path":  "src/shared/utils/index.ts",
+                      "bytes":  258,
+                      "sha256":  "90007b40dcdac496cabfb913bb86b86634d85ecc9cf7a3ae4a7e48bc55107263"
+                  },
+                  {
+                      "path":  "src/shared/utils/lazyWithRetry.ts",
+                      "bytes":  1824,
+                      "sha256":  "ccfbd7c59c4e8d8309c700525bb0e6c76fd7bbe4f64bbfb9fb400bac0d498b3d"
+                  },
+                  {
+                      "path":  "src/shared/utils/logger.ts",
+                      "bytes":  977,
+                      "sha256":  "3b6a3bf4b3d00292e8c66aaaae18e876ae5ddee1bcdfd38878e944702c29b3e2"
+                  },
+                  {
+                      "path":  "src/shared/utils/userConfirmation.test.ts",
+                      "bytes":  1091,
+                      "sha256":  "c0353e110a56d6d6b0239ab61a9a54e942d5441e91f1af61b809fbf63d9397f7"
+                  },
+                  {
+                      "path":  "src/shared/utils/userConfirmation.ts",
+                      "bytes":  514,
+                      "sha256":  "bc389fe21bc4d60d2aec45a38067fb765dd1a90f772ae56425a0a74d6b0fe578"
+                  },
+                  {
+                      "path":  "src/test-setup.ts",
+                      "bytes":  1134,
+                      "sha256":  "e4e2468a905f8c0f772001959d41f67b5d709de6fd77d7c682ebf8b005f80fb5"
+                  },
+                  {
+                      "path":  "src/vite-env.d.ts",
+                      "bytes":  37,
+                      "sha256":  "ddb27c35b1afc07f4d3844dfd79b18c5c04fecd98fec9dbf2347f3b469d89f99"
+                  },
+                  {
+                      "path":  "src-tauri/.brain/brainstorm/implementation_logs/2026-04-20_MigrationV5_3.md",
+                      "bytes":  1261,
+                      "sha256":  "88333dcc3896174844e026b1291431116c1e2ce03dce57906dba08864fc4f6b3"
+                  },
+                  {
+                      "path":  "src-tauri/.cargo/config.toml",
+                      "bytes":  468,
+                      "sha256":  "6bf63e5f5e7535e7dfa3fae29c5b3e23af09aa42dc3524962fe13454cbbb7df7"
+                  },
+                  {
+                      "path":  "src-tauri/.taurignore",
+                      "bytes":  180,
+                      "sha256":  "480231faa27962ac5140969c64067386357834d5432f6a40445cc6be488aaa06"
+                  },
+                  {
+                      "path":  "src-tauri/BAK",
+                      "bytes":  1208,
+                      "sha256":  "fa703239433b55c303f7c1fa95dabfe2b7b5a79586661a67044e702d875e913a"
+                  },
+                  {
+                      "path":  "src-tauri/build.rs",
+                      "bytes":  42,
+                      "sha256":  "4ae2333b11623039cc115e29b696e7ff5cdfcd5b7d628280ddf48fa733e6418d"
+                  },
+                  {
+                      "path":  "src-tauri/capabilities/default.json",
+                      "bytes":  894,
+                      "sha256":  "5c3d277f55e3231c2daaa7d551901bdfddd1d7891c4a91fb475c6dea2ddc0b09"
+                  },
+                  {
+                      "path":  "src-tauri/Cargo.lock",
+                      "bytes":  377754,
+                      "sha256":  "4f9ac0846fc7396bd6c19951bb786f4daa55704c257df442b87dbd7c57672839"
+                  },
+                  {
+                      "path":  "src-tauri/Cargo.toml",
+                      "bytes":  4568,
+                      "sha256":  "a247bf1ef63ebcde028815083cfe6d92c3af680fe652321cce46a2b911df15fc"
+                  },
+                  {
+                      "path":  "src-tauri/crates/app_domain/Cargo.toml",
+                      "bytes":  343,
+                      "sha256":  "7f2d6702530406ebf8e7abaadfc73d002d393f42684f3110fbfd709571eff52f"
+                  },
+                  {
+                      "path":  "src-tauri/crates/app_domain/src/interfaces.rs",
+                      "bytes":  746,
+                      "sha256":  "1da068705c69a7f033ecbc59661739025efa84fd7a2b35e86e58263b490a5efc"
+                  },
+                  {
+                      "path":  "src-tauri/crates/app_domain/src/lib.rs",
+                      "bytes":  1383,
+                      "sha256":  "c20a411ed0adec21e0a3ac1d51d4ff4726755a19e4e763556c0d64c51ad67b8f"
+                  },
+                  {
+                      "path":  "src-tauri/crates/app_domain/src/pmp_v2.rs",
+                      "bytes":  1167,
+                      "sha256":  "48201dc7bee90e2c364e30dee6700e3a8c7fc179a698c41ebb1ab6cc8058faf9"
+                  },
+                  {
+                      "path":  "src-tauri/crates/gis_engine/Cargo.toml",
+                      "bytes":  375,
+                      "sha256":  "2f8f83c743ebef2ca33908707bd63d172c29df28b13bfad0c9af8e4913956060"
+                  },
+                  {
+                      "path":  "src-tauri/crates/gis_engine/src/lib.rs",
+                      "bytes":  22738,
+                      "sha256":  "66cd4004f51e69091e8fd6fdc4e9539368375d2d10a983d5dbde3192c73eaa47"
+                  },
+                  {
+                      "path":  "src-tauri/crates/module_gis/Cargo.toml",
+                      "bytes":  332,
+                      "sha256":  "1f9ddfb199bc601eccde52f38e04747fea0e536283151d9fc995642d68b9e15c"
+                  },
+                  {
+                      "path":  "src-tauri/crates/module_gis/src/lib.rs",
+                      "bytes":  4010,
+                      "sha256":  "5752247c7aaf59451a255f5b46a84fa421c0d61e2f1c7124fc1675ff7881f8cc"
+                  },
+                  {
+                      "path":  "src-tauri/crates/module_p2p/Cargo.toml",
+                      "bytes":  596,
+                      "sha256":  "7c16904ff60f1bddcd3dba214616c4b6ee206ed5c6c00d05aee48b3b45eba54f"
+                  },
+                  {
+                      "path":  "src-tauri/crates/module_p2p/src/lib.rs",
+                      "bytes":  4564,
+                      "sha256":  "a9ca7dd7d5030f69c90e9ebd06e608d7aa02fdb11d6f899262aa239e280516aa"
+                  },
+                  {
+                      "path":  "src-tauri/crates/shared_kernel/Cargo.toml",
+                      "bytes":  267,
+                      "sha256":  "d9f5d47aabce89a8f55c308f35f4de6f5ea10f20e5347e6e4f7a2613c7250648"
+                  },
+                  {
+                      "path":  "src-tauri/crates/shared_kernel/src/lib.rs",
+                      "bytes":  4419,
+                      "sha256":  "4c8a49e8233fcf62070bfeb2ad243249c4bd3c42ad02f944cda375c8bf9ecc40"
+                  },
+                  {
+                      "path":  "src-tauri/docs/troubleshoot/log.md",
+                      "bytes":  2959,
+                      "sha256":  "6e7d74ebfcf22963246d8e64a566092bf49bf84856bb7e8f9b8c5a13b9d6cc7d"
+                  },
+                  {
+                      "path":  "src-tauri/docs/troubleshoot/log_20240524_manifest_fix.md",
+                      "bytes":  2471,
+                      "sha256":  "4eb740b3ce13e6fd6513fae805efb78dd8b3f096c58719abc14da8d59b031e6e"
+                  },
+                  {
+                      "path":  "src-tauri/docs/troubleshoot/test_registry.json",
+                      "bytes":  236,
+                      "sha256":  "882a507efc3785dad69115847bb7ac293a99b581819d684b2fba26a95722e1b3"
+                  },
+                  {
+                      "path":  "src-tauri/icons/128x128.png",
+                      "bytes":  5135,
+                      "sha256":  "3095314b04dfa6a8838ad9d4b39557022c5ff2481c7f8cebb5a7256ea2b8b720"
+                  },
+                  {
+                      "path":  "src-tauri/icons/128x128@2x.png",
+                      "bytes":  11634,
+                      "sha256":  "0936ebfd67f319e4d45340c631bca7b94fd32108d5d069a2017b6f9c5752d4d1"
+                  },
+                  {
+                      "path":  "src-tauri/icons/32x32.png",
+                      "bytes":  1064,
+                      "sha256":  "cd9383e947c4cb5692927fc09af28de715715ad206824b728bf6494053451722"
+                  },
+                  {
+                      "path":  "src-tauri/icons/64x64.png",
+                      "bytes":  2345,
+                      "sha256":  "62bbfd75eb9ab8aa7a7fea8cf9bc61c6e86d9334161858799b73739a326a1559"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-anydpi-v26/ic_launcher.xml",
+                      "bytes":  261,
+                      "sha256":  "760d4b8a06bf7163dd010c33ad2cac9e4a75fa0177afaba042f83e311eef0c3e"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-hdpi/ic_launcher.png",
+                      "bytes":  2230,
+                      "sha256":  "c9b08764f7d27f98fbe6b1ad2b03a1886dc9378482e55ea2e9ab586de54f8f8d"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-hdpi/ic_launcher_foreground.png",
+                      "bytes":  6738,
+                      "sha256":  "78e891195c614e947f8e887a9461aad8b7882c310bce79169657b1a0acb9c9ea"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-hdpi/ic_launcher_round.png",
+                      "bytes":  1838,
+                      "sha256":  "2ea65719208160549583006c17f420668dc743e1d417bda33212dc6868788dd3"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-mdpi/ic_launcher.png",
+                      "bytes":  2141,
+                      "sha256":  "5f043e1b954432e2435ea8f7851b5590bb75f61ce0e9b1bfec7f3e7fffc0f755"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-mdpi/ic_launcher_foreground.png",
+                      "bytes":  4252,
+                      "sha256":  "de39b3fae8c53a3f1373007f9d189ff8c03a69e6ace3d84e3f24e9f0ed33ce0c"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-mdpi/ic_launcher_round.png",
+                      "bytes":  1771,
+                      "sha256":  "9028e3f18a5e9c358a440283afcc35c61605ea1cd5e72144045504efad8ed582"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-xhdpi/ic_launcher.png",
+                      "bytes":  4850,
+                      "sha256":  "a6f55ce4ad11bad9bc72f1a57f52cfe7ad20525f7316ba5348aabf7fd734d6b7"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-xhdpi/ic_launcher_foreground.png",
+                      "bytes":  9447,
+                      "sha256":  "f23a7b166c869587b1e426f52482ab787e7298b9f26794d582213516b07934ce"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-xhdpi/ic_launcher_round.png",
+                      "bytes":  4016,
+                      "sha256":  "c3229e5fab29e6c227b980e03c7cd96ca4c79797cb0bb347f8da0918388fda69"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-xxhdpi/ic_launcher.png",
+                      "bytes":  8215,
+                      "sha256":  "c9376b3b714117be48d91ddc831fb19727a8c4e6fdfc968f5ba8b188e3a16d9c"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-xxhdpi/ic_launcher_foreground.png",
+                      "bytes":  15586,
+                      "sha256":  "84b6e72f14f22418bb176915131fe9255dca8018c19e4329af571ce86291a700"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-xxhdpi/ic_launcher_round.png",
+                      "bytes":  6249,
+                      "sha256":  "93a438c7002f5bb52fa0cb808214b1a24af9a9b76e84e76ecaf394a7681ee5a7"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher.png",
+                      "bytes":  11871,
+                      "sha256":  "f35da61eafe8bdca6ed0656e3f878dfed7b8d446bc11e53e9671cfc07ef58903"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_foreground.png",
+                      "bytes":  22588,
+                      "sha256":  "a5abf734457490a897cf6cba42349f823f972c8d75feca49ef4c922544a053d2"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/mipmap-xxxhdpi/ic_launcher_round.png",
+                      "bytes":  8601,
+                      "sha256":  "c3bce5090f1aafcee6de99be45498ba425ac29a2c30bbfaf6695e5292273266e"
+                  },
+                  {
+                      "path":  "src-tauri/icons/android/values/ic_launcher_background.xml",
+                      "bytes":  115,
+                      "sha256":  "0687336f0ccc6f7ee09c7c95110667c63b75931238df779a21af401fb864cd34"
+                  },
+                  {
+                      "path":  "src-tauri/icons/icon.icns",
+                      "bytes":  167791,
+                      "sha256":  "58f990f6a6e50dbfe8dd4f90e5421a987ab037ddae34dc5d6ed81265154e6910"
+                  },
+                  {
+                      "path":  "src-tauri/icons/icon.ico",
+                      "bytes":  24634,
+                      "sha256":  "80c48bbeb2b429f9ca366b09f292bad446889da064d749af5926907d2166fd3d"
+                  },
+                  {
+                      "path":  "src-tauri/icons/icon.png",
+                      "bytes":  28458,
+                      "sha256":  "6f0bddf23bfaebdc6005e34d41a5bdaa0d2584c7a960dde6df4de54576a7a95f"
+                  },
+                  {
+                      "path":  "src-tauri/icons/icon.svg",
+                      "bytes":  913,
+                      "sha256":  "611ed96976424bb16dc6052d27a8d9f493091e8d686cd517dd78b531110dc9d7"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-20x20@1x.png",
+                      "bytes":  674,
+                      "sha256":  "3ecd4b2eda75629ef4f0b63f6fba00fe85d54ead05fc82de740d72531c869842"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-20x20@2x.png",
+                      "bytes":  1321,
+                      "sha256":  "5c0aafc25ff374d047d22e1d15ddb67316c1e1a7ca7578078599a6411cdf6d2f"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-20x20@2x-1.png",
+                      "bytes":  1321,
+                      "sha256":  "5c0aafc25ff374d047d22e1d15ddb67316c1e1a7ca7578078599a6411cdf6d2f"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-20x20@3x.png",
+                      "bytes":  2113,
+                      "sha256":  "8187a2b1a6ba735cdd55c0a21df048e33f22971c9712d8fba30240b0c36088d6"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-29x29@1x.png",
+                      "bytes":  950,
+                      "sha256":  "b94c99ed2aab524382e2ae22513103f6da581fddb5a298ed1c1eca733bd37131"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-29x29@2x.png",
+                      "bytes":  2080,
+                      "sha256":  "8a947d93c3727b59bdde7026fe71b7383cbf883195c9ef93ccc3992e059af9e7"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-29x29@2x-1.png",
+                      "bytes":  2080,
+                      "sha256":  "8a947d93c3727b59bdde7026fe71b7383cbf883195c9ef93ccc3992e059af9e7"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-29x29@3x.png",
+                      "bytes":  3260,
+                      "sha256":  "c554e4e0712e0f6b72c8999e93e8265d0e27e05fc36319fd5c302593df1df56b"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-40x40@1x.png",
+                      "bytes":  1321,
+                      "sha256":  "5c0aafc25ff374d047d22e1d15ddb67316c1e1a7ca7578078599a6411cdf6d2f"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-40x40@2x.png",
+                      "bytes":  3019,
+                      "sha256":  "2a45d931cad0cc8baec50a86318534dd7bcf6755bba8eab65502c46563e503ad"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-40x40@2x-1.png",
+                      "bytes":  3019,
+                      "sha256":  "2a45d931cad0cc8baec50a86318534dd7bcf6755bba8eab65502c46563e503ad"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-40x40@3x.png",
+                      "bytes":  4820,
+                      "sha256":  "d71efa8c54e13d818ce1fc6120db5346cc5dfe9a7c47feb4214f9752a55ed0c9"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-512@2x.png",
+                      "bytes":  74243,
+                      "sha256":  "bbf728eb94a5874b7e4bb98894a7244dbdb659434bd69e5936b2454984a24ab0"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-60x60@2x.png",
+                      "bytes":  4820,
+                      "sha256":  "d71efa8c54e13d818ce1fc6120db5346cc5dfe9a7c47feb4214f9752a55ed0c9"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-60x60@3x.png",
+                      "bytes":  7867,
+                      "sha256":  "2a34d9cf2d8955bd65168f437a5ee454383a9095093b9f095aba6440f7c3d694"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-76x76@1x.png",
+                      "bytes":  2724,
+                      "sha256":  "cb45cfbbc07e194a80bdd4efd56ce05c53b52b1bff2b05c77329800c779546bc"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-76x76@2x.png",
+                      "bytes":  6209,
+                      "sha256":  "4c57453eed8746fd69e0d7da59d7d9272d9edc0ebc07f8ee6dafe0863fda3174"
+                  },
+                  {
+                      "path":  "src-tauri/icons/ios/AppIcon-83.5x83.5@2x.png",
+                      "bytes":  6936,
+                      "sha256":  "499cbd9abd219bdad0e85c3e09376ca0e33a9c5159849cd5a27fbf7bf0110e2e"
+                  },
+                  {
+                      "path":  "src-tauri/icons/Square107x107Logo.png",
+                      "bytes":  4186,
+                      "sha256":  "54534c632c43bdd4fcfe50d8c584fbd2f2f7ff413d6382b1b60621993d0fe849"
+                  },
+                  {
+                      "path":  "src-tauri/icons/Square142x142Logo.png",
+                      "bytes":  5765,
+                      "sha256":  "02aa7fe5e53e549d0682f2b44817f96c80c16d0ea3c38a5ba76d895ff5100c85"
+                  },
+                  {
+                      "path":  "src-tauri/icons/Square150x150Logo.png",
+                      "bytes":  6234,
+                      "sha256":  "f2235272726f37953b7dba8dbc2e841ee099dcc17b99d43a675ecd51a153f713"
+                  },
+                  {
+                      "path":  "src-tauri/icons/Square284x284Logo.png",
+                      "bytes":  13568,
+                      "sha256":  "8fa873d9107c8528efa50f2b7aa9789810d4094431a19347232fb5ab8e94dc4c"
+                  },
+                  {
+                      "path":  "src-tauri/icons/Square30x30Logo.png",
+                      "bytes":  979,
+                      "sha256":  "e8923503fe13f4d281f8aa516b0cbdbf31934b6ae66708ef2a44edd90829e161"
+                  },
+                  {
+                      "path":  "src-tauri/icons/Square310x310Logo.png",
+                      "bytes":  14576,
+                      "sha256":  "8f4deafceaae0e469662efb5d85810b095ca6a5383ab35366e81cae7122d2452"
+                  },
+                  {
+                      "path":  "src-tauri/icons/Square44x44Logo.png",
+                      "bytes":  1436,
+                      "sha256":  "1cce959e39c0ce17342a62613306d18793d310519990bfda6553687e57168e93"
+                  },
+                  {
+                      "path":  "src-tauri/icons/Square71x71Logo.png",
+                      "bytes":  2646,
+                      "sha256":  "8e6d13a48ce6591b6a652a28d9a391c9707e00e0a52b5abdd5e16083db58e897"
+                  },
+                  {
+                      "path":  "src-tauri/icons/Square89x89Logo.png",
+                      "bytes":  3406,
+                      "sha256":  "3e4b54284f9a74bc493e11c35dd9b229f07ec745df186e02e36b6d6636dca39e"
+                  },
+                  {
+                      "path":  "src-tauri/icons/StoreLogo.png",
+                      "bytes":  1705,
+                      "sha256":  "e108f22ed84aebc5c3c88b02aa3fd7416cde686e5ba9a8919bbd95820009fa0d"
+                  },
+                  {
+                      "path":  "src-tauri/resources/models/metadata.yaml",
+                      "bytes":  42,
+                      "sha256":  "398582015877d17ec8c6c0c6145e30c8df0295e3d0ab7556068e552fe406024d"
+                  },
+                  {
+                      "path":  "src-tauri/resources/models/phi3_tokenizer.json",
+                      "bytes":  1844408,
+                      "sha256":  "9e2ae3d66819f163cdcfedba5078f3a3af8118c2712491ed60912f77886bda6f"
+                  },
+                  {
+                      "path":  "src-tauri/resources/models/tokenizer.json",
+                      "bytes":  466247,
+                      "sha256":  "be50c3628f2bf5bb5e3a7f17b1f74611b2561a3a27eeab05e5aa30f411572037"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/auth/license.rs",
+                      "bytes":  1789,
+                      "sha256":  "1b84cde2bb9bcc13741fc1cd0e8a60e03146cb9e6fb4a0c9043aa00f190fa768"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/auth/local_auth.rs",
+                      "bytes":  1755,
+                      "sha256":  "00d2a1e2027a6a46d8993fb0b919e6e3bad56a20ec5b1eb42913959972392943"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/auth/mod.rs",
+                      "bytes":  81,
+                      "sha256":  "286afd5f585a9d078a818c0538b50dc962caee996761f5ce2c81c71ace19679a"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/commands/gis_commands.rs",
+                      "bytes":  3307,
+                      "sha256":  "6cee175c8a5a8f5ba7a9ea22d91ad1fa77a70360b6ce0b83906ded3f1051aba0"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/commands/mod.rs",
+                      "bytes":  13732,
+                      "sha256":  "40f12b8b33cae200e31a061894b9fd155e018245c810dd16001e1ed91ceed383"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/commands/modules/ai_commands.rs",
+                      "bytes":  2587,
+                      "sha256":  "7700ce43162005f2eb8d640b1d95b0caa8bd19734d976704c4d596d5c2ea180f"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/commands/modules/basemap_commands.rs",
+                      "bytes":  824,
+                      "sha256":  "a563bb12b79c0d91ab8eb13a1dd48251d924f4b2b2b5c72e17f258d69e06f048"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/commands/modules/gis_commands.rs",
+                      "bytes":  1078,
+                      "sha256":  "7ffbc07507ec6352a2d36eef88beeed3ec9177b6d6d5e1a0bf5fe2e9239481bf"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/commands/modules/media_commands.rs",
+                      "bytes":  1750,
+                      "sha256":  "a8cdd18a3be95d8e1a1b9a2308c374c505ce02d4d7185bed5f255761333b50a7"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/commands/modules/mod.rs",
+                      "bytes":  168,
+                      "sha256":  "e22196949ed63e17afc526145abc2164e021c2e610d625459e1c38f0538951a1"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/commands/modules/project_commands.rs",
+                      "bytes":  3198,
+                      "sha256":  "90f17d328bd7c7abbef567225ab4c1a0eab8dab5c0690a314df52f7f95f19a6d"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/commands/modules/storage_commands.rs",
+                      "bytes":  5482,
+                      "sha256":  "1d55bbfe55b2bf0017b1f28b1635cc6fa6d172c7ab5df7bbfda73fc1d4fc05ff"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/commands/modules/sync_commands.rs",
+                      "bytes":  1148,
+                      "sha256":  "191e4aa2f46fe47d7dca6df03ef4b040dabb0c0c3dd63e29214ea52fc021cdc7"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/commands/v2.rs",
+                      "bytes":  171591,
+                      "sha256":  "4b4120bc4169779252b75264cfbc9be72c1572c46f8b9da9e2d234e321c119d8"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/commands/v2_bridge.rs",
+                      "bytes":  95520,
+                      "sha256":  "10107637c7af3cd6963acdaee1e7f237a32275e19f83fc447de0e8876790b3a8"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/mod.rs",
+                      "bytes":  81,
+                      "sha256":  "340a58a936d07c677f6f1aa94f0c69dd154cb460bc84a10c716c5d6bf02ca9b9"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/basemap/mod.rs",
+                      "bytes":  376,
+                      "sha256":  "098b014028ef25ef0130633347476b247edb3a4ee1a88f7754ff0e2e0887eaf3"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/basemap/tile_cache.rs",
+                      "bytes":  19127,
+                      "sha256":  "0605eaf6aab76cb49b74175896e9afa0e73d23916d6dfacf0aff91ef17209f9c"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/mod.rs",
+                      "bytes":  29,
+                      "sha256":  "6a1ab5e93ab7663d098b8686f71272806a1addbfac9bf7d1c21be320e6f3b59c"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/ai.rs",
+                      "bytes":  63138,
+                      "sha256":  "a8a97ee204a0735abcc5bec687151b96c0638cac9dde09287fb30bd4fc0c2c76"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/basemap/mod.rs",
+                      "bytes":  2147,
+                      "sha256":  "6638b35a6c8865c011411548755f52c40b1f298ec639a51bc20ccf426d8b2cfc"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/gis/mod.rs",
+                      "bytes":  105,
+                      "sha256":  "a7ce3901a884582f562f3d179e8bd9f53e389f5917dac1673f6ad74aac2585b0"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/gis/stream_worker.rs",
+                      "bytes":  1985,
+                      "sha256":  "1ec871b504811c10f0f58be086afaf2326858e22f85f545023220e44e4131fc1"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/mod.rs",
+                      "bytes":  213,
+                      "sha256":  "a112a2e49dc97aba22b3e5d8abc1b5d14b2cca96e726a11d3b18974b2b3854e9"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/pipeline/eventbus.rs",
+                      "bytes":  5168,
+                      "sha256":  "03dd0db7e17a556e576d0614bcc68fd94dfbf151bae450b5dfb1edb5de5ada46"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/pipeline/mod.rs",
+                      "bytes":  63,
+                      "sha256":  "0c8b864ef9e63ab66d0e52b65977378a9e99cdb0e9d8f865d2d987b92b509a61"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/pipeline/tile_server.rs",
+                      "bytes":  5642,
+                      "sha256":  "38d988e57f10188d18775b68e18dc673cdc40c4e77f327fedeab0e18a41656ed"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/pipeline/worker_storage.rs",
+                      "bytes":  389341,
+                      "sha256":  "4cde0513d976cdf1c2ab4d2e1121e2a977bf9d0a7c32afdd0f7844f396e0a40a"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/storage/audit.rs",
+                      "bytes":  30416,
+                      "sha256":  "6d95bc5f2c0164cf79ad3b35b1b84e192ea2aa6affbcd99bc5bf9c88b799e456"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/storage/connection.rs",
+                      "bytes":  45697,
+                      "sha256":  "dd7603d0662511e35d44b0b77242250017315955e36809b8939d3bd26b138158"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/storage/gpkg.rs",
+                      "bytes":  6714,
+                      "sha256":  "1ce9bef2778073962e9fd0002b37aa76b08638d214517ca227f0e78103ed0705"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/storage/mod.rs",
+                      "bytes":  84,
+                      "sha256":  "49af850e03f13dc896e7c7b05259d207b18b4146d93206dc63fdaae47f7583e0"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/storage/path_meta.rs",
+                      "bytes":  823,
+                      "sha256":  "b82767fe10e7f3c225a88a132fa3b4d3fb15b253ef4fcb0c8b1a73c1d133400c"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/modules/v2/storage/schema.rs",
+                      "bytes":  110262,
+                      "sha256":  "8b6c1d5e80f39b3e6b87ee47f1d8bcc061315d52f3f76880af254a40da0cbd9b"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/project/atomic_writer.rs",
+                      "bytes":  1851,
+                      "sha256":  "628934cfa6f735c58c0c048093072ba72541cfef0cb01f751a7c780574f7d258"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/project/journal.rs",
+                      "bytes":  2240,
+                      "sha256":  "977b087deae35540e7904db089e3ef783a38392afef5d326b89d9806fabe933d"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/project/mod.rs",
+                      "bytes":  124,
+                      "sha256":  "49a7ca67da460f037d3a8e9df97e7a21de53c12312139c33b699e2f547066a38"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/project/package.rs",
+                      "bytes":  3306,
+                      "sha256":  "c8d3cfa95f5eef1741f712d5f79a1c6ac140606bf88a210f3c48940d6836bf58"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/state/hydrator.rs",
+                      "bytes":  2899,
+                      "sha256":  "9485e4b81ce18e9e93d887f488bf1028bac21ebd712dad0131fd7565e4e84c76"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/implement/state/mod.rs",
+                      "bytes":  18,
+                      "sha256":  "41a53f98a0e9bbd5adf271138c028b8b8164df512d74bcbc9a1ccb4191f6150c"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/mod.rs",
+                      "bytes":  35,
+                      "sha256":  "7f04e3bc7e8c32ef8a331b25417e62d6d4b6dc94fc43ece5556da724a0c7461a"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/models/mod.rs",
+                      "bytes":  12,
+                      "sha256":  "4d38a00bbe95d15afee0131e9c354897deddb49f7fe15c81629cfecb4b6068f2"
+                  },
+                  {
+                      "path":  "src-tauri/src/domain/models/v2/mod.rs",
+                      "bytes":  28950,
+                      "sha256":  "064e80f3a362b09e0a0c97d961f19bb2f40f264d1daf455396cf743c87f0787e"
+                  },
+                  {
+                      "path":  "src-tauri/src/lib.rs",
+                      "bytes":  2653,
+                      "sha256":  "994dc188ec0dd6a4ffb58d455075008829fd5133bc376980a88288b4638fdf23"
+                  },
+                  {
+                      "path":  "src-tauri/src/main.rs",
+                      "bytes":  226,
+                      "sha256":  "2fa0c2dcab975e582bb3b9a2fb164ba9e04c43e57d2ba9ba4f1b508cffad4c9d"
+                  },
+                  {
+                      "path":  "src-tauri/tauri.conf.json",
+                      "bytes":  2635,
+                      "sha256":  "42246c3f577b44ededad1edc7d42eff22737dc63a2f260180f7ff104409ea878"
+                  },
+                  {
+                      "path":  "src-tauri/tools/check_polylines.py",
+                      "bytes":  2674,
+                      "sha256":  "dbd23ab644ccb0bdc6cd2653d98db255f585f260f02297ecd6805f31bd6559dd"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/bin/protoc.exe",
+                      "bytes":  11783121,
+                      "sha256":  "61d624c4d9f3c6b1a9790db047f8f19cd08f74c6bd5f0db582783e8142a88922"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/any.proto",
+                      "bytes":  6154,
+                      "sha256":  "bcf5de6ce463b1a38ff76b77955aa7e580b4ec12af34a927b1d45c9efb0faf66"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/api.proto",
+                      "bytes":  7728,
+                      "sha256":  "e1745f7d6e9953f624b027b37da29ffc6521c45bce9aa96f39666748879fc915"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/compiler/plugin.proto",
+                      "bytes":  8556,
+                      "sha256":  "7e39e59630a1f0118d715bfd0fe3481c160de2144ff5952c5e3ed20a2ce4fa82"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/cpp_features.proto",
+                      "bytes":  974,
+                      "sha256":  "31f4f0947387f9bcc5bba14a41576a6cb518ffd4dcc430a64ed9255d8d4ceee6"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/descriptor.proto",
+                      "bytes":  49836,
+                      "sha256":  "fe091d8f9f1dababd2dad19e1f6c7255abf800fcfaf6292ab8aaa982727e0de9"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/duration.proto",
+                      "bytes":  4892,
+                      "sha256":  "a3f7301ff2956ec2e30c2241ece07197e4a86c752348d5607224819d4921c9fe"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/empty.proto",
+                      "bytes":  2363,
+                      "sha256":  "ecef3d54cc9e079673b9816c67bac770f7f3bf6dada2d4596ba69d71daa971e6"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/field_mask.proto",
+                      "bytes":  8185,
+                      "sha256":  "17b0f342cc3a262e317d56884f3f575afbfac512ad0579349cc7450e41f26891"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/java_features.proto",
+                      "bytes":  1803,
+                      "sha256":  "76fc3f9af855fcbfa7af767e3b0ba0e7514f346e15d82a14296c774488cef95c"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/source_context.proto",
+                      "bytes":  2341,
+                      "sha256":  "37d3401de89af1d1496fc949924a5f2011bd2fadfbeb0da1caa277159a96776d"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/struct.proto",
+                      "bytes":  3778,
+                      "sha256":  "1bf07ba8b9a24e3a0390dddac3ad0db41c63287d252788b02398220b9abc900f"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/timestamp.proto",
+                      "bytes":  6449,
+                      "sha256":  "14052c6042c1dd2d0b50245f2812eaab6eaf82db0b6e8ce483eae527f73b6ee8"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/type.proto",
+                      "bytes":  6367,
+                      "sha256":  "e230e0e4aeb87c95e9f1c6acbfc0c713db3f88094f149b154717a51d020f750b"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/include/google/protobuf/wrappers.proto",
+                      "bytes":  4044,
+                      "sha256":  "a26c1d6ec73a592ac31796289a61ceffe2db2453ff427dfdd7697aac50844280"
+                  },
+                  {
+                      "path":  "src-tauri/tools/protoc/readme.txt",
+                      "bytes":  721,
+                      "sha256":  "cb87be42344000337bef2e65de178c7e2f9cd7a1b7cd0e4284377a5d375db82f"
+                  }
+              ]
+}
