@@ -3,6 +3,8 @@ import { MapCanvas, type PreviewMapController } from './basemapPreview/MapCanvas
 import { createGoogleSourceAdapter } from './basemapPreview/googleSource';
 import { createLocalPackageAdapter } from './basemapPreview/localPackage';
 import { MetadataDrawer } from './basemapPreview/MetadataDrawer';
+import { FloatingControls } from './basemapPreview/FloatingControls';
+import { LayerPopover } from './basemapPreview/LayerPopover';
 import {
     DEFAULT_PREVIEW_USER_CONFIG,
     createPreviewFileReader,
@@ -21,9 +23,8 @@ import {
 } from './basemapPreview/previewBridge';
 import { normalizeExtentPayload } from './basemapPreview/extentPayload';
 import { PREVIEW_SOURCE_OPTIONS } from './basemapPreview/sourceSelector';
-import { PREVIEW_STYLES, type PreviewLayerId, type PreviewSourceAdapter, type PreviewStyleId, type PreviewUserConfig } from './basemapPreview/types';
+import type { PreviewLayerId, PreviewSourceAdapter, PreviewStyleId, PreviewUserConfig } from './basemapPreview/types';
 import type { PreviewPoint } from './basemapPreview/extent';
-import { formatGeolocationError } from './basemapPreview/geolocation';
 import { DEFAULT_STREET_VIEW_VIEWPOINT, normalizeStreetViewViewpoint, type StreetViewViewpoint } from './basemapPreview/streetView';
 
 export function BasemapPreviewApp() {
@@ -39,9 +40,14 @@ export function BasemapPreviewApp() {
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedPoint, setSelectedPoint] = useState<PreviewPoint | null>(null);
     const [extentData, setExtentData] = useState<unknown | null>(null);
-    const [extentMessage, setExtentMessage] = useState<string | null>(null);
+    const [, setExtentMessage] = useState<string | null>(null);
     const [streetViewViewpoint, setStreetViewViewpoint] = useState<StreetViewViewpoint | null>(null);
-    const [streetViewStatus, setStreetViewStatus] = useState<string | null>(null);
+    const [, setStreetViewStatus] = useState<string | null>(null);
+
+    // Floating controls & measure state
+    const [layerPopoverOpen, setLayerPopoverOpen] = useState(false);
+    const [measureActive, setMeasureActive] = useState(false);
+    const [measureDistanceText, setMeasureDistanceText] = useState<string | null>(null);
 
     useEffect(() => {
         let active = true;
@@ -166,31 +172,17 @@ export function BasemapPreviewApp() {
         } catch (error) {
             setStreetViewStatus(`Street View: ${error instanceof Error ? error.message : String(error)}`);
         }
-    }, [selectedPoint, streetViewViewpoint]);
+    }, [selectedPoint, streetViewViewpoint, controller]);
+
     const handleFitExtent = useCallback(() => {
-        if (!extentData) {
-            setExtentMessage('Chưa có dữ liệu đối tượng để zoom extend');
+        if (extentData && controller?.fitDataExtent(extentData)) {
+            setExtentMessage('Đã zoom đến vùng dữ liệu');
             return;
         }
-        setExtentMessage(controller?.fitDataExtent(extentData)
-            ? 'Đã zoom đến vùng dữ liệu'
-            : 'Dữ liệu đối tượng không có extent hợp lệ');
+        controller?.resetVietnamExtent();
+        setExtentMessage('Đã reset toàn cảnh Việt Nam');
     }, [controller, extentData]);
-    const handleLocate = useCallback(() => {
-        if (!navigator.geolocation) {
-            setExtentMessage('Thiết bị không hỗ trợ định vị');
-            return;
-        }
-        navigator.geolocation.getCurrentPosition(
-            position => {
-                const point: PreviewPoint = [position.coords.longitude, position.coords.latitude];
-                controller?.setDeviceLocation(point);
-                setExtentMessage(`Đã định vị ${point[1].toFixed(6)}, ${point[0].toFixed(6)}`);
-            },
-            error => setExtentMessage(formatGeolocationError(error)),
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
-        );
-    }, [controller]);
+
     const handleLayerSelect = useCallback(async (nextLayer: PreviewLayerId) => {
         const updated = { ...(userConfig ?? DEFAULT_PREVIEW_USER_CONFIG), layer: nextLayer };
         setUserConfig(updated);
@@ -202,14 +194,17 @@ export function BasemapPreviewApp() {
             setSourceError(error instanceof Error ? error.message : String(error));
         }
     }, [userConfig]);
+
     const updateUserConfig = useCallback((changes: Partial<PreviewUserConfig>) => {
         setUserConfig(previous => ({ ...(previous ?? DEFAULT_PREVIEW_USER_CONFIG), ...changes }));
     }, []);
+
     const saveCurrentUserConfig = useCallback(() => {
         if (userConfig) void savePreviewUserConfig(userConfig).catch(error => {
             setSourceError(error instanceof Error ? error.message : String(error));
         });
     }, [userConfig]);
+
     const handlePickWatcherFolder = useCallback(async () => {
         try {
             const folder = await pickDirectory('Chọn thư mục theo dõi dữ liệu đối tượng');
@@ -220,6 +215,7 @@ export function BasemapPreviewApp() {
             setSourceError(error instanceof Error ? error.message : String(error));
         }
     }, [updateUserConfig, userConfig]);
+
     const handlePickPackage = useCallback(async () => {
         if (!isTauriPreview()) {
             setSourceError('File picker chỉ khả dụng trong executable Windows preview');
@@ -238,6 +234,7 @@ export function BasemapPreviewApp() {
             setSourceError(error instanceof Error ? error.message : String(error));
         }
     }, [userConfig]);
+
     const handleDownloadPackage = useCallback(async () => {
         if (!userConfig?.downloadUrl) {
             setSourceError('Khai báo link .pdb trước khi tải package');
@@ -257,7 +254,15 @@ export function BasemapPreviewApp() {
             setSourceError(error instanceof Error ? error.message : String(error));
         }
     }, [userConfig]);
-    const statusLabel = sourceError ? 'Nguồn lỗi' : mapState === 'ready' ? 'Sẵn sàng' : mapState === 'error' ? 'Lỗi tải tile' : 'Đang tải';
+
+    const handleToggleMeasure = useCallback(() => {
+        setMeasureActive(prev => !prev);
+    }, []);
+
+    const handleClearMeasure = useCallback(() => {
+        controller?.clearMeasure();
+        setMeasureDistanceText(null);
+    }, [controller]);
 
     return (
         <main className="preview-shell">
@@ -268,105 +273,49 @@ export function BasemapPreviewApp() {
                         adapter={adapter}
                         reader={reader}
                         styleId={styleId}
+                        measureActive={measureActive}
                         onControllerChange={handleControllerChange}
                         onPointSelect={handlePointSelect}
                         onStateChange={handleMapStateChange}
+                        onMeasureDistanceChange={setMeasureDistanceText}
                     />
                 ) : layer ? (
                     <div className="map-loading">{sourceError ?? 'Đang khởi tạo nguồn bản đồ…'}</div>
                 ) : (
                     <LayerChooser onSelect={handleLayerSelect} />
                 )}
-                <header className="preview-toolbar">
-                    <div>
-                        <p className="eyebrow">VIETNAM BASEMAP</p>
-                        <h1>Basemap Preview</h1>
-                    </div>
-                    <div className="toolbar-actions">
-                        <span className={sourceError || mapError ? 'status-badge error' : 'status-badge'}>{statusLabel}</span>
-                        <div className="toolbar-actions-right">
-                            <button type="button" className="pegman-button" onClick={() => void handleOpenStreetView()} aria-label="Mở Pegman Street View" title="Mở Pegman Street View">🧍 Pegman</button>
-                            <button type="button" className="metadata-button" onClick={() => setDrawerOpen(true)}>Thông tin</button>
-                        </div>
-                    </div>
-                </header>
-                <div className="preview-controls" aria-label="Điều khiển bản đồ">
-                    <div className="source-selector" aria-label="Chọn lớp nền bản đồ">
-                        {PREVIEW_SOURCE_OPTIONS.map(option => (
-                            <button
-                                key={option.mode}
-                                type="button"
-                                className={layer === option.mode ? 'source-option active' : 'source-option'}
-                                aria-pressed={layer === option.mode}
-                                onClick={() => void handleLayerSelect(option.mode)}
-                            >
-                                <strong>{option.label}</strong>
-                                <span>{option.description}</span>
-                            </button>
-                        ))}
-                        {layer === 'local-package' && <>
-                            <button type="button" className="package-picker" onClick={() => void handlePickPackage()}>Chọn local package</button>
-                            <label className="download-url-field">
-                                Link tải .pdb
-                                <input
-                                    value={userConfig?.downloadUrl ?? ''}
-                                    onChange={event => setUserConfig(previous => ({ ...(previous ?? DEFAULT_PREVIEW_USER_CONFIG), downloadUrl: event.target.value }))}
-                                    onBlur={() => userConfig && void savePreviewUserConfig(userConfig)}
-                                    placeholder="https://…/vietnam-basemap.pdb"
-                                />
-                            </label>
-                            <button type="button" className="package-picker" onClick={() => void handleDownloadPackage()}>Tải package .pdb thủ công</button>
-                        </>}
-                    </div>
-                    <div className="integration-settings" aria-label="Cấu hình tích hợp">
-                        <label>
-                            Cổng localhost
-                            <input
-                                type="number"
-                                min={1}
-                                max={65535}
-                                value={userConfig?.httpPort ?? DEFAULT_PREVIEW_USER_CONFIG.httpPort}
-                                onChange={event => updateUserConfig({ httpPort: Number(event.target.value) })}
-                                onBlur={saveCurrentUserConfig}
-                            />
-                        </label>
-                        <label className="checkbox-setting">
-                            <input
-                                type="checkbox"
-                                checked={userConfig?.autoZoom !== false}
-                                onChange={event => {
-                                    const autoZoom = event.target.checked;
-                                    updateUserConfig({ autoZoom });
-                                    void savePreviewUserConfig({ ...(userConfig ?? DEFAULT_PREVIEW_USER_CONFIG), autoZoom });
-                                }}
-                            />
-                            Tự động zoom khi nhận dữ liệu
-                        </label>
-                        <button type="button" className="package-picker" onClick={() => void handlePickWatcherFolder()}>
-                            {userConfig?.watcherFolder ? 'Đổi thư mục theo dõi' : 'Chọn thư mục theo dõi'}
-                        </button>
-                        {userConfig?.watcherFolder && <span className="setting-value">{userConfig.watcherFolder}</span>}
-                    </div>
-                    <div className="style-selector" aria-label="Chọn style bản đồ">
-                        {PREVIEW_STYLES.map(option => (
-                            <button key={option} type="button" className={styleId === option ? 'style-option active' : 'style-option'} onClick={() => setStyleId(option)}>
-                                {option}
-                            </button>
-                        ))}
-                    </div>
-                    <div className="viewport-controls">
-                        <button type="button" onClick={() => controller?.zoomIn()} aria-label="Phóng to">＋</button>
-                        <button type="button" onClick={() => controller?.zoomOut()} aria-label="Thu nhỏ">−</button>
-                        <button type="button" onClick={handleFitExtent} aria-label="Zoom extend">Zoom extend</button>
-                        <button type="button" onClick={handleLocate} aria-label="Định vị">Định vị</button>
-                        <button type="button" onClick={() => controller?.resetVietnamExtent()}>Toàn cảnh Việt Nam</button>
-                    </div>
-                    <p className="extent-status" role="status">
-                        {streetViewStatus ?? extentMessage ?? (selectedPoint ? 'Đã chọn điểm trên bản đồ' : 'Chọn điểm trên bản đồ hoặc chờ dữ liệu từ phần mềm gốc')}
-                    </p>
-                    {(sourceError || mapError) && <p className="map-error" role="alert">{sourceError ?? mapError}</p>}
-                </div>
-                <div className="preview-attribution">{adapter?.metadata.attribution ?? 'Đang tải attribution…'}</div>
+
+                {/* Floating Action Controls (Top-Right & Bottom-Right) */}
+                <FloatingControls
+                    measureActive={measureActive}
+                    layerPopoverOpen={layerPopoverOpen}
+                    measureDistanceText={measureDistanceText}
+                    onOpenStreetView={() => void handleOpenStreetView()}
+                    onZoomIn={() => controller?.zoomIn()}
+                    onZoomOut={() => controller?.zoomOut()}
+                    onFitExtent={handleFitExtent}
+                    onToggleLayerPopover={() => setLayerPopoverOpen(prev => !prev)}
+                    onToggleMeasure={handleToggleMeasure}
+                    onClearMeasure={handleClearMeasure}
+                />
+
+                {/* Layer Switcher Popover */}
+                <LayerPopover
+                    open={layerPopoverOpen}
+                    layer={layer}
+                    styleId={styleId}
+                    userConfig={userConfig}
+                    onClose={() => setLayerPopoverOpen(false)}
+                    onSelectLayer={mode => void handleLayerSelect(mode)}
+                    onSelectStyle={setStyleId}
+                    onPickPackage={() => void handlePickPackage()}
+                    onDownloadPackage={() => void handleDownloadPackage()}
+                    onPickWatcherFolder={() => void handlePickWatcherFolder()}
+                    onUpdateUserConfig={updateUserConfig}
+                    onSaveUserConfig={saveCurrentUserConfig}
+                    onOpenMetadata={() => setDrawerOpen(true)}
+                />
+
                 <MetadataDrawer
                     open={drawerOpen}
                     adapter={adapter}
