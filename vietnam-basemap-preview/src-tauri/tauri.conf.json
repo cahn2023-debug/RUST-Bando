@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "identifier": "com.vietnam-basemap.preview",
   "build": {
-    "beforeDevCommand": "npm run dev:basemap-preview",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://127.0.0.1:1421",
-    "beforeBuildCommand": "npm run build:basemap-preview",
-    "frontendDist": "../../dist-basemap-preview"
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist-basemap-preview"
   },
   "app": {
     "withGlobalTauri": false,

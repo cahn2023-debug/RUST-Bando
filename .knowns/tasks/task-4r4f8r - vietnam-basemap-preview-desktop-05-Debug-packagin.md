@@ -8,7 +8,7 @@ labels:
   - spec:vietnam-basemap-preview-desktop
   - spec-date:2026-08-11
 createdAt: '2026-08-11T09:05:31.462Z'
-updatedAt: '2026-08-11T09:41:44.577Z'
+updatedAt: '2026-08-12T02:03:31.945Z'
 completedAt: '2026-08-11T09:41:44.577Z'
 timeSpent: 204
 assignee: '@me'
@@ -55,6 +55,9 @@ Spec Decision Compliance: D1=pass, D2=pass, D3=pass, D4=pass, D5=pass, D6=pass, 
 Reopened for final audit fix verification: PMTiles local archive path is included in smoke coverage.
 Final integrated verification after PMTiles fix: npm run build:basemap-preview-debug, npm run verify:basemap-preview, standalone TypeScript/Vitest and Rust tests all pass; no production Basemap Platform paths changed.
 System Decision Impact: none — final verification only confirms approved behavior
+Spec Decision Compliance: D1=pass, D2=pass, D3=pass, D4=pass, D5=pass, D6=pass, D7=pass, D8=pass, D9=pass, D10=pass, D11=pass, D12=pass
+Debug fix 2026-08-12: Root cause was the debug script invoking `cargo build` from repository root, so Tauri did not package `frontendDist` and the EXE retained `devUrl` 127.0.0.1:1421. Fix: build the standalone app from `vietnam-basemap-preview` via `tauri build --debug --no-bundle`, keep Vite output/config paths inside the standalone project, and copy the packaged debug EXE/PDB to `dist/basemap-preview-debug`. Exact EXE smoke launch remained running after 8s. Verification: npm run build:basemap-preview-debug; npm run verify:basemap-preview; npx tsc --noEmit -p vietnam-basemap-preview/tsconfig.json; Vitest 5 passed; Rust tests 4 passed.
+System Decision Impact: none — packaging correction only
 Spec Decision Compliance: D1=pass, D2=pass, D3=pass, D4=pass, D5=pass, D6=pass, D7=pass, D8=pass, D9=pass, D10=pass, D11=pass, D12=pass
 <!-- SECTION:NOTES:END -->
 

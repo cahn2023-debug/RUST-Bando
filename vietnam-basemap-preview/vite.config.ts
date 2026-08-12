@@ -11,7 +11,7 @@ export default defineConfig({
         strictPort: true,
     },
     build: {
-        outDir: path.resolve(__dirname, '../dist-basemap-preview'),
+        outDir: path.resolve(__dirname, 'dist-basemap-preview'),
         emptyOutDir: true,
         sourcemap: process.env.TAURI_DEBUG === 'true',
         target: 'chrome105',

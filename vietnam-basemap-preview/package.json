@@ -5,6 +5,7 @@
   "description": "Standalone developer preview for the Vietnam Basemap Platform",
   "scripts": {
     "dev": "vite --config vite.config.ts",
-    "build": "vite build --config vite.config.ts"
+    "build": "vite build --config vite.config.ts",
+    "tauri": "tauri"
   }
 }

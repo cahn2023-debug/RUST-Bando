@@ -4,17 +4,16 @@ import { spawnSync } from 'node:child_process';
 
 const root = resolve(import.meta.dirname, '..');
 const previewRoot = join(root, 'vietnam-basemap-preview');
-const manifest = join(previewRoot, 'src-tauri', 'Cargo.toml');
 const targetDir = join(root, 'dist', 'basemap-preview-debug');
 const cargoTarget = join(previewRoot, 'target');
 const npm = 'npm';
 
-function run(command, args, env = {}) {
+function run(command, args, env = {}, cwd = root) {
     const isWindowsNpm = process.platform === 'win32' && command === 'npm';
     const executable = isWindowsNpm ? process.env.ComSpec : command;
     const executableArgs = isWindowsNpm ? ['/d', '/s', '/c', [command, ...args].join(' ')] : args;
     const result = spawnSync(executable, executableArgs, {
-        cwd: root,
+        cwd,
         env: { ...process.env, ...env },
         stdio: 'inherit',
     });
@@ -27,10 +26,11 @@ function run(command, args, env = {}) {
     }
 }
 
-run(npm, ['run', 'build:basemap-preview'], { TAURI_DEBUG: 'true' });
-run('cargo', ['build', '--manifest-path', manifest, '--bin', 'vietnam-basemap-preview'], {
+run(npm, ['run', 'build'], { TAURI_DEBUG: 'true' }, previewRoot);
+run(npm, ['run', 'tauri', '--', 'build', '--debug', '--no-bundle'], {
+    TAURI_DEBUG: 'true',
     CARGO_TARGET_DIR: cargoTarget,
-});
+}, previewRoot);
 
 const binary = join(cargoTarget, 'debug', 'vietnam-basemap-preview.exe');
 const symbols = join(cargoTarget, 'debug', 'vietnam_basemap_preview.pdb');
