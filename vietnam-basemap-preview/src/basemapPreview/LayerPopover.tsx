@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { PREVIEW_SOURCE_OPTIONS } from './sourceSelector';
+import { getAvailableBasemapLayerGroups, type BasemapLayerCapabilities, type BasemapLayerGroupId, type BasemapLayerVisibility } from './basemapLayers';
 import { PREVIEW_STYLES, type PreviewLayerId, type PreviewStyleId, type PreviewUserConfig } from './types';
 import { DEFAULT_PREVIEW_USER_CONFIG } from './previewBridge';
 
@@ -8,9 +9,15 @@ interface LayerPopoverProps {
     layer: PreviewLayerId | null;
     styleId: PreviewStyleId;
     userConfig: PreviewUserConfig | null;
+    layerCapabilities: BasemapLayerCapabilities | null;
+    layerVisibility: BasemapLayerVisibility;
+    layerUpdateState: 'idle' | 'updating' | 'error';
+    layerUpdateError: string | null;
     onClose(): void;
     onSelectLayer(layer: PreviewLayerId): void;
     onSelectStyle(style: PreviewStyleId): void;
+    onToggleLayer?(key: BasemapLayerGroupId, enabled: boolean): void;
+    onRetryLayerUpdate?(): void;
     onPickPackage(): void;
     onDownloadPackage(): void;
     onPickWatcherFolder(): void;
@@ -24,9 +31,15 @@ export function LayerPopover({
     layer,
     styleId,
     userConfig,
+    layerCapabilities,
+    layerVisibility,
+    layerUpdateState,
+    layerUpdateError,
     onClose,
     onSelectLayer,
     onSelectStyle,
+    onToggleLayer,
+    onRetryLayerUpdate,
     onPickPackage,
     onDownloadPackage,
     onPickWatcherFolder,
@@ -109,6 +122,37 @@ export function LayerPopover({
                         <button type="button" className="package-picker-btn" onClick={onDownloadPackage}>
                             ⬇ Tải package .pdb
                         </button>
+                    </div>
+                )}
+            </div>
+
+            <div className="popover-section">
+                <span className="popover-section-title">Lớp bản đồ</span>
+                {!layerCapabilities ? (
+                    <div className="layer-status" role="status" aria-live="polite">Đang tải layer…</div>
+                ) : (
+                    <div className="sublayer-checkboxes-grid">
+                        {getAvailableBasemapLayerGroups(layerCapabilities)
+                            .map(group => (
+                                <label className="sublayer-checkbox-item" key={group.id}>
+                                    <input
+                                        type="checkbox"
+                                        checked={layerVisibility[group.id]}
+                                        disabled={layerUpdateState === 'updating'}
+                                        onChange={event => onToggleLayer?.(group.id, event.target.checked)}
+                                    />
+                                    <span>{group.label}</span>
+                                </label>
+                            ))}
+                    </div>
+                )}
+                {layerUpdateState === 'updating' && (
+                    <div className="layer-status" role="status" aria-live="polite">Đang cập nhật…</div>
+                )}
+                {layerUpdateState === 'error' && (
+                    <div className="layer-update-error" role="alert">
+                        <span>{layerUpdateError ?? 'Không cập nhật được layer.'}</span>
+                        <button type="button" onClick={onRetryLayerUpdate}>Thử lại</button>
                     </div>
                 )}
             </div>

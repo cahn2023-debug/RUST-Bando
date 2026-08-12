@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MapCanvas, type PreviewMapController } from './basemapPreview/MapCanvas';
 import { createGoogleSourceAdapter } from './basemapPreview/googleSource';
+import { getGoogleTileProxyBaseUrl } from './basemapPreview/googleSource';
 import { createLocalPackageAdapter } from './basemapPreview/localPackage';
 import { MetadataDrawer } from './basemapPreview/MetadataDrawer';
 import { FloatingControls } from './basemapPreview/FloatingControls';
@@ -23,7 +24,15 @@ import {
 } from './basemapPreview/previewBridge';
 import { normalizeExtentPayload } from './basemapPreview/extentPayload';
 import { PREVIEW_SOURCE_OPTIONS } from './basemapPreview/sourceSelector';
-import type { PreviewLayerId, PreviewSourceAdapter, PreviewStyleId, PreviewUserConfig } from './basemapPreview/types';
+import {
+    DEFAULT_LAYER_VISIBILITY_STATE,
+    type PreviewLayerId,
+    type PreviewLayerVisibilityKey,
+    type PreviewSourceAdapter,
+    type PreviewStyleId,
+    type PreviewUserConfig,
+} from './basemapPreview/types';
+import type { BasemapLayerCapabilities, BasemapLayerGroupId, BasemapLayerVisibility } from './basemapPreview/basemapLayers';
 import type { PreviewPoint } from './basemapPreview/extent';
 import { DEFAULT_STREET_VIEW_VIEWPOINT, normalizeStreetViewViewpoint, type StreetViewViewpoint } from './basemapPreview/streetView';
 
@@ -32,10 +41,14 @@ export function BasemapPreviewApp() {
     const [styleId, setStyleId] = useState<PreviewStyleId>('engineering');
     const [launchConfig, setLaunchConfig] = useState<PreviewLaunchConfig | null>(null);
     const [userConfig, setUserConfig] = useState<PreviewUserConfig | null>(null);
+    const [integrationPort, setIntegrationPort] = useState<number | null>(null);
     const [adapter, setAdapter] = useState<PreviewSourceAdapter | null>(null);
     const [sourceError, setSourceError] = useState<string | null>(null);
     const [mapState, setMapState] = useState<'loading' | 'ready' | 'error'>('loading');
     const [mapError, setMapError] = useState<string | null>(null);
+    const [layerCapabilities, setLayerCapabilities] = useState<BasemapLayerCapabilities | null>(null);
+    const [layerUpdateState, setLayerUpdateState] = useState<'idle' | 'updating' | 'error'>('idle');
+    const [layerUpdateError, setLayerUpdateError] = useState<string | null>(null);
     const [controller, setController] = useState<PreviewMapController | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedPoint, setSelectedPoint] = useState<PreviewPoint | null>(null);
@@ -57,6 +70,7 @@ export function BasemapPreviewApp() {
                 if (!active) return;
                 setLaunchConfig(launch);
                 setUserConfig(stored);
+                setIntegrationPort(integration?.httpPort ?? null);
                 setLayer(stored?.layer ?? null);
                 if (integration?.error) setSourceError(integration.error);
             } catch (error) {
@@ -68,7 +82,9 @@ export function BasemapPreviewApp() {
 
     useEffect(() => {
         let active = true;
-        setAdapter(null);
+        setLayerCapabilities(null);
+        setLayerUpdateState('idle');
+        setLayerUpdateError(null);
         setSourceError(null);
         setMapError(null);
         if (!launchConfig || !userConfig || !layer) return undefined;
@@ -77,7 +93,7 @@ export function BasemapPreviewApp() {
             try {
                 const nextAdapter = layer === 'local-package'
                     ? await createLocalPackageAdapter(createPreviewFileReader(userConfig.packageRoot ?? launchConfig.packageRoot))
-                    : createGoogleSourceAdapter(layer);
+                    : createGoogleSourceAdapter(layer, getGoogleTileProxyBaseUrl(integrationPort ?? userConfig.httpPort));
                 if (active) setAdapter(nextAdapter);
             } catch (error) {
                 if (active) setSourceError(error instanceof Error ? error.message : String(error));
@@ -85,7 +101,7 @@ export function BasemapPreviewApp() {
         };
         void load();
         return () => { active = false; };
-    }, [launchConfig, layer, userConfig?.packageRoot]);
+    }, [launchConfig, layer, integrationPort, userConfig?.httpPort, userConfig?.packageRoot]);
 
     useEffect(() => {
         let active = true;
@@ -151,6 +167,9 @@ export function BasemapPreviewApp() {
         setMapState(state);
         setMapError(message ?? null);
     }, []);
+    const handleCapabilitiesChange = useCallback((capabilities: BasemapLayerCapabilities | null) => {
+        setLayerCapabilities(capabilities);
+    }, []);
     const handlePointSelect = useCallback((point: PreviewPoint) => {
         setSelectedPoint(point);
         setExtentData(point);
@@ -204,6 +223,66 @@ export function BasemapPreviewApp() {
             setSourceError(error instanceof Error ? error.message : String(error));
         });
     }, [userConfig]);
+
+    const activeVisibilityKey: PreviewLayerVisibilityKey | null = layer === 'google-street'
+        ? 'googleStreet'
+        : layer === 'google-hybrid'
+            ? 'googleHybrid'
+            : layer === 'local-package'
+                ? 'localPackage'
+                : null;
+    const activeLayerVisibility = activeVisibilityKey
+        ? (userConfig?.layerVisibility?.[activeVisibilityKey] ?? DEFAULT_LAYER_VISIBILITY_STATE[activeVisibilityKey])
+        : DEFAULT_LAYER_VISIBILITY_STATE.googleStreet;
+    const googleTileProxyBaseUrl = getGoogleTileProxyBaseUrl(integrationPort ?? userConfig?.httpPort);
+
+    const handleToggleLayer = useCallback((key: BasemapLayerGroupId, enabled: boolean) => {
+        if (!activeVisibilityKey) return;
+        const base = userConfig ?? DEFAULT_PREVIEW_USER_CONFIG;
+        const currentVisibility = base.layerVisibility?.[activeVisibilityKey] ?? DEFAULT_LAYER_VISIBILITY_STATE[activeVisibilityKey];
+        const updatedVisibility: BasemapLayerVisibility = { ...currentVisibility, [key]: enabled };
+        const updatedConfig: PreviewUserConfig = {
+            ...base,
+            layerVisibility: { ...base.layerVisibility, [activeVisibilityKey]: updatedVisibility },
+        };
+        setUserConfig(updatedConfig);
+        setLayerUpdateState('updating');
+        setLayerUpdateError(null);
+        try {
+            controller?.setBasemapLayerVisibility(updatedVisibility);
+        } catch (error) {
+            setLayerUpdateState('error');
+            setLayerUpdateError(error instanceof Error ? error.message : String(error));
+            return;
+        }
+        void savePreviewUserConfig(updatedConfig)
+            .then(() => setLayerUpdateState('idle'))
+            .catch(error => {
+                setLayerUpdateState('error');
+                setLayerUpdateError(error instanceof Error ? error.message : String(error));
+            });
+    }, [activeVisibilityKey, controller, userConfig]);
+
+    const retryLayerUpdate = useCallback(() => {
+        if (!activeVisibilityKey) return;
+        const config = userConfig ?? DEFAULT_PREVIEW_USER_CONFIG;
+        const visibility = config.layerVisibility[activeVisibilityKey];
+        setLayerUpdateState('updating');
+        setLayerUpdateError(null);
+        try {
+            controller?.setBasemapLayerVisibility(visibility);
+        } catch (error) {
+            setLayerUpdateState('error');
+            setLayerUpdateError(error instanceof Error ? error.message : String(error));
+            return;
+        }
+        void savePreviewUserConfig(config)
+            .then(() => setLayerUpdateState('idle'))
+            .catch(error => {
+                setLayerUpdateState('error');
+                setLayerUpdateError(error instanceof Error ? error.message : String(error));
+            });
+    }, [activeVisibilityKey, controller, userConfig]);
 
     const handlePickWatcherFolder = useCallback(async () => {
         try {
@@ -269,14 +348,16 @@ export function BasemapPreviewApp() {
             <div className="preview-map-frame">
                 {adapter && layer ? (
                     <MapCanvas
-                        key={`${layer}:${styleId}:${adapter.metadata.version}`}
                         adapter={adapter}
                         reader={reader}
                         styleId={styleId}
+                        layerVisibility={activeLayerVisibility}
+                        googleTileProxyBaseUrl={googleTileProxyBaseUrl}
                         measureActive={measureActive}
                         onControllerChange={handleControllerChange}
                         onPointSelect={handlePointSelect}
                         onStateChange={handleMapStateChange}
+                        onCapabilitiesChange={handleCapabilitiesChange}
                         onMeasureDistanceChange={setMeasureDistanceText}
                     />
                 ) : layer ? (
@@ -305,9 +386,15 @@ export function BasemapPreviewApp() {
                     layer={layer}
                     styleId={styleId}
                     userConfig={userConfig}
+                    layerCapabilities={layerCapabilities}
+                    layerVisibility={activeLayerVisibility}
+                    layerUpdateState={layerUpdateState}
+                    layerUpdateError={layerUpdateError}
                     onClose={() => setLayerPopoverOpen(false)}
                     onSelectLayer={mode => void handleLayerSelect(mode)}
                     onSelectStyle={setStyleId}
+                    onToggleLayer={handleToggleLayer}
+                    onRetryLayerUpdate={retryLayerUpdate}
                     onPickPackage={() => void handlePickPackage()}
                     onDownloadPackage={() => void handleDownloadPackage()}
                     onPickWatcherFolder={() => void handlePickWatcherFolder()}

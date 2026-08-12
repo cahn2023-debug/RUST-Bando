@@ -39,6 +39,20 @@ body { overflow: hidden; }
     color: #9da9b5;
 }
 
+.layer-status {
+    color: var(--muted-text, #9aa6b2);
+    padding: 0.5rem 0;
+}
+
+.layer-update-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    color: #ffb4a9;
+    padding-top: 0.5rem;
+}
+
 /* Initial Layer Chooser screen */
 .layer-chooser { position: absolute; inset: 0; z-index: 10; display: grid; place-content: center; gap: 10px; padding: 24px; background: radial-gradient(circle at 50% 35%, #172b34 0%, #0d1117 65%); }
 
@@ -242,6 +256,41 @@ body { overflow: hidden; }
     border-color: #65d6c3;
     background: rgba(101, 214, 195, 0.12);
     box-shadow: 0 0 0 1px #65d6c3 inset;
+}
+
+.sublayer-checkboxes-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    background: rgba(18, 26, 34, 0.7);
+    border: 1px solid rgba(42, 53, 64, 0.8);
+    border-radius: 8px;
+}
+
+.sublayer-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #c9d1d9;
+    cursor: pointer;
+    user-select: none;
+    padding: 3px 4px;
+    border-radius: 4px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sublayer-checkbox-item:hover {
+    background: rgba(101, 214, 195, 0.1);
+    color: #65d6c3;
+}
+
+.sublayer-checkbox-item input[type="checkbox"] {
+    accent-color: #65d6c3;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
 }
 
 .style-chips { display: flex; gap: 6px; }

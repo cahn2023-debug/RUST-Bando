@@ -17,6 +17,18 @@ describe('preview user configuration', () => {
             watcherFolder: 'C:/objects',
             httpPort: 39000,
             autoZoom: true,
+            layerVisibility: {
+                googleStreet: {
+                    landcover: true,
+                    water: true,
+                    boundaries: true,
+                    roads: false,
+                    labels: true,
+                    pois: true,
+                    buildings: false,
+                    terrain: true,
+                },
+            },
         })).toMatchObject({
             layer: 'google-hybrid',
             packageRoot: 'C:/maps',
@@ -24,6 +36,64 @@ describe('preview user configuration', () => {
             watcherFolder: 'C:/objects',
             httpPort: 39000,
             autoZoom: true,
+            layerVisibility: {
+                googleStreet: {
+                    landcover: true,
+                    water: true,
+                    boundaries: true,
+                    roads: false,
+                    labels: true,
+                    pois: true,
+                    buildings: false,
+                    terrain: true,
+                },
+                googleHybrid: expect.any(Object),
+                localPackage: expect.any(Object),
+            },
+        });
+    });
+
+    it('migrates the previous five-group state into all source-specific visibility states', () => {
+        expect(normalizePreviewUserConfig({
+            layer: 'google-street',
+            subLayers: {
+                bordersLabels: false,
+                roads: true,
+                pois: false,
+                buildings3d: true,
+                terrain: true,
+            },
+        }).layerVisibility).toEqual({
+            googleStreet: {
+                landcover: true,
+                water: true,
+                boundaries: false,
+                roads: true,
+                labels: false,
+                pois: false,
+                buildings: true,
+                terrain: true,
+            },
+            googleHybrid: {
+                landcover: true,
+                water: true,
+                boundaries: false,
+                roads: true,
+                labels: false,
+                pois: false,
+                buildings: true,
+                terrain: true,
+            },
+            localPackage: {
+                landcover: true,
+                water: true,
+                boundaries: false,
+                roads: true,
+                labels: false,
+                pois: false,
+                buildings: true,
+                terrain: true,
+            },
         });
     });
 

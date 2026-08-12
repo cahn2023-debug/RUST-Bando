@@ -25,7 +25,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' tauri: asset:; connect-src 'self' http://127.0.0.1:1421 ipc: http://ipc.localhost https://maps.googleapis.com https://maps.google.com; frame-src 'self' https://maps.google.com https://www.google.com; img-src 'self' data: blob: https://mt1.google.com https://maps.gstatic.com asset:; style-src 'self' 'unsafe-inline'; script-src 'self' https://maps.googleapis.com 'wasm-unsafe-eval'; worker-src 'self' blob:"
+      "csp": "default-src 'self' tauri: asset:; connect-src 'self' http://127.0.0.1:1421 http://127.0.0.1:* ipc: http://ipc.localhost https://maps.googleapis.com https://maps.google.com; frame-src 'self' https://maps.google.com https://www.google.com; img-src 'self' http://127.0.0.1:* data: blob: https://mt1.google.com https://maps.gstatic.com asset:; style-src 'self' 'unsafe-inline'; script-src 'self' https://maps.googleapis.com 'wasm-unsafe-eval'; worker-src 'self' blob:'"
     }
   },
   "bundle": {

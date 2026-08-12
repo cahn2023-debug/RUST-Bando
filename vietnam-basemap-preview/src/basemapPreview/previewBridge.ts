@@ -2,7 +2,14 @@ import { invoke } from '@tauri-apps/api/core';
 import { emit, listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-dialog';
 import JSZip from 'jszip';
-import type { PreviewFileReader, PreviewUserConfig } from './types';
+import {
+    DEFAULT_LAYER_VISIBILITY,
+    DEFAULT_LAYER_VISIBILITY_STATE,
+    type PreviewFileReader,
+    type PreviewLayerVisibilityState,
+    type PreviewUserConfig,
+} from './types';
+import type { BasemapLayerGroupId, BasemapLayerVisibility } from './basemapLayers';
 import type { NormalizedExtentPayload } from './extentPayload';
 import {
     createStreetViewRouteUrl,
@@ -35,6 +42,7 @@ export const DEFAULT_PREVIEW_USER_CONFIG: PreviewUserConfig = {
     watcherFolder: null,
     httpPort: 38741,
     autoZoom: true,
+    layerVisibility: DEFAULT_LAYER_VISIBILITY_STATE,
 };
 
 export function isTauriPreview(): boolean {
@@ -78,14 +86,15 @@ export async function savePreviewUserConfig(config: PreviewUserConfig): Promise<
     window.localStorage.setItem('vietnam-basemap-preview.config', JSON.stringify(normalized));
 }
 
-export function normalizePreviewUserConfig(value: Partial<PreviewUserConfig> | null | undefined): PreviewUserConfig {
-    const candidate = value ?? {};
+export function normalizePreviewUserConfig(value: Partial<PreviewUserConfig> | LegacyPreviewUserConfig | null | undefined): PreviewUserConfig {
+    const candidate = (value ?? {}) as LegacyPreviewUserConfig;
     const layer = candidate.layer === 'google-hybrid' || candidate.layer === 'local-package'
         ? candidate.layer
         : 'google-street';
     const port = typeof candidate.httpPort === 'number' && Number.isInteger(candidate.httpPort) && candidate.httpPort > 0 && candidate.httpPort < 65536
         ? candidate.httpPort
         : DEFAULT_PREVIEW_USER_CONFIG.httpPort;
+    const layerVisibility = normalizeLayerVisibilityState(candidate.layerVisibility, candidate.subLayers);
     return {
         layer,
         packageRoot: typeof candidate.packageRoot === 'string' && candidate.packageRoot.trim() ? candidate.packageRoot : null,
@@ -94,7 +103,51 @@ export function normalizePreviewUserConfig(value: Partial<PreviewUserConfig> | n
         watcherFolder: typeof candidate.watcherFolder === 'string' && candidate.watcherFolder.trim() ? candidate.watcherFolder : null,
         httpPort: port,
         autoZoom: candidate.autoZoom !== false,
+        layerVisibility,
     };
+}
+
+export interface LegacyPreviewSubLayers {
+    bordersLabels?: boolean;
+    roads?: boolean;
+    pois?: boolean;
+    buildings3d?: boolean;
+    terrain?: boolean;
+}
+
+type LegacyPreviewUserConfig = Omit<Partial<PreviewUserConfig>, 'layerVisibility'> & {
+    layerVisibility?: Partial<Record<keyof PreviewLayerVisibilityState, Partial<BasemapLayerVisibility>>>;
+    subLayers?: LegacyPreviewSubLayers;
+};
+
+function normalizeLayerVisibilityState(
+    rawState: Partial<Record<keyof PreviewLayerVisibilityState, Partial<BasemapLayerVisibility>>> | undefined,
+    legacy: LegacyPreviewSubLayers | undefined,
+): PreviewLayerVisibilityState {
+    const migrated = legacy ? {
+        ...DEFAULT_LAYER_VISIBILITY,
+        boundaries: legacy.bordersLabels !== false,
+        roads: legacy.roads !== false,
+        labels: legacy.bordersLabels !== false,
+        pois: legacy.pois !== false,
+        buildings: legacy.buildings3d !== false,
+        terrain: legacy.terrain === true,
+    } : undefined;
+
+    return {
+        googleStreet: normalizeVisibility(rawState?.googleStreet ?? migrated),
+        googleHybrid: normalizeVisibility(rawState?.googleHybrid ?? migrated),
+        localPackage: normalizeVisibility(rawState?.localPackage ?? migrated),
+    };
+}
+
+function normalizeVisibility(raw: Partial<BasemapLayerVisibility> | undefined): BasemapLayerVisibility {
+    return Object.fromEntries(
+        Object.keys(DEFAULT_LAYER_VISIBILITY).map(group => [
+            group,
+            raw?.[group as BasemapLayerGroupId] ?? DEFAULT_LAYER_VISIBILITY[group as BasemapLayerGroupId],
+        ]),
+    ) as BasemapLayerVisibility;
 }
 
 export async function pickDirectory(title: string): Promise<string | null> {

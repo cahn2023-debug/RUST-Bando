@@ -16,6 +16,7 @@ use tauri::{Emitter, Manager, State};
 
 const DEFAULT_HTTP_PORT: u16 = 38_741;
 const MAX_HTTP_BODY_BYTES: usize = 4 * 1024 * 1024;
+const GOOGLE_TILE_HOST: &str = "mt1.google.com";
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,6 +34,42 @@ struct FileLaunchConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct BasemapLayerVisibility {
+    landcover: bool,
+    water: bool,
+    boundaries: bool,
+    roads: bool,
+    labels: bool,
+    pois: bool,
+    buildings: bool,
+    terrain: bool,
+}
+
+impl Default for BasemapLayerVisibility {
+    fn default() -> Self {
+        Self {
+            landcover: true,
+            water: true,
+            boundaries: true,
+            roads: true,
+            labels: true,
+            pois: true,
+            buildings: true,
+            terrain: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LayerVisibilityState {
+    google_street: BasemapLayerVisibility,
+    google_hybrid: BasemapLayerVisibility,
+    local_package: BasemapLayerVisibility,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct PreviewUserConfig {
     layer: String,
     package_root: Option<String>,
@@ -41,6 +78,10 @@ struct PreviewUserConfig {
     watcher_folder: Option<String>,
     http_port: u16,
     auto_zoom: bool,
+    #[serde(default)]
+    layer_visibility: Option<LayerVisibilityState>,
+    #[serde(default)]
+    sub_layers: Option<Value>,
 }
 
 impl Default for PreviewUserConfig {
@@ -53,6 +94,8 @@ impl Default for PreviewUserConfig {
             watcher_folder: None,
             http_port: 38741,
             auto_zoom: true,
+            layer_visibility: None,
+            sub_layers: None,
         }
     }
 }
@@ -62,6 +105,7 @@ struct AppState {
     user: Mutex<Option<PreviewUserConfig>>,
     pending_package_root: Mutex<Option<PathBuf>>,
     integration_error: Mutex<Option<String>>,
+    http_port: Mutex<u16>,
     user_config_path: PathBuf,
 }
 
@@ -99,6 +143,14 @@ fn save_preview_user_config(
 ) -> Result<(), String> {
     validate_user_config(&config)?;
     let content = serde_json::to_string_pretty(&config).map_err(|error| error.to_string())?;
+    if let Some(parent) = state
+        .user_config_path
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+    {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Không tạo được thư mục cấu hình preview: {error}"))?;
+    }
     fs::write(&state.user_config_path, content)
         .map_err(|error| format!("Không lưu được cấu hình preview: {error}"))?;
     *state
@@ -119,13 +171,19 @@ fn submit_preview_extent_payload(payload: Value, app: tauri::AppHandle) -> Resul
 fn get_preview_integration_status(
     state: State<'_, AppState>,
 ) -> Result<PreviewIntegrationStatus, String> {
-    let port = state
+    let configured_port = state
         .user
         .lock()
         .map_err(|_| "Không đọc được cấu hình HTTP preview".to_string())?
         .as_ref()
         .map(|config| config.http_port)
         .unwrap_or(DEFAULT_HTTP_PORT);
+    let port = state
+        .http_port
+        .lock()
+        .map_err(|_| "Không đọc được trạng thái HTTP preview".to_string())?
+        .to_owned();
+    let port = if port == 0 { configured_port } else { port };
     let error = state
         .integration_error
         .lock()
@@ -284,8 +342,9 @@ fn read_preview_package_range(
 
 fn main() {
     let config = parse_launch_config();
-    let user_config_path = user_config_path();
-    let user_config = read_user_config(&user_config_path);
+    let user_config_path = runtime_user_config_path();
+    let user_config =
+        read_user_config(&user_config_path).or_else(|| read_user_config(&launch_config_path()));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -294,6 +353,7 @@ fn main() {
             user: Mutex::new(user_config),
             pending_package_root: Mutex::new(None),
             integration_error: Mutex::new(None),
+            http_port: Mutex::new(0),
             user_config_path,
         })
         .invoke_handler(tauri::generate_handler![
@@ -384,14 +444,30 @@ fn parse_launch_args(
 }
 
 fn read_file_config() -> Option<FileLaunchConfig> {
-    let path = user_config_path();
+    let path = launch_config_path();
     serde_json::from_str(&fs::read_to_string(path).ok()?).ok()
 }
 
-fn user_config_path() -> PathBuf {
+fn launch_config_path() -> PathBuf {
     env::var_os("VIETNAM_BASEMAP_CONFIG")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("basemap-preview.config.json"))
+}
+
+fn runtime_user_config_path() -> PathBuf {
+    if let Some(path) = env::var_os("VIETNAM_BASEMAP_USER_CONFIG") {
+        return PathBuf::from(path);
+    }
+
+    env::var_os("LOCALAPPDATA")
+        .or_else(|| env::var_os("APPDATA"))
+        .map(PathBuf::from)
+        .map(|directory| {
+            directory
+                .join("Vietnam Basemap Preview")
+                .join("basemap-preview.config.json")
+        })
+        .unwrap_or_else(|| PathBuf::from("basemap-preview.user.config.json"))
 }
 
 fn read_user_config(path: &Path) -> Option<PreviewUserConfig> {
@@ -463,39 +539,71 @@ fn validate_user_config(config: &PreviewUserConfig) -> Result<(), String> {
 
 fn start_preview_integrations(app: tauri::AppHandle, state: &AppState) {
     let config = state.user.lock().ok().and_then(|value| value.clone());
-    let port = config
+    let configured_port = config
         .as_ref()
         .map(|value| value.http_port)
         .unwrap_or(DEFAULT_HTTP_PORT);
+
+    let listener = match TcpListener::bind(("127.0.0.1", configured_port)) {
+        Ok(listener) => listener,
+        Err(bind_error) => match TcpListener::bind(("127.0.0.1", 0)) {
+            Ok(listener) => listener,
+            Err(fallback_error) => {
+                let message = format!(
+                    "Không bind được HTTP API localhost:{configured_port}: {bind_error};                      không bind được port dự phòng: {fallback_error}"
+                );
+                set_integration_error(&app, message.clone());
+                let _ = app.emit(
+                    "preview_extent_error",
+                    json!({ "source": "http", "message": message }),
+                );
+                return;
+            }
+        },
+    };
+
+    let actual_port = listener
+        .local_addr()
+        .map(|address| address.port())
+        .unwrap_or(configured_port);
+    if let Ok(mut port) = state.http_port.lock() {
+        *port = actual_port;
+    }
+
     let http_app = app.clone();
-    thread::spawn(move || run_http_server(http_app, port));
+    thread::spawn(move || run_http_server(http_app, listener));
 
     if let Some(folder) = config.and_then(|value| value.watcher_folder) {
         thread::spawn(move || run_folder_watcher(app, PathBuf::from(folder)));
     }
 }
 
-fn run_http_server(app: tauri::AppHandle, port: u16) {
-    let listener = match TcpListener::bind(("127.0.0.1", port)) {
-        Ok(listener) => listener,
+fn run_http_server(app: tauri::AppHandle, listener: TcpListener) {
+    let client = match reqwest::blocking::Client::builder()
+        .connect_timeout(Duration::from_secs(5))
+        .timeout(Duration::from_secs(15))
+        .pool_max_idle_per_host(32)
+        .build()
+    {
+        Ok(client) => client,
         Err(error) => {
-            set_integration_error(
-                &app,
-                format!("Không bind được HTTP API localhost:{port}: {error}"),
-            );
+            let message = format!("Không khởi tạo được Google tile client: {error}");
+            set_integration_error(&app, message.clone());
             let _ = app.emit(
                 "preview_extent_error",
-                json!({
-                    "source": "http",
-                    "message": format!("Không bind được HTTP API localhost:{port}: {error}"),
-                }),
+                json!({ "source": "http", "message": message }),
             );
             return;
         }
     };
+
     for stream in listener.incoming() {
         match stream {
-            Ok(stream) => handle_http_connection(&app, stream),
+            Ok(stream) => {
+                let http_app = app.clone();
+                let http_client = client.clone();
+                thread::spawn(move || handle_http_connection(&http_app, stream, &http_client));
+            }
             Err(error) => {
                 set_integration_error(&app, format!("Lỗi nhận kết nối HTTP localhost: {error}"));
                 let _ = app.emit(
@@ -510,7 +618,11 @@ fn run_http_server(app: tauri::AppHandle, port: u16) {
     }
 }
 
-fn handle_http_connection(app: &tauri::AppHandle, mut stream: TcpStream) {
+fn handle_http_connection(
+    app: &tauri::AppHandle,
+    mut stream: TcpStream,
+    client: &reqwest::blocking::Client,
+) {
     let _ = stream.set_read_timeout(Some(Duration::from_secs(3)));
     let mut buffer = Vec::new();
     let mut chunk = [0_u8; 8192];
@@ -555,6 +667,10 @@ fn handle_http_connection(app: &tauri::AppHandle, mut stream: TcpStream) {
         }
     }
     let request_line = headers.lines().next().unwrap_or_default();
+    if request_line.starts_with("GET /api/v1/google-tile?") {
+        handle_google_tile_request(&mut stream, request_line, client);
+        return;
+    }
     if !request_line.starts_with("POST /api/v1/extent") {
         write_http_response(&mut stream, 404, "Endpoint không tồn tại");
         return;
@@ -583,6 +699,94 @@ fn handle_http_connection(app: &tauri::AppHandle, mut stream: TcpStream) {
     }
 }
 
+fn handle_google_tile_request(
+    stream: &mut TcpStream,
+    request_line: &str,
+    client: &reqwest::blocking::Client,
+) {
+    let Some(query) = request_line
+        .strip_prefix("GET /api/v1/google-tile?")
+        .and_then(|value| value.split_whitespace().next())
+    else {
+        write_http_response(stream, 400, "Google tile query không hợp lệ");
+        return;
+    };
+    let Some((layer, x, y, z, apistyle)) = parse_google_tile_query(query) else {
+        write_http_response(stream, 400, "Google tile query không hợp lệ");
+        return;
+    };
+
+    let upstream =
+        format!("https://{GOOGLE_TILE_HOST}/vt/lyrs={layer}&x={x}&y={y}&z={z}{apistyle}");
+    let response = match client
+        .get(upstream)
+        .header("User-Agent", "Vietnam-Basemap-Preview/0.1")
+        .send()
+    {
+        Ok(response) => response,
+        Err(error) => {
+            write_http_response(stream, 502, &format!("Google tile proxy error: {error}"));
+            return;
+        }
+    };
+    if !response.status().is_success() {
+        write_http_response(
+            stream,
+            502,
+            &format!("Google tile upstream returned {}", response.status()),
+        );
+        return;
+    }
+    let content_type = response
+        .headers()
+        .get("content-type")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("image/png")
+        .to_string();
+    match response.bytes() {
+        Ok(bytes) => write_binary_http_response(stream, 200, &content_type, &bytes),
+        Err(error) => write_http_response(stream, 502, &format!("Google tile read error: {error}")),
+    }
+}
+
+fn parse_google_tile_query(query: &str) -> Option<(&str, u32, u32, u8, String)> {
+    let mut layer = None;
+    let mut x = None;
+    let mut y = None;
+    let mut z = None;
+    let mut apistyle = String::new();
+    for item in query.split('&') {
+        let (key, value) = item.split_once('=')?;
+        match key {
+            "lyrs" => layer = Some(value),
+            "x" => x = value.parse::<u32>().ok(),
+            "y" => y = value.parse::<u32>().ok(),
+            "z" => z = value.parse::<u8>().ok(),
+            "apistyle" if value.len() <= 512 && value.bytes().all(is_safe_apistyle_byte) => {
+                apistyle = format!("&apistyle={value}");
+            }
+            _ => return None,
+        }
+    }
+    let layer = layer?;
+    let x = x?;
+    let y = y?;
+    let z = z?;
+    if !matches!(layer, "m" | "s" | "h" | "y") || z > 22 {
+        return None;
+    }
+    let tile_count = 1_u32.checked_shl(z as u32)?;
+    if x >= tile_count || y >= tile_count {
+        return None;
+    }
+    Some((layer, x, y, z, apistyle))
+}
+
+fn is_safe_apistyle_byte(byte: u8) -> bool {
+    byte.is_ascii_alphanumeric()
+        || matches!(byte, b'%' | b'|' | b':' | b',' | b'.' | b'+' | b'-' | b'_')
+}
+
 fn find_header_end(buffer: &[u8]) -> Option<usize> {
     buffer.windows(4).position(|window| window == b"\r\n\r\n")
 }
@@ -593,6 +797,20 @@ fn write_http_response(stream: &mut TcpStream, status: u16, body: &str) {
         body.len()
     );
     let _ = stream.write_all(response.as_bytes());
+}
+
+fn write_binary_http_response(
+    stream: &mut TcpStream,
+    status: u16,
+    content_type: &str,
+    body: &[u8],
+) {
+    let header = format!(
+        "HTTP/1.1 {status} OK\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: public, max-age=3600\r\nConnection: close\r\n\r\n",
+        body.len()
+    );
+    let _ = stream.write_all(header.as_bytes());
+    let _ = stream.write_all(body);
 }
 
 fn validate_transport_payload(payload: &Value) -> Result<(), String> {
@@ -815,5 +1033,32 @@ mod tests {
             "geometry": null
         }))
         .is_err());
+    }
+
+    #[test]
+    fn google_tile_query_is_strictly_validated() {
+        assert_eq!(
+            parse_google_tile_query("lyrs=s&x=429303&y=242935&z=19"),
+            Some(("s", 429303, 242935, 19, String::new()))
+        );
+        assert_eq!(
+            parse_google_tile_query("lyrs=m&x=1&y=2&z=3&apistyle=s.t%3A3%7Cp.v%3Aoff")
+                .unwrap()
+                .4,
+            "&apistyle=s.t%3A3%7Cp.v%3Aoff"
+        );
+        assert!(parse_google_tile_query("lyrs=javascript&x=1&y=1&z=1").is_none());
+        assert!(parse_google_tile_query("lyrs=s&x=2&y=1&z=1").is_none());
+        assert!(parse_google_tile_query("lyrs=s&x=1&y=1&z=23").is_none());
+        assert!(parse_google_tile_query("url=https://example.invalid").is_none());
+    }
+
+    #[test]
+    fn google_tile_upstream_keeps_the_locked_public_template_shape() {
+        let (layer, x, y, z, apistyle) = parse_google_tile_query("lyrs=m&x=1&y=2&z=3").unwrap();
+        assert_eq!(
+            format!("https://{GOOGLE_TILE_HOST}/vt/lyrs={layer}&x={x}&y={y}&z={z}{apistyle}"),
+            "https://mt1.google.com/vt/lyrs=m&x=1&y=2&z=3"
+        );
     }
 }

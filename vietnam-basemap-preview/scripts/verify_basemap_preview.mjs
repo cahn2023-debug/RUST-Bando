@@ -21,6 +21,11 @@ for (const artifact of ['vietnam-basemap-preview.exe', 'vietnam-basemap-preview.
 
 const googleSource = read('src/basemapPreview/googleSource.ts');
 assert(googleSource.includes('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'), 'Google template drifted');
+assert(googleSource.includes('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'), 'Google hybrid template drifted');
+assert(googleSource.includes('GOOGLE_TILE_PROXY_PATH'), 'Google tile CORS proxy is not wired');
+assert(googleSource.includes('buildGoogleTileProxyTemplate'), 'Google tile templates do not use the preview proxy');
+assert(googleSource.includes('import.meta.env.DEV'), 'Dev proxy routing is not explicit');
+assert(googleSource.includes("'__TAURI_INTERNALS__' in window"), 'Tauri/browser proxy routing is not explicit');
 assert(googleSource.includes('recordTileError'), 'Google tile error policy is not wired');
 assert(!googleSource.includes('fallback'), 'Google adapter must not implement fallback');
 
@@ -34,6 +39,9 @@ assert(localProtocol.includes('new PMTiles(source)'), 'Local PMTiles archive rea
 
 const tauriMain = read('src-tauri/src/main.rs');
 assert(tauriMain.includes('read_preview_package_file'), 'Package reader command missing');
+assert(tauriMain.includes('TcpListener::bind(("127.0.0.1", 0))'), 'HTTP proxy has no port collision fallback');
+assert(tauriMain.includes('thread::spawn(move || handle_http_connection'), 'HTTP proxy still serializes tile requests');
+assert(tauriMain.includes('pool_max_idle_per_host(32)'), 'Google tile client pooling is not configured');
 assert(!/\b(activate|rollback)\b/i.test(tauriMain), 'Release lifecycle command leaked into preview shell');
 
 for (const file of [
