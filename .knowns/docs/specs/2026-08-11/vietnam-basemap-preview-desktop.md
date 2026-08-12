@@ -2,7 +2,7 @@
 title: Vietnam Basemap Preview Desktop
 description: Specification for a standalone desktop UI to preview Vietnam Basemap sources and styles.
 createdAt: '2026-08-11T08:58:35.358Z'
-updatedAt: '2026-08-11T09:01:17.986Z'
+updatedAt: '2026-08-11T09:35:58.097Z'
 tags:
   - spec
   - basemap
@@ -64,16 +64,16 @@ Preview hỗ trợ hai nhóm nguồn: package local/offline và nguồn online/L
 
 ## Acceptance Criteria
 
-- [ ] AC-1: Có desktop executable standalone mở được màn hình Basemap Preview mà không cần chạy app nghiệp vụ.
-- [ ] AC-2: Người dùng chuyển được giữa local package và online/LAN source từ UI; local package cũng nhận được qua file picker và configuration/command line.
-- [ ] AC-3: Online mode dùng đúng Google tile template `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}` và hiển thị nhãn external source/attribution.
-- [ ] AC-4: Local mode từ package hợp lệ render được không cần Internet; package không tương thích bị từ chối trước khi render.
-- [ ] AC-5: Người dùng chuyển được giữa `engineering`, `light`, `dark`, với `engineering` là style mặc định.
-- [ ] AC-6: Pan, zoom và reset về toàn cảnh Việt Nam hoạt động; bản đồ chiếm toàn cửa sổ và controls/metadata mở bằng drawer/modal.
-- [ ] AC-7: Drawer/modal hiển thị source, style, version/manifest, health/loading/error và attribution đúng trạng thái hiện tại.
-- [ ] AC-8: Khi Google tile lỗi, UI hiển thị lỗi rõ ràng và không tự động chuyển sang source khác.
-- [ ] AC-9: Không có nút hoặc code path trong preview để activate, rollback, mutate release hoặc truy cập dữ liệu nghiệp vụ.
-- [ ] AC-10: Debug build tạo được executable và PDB riêng; smoke test khởi chạy được cả online và local configuration path.
+- [x] AC-1: Có desktop executable standalone mở được màn hình Basemap Preview mà không cần chạy app nghiệp vụ.
+- [x] AC-2: Người dùng chuyển được giữa local package và online/LAN source từ UI; local package cũng nhận được qua file picker và configuration/command line.
+- [x] AC-3: Online mode dùng đúng Google tile template `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}` và hiển thị nhãn external source/attribution.
+- [x] AC-4: Local mode từ package hợp lệ render được không cần Internet; package không tương thích bị từ chối trước khi render.
+- [x] AC-5: Người dùng chuyển được giữa `engineering`, `light`, `dark`, với `engineering` là style mặc định.
+- [x] AC-6: Pan, zoom và reset về toàn cảnh Việt Nam hoạt động; bản đồ chiếm toàn cửa sổ và controls/metadata mở bằng drawer/modal.
+- [x] AC-7: Drawer/modal hiển thị source, style, version/manifest, health/loading/error và attribution đúng trạng thái hiện tại.
+- [x] AC-8: Khi Google tile lỗi, UI hiển thị lỗi rõ ràng và không tự động chuyển sang source khác.
+- [x] AC-9: Không có nút hoặc code path trong preview để activate, rollback, mutate release hoặc truy cập dữ liệu nghiệp vụ.
+- [x] AC-10: Debug build tạo được executable và PDB riêng; smoke test khởi chạy được cả online và local configuration path.
 
 ## Scenarios
 
@@ -122,7 +122,11 @@ Preview hỗ trợ hai nhóm nguồn: package local/offline và nguồn online/L
 
 ## Task Links
 
-Tasks sẽ được liên kết sau khi `/kn-plan --from @doc/specs/2026-08-11/vietnam-basemap-preview-desktop` chạy.
+- @task-zlmjd5 [vietnam-basemap-preview-desktop-01] Desktop preview shell và launch configuration (done)
+- @task-xa5iuq [vietnam-basemap-preview-desktop-02] Local package và Google online source adapters (done)
+- @task-g6kor5 [vietnam-basemap-preview-desktop-03] Map canvas, styles và viewport controls (done)
+- @task-w4nhf5 [vietnam-basemap-preview-desktop-04] Metadata drawer và read-only boundary (done)
+- @task-4r4f8r [vietnam-basemap-preview-desktop-05] Debug packaging và end-to-end verification (done)
 
 ## Open Questions
 

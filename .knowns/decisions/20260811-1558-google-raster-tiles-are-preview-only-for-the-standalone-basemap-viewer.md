@@ -17,17 +17,21 @@ relatedDocs:
   - specs/2026-08-11/vietnam-basemap-platform
   - architecture/vietnam-basemap-platform-integration
   - specs/2026-08-11/vietnam-basemap-preview-desktop
-relatedTasks: []
+relatedTasks:
+  - zlmjd5
+  - xa5iuq
+  - g6kor5
+  - w4nhf5
+  - 4r4f8r
 verification: []
-reviewState: ready_for_review
-reviewBlockers: []
+reviewState: needs_evidence
+reviewBlockers:
+  - 'linked task "zlmjd5" is "todo"; all linked tasks must be done before accepting decision "20260811-1558-google-raster-tiles-are-preview-only-for-the-standalone-basemap-viewer"'
 reviewMatches: []
-reviewAllowedResolutions:
-  - accept_new
-  - reject_new
-reviewEvaluatedAt: '2026-08-11T08:58:44.688Z'
+reviewAllowedResolutions: []
+reviewEvaluatedAt: '2026-08-11T09:05:58.592Z'
 createdAt: '2026-08-11T08:58:35.311Z'
-updatedAt: '2026-08-11T08:58:44.688Z'
+updatedAt: '2026-08-11T09:05:58.593Z'
 ---
 
 ## Context
