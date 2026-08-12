@@ -2,6 +2,6 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Read-only dialog access for the standalone Basemap Preview",
-  "windows": ["main"],
+  "windows": ["main", "preview-streetview"],
   "permissions": ["core:default", "dialog:default"]
 }

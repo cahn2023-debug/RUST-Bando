@@ -1,5 +1,6 @@
 import type maplibregl from 'maplibre-gl';
 import type {
+    PreviewLayerId,
     PreviewSourceAdapter,
     PreviewSourceMetadata,
     PreviewStyleId,
@@ -7,20 +8,30 @@ import type {
 } from './types';
 
 export const GOOGLE_RASTER_TILE_TEMPLATE = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+export const GOOGLE_HYBRID_TILE_TEMPLATE = 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
 
-const GOOGLE_METADATA: PreviewSourceMetadata = {
+const GOOGLE_STREET_METADATA: PreviewSourceMetadata = {
     mode: 'online',
-    name: 'Google Maps (external)',
+    name: 'Google Street (external)',
     version: 'public raster preview',
     attribution: 'Google Maps — external preview source',
     external: true,
 };
 
-export function createGoogleSourceAdapter(): PreviewSourceAdapter {
+const GOOGLE_HYBRID_METADATA: PreviewSourceMetadata = {
+    ...GOOGLE_STREET_METADATA,
+    name: 'Google Hybrid (external)',
+};
+
+export function createGoogleSourceAdapter(
+    layer: Exclude<PreviewLayerId, 'local-package'> = 'google-street',
+): PreviewSourceAdapter {
     let tileError: PreviewTileError | null = null;
+    const metadata = layer === 'google-hybrid' ? GOOGLE_HYBRID_METADATA : GOOGLE_STREET_METADATA;
+    const tileTemplate = layer === 'google-hybrid' ? GOOGLE_HYBRID_TILE_TEMPLATE : GOOGLE_RASTER_TILE_TEMPLATE;
 
     return {
-        metadata: GOOGLE_METADATA,
+        metadata,
         manifest: null,
         styleDocument(styleId: PreviewStyleId): Promise<maplibregl.StyleSpecification> {
             if (styleId !== 'engineering' && styleId !== 'light' && styleId !== 'dark') {
@@ -28,31 +39,22 @@ export function createGoogleSourceAdapter(): PreviewSourceAdapter {
             }
             return Promise.resolve({
                 version: 8,
-                name: `Google raster — ${styleId}`,
+                name: `${metadata.name} — ${styleId}`,
                 sources: {
                     'google-raster': {
                         type: 'raster',
-                        tiles: [GOOGLE_RASTER_TILE_TEMPLATE],
+                        tiles: [tileTemplate],
                         tileSize: 256,
                         maxzoom: 20,
-                        attribution: GOOGLE_METADATA.attribution,
+                        attribution: metadata.attribution,
                     },
                 },
-                layers: [
-                    {
-                        id: 'google-raster-layer',
-                        type: 'raster',
-                        source: 'google-raster',
-                    },
-                ],
+                layers: [{ id: 'google-raster-layer', type: 'raster', source: 'google-raster' }],
             } as maplibregl.StyleSpecification);
         },
         recordTileError(error: unknown): void {
             const detail = error instanceof Error ? error.message : String(error);
-            tileError = {
-                source: 'Google raster',
-                message: `Không tải được Google raster tile: ${detail}`,
-            };
+            tileError = { source: metadata.name, message: `Không tải được Google raster tile: ${detail}` };
         },
         getTileError(): PreviewTileError | null {
             return tileError;

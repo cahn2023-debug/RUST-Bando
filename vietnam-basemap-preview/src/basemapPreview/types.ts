@@ -1,7 +1,18 @@
 import type maplibregl from 'maplibre-gl';
 
 export type PreviewSourceMode = 'online' | 'offline';
+export type PreviewLayerId = 'google-street' | 'google-hybrid' | 'local-package';
 export type PreviewStyleId = 'engineering' | 'light' | 'dark';
+
+export interface PreviewUserConfig {
+    layer: PreviewLayerId;
+    packageRoot: string | null;
+    downloadUrl: string;
+    downloadDirectory: string | null;
+    watcherFolder: string | null;
+    httpPort: number;
+    autoZoom: boolean;
+}
 
 export interface PreviewStyleReference {
     id: string;
