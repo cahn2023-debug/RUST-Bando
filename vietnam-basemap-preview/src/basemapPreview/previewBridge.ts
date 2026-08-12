@@ -20,6 +20,7 @@ import {
     type StreetViewViewpoint,
 } from './streetView';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 
 const watchedStreetViewWindows = new WeakSet<WebviewWindow>();
 
@@ -235,16 +236,20 @@ export async function listenPreviewExtentEvents(
 
 export async function openPreviewStreetView(viewpoint: StreetViewViewpoint): Promise<void> {
     if (isTauriPreview()) {
-        const existing = await WebviewWindow.getByLabel(PREVIEW_STREET_VIEW_WINDOW_LABEL);
-        if (existing) {
-            watchStreetViewWindowClose(existing);
-            await existing.show();
-            await existing.setFocus();
-            await emitStreetViewViewpoint(viewpoint);
-            return;
+        try {
+            const existing = await WebviewWindow.getByLabel(PREVIEW_STREET_VIEW_WINDOW_LABEL);
+            if (existing) {
+                watchStreetViewWindowClose(existing);
+                await existing.show();
+                await existing.setFocus();
+                await emitStreetViewViewpoint(viewpoint);
+                return;
+            }
+        } catch {
+            // bỏ qua lỗi nếu window trước đó đã bị hủy
         }
 
-        const window = new WebviewWindow(PREVIEW_STREET_VIEW_WINDOW_LABEL, {
+        const win = new WebviewWindow(PREVIEW_STREET_VIEW_WINDOW_LABEL, {
             url: createStreetViewRouteUrl(viewpoint),
             title: 'Google Street View',
             width: 1120,
@@ -254,8 +259,10 @@ export async function openPreviewStreetView(viewpoint: StreetViewViewpoint): Pro
             resizable: true,
             center: true,
         });
-        watchStreetViewWindowClose(window);
-        await waitForWindowCreated(window);
+        watchStreetViewWindowClose(win);
+        await win.show();
+        await win.setFocus();
+        await emitStreetViewViewpoint(viewpoint);
         return;
     }
 
@@ -263,6 +270,32 @@ export async function openPreviewStreetView(viewpoint: StreetViewViewpoint): Pro
     if (!popup) throw new Error('Không thể mở cửa sổ Street View. Hãy cho phép popup của preview.');
     popup.focus();
     popup.postMessage({ type: 'preview-streetview-init', viewpoint }, window.location.origin);
+
+    const checkClosedInterval = setInterval(() => {
+        if (popup.closed) {
+            clearInterval(checkClosedInterval);
+            void sendPreviewStreetViewSync({ status: 'closed' });
+        }
+    }, 400);
+}
+
+export async function closePreviewStreetViewWindow(): Promise<void> {
+    void sendPreviewStreetViewSync({ status: 'closed' });
+    if (isTauriPreview()) {
+        try {
+            await getCurrentWindow().close();
+            return;
+        } catch {
+            try {
+                await getCurrentWindow().destroy();
+                return;
+            } catch {
+                window.close();
+                return;
+            }
+        }
+    }
+    window.close();
 }
 
 function watchStreetViewWindowClose(window: WebviewWindow): void {

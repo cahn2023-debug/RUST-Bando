@@ -1,49 +1,60 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     createPublicStreetViewUrl,
-    moveStreetViewPoint,
     normalizeStreetViewViewpoint,
     parseStreetViewViewpoint,
     type StreetViewViewpoint,
 } from './basemapPreview/streetView';
 import {
+    closePreviewStreetViewWindow,
     listenPreviewStreetViewInit,
     sendPreviewStreetViewSync,
 } from './basemapPreview/previewBridge';
 
-const GOOGLE_MAPS_API_KEY = typeof import.meta.env.VITE_GOOGLE_MAPS_API_KEY === 'string'
-    ? import.meta.env.VITE_GOOGLE_MAPS_API_KEY.trim()
-    : '';
+const DEFAULT_CENTER_POINT: [number, number] = [105.8542, 21.0285]; // Center Hanoi
 
 export function StreetViewPreviewApp() {
     const [viewpoint, setViewpoint] = useState<StreetViewViewpoint>(() => {
-        return parseStreetViewViewpoint(window.location.search, [106.1, 16.2]);
+        return parseStreetViewViewpoint(window.location.search, DEFAULT_CENTER_POINT);
     });
-    const [mode, setMode] = useState<'loading' | 'api' | 'public'>('loading');
-    const [error, setError] = useState<string | null>(null);
-    const panoramaRef = useRef<GoogleStreetViewPanorama | null>(null);
-    const containerRef = useRef<HTMLDivElement | null>(null);
+    const [isIdle, setIsIdle] = useState(false);
+    const idleTimerRef = useRef<number | null>(null);
 
-    const sync = useCallback((next: StreetViewViewpoint, status: 'ready' | 'state' = 'state') => {
-        const normalized = normalizeStreetViewViewpoint(next);
-        setViewpoint(normalized);
-        void sendPreviewStreetViewSync({ status, viewpoint: normalized });
+    // Auto-hide floating badge on mouse idle
+    const handleMouseMove = useCallback(() => {
+        setIsIdle(false);
+        if (idleTimerRef.current !== null) {
+            window.clearTimeout(idleTimerRef.current);
+        }
+        idleTimerRef.current = window.setTimeout(() => {
+            setIsIdle(true);
+        }, 2500);
     }, []);
+
+    const handleClose = useCallback(() => {
+        void closePreviewStreetViewWindow();
+    }, []);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                handleClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleClose]);
 
     useEffect(() => {
         let active = true;
         let stop: (() => void) | undefined;
+
         void listenPreviewStreetViewInit(next => {
             if (!active) return;
             const normalized = normalizeStreetViewViewpoint(next);
             setViewpoint(normalized);
-            const panorama = panoramaRef.current;
-            if (panorama) {
-                panorama.setPosition({ lat: normalized.point[1], lng: normalized.point[0] });
-                panorama.setPov({ heading: normalized.heading, pitch: normalized.pitch });
-                panorama.setZoom(fovToZoom(normalized.fov));
-            }
         }).then(unlisten => { stop = unlisten; });
+
         const messageHandler = (event: MessageEvent<unknown>) => {
             if (!isRecord(event.data) || event.data.type !== 'preview-streetview-init') return;
             const next = event.data.viewpoint;
@@ -58,137 +69,107 @@ export function StreetViewPreviewApp() {
             });
             setViewpoint(normalized);
         };
+
+        const handleUnload = () => {
+            void sendPreviewStreetViewSync({ status: 'closed' });
+        };
+
         window.addEventListener('message', messageHandler);
+        window.addEventListener('beforeunload', handleUnload);
+        window.addEventListener('pagehide', handleUnload);
         void sendPreviewStreetViewSync({ status: 'ready', viewpoint });
+
         return () => {
             active = false;
             stop?.();
             window.removeEventListener('message', messageHandler);
+            window.removeEventListener('beforeunload', handleUnload);
+            window.removeEventListener('pagehide', handleUnload);
+            if (idleTimerRef.current !== null) {
+                window.clearTimeout(idleTimerRef.current);
+            }
             void sendPreviewStreetViewSync({ status: 'closed' });
         };
-    }, []);
-
-    useEffect(() => {
-        if (!GOOGLE_MAPS_API_KEY || !containerRef.current) {
-            setMode('public');
-            setError('Chưa cấu hình VITE_GOOGLE_MAPS_API_KEY; public embed chỉ xem được, đồng bộ liên tục cần Google Maps JS API.');
-            return undefined;
-        }
-        let active = true;
-        void loadGoogleMaps(GOOGLE_MAPS_API_KEY).then(() => {
-            if (!active || !containerRef.current) return;
-            const googleMaps = (window as WindowWithGoogle).google;
-            if (!googleMaps?.maps?.StreetViewPanorama) throw new Error('Google Street View SDK không khả dụng');
-            const panorama = new googleMaps.maps.StreetViewPanorama(containerRef.current, {
-                position: { lat: viewpoint.point[1], lng: viewpoint.point[0] },
-                pov: { heading: viewpoint.heading, pitch: viewpoint.pitch },
-                zoom: fovToZoom(viewpoint.fov),
-                visible: true,
-                addressControl: true,
-                linksControl: true,
-                panControl: true,
-                zoomControl: true,
-                clickToGo: true,
-                showRoadLabels: true,
-            });
-            panoramaRef.current = panorama;
-            const publish = () => {
-                const position = panorama.getPosition();
-                if (!position) return;
-                const pov = panorama.getPov();
-                sync({
-                    point: [position.lng(), position.lat()],
-                    heading: pov.heading,
-                    pitch: pov.pitch,
-                    fov: zoomToFov(panorama.getZoom()),
-                });
-            };
-            panorama.addListener('position_changed', publish);
-            panorama.addListener('pov_changed', publish);
-            panorama.addListener('zoom_changed', publish);
-            setMode('api');
-            void sendPreviewStreetViewSync({ status: 'ready', viewpoint });
-        }).catch(reason => {
-            if (!active) return;
-            setError(reason instanceof Error ? reason.message : String(reason));
-            setMode('public');
-            void sendPreviewStreetViewSync({ status: 'error', message: `Street View SDK: ${String(reason)}` });
-        });
-        return () => { active = false; };
-    }, [sync]);
+    }, [viewpoint]);
 
     const publicUrl = useMemo(() => createPublicStreetViewUrl(viewpoint), [viewpoint]);
-    const updateViewpoint = useCallback((changes: Partial<StreetViewViewpoint>) => {
-        const next = normalizeStreetViewViewpoint({ ...viewpoint, ...changes, point: changes.point ?? viewpoint.point });
-        const panorama = panoramaRef.current;
-        if (panorama) {
-            panorama.setPosition({ lat: next.point[1], lng: next.point[0] });
-            panorama.setPov({ heading: next.heading, pitch: next.pitch });
-            panorama.setZoom(fovToZoom(next.fov));
-        }
-        sync(next);
-    }, [sync, viewpoint]);
-    const move = useCallback((distanceMeters: number) => updateViewpoint(moveStreetViewPoint(viewpoint, distanceMeters)), [updateViewpoint, viewpoint]);
+
+    const hasValidPoint = Boolean(
+        viewpoint.point &&
+        Array.isArray(viewpoint.point) &&
+        typeof viewpoint.point[0] === 'number' &&
+        typeof viewpoint.point[1] === 'number' &&
+        !isNaN(viewpoint.point[0]) &&
+        !isNaN(viewpoint.point[1])
+    );
+
+    const resetToDefaultPoint = useCallback(() => {
+        const next = normalizeStreetViewViewpoint({
+            point: DEFAULT_CENTER_POINT,
+            heading: 0,
+            pitch: 0,
+            fov: 90,
+        });
+        setViewpoint(next);
+        void sendPreviewStreetViewSync({ status: 'state', viewpoint: next });
+    }, []);
 
     return (
-        <main className="street-view-shell">
-            <header className="street-view-toolbar">
-                <div>
-                    <p className="eyebrow">GOOGLE STREET VIEW</p>
-                    <h1>Street View</h1>
+        <main
+            className="street-view-shell full-bleed"
+            onMouseMove={handleMouseMove}
+            onMouseEnter={handleMouseMove}
+        >
+            {/* Floating Glassmorphism Badge with Close Button */}
+            <div className={`street-view-floating-badge ${isIdle ? 'idle' : ''}`} role="status">
+                <span className="badge-dot" />
+                <span className="badge-title">Google Street View</span>
+                <span className="badge-coords">
+                    {viewpoint.point[1].toFixed(5)}°, {viewpoint.point[0].toFixed(5)}°
+                </span>
+                <button
+                    type="button"
+                    className="badge-close-btn"
+                    onClick={handleClose}
+                    title="Đóng cửa sổ Street View (Phím Esc)"
+                    aria-label="Đóng cửa sổ Street View"
+                >
+                    ✕
+                </button>
+            </div>
+
+            {/* 100% Full-bleed Google Street View Public Iframe */}
+            {hasValidPoint ? (
+                <iframe
+                    src={publicUrl}
+                    title="Google Street View Public Embed"
+                    className="street-view-panorama full-bleed-iframe"
+                    allowFullScreen
+                    loading="eager"
+                />
+            ) : (
+                <div className="street-view-empty-state">
+                    <div className="empty-state-card">
+                        <svg className="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                            <circle cx="12" cy="9" r="2.5" />
+                        </svg>
+                        <h2>Chưa chọn tọa độ Street View</h2>
+                        <p>Kéo biểu tượng người vàng (Pegman) trên bản đồ chính hoặc chọn vị trí mặc định để xem ảnh Street View.</p>
+                        <div className="empty-state-actions">
+                            <button type="button" className="empty-state-btn" onClick={resetToDefaultPoint}>
+                                Về vị trí mặc định (Hà Nội)
+                            </button>
+                            <button type="button" className="empty-state-btn secondary" onClick={handleClose}>
+                                Đóng cửa sổ
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div className="street-view-status" role="status">
-                    {mode === 'api' ? 'Đồng bộ trực tiếp' : mode === 'public' ? 'Google public' : 'Đang tải'}
-                </div>
-            </header>
-            <section className="street-view-content">
-                {mode !== 'public' ? <div ref={containerRef} className="street-view-panorama" /> : (
-                    <iframe src={publicUrl} title="Google Street View public" className="street-view-panorama" allowFullScreen />
-                )}
-                {mode === 'loading' && <div className="street-view-loading">Đang khởi tạo Street View…</div>}
-                <div className="street-view-fallback-controls" aria-label="Điều khiển đồng bộ Street View">
-                    <button type="button" onClick={() => updateViewpoint({ heading: viewpoint.heading - 15 })}>↶ 15°</button>
-                    <button type="button" onClick={() => updateViewpoint({ heading: viewpoint.heading + 15 })}>↷ 15°</button>
-                    <button type="button" onClick={() => move(12)}>Tiến</button>
-                    <button type="button" onClick={() => move(-12)}>Lùi</button>
-                    <label>FOV <input type="range" min="30" max="120" value={viewpoint.fov} onChange={event => updateViewpoint({ fov: Number(event.target.value) })} /></label>
-                </div>
-                {error && <p className="street-view-error" role="alert">{error} — đang dùng public embed; các nút đồng bộ vẫn cập nhật Pegman.</p>}
-            </section>
+            )}
         </main>
     );
 }
-
-interface GoogleStreetViewPanorama {
-    getPosition(): { lat(): number; lng(): number } | null;
-    getPov(): { heading: number; pitch: number };
-    getZoom(): number;
-    setPosition(position: { lat: number; lng: number }): void;
-    setPov(pov: { heading: number; pitch: number }): void;
-    setZoom(zoom: number): void;
-    addListener(event: string, handler: () => void): void;
-}
-
-interface WindowWithGoogle extends Window {
-    google?: { maps?: { StreetViewPanorama: new (container: HTMLElement, options: Record<string, unknown>) => GoogleStreetViewPanorama } };
-}
-
-function loadGoogleMaps(apiKey: string): Promise<void> {
-    if ((window as WindowWithGoogle).google?.maps?.StreetViewPanorama) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-        const callbackName = '__vietnamBasemapPreviewGoogleMapsLoaded';
-        const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&callback=${callbackName}&language=vi`;
-        script.async = true;
-        script.defer = true;
-        (window as unknown as Record<string, unknown>)[callbackName] = resolve;
-        script.onerror = () => reject(new Error('Không tải được Google Street View SDK'));
-        document.head.appendChild(script);
-    });
-}
-
-function fovToZoom(fov: number): number { return Math.max(0, Math.log2(180 / fov)); }
-function zoomToFov(zoom: number): number { return Math.min(120, Math.max(30, 180 / (2 ** zoom))); }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;

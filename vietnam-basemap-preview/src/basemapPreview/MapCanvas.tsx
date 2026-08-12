@@ -129,7 +129,7 @@ export interface PreviewMapController {
     zoomOut(): void;
     fitDataExtent(data: unknown): boolean;
     setDeviceLocation(point: PreviewPoint): void;
-    setStreetViewViewpoint(viewpoint: StreetViewViewpoint): void;
+    setStreetViewViewpoint(viewpoint: StreetViewViewpoint | null): void;
     clearMeasure(): void;
     setBasemapLayerVisibility(visibility: BasemapLayerVisibility): void;
 }
@@ -167,7 +167,6 @@ export function MapCanvas({
     const measureActiveRef = useRef(measureActive);
     const layerVisibilityRef = useRef(layerVisibility);
     const measureToolRef = useRef<MeasureToolController | null>(null);
-    const selectedMarkerRef = useRef<maplibregl.Marker | null>(null);
     const deviceMarkerRef = useRef<maplibregl.Marker | null>(null);
     const streetViewMarkerRef = useRef<maplibregl.Marker | null>(null);
     const disposeProtocolRef = useRef<(() => void) | undefined>(undefined);
@@ -213,6 +212,11 @@ export function MapCanvas({
             map.flyTo({ center: point, zoom: Math.max(map.getZoom(), 14), duration: 700 });
         },
         setStreetViewViewpoint: viewpoint => {
+            if (!viewpoint) {
+                streetViewMarkerRef.current?.remove();
+                streetViewMarkerRef.current = null;
+                return;
+            }
             const markerElement = streetViewMarkerRef.current?.getElement() ?? createStreetViewMarkerElement();
             markerElement.style.setProperty('--pegman-heading', `${viewpoint.heading}deg`);
             markerElement.style.setProperty('--pegman-fov', `${viewpoint.fov}deg`);
@@ -300,10 +304,6 @@ export function MapCanvas({
                             callbacksRef.current.onMeasureDistanceChange(measureToolRef.current.getTotalDistanceFormatted());
                             return;
                         }
-                        selectedMarkerRef.current?.remove();
-                        selectedMarkerRef.current = new maplibregl.Marker({ color: '#65d6c3' })
-                            .setLngLat(point)
-                            .addTo(map);
                         callbacksRef.current.onPointSelect(point);
                     });
                     map.on('mousemove', event => {
@@ -343,7 +343,6 @@ export function MapCanvas({
         return () => {
             measureToolRef.current?.destroy();
             measureToolRef.current = null;
-            selectedMarkerRef.current?.remove();
             deviceMarkerRef.current?.remove();
             streetViewMarkerRef.current?.remove();
             mapRef.current?.remove();

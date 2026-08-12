@@ -55,7 +55,7 @@ export function BasemapPreviewApp() {
     const [extentData, setExtentData] = useState<unknown | null>(null);
     const [, setExtentMessage] = useState<string | null>(null);
     const [streetViewViewpoint, setStreetViewViewpoint] = useState<StreetViewViewpoint | null>(null);
-    const [, setStreetViewStatus] = useState<string | null>(null);
+    const [streetViewStatus, setStreetViewStatus] = useState<string | null>(null);
 
     // Floating controls & measure state
     const [layerPopoverOpen, setLayerPopoverOpen] = useState(false);
@@ -143,6 +143,8 @@ export function BasemapPreviewApp() {
                 }
                 if (payload.status === 'closed') {
                     setStreetViewStatus('Street View đã đóng');
+                    setStreetViewViewpoint(null);
+                    controller?.setStreetViewViewpoint(null);
                     return;
                 }
                 if (payload.viewpoint) {
@@ -171,12 +173,14 @@ export function BasemapPreviewApp() {
         setLayerCapabilities(capabilities);
     }, []);
     const handlePointSelect = useCallback((point: PreviewPoint) => {
+        const viewpoint = normalizeStreetViewViewpoint({ point, ...DEFAULT_STREET_VIEW_VIEWPOINT });
         setSelectedPoint(point);
         setExtentData(point);
-        setStreetViewViewpoint(normalizeStreetViewViewpoint({ point, ...DEFAULT_STREET_VIEW_VIEWPOINT }));
+        setStreetViewViewpoint(viewpoint);
+        controller?.setStreetViewViewpoint(viewpoint);
         setStreetViewStatus(null);
         setExtentMessage(`Đã chọn điểm ${point[1].toFixed(6)}, ${point[0].toFixed(6)}`);
-    }, []);
+    }, [controller]);
     const handleOpenStreetView = useCallback(async () => {
         if (!selectedPoint) {
             setExtentMessage('Hãy chọn một điểm trên bản đồ trước khi mở Pegman');
@@ -379,6 +383,12 @@ export function BasemapPreviewApp() {
                     onToggleMeasure={handleToggleMeasure}
                     onClearMeasure={handleClearMeasure}
                 />
+
+                {streetViewStatus && (
+                    <div className="street-view-status" role="status">
+                        {streetViewStatus}
+                    </div>
+                )}
 
                 {/* Layer Switcher Popover */}
                 <LayerPopover
