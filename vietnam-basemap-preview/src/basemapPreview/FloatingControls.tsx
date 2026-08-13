@@ -1,8 +1,9 @@
 interface FloatingControlsProps {
     measureActive: boolean;
+    streetViewSelectionActive: boolean;
     layerPopoverOpen: boolean;
     measureDistanceText: string | null;
-    onOpenStreetView(): void;
+    onToggleStreetView(): void;
     onZoomIn(): void;
     onZoomOut(): void;
     onFitExtent(): void;
@@ -13,9 +14,10 @@ interface FloatingControlsProps {
 
 export function FloatingControls({
     measureActive,
+    streetViewSelectionActive,
     layerPopoverOpen,
     measureDistanceText,
-    onOpenStreetView,
+    onToggleStreetView,
     onZoomIn,
     onZoomOut,
     onFitExtent,
@@ -29,10 +31,11 @@ export function FloatingControls({
             <div className="floating-controls-top-right">
                 <button
                     type="button"
-                    className="floating-btn pegman-floating-btn"
-                    onClick={onOpenStreetView}
+                    className={streetViewSelectionActive ? 'floating-btn pegman-floating-btn active' : 'floating-btn pegman-floating-btn'}
+                    onClick={onToggleStreetView}
                     aria-label="Mở Google Street View (Pegman)"
                     title="Mở Google Street View (Pegman)"
+                    aria-pressed={streetViewSelectionActive}
                 >
                     <svg
                         className="pegman-topdown-icon"

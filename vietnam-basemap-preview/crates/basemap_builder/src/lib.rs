@@ -87,6 +87,8 @@ pub struct PipelineConfig {
     pub styles: Vec<StyleReference>,
     pub layers: Vec<String>,
     pub attribution: String,
+    #[serde(default, rename = "streetViewCoverage")]
+    pub street_view_coverage: Option<String>,
 }
 
 impl PipelineConfig {
@@ -148,6 +150,7 @@ impl PipelineConfig {
             tile_archive: "tiles/placeholder.archive".into(),
             fonts: vec!["fonts/placeholder.pbf".into()],
             sprites: vec!["sprites/placeholder.json".into()],
+            street_view_coverage: self.street_view_coverage.clone(),
         });
         candidate
             .validate()
@@ -184,6 +187,7 @@ pub struct BuildInputs {
     pub style_files: Vec<PathBuf>,
     pub font_files: Vec<PathBuf>,
     pub sprite_files: Vec<PathBuf>,
+    pub street_view_coverage: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -254,10 +258,20 @@ fn build_staging_package(
 
     let font_paths = copy_named_assets(&inputs.font_files, staging_dir, "fonts")?;
     let sprite_paths = copy_named_assets(&inputs.sprite_files, staging_dir, "sprites")?;
+    if let (Some(destination), Some(source)) =
+        (&config.street_view_coverage, &inputs.street_view_coverage)
+    {
+        copy_asset(
+            source,
+            &staging_dir.join(destination),
+            "Street View coverage",
+        )?;
+    }
     let manifest = config.manifest_with_assets(AssetManifest {
         tile_archive: tile_path,
         fonts: font_paths,
         sprites: sprite_paths,
+        street_view_coverage: config.street_view_coverage.clone(),
     });
     manifest
         .validate()
@@ -295,6 +309,20 @@ fn validate_inputs(config: &PipelineConfig, inputs: &BuildInputs) -> BuilderResu
     }
     for path in &inputs.sprite_files {
         ensure_file(path, "sprite")?;
+    }
+    match (&config.street_view_coverage, &inputs.street_view_coverage) {
+        (Some(_), Some(path)) => ensure_file(path, "Street View coverage")?,
+        (Some(_), None) => {
+            return Err(BuilderError::InvalidConfig(
+                "Street View coverage is configured but no input was provided".into(),
+            ))
+        }
+        (None, Some(_)) => {
+            return Err(BuilderError::InvalidConfig(
+                "Street View coverage input was provided but not configured".into(),
+            ))
+        }
+        (None, None) => {}
     }
     Ok(())
 }
@@ -439,6 +467,7 @@ mod tests {
                 .map(|layer| (*layer).into())
                 .collect(),
             attribution: "© OpenStreetMap contributors".into(),
+            street_view_coverage: None,
         }
     }
 
@@ -462,6 +491,7 @@ mod tests {
             style_files: styles,
             font_files: vec![font],
             sprite_files: vec![sprite],
+            street_view_coverage: None,
         }
     }
 

@@ -35,6 +35,7 @@ import {
 import type { BasemapLayerCapabilities, BasemapLayerGroupId, BasemapLayerVisibility } from './basemapPreview/basemapLayers';
 import type { PreviewPoint } from './basemapPreview/extent';
 import { DEFAULT_STREET_VIEW_VIEWPOINT, normalizeStreetViewViewpoint, type StreetViewViewpoint } from './basemapPreview/streetView';
+import type { StreetViewCoverageStatus } from './basemapPreview/MapCanvas';
 
 export function BasemapPreviewApp() {
     const [layer, setLayer] = useState<PreviewLayerId | null>(null);
@@ -51,11 +52,11 @@ export function BasemapPreviewApp() {
     const [layerUpdateError, setLayerUpdateError] = useState<string | null>(null);
     const [controller, setController] = useState<PreviewMapController | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [selectedPoint, setSelectedPoint] = useState<PreviewPoint | null>(null);
     const [extentData, setExtentData] = useState<unknown | null>(null);
     const [, setExtentMessage] = useState<string | null>(null);
-    const [streetViewViewpoint, setStreetViewViewpoint] = useState<StreetViewViewpoint | null>(null);
     const [streetViewStatus, setStreetViewStatus] = useState<string | null>(null);
+    const [streetViewSelectionActive, setStreetViewSelectionActive] = useState(false);
+    const [streetViewWindowOpen, setStreetViewWindowOpen] = useState(false);
 
     // Floating controls & measure state
     const [layerPopoverOpen, setLayerPopoverOpen] = useState(false);
@@ -138,20 +139,21 @@ export function BasemapPreviewApp() {
             payload => {
                 if (!active) return;
                 if (payload.status === 'error') {
+                    setStreetViewWindowOpen(false);
                     setStreetViewStatus(`Street View: ${payload.message ?? 'lỗi nguồn'}`);
                     return;
                 }
                 if (payload.status === 'closed') {
+                    setStreetViewWindowOpen(false);
+                    setStreetViewSelectionActive(false);
                     setStreetViewStatus('Street View đã đóng');
-                    setStreetViewViewpoint(null);
                     controller?.setStreetViewViewpoint(null);
                     return;
                 }
                 if (payload.viewpoint) {
                     const next = normalizeStreetViewViewpoint(payload.viewpoint);
-                    setStreetViewViewpoint(next);
+                    setStreetViewWindowOpen(true);
                     controller?.setStreetViewViewpoint(next);
-                    setSelectedPoint(next.point);
                     setStreetViewStatus(payload.status === 'ready' ? 'Street View đang đồng bộ' : 'Pegman đã cập nhật');
                 }
             },
@@ -174,28 +176,39 @@ export function BasemapPreviewApp() {
     }, []);
     const handlePointSelect = useCallback((point: PreviewPoint) => {
         const viewpoint = normalizeStreetViewViewpoint({ point, ...DEFAULT_STREET_VIEW_VIEWPOINT });
-        setSelectedPoint(point);
         setExtentData(point);
-        setStreetViewViewpoint(viewpoint);
         controller?.setStreetViewViewpoint(viewpoint);
         setStreetViewStatus(null);
         setExtentMessage(`Đã chọn điểm ${point[1].toFixed(6)}, ${point[0].toFixed(6)}`);
     }, [controller]);
-    const handleOpenStreetView = useCallback(async () => {
-        if (!selectedPoint) {
-            setExtentMessage('Hãy chọn một điểm trên bản đồ trước khi mở Pegman');
-            return;
-        }
-        const next = streetViewViewpoint ?? normalizeStreetViewViewpoint({ point: selectedPoint, ...DEFAULT_STREET_VIEW_VIEWPOINT });
-        try {
-            setStreetViewViewpoint(next);
-            controller?.setStreetViewViewpoint(next);
-            setStreetViewStatus('Đang mở Street View…');
-            await openPreviewStreetView(next);
-        } catch (error) {
-            setStreetViewStatus(`Street View: ${error instanceof Error ? error.message : String(error)}`);
-        }
-    }, [selectedPoint, streetViewViewpoint, controller]);
+    const handleStreetViewSelection = useCallback((viewpoint: StreetViewViewpoint) => {
+        controller?.setStreetViewViewpoint(viewpoint);
+        setStreetViewStatus('Đã chọn panorama Street View gần nhất');
+        void openPreviewStreetView(viewpoint)
+            .then(() => {
+                setStreetViewWindowOpen(true);
+                setStreetViewStatus('Street View đang mở');
+            })
+            .catch(error => {
+                setStreetViewWindowOpen(false);
+                setStreetViewStatus(`Street View: ${error instanceof Error ? error.message : String(error)}`);
+            });
+    }, [controller]);
+    const handleStreetViewCoverageStatus = useCallback((status: StreetViewCoverageStatus, message?: string) => {
+        if (status === 'idle') return;
+        setStreetViewStatus(message ?? (status === 'loading' ? 'Đang tải coverage Street View…' : 'Street View coverage'));
+    }, []);
+    const handleStreetViewSelectionCancel = useCallback(() => {
+        setStreetViewSelectionActive(false);
+        setStreetViewStatus('Đã hủy chọn vị trí Street View');
+    }, []);
+    const handleToggleStreetView = useCallback(() => {
+        setStreetViewSelectionActive(active => {
+            const next = !active;
+            setStreetViewStatus(next ? 'Đang chọn vị trí Street View…' : 'Đã tắt Pegman');
+            return next;
+        });
+    }, []);
 
     const handleFitExtent = useCallback(() => {
         if (extentData && controller?.fitDataExtent(extentData)) {
@@ -358,8 +371,13 @@ export function BasemapPreviewApp() {
                         layerVisibility={activeLayerVisibility}
                         googleTileProxyBaseUrl={googleTileProxyBaseUrl}
                         measureActive={measureActive}
+                        streetViewSelectionActive={streetViewSelectionActive}
+                        streetViewWindowOpen={streetViewWindowOpen}
                         onControllerChange={handleControllerChange}
                         onPointSelect={handlePointSelect}
+                        onStreetViewSelection={handleStreetViewSelection}
+                        onStreetViewCoverageStatus={handleStreetViewCoverageStatus}
+                        onStreetViewSelectionCancel={handleStreetViewSelectionCancel}
                         onStateChange={handleMapStateChange}
                         onCapabilitiesChange={handleCapabilitiesChange}
                         onMeasureDistanceChange={setMeasureDistanceText}
@@ -373,9 +391,10 @@ export function BasemapPreviewApp() {
                 {/* Floating Action Controls (Top-Right & Bottom-Right) */}
                 <FloatingControls
                     measureActive={measureActive}
+                    streetViewSelectionActive={streetViewSelectionActive}
                     layerPopoverOpen={layerPopoverOpen}
                     measureDistanceText={measureDistanceText}
-                    onOpenStreetView={() => void handleOpenStreetView()}
+                    onToggleStreetView={handleToggleStreetView}
                     onZoomIn={() => controller?.zoomIn()}
                     onZoomOut={() => controller?.zoomOut()}
                     onFitExtent={handleFitExtent}

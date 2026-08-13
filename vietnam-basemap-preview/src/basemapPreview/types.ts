@@ -64,6 +64,7 @@ export interface PreviewManifest {
         tileArchive: string;
         fonts: string[];
         sprites: string[];
+        streetViewCoverage?: string;
     };
     attribution: string;
 }

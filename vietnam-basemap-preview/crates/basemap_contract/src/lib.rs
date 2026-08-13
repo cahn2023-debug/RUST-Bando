@@ -208,13 +208,19 @@ pub struct AssetManifest {
     pub tile_archive: String,
     pub fonts: Vec<String>,
     pub sprites: Vec<String>,
+    #[serde(rename = "streetViewCoverage")]
+    pub street_view_coverage: Option<String>,
 }
 
 impl AssetManifest {
     fn validate(&self) -> ContractResult<()> {
         validate_package_path("assets.tileArchive", &self.tile_archive)?;
         validate_paths("assets.fonts", &self.fonts)?;
-        validate_paths("assets.sprites", &self.sprites)
+        validate_paths("assets.sprites", &self.sprites)?;
+        if let Some(path) = &self.street_view_coverage {
+            validate_package_path("assets.streetViewCoverage", path)?;
+        }
+        Ok(())
     }
 }
 

@@ -1,10 +1,17 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import type { PreviewFileReader, PreviewSourceAdapter, PreviewStyleId, SubLayerConfig } from './types';
 import { registerLocalPackageProtocol } from './localProtocol';
 import type { PreviewPoint } from './extent';
 import { getPreviewExtent } from './extent';
 import type { StreetViewViewpoint } from './streetView';
+import {
+    emptyStreetViewCoverage,
+    filterStreetViewCoverage,
+    loadLocalStreetViewCoverage,
+    selectNearestStreetViewPanorama,
+    type StreetViewCoverage,
+} from './streetViewCoverage';
 import { MeasureToolController } from './measureTool';
 import {
     buildGoogleStyledTileTemplate,
@@ -27,6 +34,9 @@ export const VIETNAM_BOUNDS: maplibregl.LngLatBoundsLike = [
     [101.5, 7.5],
     [110.5, 23.8],
 ];
+
+const STREET_VIEW_COVERAGE_SOURCE_ID = 'preview-street-view-coverage';
+const STREET_VIEW_COVERAGE_LAYER_ID = 'preview-street-view-coverage-line';
 
 export function applyBasemapLayerVisibility(
     map: maplibregl.Map,
@@ -123,6 +133,54 @@ function sourceHasGoogleStyleRules(source: RasterSourceLike | undefined): boolea
     return source?.tiles?.[0]?.includes('&apistyle=') ?? false;
 }
 
+export type StreetViewCoverageStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
+
+function getMapExtent(map: maplibregl.Map) {
+    const bounds = map.getBounds();
+    return {
+        west: bounds.getWest(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        north: bounds.getNorth(),
+    };
+}
+
+function ensureStreetViewCoverageLayer(map: maplibregl.Map): void {
+    if (!map.getSource(STREET_VIEW_COVERAGE_SOURCE_ID)) {
+        map.addSource(STREET_VIEW_COVERAGE_SOURCE_ID, {
+            type: 'geojson',
+            data: { type: 'FeatureCollection', features: [] },
+        });
+    }
+    if (!map.getLayer(STREET_VIEW_COVERAGE_LAYER_ID)) {
+        map.addLayer({
+            id: STREET_VIEW_COVERAGE_LAYER_ID,
+            type: 'line',
+            source: STREET_VIEW_COVERAGE_SOURCE_ID,
+            layout: { visibility: 'none', 'line-cap': 'round', 'line-join': 'round' },
+            paint: {
+                'line-color': '#3b82f6',
+                'line-opacity': 0.62,
+                'line-width': ['interpolate', ['linear'], ['zoom'], 5, 2, 14, 5, 20, 8],
+            },
+        });
+    }
+}
+
+function renderStreetViewCoverage(map: maplibregl.Map, coverage: StreetViewCoverage, visible: boolean): void {
+    const source = map.getSource(STREET_VIEW_COVERAGE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    source.setData({
+        type: 'FeatureCollection',
+        features: coverage.segments.map(segment => ({
+            type: 'Feature' as const,
+            properties: { id: segment.id },
+            geometry: { type: 'LineString' as const, coordinates: segment.path },
+        })),
+    });
+    map.setLayoutProperty(STREET_VIEW_COVERAGE_LAYER_ID, 'visibility', visible ? 'visible' : 'none');
+}
+
 export interface PreviewMapController {
     resetVietnamExtent(): void;
     zoomIn(): void;
@@ -141,8 +199,13 @@ interface MapCanvasProps {
     layerVisibility: BasemapLayerVisibility;
     googleTileProxyBaseUrl?: string;
     measureActive: boolean;
+    streetViewSelectionActive: boolean;
+    streetViewWindowOpen: boolean;
     onControllerChange(controller: PreviewMapController | null): void;
     onPointSelect(point: PreviewPoint): void;
+    onStreetViewSelection(viewpoint: StreetViewViewpoint): void;
+    onStreetViewCoverageStatus(status: StreetViewCoverageStatus, message?: string): void;
+    onStreetViewSelectionCancel(): void;
     onStateChange(state: 'loading' | 'ready' | 'error', message?: string): void;
     onCapabilitiesChange(capabilities: BasemapLayerCapabilities | null): void;
     onMeasureDistanceChange(distanceText: string | null): void;
@@ -155,8 +218,13 @@ export function MapCanvas({
     layerVisibility,
     googleTileProxyBaseUrl,
     measureActive,
+    streetViewSelectionActive,
+    streetViewWindowOpen,
     onControllerChange,
     onPointSelect,
+    onStreetViewSelection,
+    onStreetViewCoverageStatus,
+    onStreetViewSelectionCancel,
     onStateChange,
     onCapabilitiesChange,
     onMeasureDistanceChange,
@@ -165,6 +233,14 @@ export function MapCanvas({
     const mapRef = useRef<maplibregl.Map | null>(null);
     const adapterRef = useRef(adapter);
     const measureActiveRef = useRef(measureActive);
+    const streetViewSelectionActiveRef = useRef(streetViewSelectionActive);
+    const streetViewWindowOpenRef = useRef(streetViewWindowOpen);
+    const streetViewCoverageRef = useRef<StreetViewCoverage>(emptyStreetViewCoverage());
+    const streetViewCoverageViewportRef = useRef<StreetViewCoverage>(emptyStreetViewCoverage());
+    const streetViewCoverageLoadedRef = useRef(false);
+    const streetViewCoverageLoadingRef = useRef(false);
+    const streetViewCoverageRevisionRef = useRef(0);
+    const [mapReady, setMapReady] = useState(false);
     const layerVisibilityRef = useRef(layerVisibility);
     const measureToolRef = useRef<MeasureToolController | null>(null);
     const deviceMarkerRef = useRef<maplibregl.Marker | null>(null);
@@ -175,6 +251,9 @@ export function MapCanvas({
     const callbacksRef = useRef({
         onControllerChange,
         onPointSelect,
+        onStreetViewSelection,
+        onStreetViewCoverageStatus,
+        onStreetViewSelectionCancel,
         onStateChange,
         onCapabilitiesChange,
         onMeasureDistanceChange,
@@ -182,10 +261,15 @@ export function MapCanvas({
 
     adapterRef.current = adapter;
     measureActiveRef.current = measureActive;
+    streetViewSelectionActiveRef.current = streetViewSelectionActive;
+    streetViewWindowOpenRef.current = streetViewWindowOpen;
     layerVisibilityRef.current = layerVisibility;
     callbacksRef.current = {
         onControllerChange,
         onPointSelect,
+        onStreetViewSelection,
+        onStreetViewCoverageStatus,
+        onStreetViewSelectionCancel,
         onStateChange,
         onCapabilitiesChange,
         onMeasureDistanceChange,
@@ -245,6 +329,8 @@ export function MapCanvas({
             ? detectBasemapLayerCapabilities((map.getStyle().layers ?? []) as BasemapStyleLayer[])
             : GOOGLE_BASEMAP_LAYER_CAPABILITIES;
         callbacksRef.current.onCapabilitiesChange(capabilities);
+        ensureStreetViewCoverageLayer(map);
+        setMapReady(true);
         measureToolRef.current?.destroy();
         measureToolRef.current = new MeasureToolController(map);
         applyBasemapLayerVisibility(map, layerVisibilityRef.current, googleTileProxyBaseUrl);
@@ -299,12 +385,31 @@ export function MapCanvas({
                     });
                     map.on('click', event => {
                         const point: PreviewPoint = [event.lngLat.lng, event.lngLat.lat];
+                        if (streetViewSelectionActiveRef.current) {
+                            if (streetViewCoverageLoadingRef.current) return;
+                            const nearest = selectNearestStreetViewPanorama(
+                                { coverage: streetViewCoverageViewportRef.current, extent: getMapExtent(map) },
+                                point,
+                            );
+                            if (nearest) callbacksRef.current.onStreetViewSelection(nearest);
+                            else callbacksRef.current.onStreetViewCoverageStatus('empty', 'Không có dữ liệu Street View trong viewport');
+                            return;
+                        }
                         if (measureActiveRef.current && measureToolRef.current) {
                             measureToolRef.current.addPoint(point);
                             callbacksRef.current.onMeasureDistanceChange(measureToolRef.current.getTotalDistanceFormatted());
                             return;
                         }
                         callbacksRef.current.onPointSelect(point);
+                    });
+                    map.on('contextmenu', event => {
+                        if (streetViewSelectionActiveRef.current) {
+                            event.originalEvent.preventDefault();
+                            callbacksRef.current.onStreetViewSelectionCancel();
+                        }
+                    });
+                    map.on('moveend', () => {
+                        if (streetViewSelectionActiveRef.current) void refreshStreetViewCoverage(map);
                     });
                     map.on('mousemove', event => {
                         if (measureActiveRef.current && measureToolRef.current && measureToolRef.current.getPointCount() > 0) {
@@ -347,6 +452,7 @@ export function MapCanvas({
             streetViewMarkerRef.current?.remove();
             mapRef.current?.remove();
             mapRef.current = null;
+            setMapReady(false);
             controllerRef.current = null;
             disposeProtocolRef.current?.();
             disposeProtocolRef.current = undefined;
@@ -361,6 +467,59 @@ export function MapCanvas({
             onMeasureDistanceChange(null);
         }
     }, [measureActive, onMeasureDistanceChange]);
+
+    const refreshStreetViewCoverage = async (map: maplibregl.Map) => {
+        if (!streetViewSelectionActiveRef.current) return;
+        const revision = ++streetViewCoverageRevisionRef.current;
+        streetViewCoverageLoadingRef.current = true;
+        callbacksRef.current.onStreetViewCoverageStatus('loading', 'Đang cập nhật coverage Street View…');
+        await Promise.resolve();
+        if (revision !== streetViewCoverageRevisionRef.current || mapRef.current !== map || !streetViewSelectionActiveRef.current) return;
+        const viewport = filterStreetViewCoverage(streetViewCoverageRef.current, getMapExtent(map));
+        streetViewCoverageViewportRef.current = viewport.coverage;
+        streetViewCoverageLoadingRef.current = false;
+        renderStreetViewCoverage(map, viewport.coverage, !streetViewWindowOpenRef.current);
+        callbacksRef.current.onStreetViewCoverageStatus(
+            viewport.coverage.panoramas.length > 0 ? 'ready' : 'empty',
+            viewport.coverage.panoramas.length > 0 ? 'Đang dùng dữ liệu Street View cục bộ' : 'Không có dữ liệu Street View trong viewport',
+        );
+    };
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || !mapReady) return;
+        streetViewCoverageLoadedRef.current = false;
+        streetViewCoverageRef.current = emptyStreetViewCoverage();
+        if (!streetViewSelectionActive) {
+            streetViewCoverageRevisionRef.current += 1;
+            streetViewCoverageLoadingRef.current = false;
+            streetViewCoverageViewportRef.current = emptyStreetViewCoverage();
+            renderStreetViewCoverage(map, emptyStreetViewCoverage(), false);
+            callbacksRef.current.onStreetViewCoverageStatus('idle');
+            return;
+        }
+
+        let cancelled = false;
+        const loadCoverage = async () => {
+            try {
+                ensureStreetViewCoverageLayer(map);
+                if (!streetViewCoverageLoadedRef.current) {
+                    const loaded = await loadLocalStreetViewCoverage(adapter.manifest, reader);
+                    if (cancelled) return;
+                    streetViewCoverageRef.current = loaded.coverage;
+                    streetViewCoverageLoadedRef.current = true;
+                }
+                await refreshStreetViewCoverage(map);
+            } catch (error) {
+                if (!cancelled) {
+                    streetViewCoverageLoadingRef.current = false;
+                    callbacksRef.current.onStreetViewCoverageStatus('error', error instanceof Error ? error.message : String(error));
+                }
+            }
+        };
+        void loadCoverage();
+        return () => { cancelled = true; };
+    }, [adapter, reader, streetViewSelectionActive, streetViewWindowOpen, mapReady]);
 
     return <div ref={containerRef} className="map-canvas" aria-label="Bản đồ Vietnam Basemap Preview" />;
 }

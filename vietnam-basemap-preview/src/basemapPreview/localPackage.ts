@@ -20,6 +20,7 @@ export async function createLocalPackageAdapter(reader: PreviewFileReader): Prom
         manifest.assets.tileArchive,
         ...manifest.assets.fonts,
         ...manifest.assets.sprites,
+        ...(manifest.assets.streetViewCoverage ? [manifest.assets.streetViewCoverage] : []),
     ];
     await Promise.all(declaredAssets.map(path => reader.read(path)));
 
@@ -82,6 +83,10 @@ export function validatePreviewManifest(value: unknown): PreviewManifest {
     if (!isRecord(manifest.assets)) throw new Error('Manifest thiếu assets');
     if (typeof manifest.assets.tileArchive !== 'string') throw new Error('Thiếu tileArchive');
     assertSafePackagePath(manifest.assets.tileArchive);
+    if (manifest.assets.streetViewCoverage !== undefined) {
+        if (typeof manifest.assets.streetViewCoverage !== 'string') throw new Error('streetViewCoverage không hợp lệ');
+        assertSafePackagePath(manifest.assets.streetViewCoverage);
+    }
     for (const key of ['fonts', 'sprites'] as const) {
         if (!Array.isArray(manifest.assets[key]) || manifest.assets[key].some(path => typeof path !== 'string')) {
             throw new Error(`Manifest ${key} không hợp lệ`);

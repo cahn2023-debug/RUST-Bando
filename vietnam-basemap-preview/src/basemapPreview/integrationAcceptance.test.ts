@@ -6,6 +6,7 @@ import { GOOGLE_BASEMAP_LAYER_CAPABILITIES, detectBasemapLayerCapabilities, getA
 import { DEFAULT_PREVIEW_USER_CONFIG, normalizePreviewUserConfig } from './previewBridge';
 import { PREVIEW_SOURCE_OPTIONS } from './sourceSelector';
 import { createPublicStreetViewUrl, parseStreetViewSyncPayload } from './streetView';
+import { filterStreetViewCoverage, normalizeStreetViewCoverage, selectNearestStreetViewPanorama } from './streetViewCoverage';
 import type { PreviewFileReader } from './types';
 
 function packageReader(files: Record<string, string>): PreviewFileReader {
@@ -92,5 +93,17 @@ describe('standalone preview integration acceptance', () => {
         expect(parseStreetViewSyncPayload({ status: 'state', viewpoint: { point: ['bad', 10] } })).toBeNull();
         expect(parseStreetViewSyncPayload({ status: 'closed' })).toEqual({ status: 'closed' });
         expect(createPublicStreetViewUrl({ point: [105, 10], heading: 90, pitch: 0, fov: 90 })).toContain('maps.google.com');
+    });
+
+    it('uses local coverage for selection and keeps the public URL limited to the chosen panorama', () => {
+        const coverage = normalizeStreetViewCoverage({
+            version: 1,
+            segments: [{ id: 'road-1', path: [[105, 10], [105.2, 10.2]] }],
+            panoramas: [{ id: 'pano-1', point: [105.01, 10.01], heading: 45 }],
+        });
+        const viewport = filterStreetViewCoverage(coverage, { west: 104, south: 9, east: 106, north: 11 });
+        const viewpoint = selectNearestStreetViewPanorama(viewport, [105, 10]);
+        expect(viewpoint).toMatchObject({ point: [105.01, 10.01], heading: 45 });
+        expect(createPublicStreetViewUrl(viewpoint!)).not.toContain('key=');
     });
 });

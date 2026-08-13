@@ -28,6 +28,7 @@ fn run() -> Result<(), String> {
         style_files,
         font_files: files_in(&args.fonts_dir)?,
         sprite_files: files_in(&args.sprites_dir)?,
+        street_view_coverage: args.street_view_coverage,
     };
     let report =
         build_package(&config, &inputs, &args.output).map_err(|error| error.to_string())?;
@@ -53,6 +54,7 @@ struct Arguments {
     styles_dir: PathBuf,
     fonts_dir: PathBuf,
     sprites_dir: PathBuf,
+    street_view_coverage: Option<PathBuf>,
     output: PathBuf,
 }
 
@@ -88,6 +90,7 @@ impl Arguments {
             styles_dir: required(&mut values, "styles-dir")?,
             fonts_dir: required(&mut values, "fonts-dir")?,
             sprites_dir: required(&mut values, "sprites-dir")?,
+            street_view_coverage: values.remove("street-view-coverage"),
             output: required(&mut values, "output")?,
         };
         if let Some((unknown, _)) = values.into_iter().next() {
