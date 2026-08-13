@@ -175,19 +175,17 @@ export function BasemapPreviewApp() {
         setLayerCapabilities(capabilities);
     }, []);
     const handlePointSelect = useCallback((point: PreviewPoint) => {
-        const viewpoint = normalizeStreetViewViewpoint({ point, ...DEFAULT_STREET_VIEW_VIEWPOINT });
         setExtentData(point);
-        controller?.setStreetViewViewpoint(viewpoint);
         setStreetViewStatus(null);
-        setExtentMessage(`Đã chọn điểm ${point[1].toFixed(6)}, ${point[0].toFixed(6)}`);
-    }, [controller]);
+        setExtentMessage(`Đã chọn tọa độ ${point[1].toFixed(6)}°, ${point[0].toFixed(6)}°`);
+    }, []);
     const handleStreetViewSelection = useCallback((viewpoint: StreetViewViewpoint) => {
         controller?.setStreetViewViewpoint(viewpoint);
-        setStreetViewStatus('Đã chọn panorama Street View gần nhất');
+        setStreetViewStatus('Đã chọn panorama Street View');
         void openPreviewStreetView(viewpoint)
             .then(() => {
                 setStreetViewWindowOpen(true);
-                setStreetViewStatus('Street View đang mở');
+                setStreetViewStatus('Nhấp vào điểm trên đường phủ để xem Street View');
             })
             .catch(error => {
                 setStreetViewWindowOpen(false);
@@ -196,19 +194,25 @@ export function BasemapPreviewApp() {
     }, [controller]);
     const handleStreetViewCoverageStatus = useCallback((status: StreetViewCoverageStatus, message?: string) => {
         if (status === 'idle') return;
-        setStreetViewStatus(message ?? (status === 'loading' ? 'Đang tải coverage Street View…' : 'Street View coverage'));
+        setStreetViewStatus(message ?? (status === 'loading' ? 'Đang tải coverage Street View…' : 'Nhấp vào điểm trên đường phủ để xem Street View'));
     }, []);
     const handleStreetViewSelectionCancel = useCallback(() => {
         setStreetViewSelectionActive(false);
+        controller?.setStreetViewViewpoint(null);
         setStreetViewStatus('Đã hủy chọn vị trí Street View');
-    }, []);
+    }, [controller]);
     const handleToggleStreetView = useCallback(() => {
         setStreetViewSelectionActive(active => {
             const next = !active;
-            setStreetViewStatus(next ? 'Đang chọn vị trí Street View…' : 'Đã tắt Pegman');
+            if (!next) {
+                controller?.setStreetViewViewpoint(null);
+                setStreetViewStatus('Đã tắt Pegman');
+            } else {
+                setStreetViewStatus('Nhấp vào điểm trên đường phủ để xem Street View');
+            }
             return next;
         });
-    }, []);
+    }, [controller]);
 
     const handleFitExtent = useCallback(() => {
         if (extentData && controller?.fitDataExtent(extentData)) {

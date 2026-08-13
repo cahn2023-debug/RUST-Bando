@@ -95,6 +95,13 @@ body { overflow: hidden; }
     transform: scale(1.08);
 }
 
+.pegman-floating-btn.active {
+    background: rgba(255, 207, 90, 0.25);
+    border-color: #ffcf5a;
+    box-shadow: 0 0 20px rgba(255, 207, 90, 0.6), inset 0 0 0 1px #ffcf5a;
+    transform: scale(1.05);
+}
+
 .pegman-topdown-icon {
     display: block;
     margin: auto;
