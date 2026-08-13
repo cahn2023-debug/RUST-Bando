@@ -90,7 +90,7 @@ export function StreetViewPreviewApp() {
             }
             void sendPreviewStreetViewSync({ status: 'closed' });
         };
-    }, [viewpoint]);
+    }, []);
 
     const publicUrl = useMemo(() => createPublicStreetViewUrl(viewpoint), [viewpoint]);
 

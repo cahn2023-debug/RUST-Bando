@@ -2,7 +2,7 @@
 title: Google Public Street View Coverage Overlay Fallback
 description: Specification for fixing the Pegman coverage overlay by attempting best-effort public Google Street View coverage without an API key.
 createdAt: '2026-08-13T01:44:07.760Z'
-updatedAt: '2026-08-13T01:52:40.029Z'
+updatedAt: '2026-08-13T02:14:25.350Z'
 tags:
   - spec
   - approved
@@ -61,16 +61,16 @@ Spec này là follow-up thay đổi nguồn coverage của @doc/specs/2026-08-12
 
 ## Acceptance Criteria
 
-- [ ] AC-1: Click Pegman trong preview làm Pegman active và bắt đầu request coverage public mà không yêu cầu API key hoặc asset coverage local.
-- [ ] AC-2: Khi request trả payload hợp lệ cho viewport hiện tại, lớp phủ đường Street View màu xanh bán trong suốt hiển thị trên bản đồ.
-- [ ] AC-3: Pan/zoom khi Pegman active yêu cầu coverage viewport mới; lớp phủ cũ vẫn hiển thị trong lúc pending và chỉ bị thay khi response mới hợp lệ.
-- [ ] AC-4: Coverage lỗi, rỗng hoặc payload không hợp lệ làm lớp phủ ẩn âm thầm, không tắt Pegman và không chặn click.
-- [ ] AC-5: Click trên coverage hoặc ngoài coverage khi có panorama usable mở/tái sử dụng cửa sổ Street View tại panorama gần nhất trong viewport.
-- [ ] AC-6: Click khi không có coverage usable hoặc khi coverage đang pending mà không có dữ liệu cũ phù hợp mở/tái sử dụng Street View public gần tọa độ click.
-- [ ] AC-7: Sau khi mở Street View thành công, lớp phủ ẩn nhưng Pegman vẫn active; chọn lần tiếp theo tái sử dụng cửa sổ hiện tại.
-- [ ] AC-8: Đóng cửa sổ Street View tắt Pegman, ẩn lớp phủ và xóa marker viewpoint.
-- [ ] AC-9: Test bao phủ adapter/parser public, chuyển đổi payload, refresh viewport, giữ dữ liệu cũ khi loading, fallback tọa độ, lifecycle mở/tái sử dụng/đóng, và không có API key/persistence.
-- [ ] AC-10: Package offline/local hiện có không bị yêu cầu thêm asset coverage local để dùng Pegman.
+- [x] AC-1: Click Pegman trong preview làm Pegman active và bắt đầu request coverage public mà không yêu cầu API key hoặc asset coverage local.
+- [x] AC-2: Khi request trả payload hợp lệ cho viewport hiện tại, lớp phủ đường Street View màu xanh bán trong suốt hiển thị trên bản đồ.
+- [x] AC-3: Pan/zoom khi Pegman active yêu cầu coverage viewport mới; lớp phủ cũ vẫn hiển thị trong lúc pending và chỉ bị thay khi response mới hợp lệ.
+- [x] AC-4: Coverage lỗi, rỗng hoặc payload không hợp lệ làm lớp phủ ẩn âm thầm, không tắt Pegman và không chặn click.
+- [x] AC-5: Click trên coverage hoặc ngoài coverage khi có panorama usable mở/tái sử dụng cửa sổ Street View tại panorama gần nhất trong viewport.
+- [x] AC-6: Click khi không có coverage usable hoặc khi coverage đang pending mà không có dữ liệu cũ phù hợp mở/tái sử dụng Street View public gần tọa độ click.
+- [x] AC-7: Sau khi mở Street View thành công, lớp phủ ẩn nhưng Pegman vẫn active; chọn lần tiếp theo tái sử dụng cửa sổ hiện tại.
+- [x] AC-8: Đóng cửa sổ Street View tắt Pegman, ẩn lớp phủ và xóa marker viewpoint.
+- [x] AC-9: Test bao phủ adapter/parser public, chuyển đổi payload, refresh viewport, giữ dữ liệu cũ khi loading, fallback tọa độ, lifecycle mở/tái sử dụng/đóng, và không có API key/persistence.
+- [x] AC-10: Package offline/local hiện có không bị yêu cầu thêm asset coverage local để dùng Pegman.
 
 ## Scenarios
 
@@ -127,7 +127,9 @@ Spec này là follow-up thay đổi nguồn coverage của @doc/specs/2026-08-12
 
 ## Task Links
 
-Tasks sẽ được liên kết sau khi spec được approve và chạy `/kn-plan --from @doc/specs/2026-08-13/google-public-street-view-coverage-overlay-fallback`.
+- @task-idc190 [google-public-street-view-coverage-overlay-fallback-01] Public Google coverage adapter — done
+- @task-iibd2k [google-public-street-view-coverage-overlay-fallback-02] Coverage overlay and click fallback — done
+- @task-vl95yh [google-public-street-view-coverage-overlay-fallback-03] Street View lifecycle and regression tests — done
 
 ## Open Questions
 

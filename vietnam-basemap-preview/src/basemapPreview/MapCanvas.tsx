@@ -4,11 +4,11 @@ import type { PreviewFileReader, PreviewSourceAdapter, PreviewStyleId, SubLayerC
 import { registerLocalPackageProtocol } from './localProtocol';
 import type { PreviewPoint } from './extent';
 import { getPreviewExtent } from './extent';
-import type { StreetViewViewpoint } from './streetView';
+import { DEFAULT_STREET_VIEW_VIEWPOINT, normalizeStreetViewViewpoint, type StreetViewViewpoint } from './streetView';
 import {
     emptyStreetViewCoverage,
     filterStreetViewCoverage,
-    loadLocalStreetViewCoverage,
+    loadPublicStreetViewCoverage,
     selectNearestStreetViewPanorama,
     type StreetViewCoverage,
 } from './streetViewCoverage';
@@ -237,9 +237,9 @@ export function MapCanvas({
     const streetViewWindowOpenRef = useRef(streetViewWindowOpen);
     const streetViewCoverageRef = useRef<StreetViewCoverage>(emptyStreetViewCoverage());
     const streetViewCoverageViewportRef = useRef<StreetViewCoverage>(emptyStreetViewCoverage());
-    const streetViewCoverageLoadedRef = useRef(false);
     const streetViewCoverageLoadingRef = useRef(false);
     const streetViewCoverageRevisionRef = useRef(0);
+    const streetViewCoverageRequestRef = useRef<AbortController | null>(null);
     const [mapReady, setMapReady] = useState(false);
     const layerVisibilityRef = useRef(layerVisibility);
     const measureToolRef = useRef<MeasureToolController | null>(null);
@@ -386,13 +386,14 @@ export function MapCanvas({
                     map.on('click', event => {
                         const point: PreviewPoint = [event.lngLat.lng, event.lngLat.lat];
                         if (streetViewSelectionActiveRef.current) {
-                            if (streetViewCoverageLoadingRef.current) return;
                             const nearest = selectNearestStreetViewPanorama(
-                                { coverage: streetViewCoverageViewportRef.current, extent: getMapExtent(map) },
+                                filterStreetViewCoverage(streetViewCoverageRef.current, getMapExtent(map)),
                                 point,
                             );
                             if (nearest) callbacksRef.current.onStreetViewSelection(nearest);
-                            else callbacksRef.current.onStreetViewCoverageStatus('empty', 'Không có dữ liệu Street View trong viewport');
+                            else callbacksRef.current.onStreetViewSelection(
+                                normalizeStreetViewViewpoint({ point, ...DEFAULT_STREET_VIEW_VIEWPOINT }),
+                            );
                             return;
                         }
                         if (measureActiveRef.current && measureToolRef.current) {
@@ -452,6 +453,8 @@ export function MapCanvas({
             streetViewMarkerRef.current?.remove();
             mapRef.current?.remove();
             mapRef.current = null;
+            streetViewCoverageRequestRef.current?.abort();
+            streetViewCoverageRequestRef.current = null;
             setMapReady(false);
             controllerRef.current = null;
             disposeProtocolRef.current?.();
@@ -471,55 +474,73 @@ export function MapCanvas({
     const refreshStreetViewCoverage = async (map: maplibregl.Map) => {
         if (!streetViewSelectionActiveRef.current) return;
         const revision = ++streetViewCoverageRevisionRef.current;
+        streetViewCoverageRequestRef.current?.abort();
+        const requestController = new AbortController();
+        streetViewCoverageRequestRef.current = requestController;
         streetViewCoverageLoadingRef.current = true;
         callbacksRef.current.onStreetViewCoverageStatus('loading', 'Đang cập nhật coverage Street View…');
-        await Promise.resolve();
-        if (revision !== streetViewCoverageRevisionRef.current || mapRef.current !== map || !streetViewSelectionActiveRef.current) return;
-        const viewport = filterStreetViewCoverage(streetViewCoverageRef.current, getMapExtent(map));
-        streetViewCoverageViewportRef.current = viewport.coverage;
-        streetViewCoverageLoadingRef.current = false;
-        renderStreetViewCoverage(map, viewport.coverage, !streetViewWindowOpenRef.current);
-        callbacksRef.current.onStreetViewCoverageStatus(
-            viewport.coverage.panoramas.length > 0 ? 'ready' : 'empty',
-            viewport.coverage.panoramas.length > 0 ? 'Đang dùng dữ liệu Street View cục bộ' : 'Không có dữ liệu Street View trong viewport',
-        );
+        const extent = getMapExtent(map);
+        const previousViewport = filterStreetViewCoverage(streetViewCoverageRef.current, extent);
+        streetViewCoverageViewportRef.current = previousViewport.coverage;
+        renderStreetViewCoverage(map, previousViewport.coverage, !streetViewWindowOpenRef.current);
+        try {
+            const loaded = await loadPublicStreetViewCoverage({ ...extent, signal: requestController.signal });
+            if (revision !== streetViewCoverageRevisionRef.current || mapRef.current !== map || !streetViewSelectionActiveRef.current) return;
+            streetViewCoverageLoadingRef.current = false;
+            streetViewCoverageRef.current = loaded.coverage;
+            const viewport = filterStreetViewCoverage(loaded.coverage, extent);
+            streetViewCoverageViewportRef.current = viewport.coverage;
+            renderStreetViewCoverage(map, viewport.coverage, viewport.coverage.panoramas.length > 0 && !streetViewWindowOpenRef.current);
+            if (viewport.coverage.panoramas.length > 0) {
+                callbacksRef.current.onStreetViewCoverageStatus('ready', 'Đang dùng coverage Street View public (best-effort)');
+            } else {
+                callbacksRef.current.onStreetViewCoverageStatus('idle');
+            }
+        } catch {
+            if (revision !== streetViewCoverageRevisionRef.current || mapRef.current !== map || !streetViewSelectionActiveRef.current) return;
+            streetViewCoverageLoadingRef.current = false;
+            streetViewCoverageRef.current = emptyStreetViewCoverage();
+            streetViewCoverageViewportRef.current = emptyStreetViewCoverage();
+            renderStreetViewCoverage(map, emptyStreetViewCoverage(), false);
+            callbacksRef.current.onStreetViewCoverageStatus('idle');
+        } finally {
+            if (streetViewCoverageRequestRef.current === requestController) {
+                streetViewCoverageRequestRef.current = null;
+            }
+        }
     };
 
     useEffect(() => {
         const map = mapRef.current;
         if (!map || !mapReady) return;
-        streetViewCoverageLoadedRef.current = false;
-        streetViewCoverageRef.current = emptyStreetViewCoverage();
         if (!streetViewSelectionActive) {
             streetViewCoverageRevisionRef.current += 1;
+            streetViewCoverageRequestRef.current?.abort();
+            streetViewCoverageRequestRef.current = null;
             streetViewCoverageLoadingRef.current = false;
+            streetViewCoverageRef.current = emptyStreetViewCoverage();
             streetViewCoverageViewportRef.current = emptyStreetViewCoverage();
             renderStreetViewCoverage(map, emptyStreetViewCoverage(), false);
             callbacksRef.current.onStreetViewCoverageStatus('idle');
             return;
         }
 
-        let cancelled = false;
         const loadCoverage = async () => {
-            try {
-                ensureStreetViewCoverageLayer(map);
-                if (!streetViewCoverageLoadedRef.current) {
-                    const loaded = await loadLocalStreetViewCoverage(adapter.manifest, reader);
-                    if (cancelled) return;
-                    streetViewCoverageRef.current = loaded.coverage;
-                    streetViewCoverageLoadedRef.current = true;
-                }
-                await refreshStreetViewCoverage(map);
-            } catch (error) {
-                if (!cancelled) {
-                    streetViewCoverageLoadingRef.current = false;
-                    callbacksRef.current.onStreetViewCoverageStatus('error', error instanceof Error ? error.message : String(error));
-                }
-            }
+            ensureStreetViewCoverageLayer(map);
+            await refreshStreetViewCoverage(map);
         };
         void loadCoverage();
-        return () => { cancelled = true; };
-    }, [adapter, reader, streetViewSelectionActive, streetViewWindowOpen, mapReady]);
+    }, [adapter, reader, styleId, streetViewSelectionActive, mapReady]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        if (!map || !mapReady || !streetViewSelectionActive) return;
+        map.setLayoutProperty(
+            STREET_VIEW_COVERAGE_LAYER_ID,
+            'visibility',
+            streetViewWindowOpen && streetViewCoverageViewportRef.current.panoramas.length > 0 ? 'none' : 'visible',
+        );
+    }, [mapReady, streetViewSelectionActive, streetViewWindowOpen]);
 
     return <div ref={containerRef} className="map-canvas" aria-label="Bản đồ Vietnam Basemap Preview" />;
 }

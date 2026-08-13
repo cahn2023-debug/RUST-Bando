@@ -193,7 +193,10 @@ export function BasemapPreviewApp() {
             });
     }, [controller]);
     const handleStreetViewCoverageStatus = useCallback((status: StreetViewCoverageStatus, message?: string) => {
-        if (status === 'idle') return;
+        if (status === 'idle') {
+            setStreetViewStatus(null);
+            return;
+        }
         setStreetViewStatus(message ?? (status === 'loading' ? 'Đang tải coverage Street View…' : 'Nhấp vào điểm trên đường phủ để xem Street View'));
     }, []);
     const handleStreetViewSelectionCancel = useCallback(() => {

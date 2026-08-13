@@ -21,9 +21,8 @@ relatedTasks:
   - iibd2k
   - vl95yh
 verification: []
-reviewState: needs_evidence
-reviewBlockers:
-  - 'linked task "idc190" is "todo"; all linked tasks must be done before accepting decision "20260813-0843-best-effort-google-public-street-view-coverage-in-preview"'
+reviewState: needs_resolution
+reviewBlockers: []
 reviewMatches:
   - id: 20260811-1558-google-raster-tiles-are-preview-only-for-the-standalone-basemap-viewer
     title: Google raster tiles are preview-only for the standalone basemap viewer
@@ -38,10 +37,13 @@ reviewMatches:
       - preview
       - google-tiles
       - draft
-reviewAllowedResolutions: []
-reviewEvaluatedAt: '2026-08-13T01:52:44.781Z'
+reviewAllowedResolutions:
+  - supersede_existing
+  - link_as_related
+  - reject_new
+reviewEvaluatedAt: '2026-08-13T02:12:50.709Z'
 createdAt: '2026-08-13T01:43:20.515Z'
-updatedAt: '2026-08-13T01:52:44.784Z'
+updatedAt: '2026-08-13T02:12:50.709Z'
 ---
 
 ## Context
