@@ -1,8 +1,0 @@
-/target/
-/node_modules/
-/dist-basemap-preview/
-/src-tauri/target/
-/src-tauri/gen/
-.env
-.env.*
-!.env.example

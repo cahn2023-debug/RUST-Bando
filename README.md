@@ -1,37 +1,20 @@
-# RUST repository entrypoint
+# Project Manager repository entrypoint
 
-The active standalone Vietnam Basemap workspace is
-[`vietnam-basemap-preview/`](vietnam-basemap-preview/). It contains the
-read-only desktop preview and the reusable Vietnam Basemap Platform crates,
-assets, contracts, styles and release documentation.
+The active Project Manager source snapshot is kept at
+`BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application/`.
+It contains the React/Vite frontend, Tauri v2 shell and Rust backend.
 
-Run the workspace directly:
+Run Project Manager from the repository root:
 
 ```bash
-cd vietnam-basemap-preview
-npm install
 npm run dev
+npm run tauri dev
+npm run typecheck
 npm run check
 ```
 
-Root convenience commands delegate to that workspace:
+Root commands delegate to the Project Manager snapshot. The standalone
+Vietnam Basemap preview is no longer the root application entrypoint.
 
-```bash
-npm run dev:basemap-preview
-npm run build:basemap-preview
-npm run build:basemap-preview-debug
-npm run verify:basemap-preview
-npm run check
-```
-
-Debug EXE/PDB files are written to `dist/basemap-preview-debug/`. Existing
-unrelated artifacts in `dist/` are preserved.
-
-The former application source is archived at
-`BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/`.
-See its manifests for SHA-256-based rollback verification. The old active
-`vietnam-basemap/` workspace and root application source directories are no
-longer active.
-
-Project architecture and historical material remain under `docs/` and
-`BAK/`; they are not part of the standalone preview workspace.
+The archive is preserved as-is because it contains the source snapshot and
+its rollback manifests. Generated desktop output remains under `dist/`.
