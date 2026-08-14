@@ -1,0 +1,627 @@
+@import "tailwindcss";
+
+@theme {
+  /* Dynamic Theme Variable Mapping */
+  --color-cad-header: var(--cad-header);
+  --color-cad-bg: var(--cad-bg);
+  --color-cad-surface: var(--cad-surface);
+  --color-cad-elevated: var(--cad-elevated);
+  --color-cad-border: var(--cad-border);
+  --color-cad-accent: var(--cad-accent);
+  --color-cad-active: var(--cad-active);
+  --color-cad-warn: var(--cad-warn);
+  --color-cad-danger: var(--cad-danger);
+  --color-cad-text-primary: var(--cad-text-primary);
+  --color-cad-text-secondary: var(--cad-text-secondary);
+  --color-cad-text-muted: var(--cad-text-muted);
+
+  /* State Color Tokens */
+  --color-cad-state-selected: var(--cad-state-selected);
+  --color-cad-state-hover: var(--cad-state-hover);
+  --color-cad-state-drawing: var(--cad-state-drawing);
+  --color-cad-state-boxselect: var(--cad-state-boxselect);
+  --color-cad-state-warning: var(--cad-state-warning);
+  --color-cad-state-error: var(--cad-state-error);
+  --color-cad-state-locked: var(--cad-state-locked);
+  --color-cad-state-disabled: var(--cad-state-disabled);
+
+  /* Object Type Color Tokens (Point Features) */
+  --color-cad-obj-pole: var(--cad-obj-pole);
+  --color-cad-obj-cabinet: var(--cad-obj-cabinet);
+  --color-cad-obj-splice: var(--cad-obj-splice);
+  --color-cad-obj-odf: var(--cad-obj-odf);
+  --color-cad-obj-splitter: var(--cad-obj-splitter);
+  --color-cad-obj-camera: var(--cad-obj-camera);
+  --color-cad-obj-node: var(--cad-obj-node);
+
+  /* Cable FO Sequential Color Tokens */
+  --color-cad-cable-12: var(--cad-cable-12);
+  --color-cad-cable-24: var(--cad-cable-24);
+  --color-cad-cable-48: var(--cad-cable-48);
+  --color-cad-cable-96: var(--cad-cable-96);
+  --color-cad-cable-144: var(--cad-cable-144);
+  --color-cad-cable-288: var(--cad-cable-288);
+
+  /* Z-index scale. Leaflet uses 200-1000 internally (panes 200-700, controls 1000),
+     so all app chrome above the map starts at 1100. See design-system/MASTER.md §5.
+     NOTE: Tailwind v4 generates `z-*` utilities from the `--z-index-*` namespace.
+     Naming these `--z-cad-*` would compile to nothing. */
+  --z-index-cad-map-control: 1100;
+  --z-index-cad-panel: 2000;
+  --z-index-cad-floating: 2200;
+  --z-index-cad-dropdown: 3000;
+  --z-index-cad-overlay: 4000;
+  --z-index-cad-modal: 4100;
+  --z-index-cad-modal-nested: 4200;
+  --z-index-cad-toast: 5000;
+  --z-index-cad-tooltip: 5500;
+  --z-index-cad-debug: 6000;
+
+  --font-sans: "Inter", "Segoe UI", Roboto, sans-serif;
+  --font-display: "Inter", "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Roboto Mono", monospace;
+
+  /* Custom Animations for Tailwind v4 */
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-slide-up: slide-up 0.3s ease-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      transform: translateY(1rem);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pulse {
+    0% {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+
+    50% {
+      transform: scale(1.5);
+      opacity: 0.2;
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 0.6;
+    }
+  }
+}
+
+/* Root Theme Token Definitions */
+:root {
+  /* --- State colors (dùng chung 2 theme) --- */
+  --cad-state-selected: #10B981;
+  --cad-state-hover: rgba(229, 231, 235, 0.4);
+  --cad-state-drawing: #3B82F6;
+  --cad-state-boxselect: #06B6D4;
+  --cad-state-boxselect-fill: rgba(6, 182, 212, 0.15);
+  --cad-state-warning: #F59E0B;
+  --cad-state-error: #EF4444;
+  --cad-state-locked: #64748B;
+  --cad-state-disabled: rgba(75, 85, 99, 0.5);
+
+  /* --- Object type colors (Point features) --- */
+  --cad-obj-pole: #B45309;
+  --cad-obj-cabinet: #0D9488;
+  --cad-obj-splice: #F97316;
+  --cad-obj-odf: #8B5CF6;
+  --cad-obj-splitter: #D946EF;
+  --cad-obj-camera: #6366F1;
+  --cad-obj-node: #9CA3AF;
+
+  /* --- Cable colors (theo số sợi) --- */
+  --cad-cable-12: #94A3B8;
+  --cad-cable-24: #38BDF8;
+  --cad-cable-48: #FB923C;
+  --cad-cable-96: #C084FC;
+  --cad-cable-144: #F472B6;
+  --cad-cable-288: #4ADE80;
+
+  /* --- Polygon Zone colors --- */
+  --cad-zone-parcel-fill: rgba(250, 204, 21, 0.15);
+  --cad-zone-parcel-stroke: #EAB308;
+  --cad-zone-station-fill: rgba(96, 165, 250, 0.15);
+  --cad-zone-station-stroke: #3B82F6;
+  --cad-zone-planned-fill: rgba(163, 163, 163, 0.15);
+  --cad-zone-planned-stroke: #737373;
+
+  /* --- Sizing scale --- */
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+  --icon-xl: 32px;
+  --btn-sm: 28px;
+  --btn-md: 32px;
+  --btn-lg: 40px;
+}
+
+:root,
+[data-theme="dark"] {
+  --cad-header: #101217;
+  --cad-bg: #0F1115;
+  --cad-surface: #171B21;
+  --cad-elevated: #20252D;
+  --cad-border: #2B313B;
+  --cad-accent: #10B981;
+  --cad-active: #34D399;
+  --cad-warn: #F59E0B;
+  --cad-danger: #F87171;
+  --cad-text-primary: #E5E7EB;
+  --cad-text-secondary: #9CA3AF;
+  --cad-text-muted: #4B5563;
+  --cad-state-hover: rgba(229, 231, 235, 0.4);
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --cad-header: #F1F5F9;
+  --cad-bg: #F8FAFC;
+  --cad-surface: #FFFFFF;
+  --cad-elevated: #F1F5F9;
+  --cad-border: #CBD5E1;
+  --cad-accent: #059669;
+  --cad-active: #10B981;
+  --cad-warn: #D97706;
+  --cad-danger: #DC2626;
+  --cad-text-primary: #0F172A;
+  --cad-text-secondary: #334155;
+  --cad-text-muted: #64748B;
+  --cad-state-hover: rgba(51, 65, 85, 0.4);
+  color-scheme: light;
+}
+
+/* Base resets & typography */
+@layer base {
+
+  html,
+  body {
+    @apply h-full w-full m-0 p-0 text-cad-text-primary bg-cad-bg;
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"],
+  [contenteditable="true"] *,
+  .monaco-editor,
+  .monaco-editor * {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100vw;
+    height: 100dvh;
+    max-width: 100vw;
+    max-height: 100dvh;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  #portal-root {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  #root {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  #portal-root {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 99999;
+  }
+
+  #portal-root > * {
+    pointer-events: auto;
+  }
+
+  html.streetview-window,
+  body.streetview-window {
+    background: #ffffff !important;
+    color: #111827 !important;
+    color-scheme: light !important;
+    forced-color-adjust: none !important;
+  }
+
+  /* Google Street View Visual Fixes */
+  .streetview-canvas,
+  .gm-style,
+  .gm-style img,
+  .gm-style canvas {
+    filter: none !important;
+    -webkit-filter: none !important;
+    color-scheme: light !important;
+    background: #ffffff !important;
+  }
+
+  /* Prevent browser extensions (e.g. Dark Reader) from inverting web maps */
+  .maplibregl-canvas,
+  .design-maplibre-fast canvas {
+    filter: none !important;
+    -webkit-filter: none !important;
+  }
+
+  .gm-style-cc,
+  .gmnoprint,
+  .gm-style-pbc,
+  .gm-style-mtc,
+  .gm-err-container,
+  div.gm-style-cc+div,
+  .gm-style iframe+div[style*="z-index: 1000000"],
+  a[href*="maps.google.com/maps/contrib"],
+  a[title*="Report errors"],
+  div[style*="background-color: rgba(0, 0, 0, 0.4)"],
+  div[style*="z-index: 1000001"],
+  div[style*="z-index: 1000000"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .street-view-container-premium {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    background: #ffffff;
+  }
+
+  /* Oversizing the panorama slightly and clipping to hide the bottom-right text if any survives display:none */
+  .street-view-panorama-premium {
+    width: 100% !important;
+    height: calc(100% + 40px) !important;
+    margin-bottom: -40px !important;
+    background: #ffffff !important;
+  }
+
+  /* Custom scrollbar for Windows - Dark Mode */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-cad-text-muted/50 rounded-full;
+    transition: background 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-cad-text-secondary;
+  }
+
+  input::selection,
+  textarea::selection,
+  [contenteditable="true"]::selection,
+  [contenteditable="true"] *::selection,
+  .monaco-editor::selection,
+  .monaco-editor *::selection {
+    @apply bg-cad-accent/30 text-white;
+  }
+
+  /* Theme-aware focus ring: accent ring + backdrop-coloured offset so it reads
+     correctly in both light and dark mode. */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-cad-bg), 0 0 0 4px var(--color-cad-accent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* Layout utilities */
+@layer utilities {
+  .flex-center {
+    @apply flex items-center justify-center;
+  }
+
+  .cad-shell-window {
+    @apply flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-cad-bg text-cad-text-primary;
+  }
+
+  .cad-toolbar {
+    @apply flex h-10 items-center justify-between border-b border-cad-border bg-cad-header px-4 shrink-0;
+  }
+
+  .cad-statusbar {
+    @apply flex h-[22px] items-center justify-between border-t border-cad-border bg-cad-header px-3 shrink-0 text-[9px] text-cad-text-muted;
+  }
+
+  .cad-panel {
+    @apply rounded-md border border-cad-border bg-cad-surface shadow-[0_16px_42px_rgba(0,0,0,0.28)];
+  }
+
+  .cad-panel-strong {
+    @apply rounded-md border border-cad-border bg-cad-elevated shadow-[0_20px_48px_rgba(0,0,0,0.34)];
+  }
+
+  .cad-card {
+    @apply rounded-md border border-cad-border bg-cad-surface/95 shadow-[0_12px_28px_rgba(0,0,0,0.22)];
+  }
+
+  .cad-dialog {
+    @apply overflow-hidden rounded-md border border-cad-border bg-cad-surface shadow-[0_24px_72px_rgba(0,0,0,0.48)];
+  }
+
+  .cad-overlay {
+    @apply fixed inset-0 bg-black/60 backdrop-blur-sm;
+  }
+
+  .cad-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-cad-border bg-cad-elevated px-4 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-cad-text-primary transition-colors duration-200 hover:bg-cad-surface disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .cad-button-primary {
+    @apply border-cad-accent bg-cad-accent text-black hover:bg-cad-active;
+  }
+
+  .cad-button-secondary {
+    @apply border-cad-border bg-cad-surface text-cad-text-primary hover:bg-cad-elevated;
+  }
+
+  .cad-button-ghost {
+    @apply border-transparent bg-transparent text-cad-text-muted hover:bg-cad-text-primary/5 hover:text-cad-text-primary;
+  }
+
+  .cad-button-danger {
+    @apply border-cad-danger/40 bg-cad-danger/10 text-cad-danger hover:bg-cad-danger/20;
+  }
+
+  .cad-icon-button {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent bg-transparent text-cad-text-muted transition-colors hover:bg-cad-text-primary/5 hover:text-cad-text-primary;
+  }
+
+  .cad-icon-xs {
+    width: 12px;
+    height: 12px;
+  }
+
+  .cad-icon-sm {
+    width: 14px;
+    height: 14px;
+  }
+
+  .cad-icon-md {
+    width: 16px;
+    height: 16px;
+  }
+
+  .cad-icon-lg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .cad-icon-xl {
+    width: 20px;
+    height: 20px;
+  }
+
+  .cad-icon-muted {
+    color: var(--color-cad-text-muted);
+  }
+
+  .cad-icon-secondary {
+    color: var(--color-cad-text-secondary);
+  }
+
+  .cad-icon-primary {
+    color: var(--color-cad-text-primary);
+  }
+
+  .cad-icon-accent {
+    color: var(--color-cad-accent);
+  }
+
+  .cad-icon-success {
+    color: var(--color-cad-active);
+  }
+
+  .cad-icon-warn {
+    color: var(--color-cad-warn);
+  }
+
+  .cad-icon-danger {
+    color: var(--color-cad-danger);
+  }
+
+  .cad-icon-button-active {
+    @apply border-cad-accent/30 bg-cad-accent/10 text-cad-accent;
+  }
+
+  .cad-input,
+  .cad-select,
+  .cad-textarea {
+    @apply w-full rounded-md border border-cad-border bg-cad-bg px-3 py-2 text-xs text-cad-text-primary outline-none transition-colors placeholder:text-cad-text-muted/60 focus:border-cad-accent focus:bg-cad-surface;
+  }
+
+  .cad-textarea {
+    @apply min-h-24 resize-none;
+  }
+
+  .cad-search {
+    @apply w-full rounded-md border border-cad-border bg-cad-bg px-3 py-2 pl-9 text-xs text-cad-text-primary outline-none transition-colors placeholder:text-cad-text-muted/60 focus:border-cad-accent focus:bg-cad-surface;
+  }
+
+  .cad-badge {
+    @apply inline-flex items-center rounded-full border border-cad-border bg-cad-elevated px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-cad-text-muted;
+  }
+
+  .cad-badge-accent {
+    @apply border-cad-accent/30 bg-cad-accent/10 text-cad-accent;
+  }
+
+  .cad-empty-state {
+    @apply flex flex-col items-center justify-center rounded-md border border-dashed border-cad-border bg-cad-surface/40 p-6 text-center;
+  }
+
+  .cad-tabbar {
+    @apply flex items-end gap-1 overflow-x-auto border-b border-cad-border bg-cad-header px-3;
+  }
+
+  .cad-tab {
+    @apply relative inline-flex h-8 items-center rounded-t-md border border-transparent px-4 text-[10px] font-black uppercase tracking-[0.16em] text-cad-text-muted transition-colors hover:bg-cad-text-primary/5 hover:text-cad-text-primary;
+  }
+
+  .cad-tab-active {
+    @apply border-cad-border border-b-cad-bg bg-cad-bg text-cad-accent;
+  }
+
+  .cad-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-cad-text-secondary) transparent;
+  }
+
+  .cad-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .cad-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .cad-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--color-cad-text-muted);
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: content-box;
+  }
+
+  .cad-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-cad-text-secondary);
+  }
+
+  .glass-panel {
+    @apply bg-cad-surface/60 backdrop-blur-xl border border-cad-border/40 shadow-xl rounded-sm;
+    box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.6);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Monospace Typography for Technical Parameters */
+  .ribbon-toolbar,
+  .toolbar-item,
+  .technical-parameter,
+  .coordinate-display,
+  .analysis-value {
+    font-family: var(--font-mono) !important;
+    letter-spacing: 0;
+  }
+
+  .glass-panel:hover {
+    @apply border-cad-active/30 bg-cad-surface/50;
+  }
+
+  .summary-overlay {
+    @apply absolute bottom-8 left-1/2 z-40 w-[420px] -translate-x-1/2 overflow-hidden rounded-md border border-cad-accent/30 bg-cad-surface/90 backdrop-blur-md animate-fade-in animate-slide-up;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+
+}
+
+/* Low Power Mode Optimizations */
+.low-power-active * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  animation: none !important;
+  transition: none !important;
+  text-shadow: none !important;
+}
+
+.low-power-active .shadow-sm,
+.low-power-active .shadow-md,
+.low-power-active .shadow-lg,
+.low-power-active .shadow-xl,
+.low-power-active .shadow-2xl {
+  box-shadow: none !important;
+}
+
+/* Force pointer-events: none on drawing UI so maps receive clicks */
+.snap-indicator-marker,
+.drawing-point-marker,
+.pointer-events-none {
+  pointer-events: none !important;
+}
+
+.vertex-handle-modern,
+.midpoint-handle {
+  pointer-events: auto !important;
+  cursor: grab !important;
+  touch-action: none !important;
+}
+
+.vertex-handle-modern:active,
+.midpoint-handle:active {
+  cursor: grabbing !important;
+}
+
+.custom-scrollbar-horizontal::-webkit-scrollbar {
+  height: 8px;
+}
+
+.custom-scrollbar-horizontal::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.custom-scrollbar-horizontal::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.custom-scrollbar-horizontal::-webkit-scrollbar-thumb:hover {
+  background: var(--color-cad-accent);
+}

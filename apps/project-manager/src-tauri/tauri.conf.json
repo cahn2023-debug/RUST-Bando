@@ -1,0 +1,63 @@
+{
+    "$schema": "https://schema.tauri.app/config/2",
+    "productName": "Project Manager",
+    "version": "1.2.0",
+    "identifier": "com.thanhbui.offline-project-manager",
+    "build": {
+        "beforeDevCommand": "npm run dev",
+        "devUrl": "http://127.0.0.1:1989",
+        "beforeBuildCommand": "npm run build",
+        "frontendDist": "../dist"
+    },
+    "app": {
+        "withGlobalTauri": true,
+        "windows": [
+            {
+                "label": "main",
+                "title": "Project Manager",
+                "width": 1280,
+                "height": 800,
+                "minWidth": 1024,
+                "minHeight": 640,
+                "resizable": true,
+                "visible": true,
+                "decorations": true,
+                "backgroundColor": "#0F1115"
+            }
+        ],
+        "security": {
+            "csp": "default-src 'self' tauri: ipc: http://ipc.localhost; script-src 'self' 'wasm-unsafe-eval' https://apis.google.com https://www.gstatic.com https://maps.googleapis.com https://maps.google.com https://*.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https: tauri: ipc: http://ipc.localhost http://tauri.localhost *.firebaseio.com *.googleapis.com wss://*.firebaseio.com *.firebaseapp.com; frame-src 'self' https://*.firebaseapp.com https://www.google.com https://maps.google.com asset.localhost https://asset.localhost; img-src 'self' data: blob: https: tauri: ipc: http://ipc.localhost *.googleusercontent.com *.google.com *.gstatic.com *.googleapis.com asset.localhost; worker-src 'self' blob:; child-src 'self' blob:;",
+            "assetProtocol": {
+                "enable": true,
+                "scope": [
+                    "$RESOURCE/**",
+                    "$APPDATA/**"
+                ]
+            }
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ],
+        "resources": [
+            "resources/models/*"
+        ],
+        "fileAssociations": [
+            {
+                "ext": [
+                    "pmp"
+                ],
+                "name": "Project Manager Project",
+                "description": "Project Manager file",
+                "role": "Editor"
+            }
+        ]
+    }
+}

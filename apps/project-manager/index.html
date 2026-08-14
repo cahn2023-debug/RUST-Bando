@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="origin" />
+  <title>Project Manager - AutoCAD Style</title>
+  <style>
+    html, body, #root {
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      background: #0b0f12;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    body {
+      color: #d7e3ec;
+    }
+  </style>
+  <meta name="description"
+    content="Chuyên nghiệp hóa quản lý dự án công trình với giao diện AutoCAD Style hiện đại, hỗ trợ AI và offline-first." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;700&family=Space+Grotesk:wght@400;700&display=swap"
+    rel="stylesheet">
+</head>
+
+<body>
+  <script>
+    // V62: OPERATION TIMELINE - Page load origin
+    window.__PAGE_LOAD_TIME__ = performance.now();
+
+    // DEBUG: Stop reload loop
+    window._originalReload = window.location.reload;
+    window.location.reload = function () {
+      console.warn("[DEBUG] window.location.reload() was called. BLOCKED to prevent loop.");
+      console.trace("Reload called from:");
+    };
+
+    window.onerror = function (msg, url, line, col, error) {
+      console.error("[GLOBAL ERROR]", msg, "at", url, ":", line, ":", col, error);
+      return false;
+    };
+
+    window.addEventListener('unhandledrejection', function (event) {
+      console.error("[UNHANDLED REJECTION]", event.reason);
+    });
+
+    console.log("[Environment] Tauri API Bridge (v2):", !!window.__TAURI_INTERNALS__);
+    console.log("[Environment] Tauri Global Object:", !!window.__TAURI__);
+
+    // V62: Deferred bridge validation (Tauri injects after DOMContentLoaded)
+    setTimeout(function () {
+      var hasBridge = !!window.__TAURI_INTERNALS__;
+      var hasGlobal = !!window.__TAURI__;
+      console.log("[Environment] Deferred Check (500ms): Bridge=" + hasBridge + ", Global=" + hasGlobal);
+      if (!hasBridge) {
+        console.warn("[Environment] ⚠️ Tauri bridge NOT available after 500ms. IPC calls may fail.");
+      }
+    }, 500);
+  </script>
+  <div id="root"></div><div id="portal-root"></div>
+  <script type="module" src="/src/modules/home/main.tsx"></script>
+</body>
+
+</html>

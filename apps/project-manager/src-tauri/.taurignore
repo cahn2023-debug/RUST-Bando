@@ -1,0 +1,13 @@
+*.pmp
+*.pmp-shm
+*.pmp-wal
+*.pmp.manifest.json
+v2_test_*.db
+v2_test_*.db-journal
+local_data/
+target/
+automation_debug.log
+build_error.log
+test_errors.txt
+test_results.txt
+v2_test_*

@@ -1,12 +1,12 @@
 # Huong dan su dung Sol Advisor
 
-Sol Advisor da duoc dat trong workspace tai `sol-advisor/` va dang duoc Codex nhan dien nhu plugin `sol-advisor@sol-advisor`.
+Sol Advisor da duoc dat trong workspace tai `tools/sol-advisor/` va dang duoc Codex nhan dien nhu plugin `sol-advisor@sol-advisor`.
 
 Trang upstream: <https://github.com/DannyMac180/sol-advisor>
 
 ## Trang thai trien khai
 
-- Local checkout: `sol-advisor/`
+- Local checkout: `tools/sol-advisor/`
 - Remote: `https://github.com/DannyMac180/sol-advisor.git`
 - Commit da kiem tra voi upstream `main`: `154fd7a`
 - Plugin Codex: `sol-advisor@sol-advisor`, version `0.4.0`, status `installed, enabled`
@@ -63,16 +63,16 @@ codex plugin list
 Kiem tra checkout local co dung upstream:
 
 ```powershell
-git -C sol-advisor status --short
-git -C sol-advisor ls-remote origin refs/heads/main
-git -C sol-advisor rev-parse --short HEAD
+git -C tools/sol-advisor status --short
+git -C tools/sol-advisor ls-remote origin refs/heads/main
+git -C tools/sol-advisor rev-parse --short HEAD
 ```
 
 Kiem tra hai companion agent co khop template trong repo:
 
 ```powershell
-Compare-Object (Get-Content -Raw sol-advisor\plugins\sol-advisor\agents\sol-advisor-terra-implementer.toml) (Get-Content -Raw "$env:USERPROFILE\.codex\agents\sol-advisor-terra-implementer.toml")
-Compare-Object (Get-Content -Raw sol-advisor\plugins\sol-advisor\agents\sol-advisor-sol-reviewer.toml) (Get-Content -Raw "$env:USERPROFILE\.codex\agents\sol-advisor-sol-reviewer.toml")
+Compare-Object (Get-Content -Raw tools\sol-advisor\plugins\sol-advisor\agents\sol-advisor-terra-implementer.toml) (Get-Content -Raw "$env:USERPROFILE\.codex\agents\sol-advisor-terra-implementer.toml")
+Compare-Object (Get-Content -Raw tools\sol-advisor\plugins\sol-advisor\agents\sol-advisor-sol-reviewer.toml) (Get-Content -Raw "$env:USERPROFILE\.codex\agents\sol-advisor-sol-reviewer.toml")
 Test-Path "$env:USERPROFILE\.codex\agents\sol-advisor-luna-implementer.toml"
 ```
 
@@ -93,7 +93,7 @@ codex plugin add sol-advisor@sol-advisor
 Neu may co Git Bash hoac moi truong `sh`, co the chay installer companion agent cua plugin:
 
 ```sh
-cd sol-advisor
+cd tools/sol-advisor
 sh plugins/sol-advisor/scripts/install-agents.sh
 sh plugins/sol-advisor/scripts/install-agents.sh --check
 ```

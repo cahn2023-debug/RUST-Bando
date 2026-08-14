@@ -4,16 +4,16 @@
   "version": "1.0.0",
   "description": "Repository entrypoint delegating to the Project Manager workspace",
   "scripts": {
-    "dev": "npm --prefix BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application run dev",
-    "build": "npm --prefix BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application run build",
-    "preview": "npm --prefix BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application run preview",
-    "tauri": "npm --prefix BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application run tauri --",
-    "build:msi": "npm --prefix BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application run build:msi",
-    "typecheck": "npm --prefix BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application run typecheck",
-    "test": "npm --prefix BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application run test",
-    "test:ci": "npm --prefix BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application run test:ci",
-    "check:frontend": "npm --prefix BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application run check:frontend",
-    "check:backend": "npm --prefix BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application run check:backend",
-    "check": "npm --prefix BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application run check"
+    "dev": "npm --prefix apps/project-manager run dev",
+    "build": "npm --prefix apps/project-manager run build",
+    "preview": "npm --prefix apps/project-manager run preview",
+    "tauri": "npm --prefix apps/project-manager run tauri --",
+    "build:msi": "npm --prefix apps/project-manager run build:msi",
+    "typecheck": "npm --prefix apps/project-manager run typecheck",
+    "test": "npm --prefix apps/project-manager run test",
+    "test:ci": "npm --prefix apps/project-manager run test:ci",
+    "check:frontend": "npm --prefix apps/project-manager run check:frontend",
+    "check:backend": "npm --prefix apps/project-manager run check:backend",
+    "check": "npm --prefix apps/project-manager run check"
   }
 }

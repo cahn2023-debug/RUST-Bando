@@ -1,0 +1,88 @@
+/**
+ * Workspace shell grid.
+ *
+ * The map surface is a REAL grid cell, not an absolutely-positioned layer with
+ * a hand-computed inset. Docks are true grid siblings, so when a dock is hidden
+ * its track collapses to zero and the map surface expands on its own.
+ *
+ * Track layout:
+ *
+ *   ┌────────┬──────────────┬───────────┬──────┐
+ *   │  left  │    center    │   right   │      │
+ *   ├────────┴──────────────┴───────────┤ rail │
+ *   │              bottom               │      │
+ *   └───────────────────────────────────┴──────┘
+ *
+ * `rail` (the 36px palette icon strip) spans both rows, matching the previous
+ * behaviour where the bottom dock stopped short of it.
+ */
+.workspace-grid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "left center right rail"
+    "bottom bottom bottom rail";
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/**
+ * Pass-through wrapper: drops its own box so children become grid items of
+ * `.workspace-grid`. Used for structural components that group children for
+ * React's sake but must not introduce a layout box (e.g. ProjectDetail).
+ *
+ * Note: an element with `display: contents` has no box, so backgrounds,
+ * borders and pointer-events on it have no effect. Put those on the child
+ * that owns the actual area instead.
+ */
+.workspace-pass {
+  display: contents;
+}
+
+/**
+ * The centre cell. Multiple elements may occupy it simultaneously (the map
+ * surface underneath, the design overlay on top) — CSS Grid permits overlapping items
+ * in one area, which is exactly the stacking we want.
+ */
+.workspace-center {
+  grid-area: center;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace-center--map {
+  z-index: 0;
+}
+
+.workspace-center--content {
+  z-index: 10;
+}
+
+.workspace-left {
+  grid-area: left;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.workspace-right {
+  grid-area: right;
+  min-height: 0;
+  min-width: 0;
+}
+
+.workspace-bottom {
+  grid-area: bottom;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.workspace-rail {
+  grid-area: rail;
+  min-height: 0;
+}

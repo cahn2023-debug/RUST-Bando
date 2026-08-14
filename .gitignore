@@ -85,3 +85,13 @@ opencode.json
 src-tauri/local_data/
 *dead_code_analysis.json
 BAK/
+
+# Canonical shared data hub
+data/raw/*
+!data/raw/.gitkeep
+data/normalized/*
+!data/normalized/.gitkeep
+data/exports/*
+!data/exports/.gitkeep
+data/runtime/*
+!data/runtime/.gitkeep

@@ -1,0 +1,84 @@
+/* MapLibre map surface and overlays */
+
+.design-map-container {
+    color-scheme: light;
+    forced-color-adjust: none;
+}
+
+.design-maplibre-fast {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #111827;
+}
+
+.design-maplibre-fast--attached {
+    background: transparent;
+    pointer-events: none;
+}
+
+.design-feature-overlay-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.design-maplibre-fast .maplibregl-canvas {
+    outline: none;
+}
+
+.design-maplibre-fast canvas {
+    filter: none !important;
+    -webkit-filter: none !important;
+    mix-blend-mode: normal !important;
+    opacity: 1 !important;
+    forced-color-adjust: none;
+}
+
+.measure-tool-active {
+    cursor: crosshair !important;
+}
+
+.measure-panel {
+    position: absolute;
+    left: 50%;
+    bottom: 24px;
+    z-index: 1000;
+    width: 220px;
+    transform: translateX(-50%);
+    border: 1px solid rgba(45, 48, 57, 0.95);
+    border-radius: 4px;
+    background: rgba(30, 32, 38, 0.94);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+    padding: 10px;
+    backdrop-filter: blur(8px);
+}
+
+.polyline-selected {
+    filter: drop-shadow(0 0 1px rgba(34, 211, 238, 0.35));
+}
+
+.custom-map-marker {
+    cursor: pointer;
+    pointer-events: auto !important;
+    transition: opacity 0.18s ease, filter 0.18s ease;
+}
+
+.custom-map-marker.selected-marker {
+    filter: saturate(1.02);
+}
+
+.design-map-low-gpu .measure-panel {
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.design-map-low-gpu .custom-map-marker,
+.design-map-low-gpu .custom-map-marker.selected-marker,
+.design-map-low-gpu .polyline-selected {
+    filter: none !important;
+    -webkit-filter: none !important;
+    transition: none !important;
+}

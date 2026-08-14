@@ -1,6 +1,6 @@
 # Document Status
 
-Last audited: 2026-08-05
+Last audited: 2026-08-14
 
 ## Scope
 
@@ -14,7 +14,7 @@ Observed scale:
 - Speckit specs: `specs/` has 14 Markdown documents.
 - Planning docs: `.planning/` has 5 Markdown documents.
 - Large generated/reference forests also exist under `.agent/`,
-  `bando-graph-viewer/`, `Resources/references/para-workspace/`, `.brain/`,
+  `apps/graph-viewer/`, `Resources/references/para-workspace/`, `.brain/`,
   `BAK/`, and tool folders.
 
 This file classifies the product-facing technical docs individually where they
@@ -232,14 +232,13 @@ classified by directory because they are not current product documentation.
 | `src/modules/design/features/map/README.md` | Local README; verify when touching map module. |
 | `src/modules/design/features/map/IMPLEMENTATION_GUIDE.md` | Local implementation guide; verify when touching map module. |
 | `design-system/*.md` | Separate design-system docs; review before applying to product. |
-| `apps-script/pmp-collaboration/README.md` | Support app/script doc, not core product docs. |
+| `apps/apps-script/pmp-collaboration/README.md` | Support app/script doc, not core product docs. |
 | `.agent/` | Large agent reference forest; not current product documentation. |
 | `.agents/` | Local skill area; inspect only when relevant. |
 | `.brain/` | Generated memory/brain docs. |
 | `BAK/` | Backup/old files. |
 | `RUST/` | Nested/legacy area; review before use. |
 | `Resources/references/para-workspace/` | External reference package. |
-| `bando-graph-viewer/` | Separate graph viewer/reference area. |
 | `graphify-out/` | Generated graph analysis output. |
 | `.venv/` | Environment artifacts; not product docs. |
 

@@ -1,0 +1,97 @@
+import React, { useEffect, useState } from 'react';
+import { safeListen } from '@IMPLEMENT/lib/tauri';
+import { StreetViewJS } from '../Palette/StreetViewJS';
+
+const normalizeHeading = (value: number) => ((value % 360) + 360) % 360;
+
+const parseStreetViewLocation = () => {
+  const pathname = window.location.pathname;
+  const search = new URLSearchParams(window.location.search);
+  const match = pathname.match(/@([-?\d.]+),([-?\d.]+)(?:,([\d.]+)y)?(?:,([\d.]+)t)?/);
+
+  if (match) {
+    return {
+      lat: parseFloat(match[1]),
+      lng: parseFloat(match[2]),
+      fov: match[3] ? parseFloat(match[3]) : 90,
+      heading: match[4] ? normalizeHeading(parseFloat(match[4])) : 0
+    };
+  }
+
+  const lat = search.get('lat');
+  const lng = search.get('lng');
+  if (lat && lng) {
+    return {
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+      heading: normalizeHeading(parseFloat(search.get('heading') || '0')),
+      fov: parseFloat(search.get('fov') || '90')
+    };
+  }
+
+  return null;
+};
+
+const StreetViewPage: React.FC = () => {
+  const [location, setLocation] = useState(() => parseStreetViewLocation());
+
+  useEffect(() => {
+    const unlistenPromise = safeListen<{ lat: number; lng: number; heading?: number; fov?: number }>(
+      'location-change',
+      (event) => {
+        if (event?.payload) {
+          setLocation({
+            lat: event.payload.lat,
+            lng: event.payload.lng,
+            heading: normalizeHeading(event.payload.heading ?? 0),
+            fov: event.payload.fov ?? 90
+          });
+        }
+      }
+    );
+
+    const root = document.documentElement;
+    const body = document.body;
+    root.classList.add('streetview-window');
+    body.classList.add('streetview-window');
+    root.style.colorScheme = 'light';
+    body.style.colorScheme = 'light';
+    document.title = 'Street View';
+
+    return () => {
+      unlistenPromise.then((fn) => fn && fn());
+      root.classList.remove('streetview-window');
+      body.classList.remove('streetview-window');
+      root.style.removeProperty('color-scheme');
+      body.style.removeProperty('color-scheme');
+    };
+  }, []);
+
+  if (!location) {
+    return (
+      <div className="flex items-center justify-center h-dvh bg-cad-bg text-cad-text-primary font-sans">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-cad-accent border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-semibold uppercase tracking-[0.24em] text-cad-text-muted">
+            Đang tải dữ liệu vị trí
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="w-screen h-dvh overflow-hidden bg-white streetview-window-container"
+      style={{
+        colorScheme: 'light',
+        background: '#ffffff',
+        filter: 'none'
+      }}
+    >
+      <StreetViewJS lat={location.lat} lng={location.lng} heading={location.heading} fov={location.fov} />
+    </div>
+  );
+};
+
+export default StreetViewPage;

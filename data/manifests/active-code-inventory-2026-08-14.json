@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "inventoryDate": "2026-08-14",
+  "workspace": "D:/Code Antinigaty/RUST",
+  "gitBaseline": {
+    "branch": "Fix-error-Display-on-Map-and-Database",
+    "head": "aaf57198e7de56ed0dc260d66e7ca4067c6b4096",
+    "observedWorkingTreeChanges": [
+      ".knowns/docs/specs/2026-08-14/active-code-workspace-standardization.md",
+      ".knowns/tasks/task-9gyqfv - active-code-workspace-standardization-02-Establis.md",
+      ".knowns/tasks/task-aqthf6 - active-code-workspace-standardization-03-Migrate.md",
+      ".knowns/tasks/task-od1tg4 - active-code-workspace-standardization-04-Migrate.md",
+      ".knowns/tasks/task-r39gpa - active-code-workspace-standardization-01-Inventor.md",
+      ".knowns/tasks/task-svrusz - active-code-workspace-standardization-05-Integrat.md"
+    ]
+  },
+  "surfaces": [
+    {
+      "id": "project-manager",
+      "kind": "desktop-app",
+      "sourceRoot": "BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application",
+      "canonicalTarget": "apps/project-manager",
+      "manifests": [
+        "BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application/package.json",
+        "BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application/package-lock.json",
+        "BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application/src-tauri/Cargo.toml",
+        "BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application/src-tauri/tauri.conf.json"
+      ],
+      "entrypoints": [
+        "BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application/index.html",
+        "BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application/src",
+        "BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application/src-tauri"
+      ],
+      "activeEvidence": [
+        "Root package.json scripts delegate dev/build/tauri/typecheck/check to this source root.",
+        "Root README identifies this source root as the active Project Manager snapshot.",
+        "npm run typecheck completed successfully through the root delegate on 2026-08-14."
+      ],
+      "sourceDecision": "verified-runtime-source",
+      "sourceLikeFileCountExcludingGenerated": 648
+    },
+    {
+      "id": "graph-viewer",
+      "kind": "vscode-extension",
+      "sourceRoot": "bando-graph-viewer",
+      "canonicalTarget": "apps/graph-viewer",
+      "manifests": [
+        "bando-graph-viewer/package.json",
+        "bando-graph-viewer/package-lock.json",
+        "bando-graph-viewer/tsconfig.json"
+      ],
+      "entrypoints": [
+        "bando-graph-viewer/src",
+        "bando-graph-viewer/package.json#main"
+      ],
+      "activeEvidence": [
+        "package.json declares the bando-graph.showGraph activation command and compiled extension entrypoint."
+      ],
+      "sourceDecision": "root-first-party-surface"
+    },
+    {
+      "id": "apps-script",
+      "kind": "google-apps-script",
+      "sourceRoot": "apps-script/pmp-collaboration",
+      "canonicalTarget": "apps/apps-script/pmp-collaboration",
+      "manifests": [
+        "apps-script/pmp-collaboration/appsscript.json"
+      ],
+      "entrypoints": [
+        "apps-script/pmp-collaboration/Code.gs"
+      ],
+      "activeEvidence": [
+        "appsscript.json declares V8 runtime, timezone, logging, and OAuth scopes."
+      ],
+      "sourceDecision": "root-first-party-surface"
+    },
+    {
+      "id": "sol-advisor",
+      "kind": "validation-tool",
+      "sourceRoot": "sol-advisor",
+      "canonicalTarget": "tools/sol-advisor",
+      "manifests": [
+        "sol-advisor/package.json",
+        "sol-advisor/bun.lock"
+      ],
+      "entrypoints": [
+        "sol-advisor/tools/validate.ts",
+        "sol-advisor/tools/cursor-local.ts",
+        "sol-advisor/plugins/sol-advisor/mcp/server.ts"
+      ],
+      "activeEvidence": [
+        "package.json declares validate, release, CI, cursor-local, and test commands."
+      ],
+      "sourceDecision": "root-first-party-surface"
+    }
+  ],
+  "projectManagerConflictResolution": {
+    "conflictingDocumentation": [
+      "docs/context-pack/DIRECTORY_MAP.md",
+      ".knowns/docs/architecture/overview.md",
+      ".knowns/docs/architecture/project-summary-current-state.md"
+    ],
+    "resolution": "Runtime/build evidence wins for migration source selection. The root package delegate, README, and successful root typecheck identify the BAK legacy-application tree as the source to migrate. References to root src/src-tauri are historical or stale until revalidated."
+  },
+  "excludedRoots": [
+    ".git",
+    ".knowns",
+    ".codegraph",
+    ".agents",
+    ".claude",
+    ".codex",
+    ".gemini",
+    ".github",
+    ".kiro",
+    ".specify",
+    "node_modules",
+    ".venv",
+    "coverage",
+    "dist",
+    "graphify-out",
+    "scratch",
+    "BAK/archive",
+    "Resources",
+    "docs",
+    "specs"
+  ],
+  "excludedRootExceptions": [
+    {
+      "root": "BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application",
+      "reason": "Verified active Project Manager runtime/build source; include this surface in migration despite the surrounding archive exclusion."
+    }
+  ],
+  "migrationNotes": [
+    "No source tree was moved by this inventory task.",
+    "The target data/manifests directory was created only to hold this audit artifact.",
+    "Generated output and dependency directories inside a source root remain excluded from source migration decisions."
+  ],
+  "status": "inventory-complete-source-decision-verified"
+}

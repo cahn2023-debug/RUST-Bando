@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "migrationDate": "2026-08-14",
+  "canonicalRoot": "D:/Code Antinigaty/RUST",
+  "status": "migrated-integrated-verification-with-controlled-adjustments",
+  "surfaces": [
+    {
+      "id": "project-manager",
+      "target": "apps/project-manager",
+      "previousSource": "BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application",
+      "manifest": "data/manifests/project-manager-migration-2026-08-14.json",
+      "sourceSelection": "@decision/20260814-1450-runtime-source-selection-precedes-active-code-migration",
+      "status": "migrated-with-controlled-reference-adjustment",
+      "controlledAdjustments": [
+        {
+          "target": "apps/project-manager/scripts/check_encoding.mjs",
+          "baselineSha256": "3e9e926f493102a7215d8a11c3d88d15bf7a5bcebe64a17e3438a937aa4ab8e5",
+          "currentSha256": "df58dd1e80963be8c6db4f5933a64405d28f9c6b20db2353e951025c78f94aa2",
+          "reason": "The encoding checker now resolves repository docs from the relocated app path."
+        }
+      ],
+      "rollback": {
+        "method": "reverse source-to-target mapping from the referenced per-file manifest",
+        "archiveResidue": "BAK/archive/2026-08-12/vietnam-basemap-preview-workspace-consolidation/legacy-application",
+        "requiresTargetHashMatch": true
+      }
+    },
+    {
+      "id": "graph-viewer",
+      "target": "apps/graph-viewer",
+      "previousSource": "bando-graph-viewer",
+      "manifest": "data/manifests/supporting-apps-migration-2026-08-14.json",
+      "status": "migrated-nested-git-preserved-with-controlled-lock-adjustment",
+      "controlledAdjustments": [
+        {
+          "target": "apps/graph-viewer/package-lock.json",
+          "baselineSha256": "d1554779e21333b533d7f39d115cfa0a68b0d3b485ce86eeb74750110011088c",
+          "currentSha256": "e4a9ac81dc199c8ac86d8409f31f399b113b53c74520d2157eb90801923afb49",
+          "gitIndexBlobSha1": "4031fa705c6daa5c11e67a52d2850cda892f44e0",
+          "reason": "npm install --legacy-peer-deps regenerated the lockfile to compile the relocated Graph Viewer."
+        }
+      ],
+      "rollback": {
+        "method": "reverse source-to-target mapping from the referenced per-file manifest",
+        "nestedGit": "apps/graph-viewer/.git",
+        "requiresTargetHashMatch": true
+      }
+    },
+    {
+      "id": "apps-script",
+      "target": "apps/apps-script/pmp-collaboration",
+      "previousSource": "apps-script/pmp-collaboration",
+      "manifest": "data/manifests/supporting-apps-migration-2026-08-14.json",
+      "status": "migrated-git-mv",
+      "rollback": {
+        "method": "reverse git move after target hash verification",
+        "requiresTargetHashMatch": true
+      }
+    },
+    {
+      "id": "sol-advisor",
+      "target": "tools/sol-advisor",
+      "previousSource": "sol-advisor",
+      "manifest": "data/manifests/supporting-apps-migration-2026-08-14.json",
+      "status": "migrated-nested-git-preserved",
+      "rollback": {
+        "method": "reverse source-to-target mapping from the referenced per-file manifest",
+        "nestedGit": "tools/sol-advisor/.git",
+        "requiresTargetHashMatch": true
+      }
+    }
+  ],
+  "conflictPolicy": {
+    "targetExists": "record conflict and stop that item",
+    "hashMismatch": "record conflict and stop that item",
+    "overwrite": false,
+    "permanentDelete": false,
+    "automaticResetCheckoutCommit": false
+  },
+  "dataHub": {
+    "root": "data",
+    "tracked": ["manifests", "schemas", "samples"],
+    "ignoredByDefault": ["raw", "normalized", "exports", "runtime"]
+  },
+  "verification": {
+    "sourceInventory": "data/manifests/active-code-inventory-2026-08-14.json",
+    "projectManagerFilesVerified": 641,
+    "projectManagerControlledAdjustments": 1,
+    "supportingFilesVerified": 67,
+    "supportingControlledAdjustments": 1,
+    "controlledAdjustments": 2,
+    "conflicts": [
+        {
+          "target": "apps/project-manager/scripts/check_encoding.mjs",
+          "type": "hash-mismatch-after-migration",
+          "status": "resolved-controlled-reference-adjustment",
+          "baselineSha256": "3e9e926f493102a7215d8a11c3d88d15bf7a5bcebe64a17e3438a937aa4ab8e5",
+          "currentSha256": "df58dd1e80963be8c6db4f5933a64405d28f9c6b20db2353e951025c78f94aa2",
+          "overwrite": false,
+          "resolution": "Required path update for the relocated app; rollback remains guarded by target hash verification."
+        },
+        {
+          "target": "apps/graph-viewer/package-lock.json",
+          "type": "hash-mismatch-after-migration",
+          "status": "resolved-controlled-dependency-lock-adjustment",
+          "baselineSha256": "d1554779e21333b533d7f39d115cfa0a68b0d3b485ce86eeb74750110011088c",
+          "currentSha256": "e4a9ac81dc199c8ac86d8409f31f399b113b53c74520d2157eb90801923afb49",
+          "gitIndexBlobSha1": "4031fa705c6daa5c11e67a52d2850cda892f44e0",
+          "overwrite": false,
+          "resolution": "Required dependency-lock regeneration for the relocated Graph Viewer; rollback remains guarded by target hash verification."
+        }
+    ],
+    "rootTypecheck": "passed via npm run check",
+      "rootBuild": "passed via npm run check",
+      "rootTestCi": "passed: 89 files, 564 tests via npm run check",
+      "rootCheck": "passed: frontend and backend gates via npm run check",
+      "dryRun": "passed: 710 targets; 2 documented controlled adjustments; no missing targets or active legacy roots",
+    "review": "passed: no P1/P2 findings; documentation wording and controlled adjustments reviewed"
+  },
+  "sddValidation": {
+    "spec": "specs/2026-08-14/active-code-workspace-standardization",
+    "linkedTaskEntities": ["r39gpa", "9gyqfv", "aqthf6", "od1tg4", "svrusz"],
+    "result": "passed",
+    "scope": "targeted spec and linked task entities",
+    "globalWorkspaceNote": "knowns validate --scope sdd still reports pre-existing unrelated errors for ldoyga, 9texyq, and g8ckf8; those tasks are outside this wave and were not modified."
+  },
+  "baselineBlockers": [
+    "Sol Advisor validate/release-check reports existing vendored schema digest/frontmatter failures.",
+    "Sol Advisor tests report Windows temporary Bun fixture and Unix permission assumptions."
+  ]
+}

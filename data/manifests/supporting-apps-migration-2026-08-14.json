@@ -1,0 +1,735 @@
+{
+    "schemaVersion":  1,
+    "migrationDate":  "2026-08-14",
+    "operation":  "supporting-surface-migration",
+    "surfaces":  [
+                     {
+                         "id":  "graph-viewer",
+                         "source":  "bando-graph-viewer",
+                         "target":  "apps/graph-viewer",
+                         "gitMode":  "filesystem-move-preserve-nested-git",
+                         "excluded":  [
+                                          "node_modules",
+                                          "out"
+                                      ]
+                     },
+                     {
+                         "id":  "sol-advisor",
+                         "source":  "sol-advisor",
+                         "target":  "tools/sol-advisor",
+                         "gitMode":  "filesystem-move-preserve-nested-git",
+                         "excluded":  [
+                                          "node_modules",
+                                          "out",
+                                          "dist",
+                                          "coverage"
+                                      ]
+                     },
+                     {
+                         "id":  "apps-script",
+                         "source":  "apps-script/pmp-collaboration",
+                         "target":  "apps/apps-script/pmp-collaboration",
+                         "gitMode":  "git-mv",
+                         "excluded":  [
+
+                                      ]
+                     }
+                 ],
+    "files":  [
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/.gitignore",
+                      "target":  "apps/graph-viewer/.gitignore",
+                      "expectedSha256":  "adb135d554040ea8d971940762786340c96d6534295ca82dc877e5b5a96e499f",
+                      "actualSha256":  "adb135d554040ea8d971940762786340c96d6534295ca82dc877e5b5a96e499f",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/.vscode-test.mjs",
+                      "target":  "apps/graph-viewer/.vscode-test.mjs",
+                      "expectedSha256":  "643b7495474761db97e7529d69e0aaf1068c4bf359e7901b26735ce9466a8158",
+                      "actualSha256":  "643b7495474761db97e7529d69e0aaf1068c4bf359e7901b26735ce9466a8158",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/.vscodeignore",
+                      "target":  "apps/graph-viewer/.vscodeignore",
+                      "expectedSha256":  "0c0665eb81f26908c0806b53344552fd5e0d38e9a30682faf51d5f74d93cd0ce",
+                      "actualSha256":  "0c0665eb81f26908c0806b53344552fd5e0d38e9a30682faf51d5f74d93cd0ce",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/CHANGELOG.md",
+                      "target":  "apps/graph-viewer/CHANGELOG.md",
+                      "expectedSha256":  "c6ca4461ce7440a05e071a0626ee7ca9a447ae2a31a317f9ce0aa0e2a4a6f942",
+                      "actualSha256":  "c6ca4461ce7440a05e071a0626ee7ca9a447ae2a31a317f9ce0aa0e2a4a6f942",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/eslint.config.mjs",
+                      "target":  "apps/graph-viewer/eslint.config.mjs",
+                      "expectedSha256":  "646a4eccdbbf95e95ce631fc4faff8e66593195c81d7e7f9db20298082d6670c",
+                      "actualSha256":  "646a4eccdbbf95e95ce631fc4faff8e66593195c81d7e7f9db20298082d6670c",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/package-lock.json",
+                      "target":  "apps/graph-viewer/package-lock.json",
+                      "expectedSha256":  "d1554779e21333b533d7f39d115cfa0a68b0d3b485ce86eeb74750110011088c",
+                      "actualSha256":  "e4a9ac81dc199c8ac86d8409f31f399b113b53c74520d2157eb90801923afb49",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-with-controlled-dependency-lock-adjustment",
+                      "adjustment":  {
+                          "reason":  "npm install --legacy-peer-deps regenerated the lockfile after migration so the relocated Graph Viewer could compile.",
+                          "changedAfterInitialMove":  true,
+                          "gitIndexBlobSha1":  "4031fa705c6daa5c11e67a52d2850cda892f44e0",
+                          "overwrite":  false,
+                          "rollback":  "Restore the baseline lockfile from the source hash before reversing the source-to-target mapping."
+                      },
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/package.json",
+                      "target":  "apps/graph-viewer/package.json",
+                      "expectedSha256":  "607a7e03c441af26a7c59095a2f23420e62be0c10271ef48b7eb90568203f49f",
+                      "actualSha256":  "607a7e03c441af26a7c59095a2f23420e62be0c10271ef48b7eb90568203f49f",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/README.md",
+                      "target":  "apps/graph-viewer/README.md",
+                      "expectedSha256":  "4f52bc430642bbaf1d0caab36d281b4fca0c34c89e93ff6d72a8299bd1578771",
+                      "actualSha256":  "4f52bc430642bbaf1d0caab36d281b4fca0c34c89e93ff6d72a8299bd1578771",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/tsconfig.json",
+                      "target":  "apps/graph-viewer/tsconfig.json",
+                      "expectedSha256":  "06f036d1a899262a227efac5cdd0fda457026a5619d4e7c12c7a05854159796e",
+                      "actualSha256":  "06f036d1a899262a227efac5cdd0fda457026a5619d4e7c12c7a05854159796e",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/vsc-extension-quickstart.md",
+                      "target":  "apps/graph-viewer/vsc-extension-quickstart.md",
+                      "expectedSha256":  "4637bd71dec354c5d5a111655c5be0be843a40124c43cafe7b62e95a21d049ad",
+                      "actualSha256":  "4637bd71dec354c5d5a111655c5be0be843a40124c43cafe7b62e95a21d049ad",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/.vscode/extensions.json",
+                      "target":  "apps/graph-viewer/.vscode/extensions.json",
+                      "expectedSha256":  "4a69f5e9030512628f2dbdb37b1537d3afc3835df93a58cf9ed6f52081c7d9ee",
+                      "actualSha256":  "4a69f5e9030512628f2dbdb37b1537d3afc3835df93a58cf9ed6f52081c7d9ee",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/.vscode/launch.json",
+                      "target":  "apps/graph-viewer/.vscode/launch.json",
+                      "expectedSha256":  "9237db21145b9a51871f8c41631781072d2319f5bd07072598f05246d49964fa",
+                      "actualSha256":  "9237db21145b9a51871f8c41631781072d2319f5bd07072598f05246d49964fa",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/.vscode/settings.json",
+                      "target":  "apps/graph-viewer/.vscode/settings.json",
+                      "expectedSha256":  "b961296ba0d8d883d262dc6c6ab47968f2ca936bb4d9aa49b4a53842a7909dd8",
+                      "actualSha256":  "b961296ba0d8d883d262dc6c6ab47968f2ca936bb4d9aa49b4a53842a7909dd8",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/.vscode/tasks.json",
+                      "target":  "apps/graph-viewer/.vscode/tasks.json",
+                      "expectedSha256":  "cecd0f8f99d153170ca1e1bee74141da11f7c47bfe0932078ad7c0c187c4c434",
+                      "actualSha256":  "cecd0f8f99d153170ca1e1bee74141da11f7c47bfe0932078ad7c0c187c4c434",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/src/extension.ts",
+                      "target":  "apps/graph-viewer/src/extension.ts",
+                      "expectedSha256":  "f2967feaea0691b6e0322de7f778166702d87e74173e2655b1dfac11fd25a5ab",
+                      "actualSha256":  "f2967feaea0691b6e0322de7f778166702d87e74173e2655b1dfac11fd25a5ab",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "graph-viewer",
+                      "source":  "bando-graph-viewer/src/test/extension.test.ts",
+                      "target":  "apps/graph-viewer/src/test/extension.test.ts",
+                      "expectedSha256":  "01620e51ccb2919d33fdedb05ccc005a27d55ab92e107c894eda4edc1c781f88",
+                      "actualSha256":  "01620e51ccb2919d33fdedb05ccc005a27d55ab92e107c894eda4edc1c781f88",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/.gitignore",
+                      "target":  "tools/sol-advisor/.gitignore",
+                      "expectedSha256":  "c5e0b00becf31e5881237363e47ba9735125f4f2c05a3c84259cd2dbe632e5ab",
+                      "actualSha256":  "c5e0b00becf31e5881237363e47ba9735125f4f2c05a3c84259cd2dbe632e5ab",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/bun.lock",
+                      "target":  "tools/sol-advisor/bun.lock",
+                      "expectedSha256":  "4dbaf29ca097a7e13c444cf82388181eae991e85929744b84020ad92c81a2dcc",
+                      "actualSha256":  "4dbaf29ca097a7e13c444cf82388181eae991e85929744b84020ad92c81a2dcc",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/CHANGELOG.md",
+                      "target":  "tools/sol-advisor/CHANGELOG.md",
+                      "expectedSha256":  "ff623c91ef6bd873e67ae18b103f3b22ef0510d1acccce988b69fa4299514340",
+                      "actualSha256":  "ff623c91ef6bd873e67ae18b103f3b22ef0510d1acccce988b69fa4299514340",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/LICENSE",
+                      "target":  "tools/sol-advisor/LICENSE",
+                      "expectedSha256":  "4b7cb698acb83bf55a912558a9ad9c45b3b54ea43b55d816dca511dbeeecd0f5",
+                      "actualSha256":  "4b7cb698acb83bf55a912558a9ad9c45b3b54ea43b55d816dca511dbeeecd0f5",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/package.json",
+                      "target":  "tools/sol-advisor/package.json",
+                      "expectedSha256":  "1fa998b4e4daa989a098f346406a75c293450d3066da0b91fffd8bd9a5ce1d7c",
+                      "actualSha256":  "1fa998b4e4daa989a098f346406a75c293450d3066da0b91fffd8bd9a5ce1d7c",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/README.md",
+                      "target":  "tools/sol-advisor/README.md",
+                      "expectedSha256":  "97f15a7e0d3d1e8e819fe01818d4773124dceade1cfd423372924cab336a423a",
+                      "actualSha256":  "97f15a7e0d3d1e8e819fe01818d4773124dceade1cfd423372924cab336a423a",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/.agents/plugins/marketplace.json",
+                      "target":  "tools/sol-advisor/.agents/plugins/marketplace.json",
+                      "expectedSha256":  "609b7b33b16ade438967d6c350e2cf7a44d71495204e7dee1019d7553571c610",
+                      "actualSha256":  "609b7b33b16ade438967d6c350e2cf7a44d71495204e7dee1019d7553571c610",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/.github/workflows/ci.yml",
+                      "target":  "tools/sol-advisor/.github/workflows/ci.yml",
+                      "expectedSha256":  "8c749234cd715d84bd6e31f98da6bc121068e29a8bf813db2460f017df4551ed",
+                      "actualSha256":  "8c749234cd715d84bd6e31f98da6bc121068e29a8bf813db2460f017df4551ed",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/.github/workflows/release.yml",
+                      "target":  "tools/sol-advisor/.github/workflows/release.yml",
+                      "expectedSha256":  "f0070175ab39a10ef255874d6fbe2d924d352a079cc2a22d43b433275d8395dc",
+                      "actualSha256":  "f0070175ab39a10ef255874d6fbe2d924d352a079cc2a22d43b433275d8395dc",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/mcp.json",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/mcp.json",
+                      "expectedSha256":  "abd2d663bbb59e154ffa69fe71dc313e8e3c77cc65cf275350cc032e252b9163",
+                      "actualSha256":  "abd2d663bbb59e154ffa69fe71dc313e8e3c77cc65cf275350cc032e252b9163",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/plugin.json",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/plugin.json",
+                      "expectedSha256":  "7dbd86c6429a95724f3d1c7ceb0163dac3787896db785006d460d2a454a0cd59",
+                      "actualSha256":  "7dbd86c6429a95724f3d1c7ceb0163dac3787896db785006d460d2a454a0cd59",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/.codex-plugin/plugin.json",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/.codex-plugin/plugin.json",
+                      "expectedSha256":  "75deec7097ee3e5047dd341799481769afa081009e6184150388b88253e105cc",
+                      "actualSha256":  "75deec7097ee3e5047dd341799481769afa081009e6184150388b88253e105cc",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/agents/sol-advisor-sol-reviewer.toml",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/agents/sol-advisor-sol-reviewer.toml",
+                      "expectedSha256":  "6ac63677bcc8677a9a743522cf06696c8edb1b005a61430e0fc8fa62e18dc355",
+                      "actualSha256":  "6ac63677bcc8677a9a743522cf06696c8edb1b005a61430e0fc8fa62e18dc355",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/agents/sol-advisor-terra-implementer.toml",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/agents/sol-advisor-terra-implementer.toml",
+                      "expectedSha256":  "48f56c0f07af38c1d6d920e68d1518aa5504fb87cd72673a715e56111b8992f6",
+                      "actualSha256":  "48f56c0f07af38c1d6d920e68d1518aa5504fb87cd72673a715e56111b8992f6",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/mcp/server.test.ts",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/mcp/server.test.ts",
+                      "expectedSha256":  "2290b94bbabeb849f2198599f094451257c3a70560ef2441f1caadbef032b7cd",
+                      "actualSha256":  "2290b94bbabeb849f2198599f094451257c3a70560ef2441f1caadbef032b7cd",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/mcp/server.ts",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/mcp/server.ts",
+                      "expectedSha256":  "4015629a06343c85a7d74421edc98c0eb2cacf556872ab78e52bf0e578a3131e",
+                      "actualSha256":  "4015629a06343c85a7d74421edc98c0eb2cacf556872ab78e52bf0e578a3131e",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/scripts/inspect-agent-runtime.sh",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/scripts/inspect-agent-runtime.sh",
+                      "expectedSha256":  "1abf6e37030d29398b98f07045fac913d5101abcc2ad441350f075b5fd6dbedb",
+                      "actualSha256":  "1abf6e37030d29398b98f07045fac913d5101abcc2ad441350f075b5fd6dbedb",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/scripts/install-agents.sh",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/scripts/install-agents.sh",
+                      "expectedSha256":  "86f7945c9f361f123f554d50fea118bf71fefcca0d2e34ae62ec27ecdc9ae822",
+                      "actualSha256":  "86f7945c9f361f123f554d50fea118bf71fefcca0d2e34ae62ec27ecdc9ae822",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/scripts/verify.sh",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/scripts/verify.sh",
+                      "expectedSha256":  "60f26d22a0769969214967dda24968edfb163d9fd3cca7e473fbce877a465b2f",
+                      "actualSha256":  "60f26d22a0769969214967dda24968edfb163d9fd3cca7e473fbce877a465b2f",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/skills/orchestration/SKILL.md",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/skills/orchestration/SKILL.md",
+                      "expectedSha256":  "f8014632afbfe23a01cd1343cd026887d6da34a1307b16dd8390a6ec1dd48528",
+                      "actualSha256":  "f8014632afbfe23a01cd1343cd026887d6da34a1307b16dd8390a6ec1dd48528",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/skills/orchestration/agents/openai.yaml",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/skills/orchestration/agents/openai.yaml",
+                      "expectedSha256":  "e1e758a65f78ce096ec84f8d9973bc8270e0c0e8e4bf14ec2e932929350756f9",
+                      "actualSha256":  "e1e758a65f78ce096ec84f8d9973bc8270e0c0e8e4bf14ec2e932929350756f9",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/skills/orchestration/references/luna-task-lane.md",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/skills/orchestration/references/luna-task-lane.md",
+                      "expectedSha256":  "8724785933c8741675434f277a42526297821f95ec51e9a1cb4049e610227c3f",
+                      "actualSha256":  "8724785933c8741675434f277a42526297821f95ec51e9a1cb4049e610227c3f",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/skills/orchestration/references/portable-entry.md",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/skills/orchestration/references/portable-entry.md",
+                      "expectedSha256":  "a06a47cf27bc7179eeda172f9a542f2d00266946702aca903454f29a89418d8f",
+                      "actualSha256":  "a06a47cf27bc7179eeda172f9a542f2d00266946702aca903454f29a89418d8f",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/skills/orchestration/references/role-contracts.md",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/skills/orchestration/references/role-contracts.md",
+                      "expectedSha256":  "9c264b9f139de4164a29509c90106e24dbb10a5aa3283d18e77a2f8f804f450a",
+                      "actualSha256":  "9c264b9f139de4164a29509c90106e24dbb10a5aa3283d18e77a2f8f804f450a",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/plugins/sol-advisor/skills/setup/SKILL.md",
+                      "target":  "tools/sol-advisor/plugins/sol-advisor/skills/setup/SKILL.md",
+                      "expectedSha256":  "085015d0b351e32b09d44c9790c659fa19c6207e0606150b6379c97789d60094",
+                      "actualSha256":  "085015d0b351e32b09d44c9790c659fa19c6207e0606150b6379c97789d60094",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/cursor-local.test.ts",
+                      "target":  "tools/sol-advisor/tools/cursor-local.test.ts",
+                      "expectedSha256":  "a6026dae87b7e0d6c097c9c01ceb3f9d3cbae1cb6922e422b1c89d93499bec66",
+                      "actualSha256":  "a6026dae87b7e0d6c097c9c01ceb3f9d3cbae1cb6922e422b1c89d93499bec66",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/cursor-local.ts",
+                      "target":  "tools/sol-advisor/tools/cursor-local.ts",
+                      "expectedSha256":  "5de9004bde399a90a14b7d4d3e30023222ed48a4f1a280f9bdff49e2bb27e0a9",
+                      "actualSha256":  "5de9004bde399a90a14b7d4d3e30023222ed48a4f1a280f9bdff49e2bb27e0a9",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/validate.ts",
+                      "target":  "tools/sol-advisor/tools/validate.ts",
+                      "expectedSha256":  "a9fb736100d41e74a27fc606595f98a7ba0de44335b60b92e2059c28766eb1e3",
+                      "actualSha256":  "a9fb736100d41e74a27fc606595f98a7ba0de44335b60b92e2059c28766eb1e3",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/cases.json",
+                      "target":  "tools/sol-advisor/tools/fixtures/cases.json",
+                      "expectedSha256":  "9d87b43249bc4f43754e839f13c8043366b0fa442eb734d4b99e94ad593b1889",
+                      "actualSha256":  "9d87b43249bc4f43754e839f13c8043366b0fa442eb734d4b99e94ad593b1889",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/negative-absolute.md",
+                      "target":  "tools/sol-advisor/tools/fixtures/negative-absolute.md",
+                      "expectedSha256":  "f269e14059773246dc3293b2c6c5adb64c0e9410ac772fc86f264a276e382e60",
+                      "actualSha256":  "f269e14059773246dc3293b2c6c5adb64c0e9410ac772fc86f264a276e382e60",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/negative-author-field.json",
+                      "target":  "tools/sol-advisor/tools/fixtures/negative-author-field.json",
+                      "expectedSha256":  "09b9b28eb7b7d17dccd288104000eaa16a71e08b759fc7f07b0744ccaacb6b0d",
+                      "actualSha256":  "09b9b28eb7b7d17dccd288104000eaa16a71e08b759fc7f07b0744ccaacb6b0d",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/negative-broken.md",
+                      "target":  "tools/sol-advisor/tools/fixtures/negative-broken.md",
+                      "expectedSha256":  "4e1b1b74e14d32f35296a20a36dac0737cedf49f5dbe7039820652d8d7773231",
+                      "actualSha256":  "4e1b1b74e14d32f35296a20a36dac0737cedf49f5dbe7039820652d8d7773231",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/negative-case.md",
+                      "target":  "tools/sol-advisor/tools/fixtures/negative-case.md",
+                      "expectedSha256":  "d2892f2498b99f07e7a50cc0acc45dc54d9e227569b0a0feb657321101a14d14",
+                      "actualSha256":  "d2892f2498b99f07e7a50cc0acc45dc54d9e227569b0a0feb657321101a14d14",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/negative-double-hyphen-name.json",
+                      "target":  "tools/sol-advisor/tools/fixtures/negative-double-hyphen-name.json",
+                      "expectedSha256":  "f81e4734b9b6459e63dc2119d216d5aadaf0f006f8ffebc75bbbeeea96311216",
+                      "actualSha256":  "f81e4734b9b6459e63dc2119d216d5aadaf0f006f8ffebc75bbbeeea96311216",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/negative-double-period-name.json",
+                      "target":  "tools/sol-advisor/tools/fixtures/negative-double-period-name.json",
+                      "expectedSha256":  "a02e4e86441e807777a3bcc2afec2a1654a3d1c535ee68bb95f46e42551275af",
+                      "actualSha256":  "a02e4e86441e807777a3bcc2afec2a1654a3d1c535ee68bb95f46e42551275af",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/negative-long-name.json",
+                      "target":  "tools/sol-advisor/tools/fixtures/negative-long-name.json",
+                      "expectedSha256":  "0e424b5ef807fa94d1fe5a67c9e6e663013e4bda43ef5154f337a0cc2f94a225",
+                      "actualSha256":  "0e424b5ef807fa94d1fe5a67c9e6e663013e4bda43ef5154f337a0cc2f94a225",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/negative-traversal.md",
+                      "target":  "tools/sol-advisor/tools/fixtures/negative-traversal.md",
+                      "expectedSha256":  "b9a3b28c01d6fca63b083193521ccf8299629a918827b647b894e18e1bb09dfc",
+                      "actualSha256":  "b9a3b28c01d6fca63b083193521ccf8299629a918827b647b894e18e1bb09dfc",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/negative-unknown-field.json",
+                      "target":  "tools/sol-advisor/tools/fixtures/negative-unknown-field.json",
+                      "expectedSha256":  "78f17d6dff50d1af37a8acc85d0d5abc2f06d98b0a12fee7a8ccadeb1a7db667",
+                      "actualSha256":  "78f17d6dff50d1af37a8acc85d0d5abc2f06d98b0a12fee7a8ccadeb1a7db667",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/positive-dotted-name.json",
+                      "target":  "tools/sol-advisor/tools/fixtures/positive-dotted-name.json",
+                      "expectedSha256":  "87113f7cfc969f847875760e92012770768384b8f85157fca086c95eee7cb092",
+                      "actualSha256":  "87113f7cfc969f847875760e92012770768384b8f85157fca086c95eee7cb092",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/positive-links.md",
+                      "target":  "tools/sol-advisor/tools/fixtures/positive-links.md",
+                      "expectedSha256":  "ca207b53d10ac63c35504f68b8cb910a2d1406c06453384b988040c193ec799c",
+                      "actualSha256":  "ca207b53d10ac63c35504f68b8cb910a2d1406c06453384b988040c193ec799c",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/positive-manifest.json",
+                      "target":  "tools/sol-advisor/tools/fixtures/positive-manifest.json",
+                      "expectedSha256":  "4bd6a2c909cfc62984c11e72fac9f9dc1492f0bbb7ad45834dad36ec8c4587cd",
+                      "actualSha256":  "4bd6a2c909cfc62984c11e72fac9f9dc1492f0bbb7ad45834dad36ec8c4587cd",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/positive-target.md",
+                      "target":  "tools/sol-advisor/tools/fixtures/positive-target.md",
+                      "expectedSha256":  "6b87ed25eea4c1254f3a922815259082c88e20d9c3789791617d4b02d922bea8",
+                      "actualSha256":  "6b87ed25eea4c1254f3a922815259082c88e20d9c3789791617d4b02d922bea8",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/skills/mismatch/wrong-dir/SKILL.md",
+                      "target":  "tools/sol-advisor/tools/fixtures/skills/mismatch/wrong-dir/SKILL.md",
+                      "expectedSha256":  "2852126de7052947381f0a0794f5c47efc83ef7dbd5060468798fd9bf75e98d7",
+                      "actualSha256":  "2852126de7052947381f0a0794f5c47efc83ef7dbd5060468798fd9bf75e98d7",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/skills/nested/container/deep-skill/SKILL.md",
+                      "target":  "tools/sol-advisor/tools/fixtures/skills/nested/container/deep-skill/SKILL.md",
+                      "expectedSha256":  "4fbed829c863ee3df2c12e67e406f59337ce400a223006a53c243921fda62163",
+                      "actualSha256":  "4fbed829c863ee3df2c12e67e406f59337ce400a223006a53c243921fda62163",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/fixtures/skills/valid/good-skill/SKILL.md",
+                      "target":  "tools/sol-advisor/tools/fixtures/skills/valid/good-skill/SKILL.md",
+                      "expectedSha256":  "d48cc9d106577bed5f7b39ca0d887045fa2d66c3024fa1584c6c9c1e0b0559ab",
+                      "actualSha256":  "d48cc9d106577bed5f7b39ca0d887045fa2d66c3024fa1584c6c9c1e0b0559ab",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/schema/agent-plugin-v1-mcp.schema.json",
+                      "target":  "tools/sol-advisor/tools/schema/agent-plugin-v1-mcp.schema.json",
+                      "expectedSha256":  "07700088623caf37f3da40a567392e9aeb70088caff16fe235d436a3a97bf129",
+                      "actualSha256":  "07700088623caf37f3da40a567392e9aeb70088caff16fe235d436a3a97bf129",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/schema/agent-plugin-v1-mcp.schema.sha256",
+                      "target":  "tools/sol-advisor/tools/schema/agent-plugin-v1-mcp.schema.sha256",
+                      "expectedSha256":  "3607d3fb06f355a07057aa2bded66d71e2f9cd0efec2d44a6ce9da4be3fa2885",
+                      "actualSha256":  "3607d3fb06f355a07057aa2bded66d71e2f9cd0efec2d44a6ce9da4be3fa2885",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/schema/agent-plugin-v1.schema.json",
+                      "target":  "tools/sol-advisor/tools/schema/agent-plugin-v1.schema.json",
+                      "expectedSha256":  "189e8df73f9108cd595970608593c2a41e50a67470967f1b239d6880af1348fa",
+                      "actualSha256":  "189e8df73f9108cd595970608593c2a41e50a67470967f1b239d6880af1348fa",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "sol-advisor",
+                      "source":  "sol-advisor/tools/schema/agent-plugin-v1.schema.sha256",
+                      "target":  "tools/sol-advisor/tools/schema/agent-plugin-v1.schema.sha256",
+                      "expectedSha256":  "ac285ff86f0b8dd5107ea856d016008d7930fcb5ab5ee6915af3d56e3f0a5b27",
+                      "actualSha256":  "ac285ff86f0b8dd5107ea856d016008d7930fcb5ab5ee6915af3d56e3f0a5b27",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "filesystem-move-preserve-nested-git"
+                  },
+                  {
+                      "surface":  "apps-script",
+                      "source":  "apps-script/pmp-collaboration/appsscript.json",
+                      "target":  "apps/apps-script/pmp-collaboration/appsscript.json",
+                      "expectedSha256":  "19ee03a74c4f00c92073bae9e0ed7284d506245914410deca27874163cd88355",
+                      "actualSha256":  "19ee03a74c4f00c92073bae9e0ed7284d506245914410deca27874163cd88355",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "git-mv"
+                  },
+                  {
+                      "surface":  "apps-script",
+                      "source":  "apps-script/pmp-collaboration/Code.gs",
+                      "target":  "apps/apps-script/pmp-collaboration/Code.gs",
+                      "expectedSha256":  "41b4a4daeeb1fb254b892d9c613644e6127faf0ca2475a7b3d1623bd2b1a9bea",
+                      "actualSha256":  "41b4a4daeeb1fb254b892d9c613644e6127faf0ca2475a7b3d1623bd2b1a9bea",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "git-mv"
+                  },
+                  {
+                      "surface":  "apps-script",
+                      "source":  "apps-script/pmp-collaboration/README.md",
+                      "target":  "apps/apps-script/pmp-collaboration/README.md",
+                      "expectedSha256":  "75540a538f79330281bf1cb18b2b757eddde152917605fb31e4df30a0673a7ab",
+                      "actualSha256":  "75540a538f79330281bf1cb18b2b757eddde152917605fb31e4df30a0673a7ab",
+                      "sourceExistsAfterMove":  false,
+                      "status":  "moved-hash-match",
+                      "gitMode":  "git-mv"
+                  }
+              ],
+    "summary":  {
+                    "filesPlanned":  68,
+                    "filesVerified":  67,
+                    "filesFailed":  0,
+                    "controlledAdjustments":  1,
+                    "surfaces":  "graph-viewer,sol-advisor,apps-script",
+                    "nestedGitPreserved":  "graph-viewer,sol-advisor"
+                }
+}

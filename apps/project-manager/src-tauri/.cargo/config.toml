@@ -1,0 +1,20 @@
+[build]
+# target-dir = "D:/target_tauri"
+# rustflags = ["-C", "link-arg=-fuse-ld=lld"]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+    "-C", "target-feature=-crt-static"
+]
+
+[env]
+CXXFLAGS = { value = "/MD", force = true }
+CFLAGS = { value = "/MD", force = true }
+
+[profile.dev]
+split-debuginfo = "unpacked"
+# Enable Cranelift for super fast dev builds (requires nightly or explicit backend)
+# codegen-backend = "cranelift" 
+
+[profile.dev.package."*"]
+opt-level = 3

@@ -1,0 +1,519 @@
+import { useEffect, useRef, useState, startTransition } from "react";
+import { safeInvoke as invoke, safeOpenDialog, IS_REAL_TAURI } from "@IMPLEMENT/lib/tauri";
+import { useSettingsStore } from "@CORE/stores/useSettingsStore";
+import { Project } from "@CONTRACT/types";
+import { projectApi } from "@/contracts/tauri-api";
+import { useTabStore } from "@IMPLEMENT/TabInProgram/useTabStore";
+import { backfillProjectPath } from "./projectPathUtils";
+import { openProjectBootstrap } from "@SHARED/utils/designIpc";
+import { invalidateAll } from "@DESIGN/features/map/coordinateCache";
+import { resetTelemetry } from "@DESIGN/features/map/mapStartupTelemetry";
+
+const debugGroup = (...args: unknown[]) => {
+    if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.group(...args);
+};
+const debugGroupEnd = () => {
+    if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.groupEnd();
+};
+const debugInfo = (...args: unknown[]) => {
+    if (import.meta.env.VITE_DEBUG_LOGS === 'true') console.info(...args);
+};
+
+const normalizeProject = (project: Project | null | undefined): Project | null => {
+    if (!project || !project.path) {
+        return null;
+    }
+
+    return {
+        ...project,
+        id: String(project.id ?? ""),
+        name: project.name ?? "",
+        path: project.path,
+        description: project.description ?? null,
+        contract_number: project.contract_number ?? null,
+        investor: project.investor ?? null,
+        contractor: project.contractor ?? null,
+        signed_date: project.signed_date ?? null,
+        duration: project.duration ?? null,
+        end_date: project.end_date ?? null,
+        status: (project.status as Project["status"]) ?? "active",
+        created_at: project.created_at ?? "",
+        updated_at: project.updated_at ?? "",
+    };
+};
+
+const isProjectLoadable = (project: Project | null | undefined): project is Project =>
+    !!project && !!project.id && !!project.path;
+
+const startupHydrationInFlight = new Set<string>();
+
+/**
+ * Creates a promise that rejects with a timeout error after `ms` milliseconds.
+ * The timer is cleared after rejection to avoid memory leaks.
+ * Use with `Promise.race` to enforce a hard deadline on async operations.
+ */
+const createTimeoutPromise = (ms: number): Promise<never> =>
+    new Promise<never>((_, reject) => {
+        const timer = setTimeout(() => {
+            clearTimeout(timer);
+            reject(new Error(`Bootstrap timed out after ${ms / 1000}s`));
+        }, ms);
+    });
+
+export function useProjectManager() {
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    const [loadingProjects, setLoadingProjects] = useState(true);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+    const { loadSettings } = useSettingsStore();
+
+    // Guard against stale hydration after F5. Any new open request invalidates older loaders.
+    const requestIdRef = useRef(0);
+    const projectsRef = useRef<Project[]>([]);
+    const selectedProjectRef = useRef<Project | null>(null);
+    const indexingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const openingPathRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        projectsRef.current = projects;
+    }, [projects]);
+
+    useEffect(() => {
+        selectedProjectRef.current = selectedProject;
+    }, [selectedProject]);
+
+    const loadProjects = async () => {
+        const requestId = ++requestIdRef.current;
+        debugGroup(`[useProjectManager] loadProjects Process #${requestId}`);
+        debugInfo("Starting loadProjects sequence...");
+
+        setLoadingProjects(true);
+        let hydratedProject: Project | null = normalizeProject(selectedProjectRef.current);
+
+        try {
+            const [activeProjectResult, recentProjectsResult] = await Promise.allSettled([
+                invoke<Project | null>("get_active_project"),
+                invoke<Project[]>("get_recent_projects"),
+            ]);
+
+            if (requestId !== requestIdRef.current) {
+                console.warn("Request ID mismatch (Stale request), aborting hydration.");
+                debugGroupEnd();
+                return;
+            }
+
+            const activeProject = activeProjectResult.status === "fulfilled"
+                ? normalizeProject(activeProjectResult.value)
+                : null;
+            debugInfo("Backend Active Project Result:", activeProject?.name || "None");
+
+            if (isProjectLoadable(activeProject)) {
+                debugInfo(`[useProjectManager] Hydrating active project from backend: ${activeProject.name}`);
+                hydratedProject = activeProject;
+            }
+
+            const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
+            const currentSyncState = useDesignSync.getState();
+
+            const isAlreadyLoaded = hydratedProject
+                ? currentSyncState.projectId === hydratedProject.id
+                    && currentSyncState.state
+                    && !currentSyncState.isLoading
+                : false;
+
+            // Fire bootstrap early only if project is not already loaded into design sync
+            const activePath = hydratedProject?.path;
+            const bootstrapPromise = activePath && !isAlreadyLoaded
+                ? openProjectBootstrap(activePath, requestId)
+                : Promise.resolve(null);
+
+            let currentProjects: Project[] = [];
+            if (recentProjectsResult.status === "fulfilled") {
+                currentProjects = (Array.isArray(recentProjectsResult.value) ? recentProjectsResult.value : [])
+                    .map(normalizeProject)
+                    .filter((project): project is Project => project !== null);
+                debugInfo(`Loaded ${currentProjects.length} recent projects from backend`);
+                localStorage.setItem("recent_pmps", JSON.stringify(currentProjects));
+            } else {
+                console.warn("Backend recent projects not available, falling back to localStorage:", recentProjectsResult.reason);
+                const saved = localStorage.getItem("recent_pmps");
+                if (saved) {
+                    try {
+                        currentProjects = (JSON.parse(saved) as Project[])
+                            .map(normalizeProject)
+                            .filter((project): project is Project => project !== null);
+                    } catch (e) {
+                        console.error("Failed to parse local projects:", e);
+                    }
+                }
+            }
+
+            debugInfo("Final Hydrated Project:", hydratedProject?.name || "None");
+            hydratedProject = backfillProjectPath(hydratedProject, currentProjects);
+
+            // Update recent projects and selectedProject state immediately — no need to wait for bootstrap
+            setProjects(currentProjects);
+
+            if (isProjectLoadable(hydratedProject)) {
+                selectedProjectRef.current = hydratedProject;
+                setSelectedProject(hydratedProject);
+                const hydrationKey = `${hydratedProject.id}@${hydratedProject.path}`;
+                if (!isAlreadyLoaded && !startupHydrationInFlight.has(hydrationKey)) {
+                    startupHydrationInFlight.add(hydrationKey);
+                    try {
+                        const isNetworkPath = activePath ? (activePath.includes('Shared drives') || activePath.startsWith('\\\\') || activePath.toLowerCase().includes('google drive') || activePath.toLowerCase().includes('onedrive')) : false;
+                        const timeoutMs = isNetworkPath ? 120_000 : 30_000;
+                        const bootstrap = await Promise.race([bootstrapPromise, createTimeoutPromise(timeoutMs)]).catch((err: unknown) => {
+                            const isTimeout = err instanceof Error && err.message.startsWith('Bootstrap timed out');
+                            if (isTimeout) {
+                                console.warn(`[useProjectManager] Bootstrap timed out after ${timeoutMs / 1000}s for path:`, activePath);
+                                currentSyncState.setError(`Không thể nạp dữ liệu dự án do quá thời gian chờ (${timeoutMs / 1000}s). Vui lòng thử lại.`);
+                                return null;
+                            }
+                            throw err;
+                        });
+                        if (requestId !== requestIdRef.current) {
+                            console.warn("[useProjectManager] Startup bootstrap became stale; skipping initialize.");
+                            return;
+                        }
+                        if (!bootstrap) {
+                            console.warn("[useProjectManager] Startup bootstrap failed/timed out; skipping initialize.");
+                            return;
+                        }
+                        // Invalidate coordinate cache before switching project data
+                        invalidateAll();
+                        // Wrap initialize() in startTransition so React can yield during this non-urgent update
+                        startTransition(() => {
+                            currentSyncState.initialize(hydratedProject!.id, hydratedProject!.path, { bootstrap });
+                        });
+                    } catch (err) {
+                        console.warn("[useProjectManager] Startup project bootstrap failed:", err);
+                    } finally {
+                        startupHydrationInFlight.delete(hydrationKey);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Critical error in loadProjects:", err);
+        } finally {
+            if (requestId === requestIdRef.current) {
+                setLoadingProjects(false);
+            }
+            debugGroupEnd();
+        }
+    };
+
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        loadProjects();
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        loadSettings();
+
+        return () => {
+            if (indexingTimeoutRef.current) {
+                clearTimeout(indexingTimeoutRef.current);
+                indexingTimeoutRef.current = null;
+            }
+        };
+    }, []);
+
+    const refreshProject = async () => {
+        if (!selectedProjectRef.current) return;
+
+        try {
+            const projectData = (await invoke<Project[]>("get_projects"))
+                .map(normalizeProject)
+                .filter((project): project is Project => project !== null);
+            if (projectData && projectData.length > 0) {
+                const current = selectedProjectRef.current;
+                const project = projectData.find((x) => x.id === current?.id) || projectData[0];
+                selectedProjectRef.current = project;
+                setSelectedProject(project);
+            }
+        } catch (e) {
+            console.error("Failed to refresh project:", e);
+        }
+    };
+
+    const scheduleProjectIndexing = (projectId: string) => {
+        indexingTimeoutRef.current = setTimeout(() => {
+            projectApi.indexFiles(projectId).catch(console.error);
+            indexingTimeoutRef.current = null;
+        }, 3000);
+    };
+
+    const applyOpenedProject = (project: Project, persistLastOpened: boolean) => {
+        selectedProjectRef.current = project;
+        setSelectedProject(project);
+
+        const nextRecent = [project, ...projectsRef.current.filter((x) => x.path !== project.path)]
+            .map(normalizeProject)
+            .filter((item): item is Project => item !== null)
+            .slice(0, 10);
+        projectsRef.current = nextRecent;
+        setProjects(nextRecent);
+
+        projectApi.saveRecentProjects(nextRecent).catch((err) => {
+            console.warn("Failed to save recent projects to backend, using localStorage:", err);
+            localStorage.setItem("recent_pmps", JSON.stringify(nextRecent));
+        });
+
+        if (persistLastOpened) {
+            projectApi.saveLastOpenedProject(project).catch(console.error);
+        }
+
+        useTabStore.getState().addTab({
+            id: project.id,
+            name: project.name,
+            path: project.path
+        });
+    };
+
+    const mergeProjectMetadata = (base: Project, update: Project): Project => ({
+        ...base,
+        ...update,
+        id: update.id || base.id,
+        name: update.name || base.name,
+        path: update.path || base.path,
+    });
+
+    const handleOpenProject = async (pathToOpen?: string) => {
+        const requestId = ++requestIdRef.current;
+        const openStart = performance.now();
+        let selectedPathForCleanup: string | null = null;
+        debugGroup(`[useProjectManager] handleOpenProject Process #${requestId}`);
+        debugInfo("Path to open:", pathToOpen || "Manual selection");
+
+        try {
+            if (indexingTimeoutRef.current) {
+                debugInfo("Clearing existing indexing timeout...");
+                clearTimeout(indexingTimeoutRef.current);
+                indexingTimeoutRef.current = null;
+            }
+
+            const isTauri = IS_REAL_TAURI;
+            const selectedPath = pathToOpen || await safeOpenDialog({
+                filters: [{ name: "PMP Database", extensions: ["pmp"] }],
+                multiple: false,
+                directory: false,
+            });
+
+            if (!selectedPath || typeof selectedPath !== "string") {
+                if (!isTauri && !pathToOpen) {
+                    console.warn("[useProjectManager] File dialog skipped: Not in Tauri environment.");
+                }
+                return false;
+            }
+
+            if (openingPathRef.current === selectedPath) {
+                console.warn("[useProjectManager] Skip duplicate open while same path is already loading:", selectedPath);
+                return false;
+            }
+            openingPathRef.current = selectedPath;
+            selectedPathForCleanup = selectedPath;
+            resetTelemetry();
+
+            const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
+
+            // Check if project is already loaded — skip full bootstrap to avoid redundant IPC
+            const syncState = useDesignSync.getState();
+            const pathAlreadyActive = syncState.projectPath === selectedPath || syncState.projectKey === selectedPath;
+            if (pathAlreadyActive && syncState.state && !syncState.isLoading && !syncState.error) {
+                debugInfo(`[useProjectManager] Project already loaded at path, skipping bootstrap: ${selectedPath}`);
+                const existingProject = projectsRef.current.find(p => p.path === selectedPath);
+                if (existingProject) {
+                    applyOpenedProject(existingProject, false);
+                    return true;
+                }
+            }
+
+            const isNetworkPath = selectedPath.includes('Shared drives') || selectedPath.startsWith('\\\\') || selectedPath.toLowerCase().includes('google drive') || selectedPath.toLowerCase().includes('onedrive');
+            const timeoutMs = isNetworkPath ? 120_000 : 30_000;
+            debugInfo(`[useProjectManager] Attempting to bootstrap PMP file: ${selectedPath} (NetworkPath: ${isNetworkPath}, Timeout: ${timeoutMs / 1000}s)`);
+            const bootstrapStart = performance.now();
+            const bootstrap = await Promise.race([
+                openProjectBootstrap(selectedPath, requestId),
+                createTimeoutPromise(timeoutMs),
+            ]).catch((err: unknown) => {
+                const isTimeout = err instanceof Error && err.message.startsWith('Bootstrap timed out');
+                if (isTimeout) {
+                    console.warn(`[useProjectManager] Bootstrap timed out after ${timeoutMs / 1000}s for path:`, selectedPath);
+                }
+                throw err;
+            });
+            if (!bootstrap) {
+                throw new Error("open_project_bootstrap returned no bootstrap data");
+            }
+            bootstrap.openPerformanceHint = {
+                ...(bootstrap.openPerformanceHint || {}),
+                openClickMs: performance.now() - openStart,
+                bootstrapMs: performance.now() - bootstrapStart,
+                openProjectBootstrapMs: performance.now() - bootstrapStart,
+                open_project_bootstrapMs: performance.now() - bootstrapStart,
+            };
+            if (bootstrap.openRequestId && bootstrap.openRequestId !== requestId) {
+                console.warn("Open request ID mismatch (Stale bootstrap), aborting.");
+                debugGroupEnd();
+                return false;
+            }
+            const migratedProject = normalizeProject(bootstrap.project as Project);
+            debugInfo("open_project_bootstrap result:", migratedProject?.name || "Null");
+
+            if (requestId !== requestIdRef.current) {
+                console.warn("Request ID mismatch (Stale open request), aborting.");
+                debugGroupEnd();
+                return false;
+            }
+
+            let recoveredProject = migratedProject;
+            if (!isProjectLoadable(recoveredProject)) {
+                debugInfo("[useProjectManager] load_pmp_file returned null, attempting fallback to active project...");
+                recoveredProject = normalizeProject(await invoke<Project | null>("get_active_project"));
+            }
+
+            if (isProjectLoadable(recoveredProject)) {
+                const optimisticProject = projectsRef.current.find((project) => project.path === selectedPath);
+                const project = optimisticProject
+                    ? mergeProjectMetadata(optimisticProject, recoveredProject)
+                    : recoveredProject;
+                debugInfo(`[useProjectManager] Successfully resolved project: ${project.name} (ID: ${project.id})`);
+
+                const currentSyncState = useDesignSync.getState();
+                const isAlreadyLoaded = currentSyncState.projectId === project.id && currentSyncState.state && !currentSyncState.isLoading;
+
+                // Defer project state commits with initialization so the click task can yield promptly.
+                startTransition(() => {
+                    applyOpenedProject(project, true);
+                    void currentSyncState.initialize(project.id, project.path, {
+                        forceReload: !isAlreadyLoaded,
+                        bootstrap
+                    });
+                });
+                scheduleProjectIndexing(project.id);
+
+                return true;
+            }
+
+            console.warn("[useProjectManager] Failed to load PMP: Project not loadable or busy. Path:", selectedPath);
+            alert("Không thể nạp tệp PMP. Tệp có thể đang trống hoặc đang được mở bởi một tiến trình khác.");
+        } catch (e) {
+            console.error("Error opening PMP:", e);
+            const isTauri = IS_REAL_TAURI;
+            const errorDetail = e instanceof Error
+                ? e.message
+                : typeof e === 'string'
+                    ? e
+                    : e == null
+                        ? ''
+                        : JSON.stringify(e);
+            if (isTauri) {
+                alert(`Lỗi hệ thống khi nạp tệp PMP:\n${errorDetail || "Vui lòng kiểm tra lại đường dẫn."}`);
+            } else {
+                console.warn("[useProjectManager] Suppression of alert in browser environment:", errorDetail);
+            }
+        } finally {
+            if (selectedPathForCleanup && openingPathRef.current === selectedPathForCleanup) {
+                openingPathRef.current = null;
+            }
+            debugGroupEnd();
+        }
+
+        return false;
+    };
+
+    const handleDeleteProject = (e: React.MouseEvent, project: Project) => {
+        e.stopPropagation();
+        setProjectToDelete(project);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!projectToDelete) return;
+
+        try {
+            if (selectedProjectRef.current?.id === projectToDelete.id) {
+                selectedProjectRef.current = null;
+                setSelectedProject(null);
+                await projectApi.closeProject().catch((err) => {
+                    console.warn("Could not close active project while removing from recent:", err);
+                });
+            }
+
+            try {
+                await projectApi.deleteProject(projectToDelete.id);
+            } catch (err) {
+                console.warn("Could not remove project metadata from backend:", err);
+            }
+
+            const updatedProjects = projects.filter((project) => project.path !== projectToDelete.path);
+            setProjects(updatedProjects);
+            localStorage.setItem("recent_pmps", JSON.stringify(updatedProjects));
+
+            // V4.1: Remove from Tab Store
+            useTabStore.getState().removeTab(projectToDelete.id);
+
+            setIsDeleteModalOpen(false);
+            setProjectToDelete(null);
+        } catch (err) {
+            console.error("Failed to delete project:", err);
+            alert("Lỗi khi xóa dự án.");
+        }
+    };
+
+    const handleRestoreFromConfig = async () => {
+        try {
+            const config = await invoke<{ recent_pmps: Project[] }>("get_app_config");
+            if (config.recent_pmps && config.recent_pmps.length > 0) {
+                debugInfo(`Restoring ${config.recent_pmps.length} projects from config...`);
+                const normalizedProjects = config.recent_pmps
+                    .map(normalizeProject)
+                    .filter((project): project is Project => project !== null);
+                setProjects(normalizedProjects);
+
+                // Save to backend
+                projectApi.saveRecentProjects(normalizedProjects)
+                    .catch((err) => {
+                        console.warn("Failed to save to backend, using localStorage:", err);
+                        localStorage.setItem("recent_pmps", JSON.stringify(normalizedProjects));
+                    });
+                alert(`Đã khôi phục thành công ${config.recent_pmps.length} dự án từ cấu hình hệ thống.`);
+            } else {
+                alert("Cấu hình hệ thống chưa có thông tin dự án cũ.");
+            }
+        } catch (err) {
+            console.error("Restore error:", err);
+            alert("Lỗi khi khôi phục từ backend.");
+        }
+    };
+
+    const handleCloseProject = async () => {
+        debugInfo("[useProjectManager] Closing active project...");
+        try {
+            await projectApi.closeProject();
+            selectedProjectRef.current = null;
+            setSelectedProject(null);
+            debugInfo("[useProjectManager] Project closed successfully.");
+        } catch (e) {
+            console.error("[useProjectManager] Failed to close project:", e);
+        }
+    };
+
+    return {
+        projects,
+        setProjects,
+        selectedProject,
+        setSelectedProject,
+        loadingProjects,
+        loadProjects,
+        refreshProject,
+        handleOpenProject,
+        handleCloseProject,
+        handleDeleteProject,
+        handleRestoreFromConfig,
+        isDeleteModalOpen,
+        setIsDeleteModalOpen,
+        projectToDelete,
+        confirmDelete,
+    };
+}

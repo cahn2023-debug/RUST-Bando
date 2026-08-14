@@ -1,21 +1,19 @@
 # Directory Map
 
-Last audited: 2026-08-05
+Last audited: 2026-08-14
 
 ## Product Code
 
 | Path | Role | Status |
 | --- | --- | --- |
-| `src/` | Frontend app source. | ACTIVE |
-| `src/core/` | Shared frontend runtime areas, including basemap. | ACTIVE |
-| `src/modules/home/` | App shell, bootstrap, dashboard, workspace. | ACTIVE |
-| `src/modules/design/` | Design UI, map features, palette/CAD UI. | ACTIVE |
-| `src/modules/implement/` | Project management, auth/settings/layout stores, services. | ACTIVE |
-| `src/modules/contract/` | Contract/domain types and views. | ACTIVE |
-| `src/shared/` | Shared frontend utilities and components. | ACTIVE |
-| `src-tauri/` | Tauri/Rust backend. | ACTIVE |
-| `src-tauri/src/domain/` | Backend domain modules and commands. | ACTIVE |
-| `src-tauri/crates/` | Rust workspace crates. | ACTIVE |
+| `apps/project-manager/` | Project Manager tab, including React/Vite and Tauri/Rust code. | ACTIVE |
+| `apps/project-manager/src/` | Project Manager frontend source. | ACTIVE |
+| `apps/project-manager/src-tauri/` | Project Manager Tauri/Rust backend and workspace crates. | ACTIVE |
+| `apps/graph-viewer/` | Bando knowledge-graph viewer tab. | ACTIVE |
+| `apps/apps-script/pmp-collaboration/` | Google Apps Script integration tab. | ACTIVE |
+| `tools/sol-advisor/` | Sol Advisor validation/orchestration tool. | ACTIVE |
+| `packages/` | Shared code baseline; empty until cross-tab reuse is proven. | ACTIVE |
+| `data/` | Canonical shared data hub and migration manifests. | ACTIVE |
 
 ## Documentation And Planning
 
@@ -42,7 +40,7 @@ Last audited: 2026-08-05
 | `.knowns/` | Knowns database/artifacts. | NEEDS_REVIEW |
 | `.specify/` | Speckit configuration/templates. | NEEDS_REVIEW |
 | `Resources/references/para-workspace/` | External/reference docs. | ARCHIVE_CANDIDATE |
-| `bando-graph-viewer/` | Separate graph viewer/reference area. | NEEDS_REVIEW |
+| `apps/graph-viewer/` | Separate graph viewer tab with nested Git boundary. | ACTIVE |
+| `tools/sol-advisor/` | Validation/orchestration tool with nested Git boundary. | ACTIVE |
 | `BAK/` | Backup/old material. | ARCHIVE_CANDIDATE |
 | `dist/`, `node_modules/`, `.codegraph/`, `.git/` | Build, dependency, index, VCS internals. | Out of audit docs |
-
