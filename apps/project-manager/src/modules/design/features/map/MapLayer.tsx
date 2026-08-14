@@ -44,7 +44,7 @@ export function MapLayer({
     }
 
     const content = (
-        <div className="relative w-full h-full overflow-hidden design-map-container pointer-events-none">
+        <div className="relative w-full h-full overflow-hidden design-map-container pointer-events-auto">
             <MapLibreFastRenderer
                 center={center}
                 zoom={zoom}

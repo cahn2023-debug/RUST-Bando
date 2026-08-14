@@ -58,7 +58,7 @@ export function ZoomToHandler() {
                 const maxLng = Number(bbox.max_x);
                 const maxLat = Number(bbox.max_y);
                 if (![minLng, minLat, maxLng, maxLat].every(Number.isFinite)) return false;
-                map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 50, maxZoom });
+                map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 60, maxZoom, duration: 400 });
                 return true;
             };
 

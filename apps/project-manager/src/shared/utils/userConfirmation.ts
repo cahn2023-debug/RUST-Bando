@@ -5,17 +5,20 @@ export interface UserConfirmationOptions {
   fallbackOnDialogError?: boolean;
 }
 
-export const confirmUserAction = (
+export const confirmUserAction = async (
   message: string,
   _options: UserConfirmationOptions = {}
 ): Promise<boolean> => {
-  let confirmed = false;
   try {
-    if (typeof globalThis.confirm === 'function') {
-      confirmed = globalThis.confirm(message) === true;
+    if (typeof globalThis !== 'undefined' && typeof globalThis.confirm === 'function') {
+      const result = globalThis.confirm(message);
+      if (result instanceof Promise) {
+        return (await result.catch(() => false)) === true;
+      }
+      return result === true;
     }
   } catch {
-    confirmed = false;
+    return false;
   }
-  return Promise.resolve(confirmed);
+  return false;
 };

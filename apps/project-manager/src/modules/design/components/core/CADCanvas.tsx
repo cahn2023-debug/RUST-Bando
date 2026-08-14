@@ -3,7 +3,6 @@ import { MapLayer } from "@DESIGN/features/map/MapLayer";
 import { CoordinatePanel } from "@DESIGN/components/core/CoordinatePanel";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import { useCanvasInteraction } from "@IMPLEMENT/hooks/useCanvasInteraction";
-import { MapSearchBar } from "@DESIGN/features/map/MapLayerComponents/MapSearchBar";
 import { useDrawingInteraction } from "@DESIGN/hooks/useDrawingInteraction";
 import { MapProvider } from "@DESIGN/features/map/MapContext";
 
@@ -22,8 +21,8 @@ function CADCanvasContent() {
   const { handleLocationChange, finalizePolyline, finishDrawingSession } = useDrawingInteraction();
 
   return (
-    <div ref={containerRef} className="relative flex-1 overflow-hidden group bg-transparent pointer-events-none">
-      <div className="absolute inset-0 z-0 pointer-events-none">
+    <div ref={containerRef} className="relative flex-1 overflow-hidden group bg-transparent pointer-events-auto">
+      <div className="absolute inset-0 z-0 pointer-events-auto">
         <MapLayer
           center={INITIAL_CENTER}
           zoom={13}
@@ -31,10 +30,6 @@ function CADCanvasContent() {
           onFinishDrawing={finalizePolyline}
           onFinishDrawingSession={finishDrawingSession}
         />
-      </div>
-
-      <div className="pointer-events-auto">
-        <MapSearchBar />
       </div>
 
       <div className="pointer-events-auto">

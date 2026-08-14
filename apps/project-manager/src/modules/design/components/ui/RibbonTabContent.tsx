@@ -173,10 +173,6 @@ export const DesignRibbonTools = ({
             <VisibilityTool />
         </ToolGroup>
         <RibbonSeparator />
-        <ToolGroup label="GIS">
-            <ToolButton onClick={toggleCoordinatePanel} active={isCoordinatePanelOpen} icon={Globe} label="TỌA ĐỘ" />
-        </ToolGroup>
-        <RibbonSeparator />
         <ToolGroup label="DATA">
             <ToolButton onClick={onOpenReport} icon={FileText} label="BÁO CÁO" />
             <ToolButton onClick={() => onOpenStandalone('analysis')} icon={BarChart2} label="ANALYSIS" />

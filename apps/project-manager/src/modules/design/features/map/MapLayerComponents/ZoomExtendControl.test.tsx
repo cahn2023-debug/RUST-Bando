@@ -151,7 +151,7 @@ describe('ZoomExtendControl', () => {
         await waitFor(() => {
             expect(mockMapState.map.fitBounds).toHaveBeenCalledWith(
                 expect.objectContaining({ points: [[105.8, 21.02], [105.8, 21.02]] }),
-                { padding: 50, maxZoom: 18 }
+                { padding: 60, maxZoom: 18, duration: 400 }
             );
         });
     });

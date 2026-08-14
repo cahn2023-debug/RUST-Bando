@@ -102,7 +102,7 @@ export function ZoomExtendControl() {
             if (count > 0 && Number.isFinite(minLat) && Number.isFinite(minLng)) {
                 console.log(`[ZoomExtend] Single-pass processed ${count} points.`);
                 const bounds = new maplibregl.LngLatBounds([minLng, minLat], [maxLng, maxLat]);
-                map.fitBounds(bounds, { padding: 50, maxZoom: 18 });
+                map.fitBounds(bounds, { padding: 60, maxZoom: 18, duration: 400 });
                 lastZoomedProjectId.current = projectId;
                 lastTrigger.current = zoomExtendTrigger;
             } else {
