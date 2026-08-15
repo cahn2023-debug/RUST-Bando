@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Ribbon } from "@DESIGN/components/ui/Ribbon";
 import { StatusBar } from "@DESIGN/components/ui/StatusBar";
 import { TopToolbar } from "@DESIGN/components/ui/TopToolbar";
@@ -24,12 +24,17 @@ import { announce } from "@TOOL/utils/accessibility";
 import { getCurrentWindow, listen } from "@/contracts/tauri-api/runtime";
 import { useAuthStore } from "@CORE/stores/useAuthStore";
 import { MapProvider } from "@DESIGN/features/map/MapContext";
+import { confirmUserAction } from "@SHARED/utils/userConfirmation";
 import "./WorkspaceGrid.css";
+
+const UNSAVED_DESIGN_WARNING =
+  "Màn hình DESIGN có thay đổi chưa lưu. Nếu tiếp tục mà không lưu, các đối tượng mới hoặc chỉnh sửa sẽ không có trong file .pmp và không hiển thị khi mở lại. Bạn có muốn tiếp tục mà không lưu không?";
 
 export default function App() {
   const { loadSettings } = useSettingsStore();
   const { logout } = useAuthStore();
   const pendingSync = useDesignSync((state) => state.pendingSync);
+  const hasUnsavedChanges = useDesignSync((state) => state.hasUnsavedChanges);
   const syncStatus = useDesignSync((state) => state.syncStatus);
   const syncError = useDesignSync((state) => state.error);
   const flushPendingPersists = useDesignSync((state) => state.flushPendingPersists);
@@ -55,10 +60,20 @@ export default function App() {
     confirmDelete,
   } = useProjectManager();
 
+  const confirmUnsavedDesignExit = useCallback(async () => {
+    if (!hasUnsavedChanges) return true;
+    return confirmUserAction(UNSAVED_DESIGN_WARNING);
+  }, [hasUnsavedChanges]);
+
+  const guardedHandleOpenProject = useCallback(async (path?: string) => {
+    if (selectedProject && !(await confirmUnsavedDesignExit())) return false;
+    return handleOpenProject(path);
+  }, [confirmUnsavedDesignExit, handleOpenProject, selectedProject]);
+
   const handleSaveProject = async () => {
     if (!selectedProject) return;
     try {
-      if (pendingSync && !syncError) {
+      if ((pendingSync || hasUnsavedChanges) && !syncError) {
         await flushPendingPersists();
       }
       await safeInvoke("save_project");
@@ -121,7 +136,7 @@ export default function App() {
   }, [keytipsActive, dismissKeytips]);
 
   // Application bootstrap and side effects
-  useAppBootstrap(handleOpenProject, () => setActiveTab("DESIGN"));
+  useAppBootstrap(guardedHandleOpenProject, () => setActiveTab("DESIGN"));
 
   useEffect(() => {
     loadSettings();
@@ -130,7 +145,7 @@ export default function App() {
   const handleForceSave = async () => {
     if (!selectedProject) return;
     try {
-      if (pendingSync && !syncError) {
+      if ((pendingSync || hasUnsavedChanges) && !syncError) {
         await flushPendingPersists();
       }
       await safeInvoke("force_save_project");
@@ -188,10 +203,14 @@ export default function App() {
           handleForceSave();
           break;
         case "refresh":
-          window.location.reload();
+          void (async () => {
+            if (await confirmUnsavedDesignExit()) window.location.reload();
+          })();
           break;
         case "logout":
-          logout();
+          void (async () => {
+            if (await confirmUnsavedDesignExit()) logout();
+          })();
           break;
         case "help":
           announce("Help documentation is currently unavailable.");
@@ -201,7 +220,7 @@ export default function App() {
     return () => {
       unlisten.then(f => f());
     };
-  }, [selectedProject, pendingSync, logout]);
+  }, [confirmUnsavedDesignExit, logout, pendingSync, selectedProject]);
 
   useEffect(() => {
     const unlisten = listen<{
@@ -257,9 +276,7 @@ export default function App() {
       event.preventDefault();
 
       void (async () => {
-        if (pendingSync && !syncError) {
-          await flushPendingPersists();
-        }
+        if (!(await confirmUnsavedDesignExit())) return;
 
         // Real page reload to reset all states cleanly
         window.location.reload();
@@ -268,31 +285,41 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [pendingSync, syncError, flushPendingPersists, selectedProject]);
+  }, [confirmUnsavedDesignExit]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = UNSAVED_DESIGN_WARNING;
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const selectFeature = useDesignSync(s => s.selectFeature);
   const setSelectedGroup = useDesignSync(s => s.setSelectedGroup);
 
   const handleTabChange = (newTab: string) => {
-    if (newTab === "HOME") {
-      void (async () => {
-        if (selectedProject) {
-          try {
-            if (pendingSync && !syncError) {
-              await flushPendingPersists();
-            }
-            await safeInvoke("save_project");
-            requestStorageHealthRefresh();
-          } catch (e) {
-            console.error("[App] Auto-save before closing project failed:", e);
-          }
-        }
-      })();
-      selectFeature(null);
-      setSelectedGroup(null);
-      handleCloseProject();
-    }
-    setActiveTab(newTab);
+    void (async () => {
+      if (newTab === "HOME") {
+        if (!(await confirmUnsavedDesignExit())) return;
+        selectFeature(null);
+        setSelectedGroup(null);
+        await handleCloseProject();
+      } else if (activeTab === "DESIGN" && newTab !== "DESIGN") {
+        if (!(await confirmUnsavedDesignExit())) return;
+      }
+
+      setActiveTab(newTab);
+    })();
+  };
+
+  const handleConfirmDelete = async () => {
+    if (projectToDelete?.id === selectedProject?.id && !(await confirmUnsavedDesignExit())) return;
+    await confirmDelete();
   };
 
   return (
@@ -313,20 +340,27 @@ export default function App() {
                 onTabSwitch={async (id: string) => {
                   const tab = useTabStore.getState().tabs.find(t => t.id === id);
                   if (tab) {
-                    if (activeTab === 'HOME') {
+                    const wasHome = activeTab === 'HOME';
+                    if (wasHome) {
                       setActiveTab('DESIGN');
                     }
-                    const success = await handleOpenProject(tab.path);
-                    if (!success && activeTab === 'HOME') {
-                      setActiveTab('HOME');
+                    const success = await guardedHandleOpenProject(tab.path);
+                    if (!success) {
+                      useTabStore.getState().setActiveTab(selectedProject?.id ?? '');
+                      if (wasHome) setActiveTab('HOME');
+                      return false;
                     }
+                    return true;
                   }
+                  return false;
                 }}
-                onTabClose={() => {
-                  if (useTabStore.getState().tabs.length === 0) {
+                onTabClose={async (id) => {
+                  if (id === selectedProject?.id && !(await confirmUnsavedDesignExit())) return false;
+                  if (useTabStore.getState().tabs.length === 1) {
                     setActiveTab('HOME');
-                    handleCloseProject();
+                    await handleCloseProject();
                   }
+                  return true;
                 }}
               />
             </div>
@@ -348,7 +382,7 @@ export default function App() {
             selectedProject={selectedProject}
             onSave={handleSaveProject}
             onForceSave={handleForceSave}
-            onOpenProject={handleOpenProject}
+            onOpenProject={guardedHandleOpenProject}
             onShowCreate={() => setShowCreate(true)}
             onNavigateTab={handleTabChange}
             onLogout={logout}
@@ -378,14 +412,14 @@ export default function App() {
                 <HomeDashboard
                   projects={projects}
                   loadingProjects={loadingProjects}
-                  onOpenProject={handleOpenProject}
+                  onOpenProject={guardedHandleOpenProject}
                   onDeleteProject={(event, project) => {
                     handleDeleteProject(event, project);
                     return Promise.resolve();
                   }}
                   onSelectProject={async (project) => {
                     setActiveTab("DESIGN");
-                    const success = await handleOpenProject(project.path);
+                    const success = await guardedHandleOpenProject(project.path);
                     if (!success) setActiveTab("HOME");
                   }}
                   onShowCreate={() => setShowCreate(true)}
@@ -401,11 +435,11 @@ export default function App() {
             showCreate={showCreate}
             setShowCreate={setShowCreate}
             loadProjects={loadProjects}
-            handleOpenProject={handleOpenProject}
+            handleOpenProject={guardedHandleOpenProject}
             setActiveTab={setActiveTab}
             isDeleteModalOpen={isDeleteModalOpen}
             setIsDeleteModalOpen={setIsDeleteModalOpen}
-            confirmDelete={confirmDelete}
+            confirmDelete={handleConfirmDelete}
             projectToDelete={projectToDelete}
           />
         </div>

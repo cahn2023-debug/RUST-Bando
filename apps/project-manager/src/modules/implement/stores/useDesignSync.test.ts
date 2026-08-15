@@ -40,6 +40,8 @@ describe('useDesignSync Store', () => {
             projectKey: null,
             state: null,
             pendingSync: false,
+            hasUnsavedChanges: false,
+            draftEvents: [],
             visibleFeatures: {},
             visibleFeatureIds: [],
             featureDetailsCache: {},
@@ -282,6 +284,88 @@ describe('useDesignSync Store', () => {
         const [, args] = vi.mocked(safeInvoke).mock.calls[0];
         expect((args as any).events).toHaveLength(1);
         expect(useDesignSync.getState().pendingSync).toBe(false);
+    });
+
+    it('keeps canvas-created features in draft state until an explicit flush', async () => {
+        vi.mocked(safeInvoke).mockResolvedValue({
+            success: true,
+            last_event_id: 'evt-draft-1',
+            applied_events: [],
+            side_effects: [],
+        });
+
+        useDesignSync.setState({
+            projectId: 'project-1',
+            projectKey: 'id:project-1',
+            state: {
+                regions: {},
+                layers: {},
+                feature_groups: {},
+                features: {},
+                settings: {},
+            },
+        });
+
+        await useDesignSync.getState().stageEvent({
+            type: 'FeatureCreated',
+            payload: {
+                id: 'draft-feature-1',
+                layer_id: 'layer-1',
+                group_id: 'group-1',
+                name: 'Draft feature',
+                geom_type: 'POINT',
+                coordinates: [105.8, 21.0],
+                properties: {},
+                metadata: '{}',
+            },
+        });
+
+        expect(useDesignSync.getState().state?.features['draft-feature-1']).toBeDefined();
+        expect(useDesignSync.getState().hasUnsavedChanges).toBe(true);
+        expect(useDesignSync.getState().draftEvents).toHaveLength(1);
+        expect(safeInvoke).not.toHaveBeenCalled();
+
+        await useDesignSync.getState().flushPendingPersists();
+
+        expect(safeInvoke).toHaveBeenCalledTimes(1);
+        expect((vi.mocked(safeInvoke).mock.calls[0][1] as any).events).toHaveLength(1);
+        expect(useDesignSync.getState().draftEvents).toHaveLength(0);
+        expect(useDesignSync.getState().hasUnsavedChanges).toBe(false);
+        expect(useDesignSync.getState().pendingSync).toBe(false);
+    });
+
+    it('clears draft objects when the design store is reset before reopening', async () => {
+        useDesignSync.setState({
+            projectId: 'project-1',
+            projectKey: 'id:project-1',
+            state: {
+                regions: {},
+                layers: {},
+                feature_groups: {},
+                features: {},
+                settings: {},
+            },
+        });
+
+        await useDesignSync.getState().stageEvent({
+            type: 'FeatureCreated',
+            payload: {
+                id: 'draft-feature-2',
+                layer_id: 'layer-1',
+                group_id: 'group-1',
+                name: 'Discarded feature',
+                geom_type: 'POINT',
+                coordinates: [105.8, 21.0],
+                properties: {},
+                metadata: '{}',
+            },
+        });
+
+        useDesignSync.getState().reset();
+
+        expect(useDesignSync.getState().state).toBeNull();
+        expect(useDesignSync.getState().draftEvents).toHaveLength(0);
+        expect(useDesignSync.getState().hasUnsavedChanges).toBe(false);
     });
 
     it('should ignore sparse default feature ack fields that would erase intersection child state', () => {

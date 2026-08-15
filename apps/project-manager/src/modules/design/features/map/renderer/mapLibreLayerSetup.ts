@@ -53,15 +53,7 @@ export const emptyOverlayCollection: MapLibreFastFeatureCollection = {
 export const createMapStyle = (): maplibregl.StyleSpecification => ({
     version: 8,
     sources: {},
-    layers: [
-        {
-            id: 'neutral-background',
-            type: 'background',
-            paint: {
-                'background-color': '#e5e7eb',
-            },
-        },
-    ],
+    layers: [],
 });
 
 export const setGeoJsonData = (

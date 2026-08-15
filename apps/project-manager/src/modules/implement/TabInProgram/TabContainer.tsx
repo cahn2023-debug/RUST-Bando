@@ -3,22 +3,24 @@ import { useTabStore } from './useTabStore';
 import './TabContainer.css';
 
 interface TabContainerProps {
-    onTabSwitch?: (id: string) => void;
-    onTabClose?: (id: string) => void;
+    onTabSwitch?: (id: string) => void | boolean | Promise<void | boolean>;
+    onTabClose?: (id: string) => void | boolean | Promise<void | boolean>;
 }
 
 export const TabContainer: React.FC<TabContainerProps> = ({ onTabSwitch, onTabClose }) => {
     const { tabs, activeTabId, setActiveTab, removeTab } = useTabStore();
 
-    const handleTabClick = (id: string) => {
+    const handleTabClick = async (id: string) => {
+        const shouldSwitch = await onTabSwitch?.(id);
+        if (shouldSwitch === false) return;
         setActiveTab(id);
-        onTabSwitch?.(id);
     };
 
-    const handleClose = (e: React.MouseEvent, id: string) => {
+    const handleClose = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
+        const shouldClose = await onTabClose?.(id);
+        if (shouldClose === false) return;
         removeTab(id);
-        onTabClose?.(id);
     };
 
     if (tabs.length === 0) return null;

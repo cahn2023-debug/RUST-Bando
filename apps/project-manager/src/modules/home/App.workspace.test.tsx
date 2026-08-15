@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => {
   };
   const designSyncState = {
     pendingSync: false,
+    hasUnsavedChanges: false,
     syncStatus: 0,
     error: null,
     selectedFeatureId: null,
@@ -42,7 +43,9 @@ const mocks = vi.hoisted(() => {
 
   return {
     project,
+    designSyncState,
     handleOpenProject: vi.fn(),
+    handleCloseProject: vi.fn(),
     refreshProject: vi.fn(),
     useDesignSync,
   };
@@ -62,7 +65,7 @@ vi.mock("@IMPLEMENT/hooks/useProjectManager", () => ({
     loadProjects: vi.fn(),
     refreshProject: mocks.refreshProject,
     handleOpenProject: mocks.handleOpenProject,
-    handleCloseProject: vi.fn(),
+    handleCloseProject: mocks.handleCloseProject,
     handleDeleteProject: vi.fn(),
     handleRestoreFromConfig: vi.fn(),
     isDeleteModalOpen: false,
@@ -94,9 +97,12 @@ vi.mock("@DESIGN/components/ui/StatusBar", () => ({
 
 vi.mock("@DESIGN/components/ui/Ribbon", () => ({
   Ribbon: ({ activeTab, onTabChange }: { activeTab: string; onTabChange: (tab: string) => void }) => (
-    <button type="button" onClick={() => onTabChange("DESIGN")}>
-      Ribbon:{activeTab}
-    </button>
+    <div>
+      <button type="button" onClick={() => onTabChange("DESIGN")}>Design</button>
+      <button type="button" onClick={() => onTabChange("IMPLEMENT")}>Implement</button>
+      <button type="button" onClick={() => onTabChange("HOME")}>Home</button>
+      <span>Ribbon:{activeTab}</span>
+    </div>
   ),
 }));
 
@@ -177,6 +183,9 @@ describe("App workspace rendering", () => {
   beforeEach(() => {
     mocks.handleOpenProject.mockReset();
     mocks.handleOpenProject.mockResolvedValue(true);
+    mocks.handleCloseProject.mockReset();
+    mocks.designSyncState.hasUnsavedChanges = false;
+    vi.restoreAllMocks();
   });
 
   it("renders ProjectDetail directly instead of the workspace Suspense fallback", async () => {
@@ -189,5 +198,39 @@ describe("App workspace rendering", () => {
       expect(screen.getByTestId("project-detail")).toHaveTextContent("Demo Project:DESIGN");
     });
     expect(screen.queryByText("Loading Workspace Module...")).not.toBeInTheDocument();
+  });
+
+  it("warns only when leaving DESIGN with unsaved changes", async () => {
+    const user = userEvent.setup();
+    mocks.designSyncState.hasUnsavedChanges = true;
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Design" }));
+    await waitFor(() => expect(screen.getByTestId("project-detail")).toHaveTextContent("Demo Project:DESIGN"));
+    expect(confirmSpy).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Implement" }));
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("project-detail")).toHaveTextContent("Demo Project:DESIGN");
+
+    confirmSpy.mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "Implement" }));
+    await waitFor(() => expect(screen.getByTestId("project-detail")).toHaveTextContent("Demo Project:IMPLEMENT"));
+  });
+
+  it("warns before closing the current project without auto-saving", async () => {
+    const user = userEvent.setup();
+    mocks.designSyncState.hasUnsavedChanges = true;
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Design" }));
+    await waitFor(() => expect(screen.getByTestId("project-detail")).toHaveTextContent("Demo Project:DESIGN"));
+    await user.click(screen.getByRole("button", { name: "Home" }));
+
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(mocks.handleCloseProject).not.toHaveBeenCalled();
+    expect(screen.getByTestId("project-detail")).toHaveTextContent("Demo Project:DESIGN");
   });
 });

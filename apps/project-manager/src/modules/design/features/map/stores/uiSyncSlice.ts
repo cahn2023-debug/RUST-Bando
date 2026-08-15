@@ -51,6 +51,8 @@ const onUiSyncFailure = (): boolean => {
 export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlice> = (set, get) => ({
     isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
     pendingSync: false,
+    hasUnsavedChanges: false,
+    draftEvents: [],
     isMigrating: false,
     isSaving: false,
     lastSync: null,
@@ -222,7 +224,7 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
     flushPendingPersists: async () => {
         const { syncWithBackend, projectId } = get();
         const targetProjectId = bufferedProjectId ?? projectId;
-        if (!targetProjectId || eventBuffer.length === 0) return;
+        if (!targetProjectId) return;
 
         if (flushTimeout) {
             clearTimeout(flushTimeout);
@@ -236,11 +238,25 @@ export const createUISyncSlice: StateCreator<DesignSyncStore, [], [], UISyncSlic
         bufferedProjectId = null;
 
         try {
-            const result = await syncWithBackend(targetProjectId, batch);
+            if (batch.length > 0) {
+                const result = await syncWithBackend(targetProjectId, batch);
+                get().applyQueuedAckToState(result);
+                resolvers.forEach(({ resolve }) => resolve(result));
+            }
+
+            const draftEvents = get().draftEvents;
+            if (draftEvents.length > 0) {
+                const result = await syncWithBackend(targetProjectId, draftEvents);
+                get().applyQueuedAckToState(result);
+                set({
+                    draftEvents: [],
+                    hasUnsavedChanges: false,
+                });
+            }
+
             set({ pendingSync: false });
-            resolvers.forEach(({ resolve }) => resolve(result));
         } catch (err) {
-            set({ pendingSync: false });
+            set({ pendingSync: Boolean(get().draftEvents.length) });
             resolvers.forEach(({ reject }) => reject(err));
             throw err;
         }

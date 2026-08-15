@@ -213,6 +213,59 @@ describe("useProjectManager", () => {
     );
   });
 
+  it("rehydrates persisted state when reopening an active project after discarding drafts", async () => {
+    mockInvoke.mockImplementation(async (command: string, args?: Record<string, unknown>) => {
+      switch (command) {
+        case "get_active_project":
+          return null;
+        case "get_recent_projects":
+          return [];
+        case "open_project_bootstrap":
+          return bootstrapFor(backendProject, args?.openRequestId as number);
+        case "save_recent_projects":
+        case "save_last_opened_project":
+          return null;
+        default:
+          return null;
+      }
+    });
+
+    const { result } = renderHook(() => useProjectManager());
+    await waitFor(() => expect(result.current.loadingProjects).toBe(false));
+
+    await act(async () => {
+      expect(await result.current.handleOpenProject(backendProject.path)).toBe(true);
+    });
+
+    mockInitializeDesign.mockClear();
+    mockDesignState = {
+      projectPath: backendProject.path,
+      state: { features: { "draft-feature": {} } },
+      isLoading: false,
+      hasUnsavedChanges: true,
+    };
+
+    await act(async () => {
+      expect(await result.current.handleOpenProject(backendProject.path)).toBe(true);
+    });
+
+    expect(mockInitializeDesign).toHaveBeenCalledWith(
+      backendProject.id,
+      backendProject.path,
+      { forceReload: true }
+    );
+  });
+
+  it("resets design runtime state when closing a project", async () => {
+    const { result } = renderHook(() => useProjectManager());
+
+    await act(async () => {
+      await result.current.handleCloseProject();
+    });
+
+    expect(mockResetDesign).toHaveBeenCalledTimes(1);
+  });
+
   it("does not queue map tile build when bootstrap reports ready cache", async () => {
     const cachedBootstrap = {
       ...bootstrapFor(backendProject, 1),

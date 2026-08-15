@@ -201,6 +201,8 @@ export type InitializationSlice = {
 export type UISyncSlice = {
     isOnline: boolean;
     pendingSync: boolean;
+    hasUnsavedChanges: boolean;
+    draftEvents: DesignEventType[];
     isMigrating: boolean;
     isSaving: boolean;
     lastSync: number | null;
@@ -223,6 +225,8 @@ export type UISyncSlice = {
 };
 
 export type DesignActionSlice = {
+    stageEvent: (event: DesignEventType) => Promise<void>;
+    stageEvents: (events: DesignEventType[]) => Promise<void>;
     dispatchEvent: (event: DesignEventType) => Promise<void>;
     dispatchEvents: (events: DesignEventType[]) => Promise<void>;
     queueEvent: (event: DesignEventType) => Promise<void>;

@@ -90,6 +90,8 @@ describe('useDrawingInteraction', () => {
             dispatchEvents: vi.fn().mockResolvedValue(undefined) as any,
             queueEvent: queueEvent as any,
             queueEvents: queueEvents as any,
+            stageEvent: dispatchEvent as any,
+            stageEvents: queueEvents as any,
         });
     });
 
@@ -386,6 +388,7 @@ describe('useDrawingInteraction', () => {
         const batchedQueueEvents = vi.fn().mockResolvedValue(undefined);
         useDesignSync.setState({
             queueEvents: batchedQueueEvents as any,
+            stageEvents: batchedQueueEvents as any,
             drawingMode: 'polyline',
             currentDrawingPoints: [[20, 10], [22, 12]],
             currentDrawingSnapIds: ['cabinet-1', 'camera-1'],
@@ -491,6 +494,7 @@ describe('useDrawingInteraction', () => {
         const batchedQueueEvents = vi.fn().mockResolvedValue(undefined);
         useDesignSync.setState({
             queueEvents: batchedQueueEvents as any,
+            stageEvents: batchedQueueEvents as any,
             drawingMode: 'polyline',
             currentDrawingPoints: [[20, 10], [21, 11]],
             currentDrawingSnapIds: ['cabinet-1', 'intersection-1'],

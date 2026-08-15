@@ -75,6 +75,11 @@ export function useProjectManager() {
     const indexingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const openingPathRef = useRef<string | null>(null);
 
+    const resetDesignState = async () => {
+        const { useDesignSync } = await import("@IMPLEMENT/stores/useDesignSync");
+        useDesignSync.getState().reset();
+    };
+
     useEffect(() => {
         projectsRef.current = projects;
     }, [projects]);
@@ -324,6 +329,9 @@ export function useProjectManager() {
                 const existingProject = projectsRef.current.find(p => p.path === selectedPath);
                 if (existingProject) {
                     applyOpenedProject(existingProject, false);
+                    if (syncState.hasUnsavedChanges) {
+                        await syncState.initialize(existingProject.id, existingProject.path, { forceReload: true });
+                    }
                     return true;
                 }
             }
@@ -438,6 +446,7 @@ export function useProjectManager() {
                 await projectApi.closeProject().catch((err) => {
                     console.warn("Could not close active project while removing from recent:", err);
                 });
+                await resetDesignState();
             }
 
             try {
@@ -493,6 +502,7 @@ export function useProjectManager() {
             await projectApi.closeProject();
             selectedProjectRef.current = null;
             setSelectedProject(null);
+            await resetDesignState();
             debugInfo("[useProjectManager] Project closed successfully.");
         } catch (e) {
             console.error("[useProjectManager] Failed to close project:", e);

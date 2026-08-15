@@ -45,16 +45,14 @@ export function useDrawingInteraction() {
         drawingMode,
         selectedGroupId,
         activeParentFeatureId,
-        dispatchEvent,
         setDrawingMode,
         addDrawingPoint,
         currentDrawingPoints,
         currentDrawingSnapIds,
         networkConnectionDraft,
         clearNetworkConnectionDraft,
-        dispatchEvents,
-        queueEvent,
-        queueEvents,
+        stageEvent,
+        stageEvents,
     } = useDesignSync();
 
     const finalizePolyline = useCallback(async () => {
@@ -224,14 +222,14 @@ export function useDrawingInteraction() {
         if (!(await confirmUserAction('Xác nhận thêm tuyến mới với các điểm và liên kết hiện tại?'))) return;
 
         if (events.length > 1) {
-            await queueEvents(events);
+            await stageEvents(events);
         } else {
-            await queueEvent(events[0]);
+            await stageEvent(events[0]);
         }
 
         setDrawingMode('none');
         clearNetworkConnectionDraft();
-    }, [currentDrawingPoints, selectedGroupId, state, projectId, activeParentFeatureId, currentDrawingSnapIds, dispatchEvent, dispatchEvents, queueEvent, queueEvents, setDrawingMode, networkConnectionDraft, clearNetworkConnectionDraft]);
+    }, [currentDrawingPoints, selectedGroupId, state, projectId, activeParentFeatureId, currentDrawingSnapIds, stageEvent, stageEvents, setDrawingMode, networkConnectionDraft, clearNetworkConnectionDraft]);
 
     const finishDrawingSession = useCallback(() => {
         if (drawingMode === 'polyline' && (networkConnectionDraft || currentDrawingPoints.length >= 2)) {
@@ -275,7 +273,7 @@ export function useDrawingInteraction() {
 
             if (!(await confirmUserAction(`Xác nhận thêm "${defaults.name}" tại vị trí đã chọn?`))) return;
 
-            await dispatchEvent({
+            await stageEvent({
                 type: 'FeatureCreated',
                 payload: buildFeatureCreatedPayload({
                     id: crypto.randomUUID(),
@@ -290,7 +288,7 @@ export function useDrawingInteraction() {
         } else if (drawingMode === 'polyline') {
             addDrawingPoint(lat, lng, snapId);
         }
-    }, [drawingMode, selectedGroupId, state, activeParentFeatureId, dispatchEvent, setDrawingMode, addDrawingPoint]);
+    }, [drawingMode, selectedGroupId, state, activeParentFeatureId, stageEvent, setDrawingMode, addDrawingPoint]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {

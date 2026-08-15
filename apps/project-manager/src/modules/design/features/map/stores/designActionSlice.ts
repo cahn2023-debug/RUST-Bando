@@ -47,6 +47,23 @@ const tryRecoveryInitialize = (get: () => DesignSyncStore, projectId: string) =>
 };
 
 export const createDesignActionSlice: StateCreator<DesignSyncStore, [], [], DesignActionSlice> = (set, get) => ({
+    stageEvent: async (event) => get().stageEvents([event]),
+
+    stageEvents: (events) => {
+        const { projectId, state, isHydrating } = get();
+        if (!projectId || !state || isHydrating || events.length === 0) return Promise.resolve();
+
+        const preparedEvents = events.map(enrichEventBeforeDispatch);
+        get().applyEventsOptimistically(events);
+        set((current) => ({
+            draftEvents: [...current.draftEvents, ...preparedEvents],
+            hasUnsavedChanges: true,
+            pendingSync: true,
+            error: null,
+        }));
+        return Promise.resolve();
+    },
+
     dispatchEvent: async (incomingEvent) => {
         const { projectId, state, lastDispatchTime, isHydrating } = get();
         if (!projectId || !state || isHydrating) return;

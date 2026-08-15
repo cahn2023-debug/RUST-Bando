@@ -100,7 +100,7 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
     clearNetworkConnectionDraft: () => set({ networkConnectionDraft: null }),
 
     setDrawingPoint: async (index, lat, lng, snapId = null) => {
-        const { state, editingFeatureId, dispatchEvent, activeParentFeatureId } = get();
+        const { state, editingFeatureId, stageEvent, activeParentFeatureId } = get();
         if (!editingFeatureId || !state?.features[editingFeatureId]) return;
 
         const feature = state.features[editingFeatureId];
@@ -240,14 +240,14 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
             payload.metadata = JSON.stringify(currentMeta);
         }
 
-        await dispatchEvent({
+        await stageEvent({
             type: 'FeatureUpdated',
             payload
         });
     },
 
     insertDrawingPoint: async (index, lat, lng) => {
-        const { editingFeatureId, state, dispatchEvent, activeParentFeatureId } = get();
+        const { editingFeatureId, state, stageEvent, activeParentFeatureId } = get();
         if (!editingFeatureId || !state?.features[editingFeatureId]) return;
 
         const feature = state.features[editingFeatureId];
@@ -294,14 +294,14 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
             });
         }
 
-        await dispatchEvent({
+        await stageEvent({
             type: 'FeatureUpdated',
             payload
         });
     },
 
     deleteDrawingPoint: async (index) => {
-        const { editingFeatureId, state, dispatchEvent } = get();
+        const { editingFeatureId, state, stageEvent } = get();
         if (!editingFeatureId || !state?.features[editingFeatureId]) return;
 
         const feature = state.features[editingFeatureId];
@@ -339,7 +339,7 @@ export const createDrawingSlice: StateCreator<DesignSyncStore, [], [], DrawingSl
             });
         }
 
-        await dispatchEvent({
+        await stageEvent({
             type: 'FeatureUpdated',
             payload
         });
