@@ -62,6 +62,16 @@ const symbolIdByAlias = new Map(
   FEATURE_SYMBOL_DEFINITIONS.flatMap((definition) => definition.aliases.map((alias) => [alias.toLowerCase(), definition.id] as const)),
 );
 
+// Map extra manifest entries directly to canonical symbols
+Object.entries(MAP_ICON_MANIFEST).forEach(([key, config]) => {
+  if (config.iconKey) {
+    symbolIdByAlias.set(key.toLowerCase(), config.iconKey);
+    (config.aliases || []).forEach(alias => {
+      symbolIdByAlias.set(alias.toLowerCase(), config.iconKey!);
+    });
+  }
+});
+
 const symbolDefinitionById = new Map(FEATURE_SYMBOL_DEFINITIONS.map((definition) => [definition.id, definition] as const));
 
 export const getFeatureSymbolDefinition = (icon: IconType): FeatureSymbolDefinition => (
@@ -69,6 +79,18 @@ export const getFeatureSymbolDefinition = (icon: IconType): FeatureSymbolDefinit
 );
 
 const SAFE_COLOR_PATTERN = /^(?:#[0-9a-f]{3,8}|rgba?\([\d\s.,%+-]+\)|hsla?\([\d\s.,%+-]+\)|[a-z]+)$/i;
+
+const CSS_VARIABLE_COLOR_MAP: Record<string, string> = {
+  '--cad-obj-camera': '#3b82f6',
+  '--cad-obj-node': '#6366f1',
+  '--cad-obj-pole': '#94a3b8',
+  '--cad-obj-cabinet': '#3b82f6',
+  '--cad-obj-splice': '#10b981',
+  '--cad-obj-odf': '#8b5cf6',
+  '--cad-obj-splitter': '#ec4899',
+  '--cad-line-default': '#10b981',
+  '--cad-line-signal': '#10b981',
+};
 
 export const normalizeIconKey = (icon: unknown): IconType => {
   const normalizedIcon = typeof icon === 'string' ? icon.trim().toLowerCase() : '';
@@ -94,8 +116,27 @@ export const isKnownObjectType = (objectType: unknown): boolean => {
 export const getObjectTypeForIcon = (icon: IconType): string => getFeatureSymbolDefinition(icon).objectType;
 
 export const normalizeFeatureColor = (value: unknown, fallback = DEFAULT_FEATURE_COLOR): string => {
-  const color = typeof value === 'string' ? value.trim() : '';
-  return color && SAFE_COLOR_PATTERN.test(color) ? color : fallback;
+  if (typeof value !== 'string') return fallback;
+  const raw = value.trim();
+  if (!raw) return fallback;
+
+  // Resolve var(--var-name, fallbackHex)
+  if (raw.startsWith('var(')) {
+    const varMatch = raw.match(/var\((--[a-zA-Z0-9_-]+)(?:,\s*([^)]+))?\)/);
+    if (varMatch) {
+      const varName = varMatch[1];
+      const inlineFallback = varMatch[2]?.trim();
+      if (CSS_VARIABLE_COLOR_MAP[varName]) {
+        return CSS_VARIABLE_COLOR_MAP[varName];
+      }
+      if (inlineFallback && SAFE_COLOR_PATTERN.test(inlineFallback)) {
+        return inlineFallback;
+      }
+    }
+    return fallback;
+  }
+
+  return SAFE_COLOR_PATTERN.test(raw) ? raw : fallback;
 };
 
 export const normalizeFeatureSize = (

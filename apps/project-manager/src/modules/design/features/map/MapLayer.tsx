@@ -12,7 +12,7 @@ import {
 } from '@DESIGN/features/map/MapLayerComponents';
 import { DORILegend } from '@DESIGN/features/map/MapLayerComponents/DORILegend';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
-import { MapLibreFastRenderer } from './MapLibreFastRenderer';
+import { CADCanvasEngine } from '@DESIGN/features/canvas/CADCanvasEngine';
 
 interface MapLayerProps {
     center: [number, number];
@@ -43,16 +43,16 @@ export function MapLayer({
     }
 
     const content = (
-        <div className="relative w-full h-full overflow-hidden design-map-container pointer-events-auto">
-            <MapLibreFastRenderer
-                center={center}
-                zoom={zoom}
-                onLocationChange={(lat, lng, snapId) => onLocationChange?.(lat, lng, 0, snapId as any)}
+        <div className="relative w-full h-full overflow-hidden design-map-container pointer-events-auto bg-[#0b0f19]">
+            {/* Pure CAD Canvas 2D Engine (Non-Map Independent) */}
+            <CADCanvasEngine
+                initialCenter={center}
+                initialZoom={zoom}
+                onLocationChange={onLocationChange}
                 onFinishDrawing={onFinishDrawing}
                 onFinishDrawingSession={onFinishDrawingSession}
                 isMeasureActive={isMeasureActive}
             />
-
 
             {showDORILayers && (
                 <div className="absolute bottom-6 right-16 z-cad-map-control pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-200">

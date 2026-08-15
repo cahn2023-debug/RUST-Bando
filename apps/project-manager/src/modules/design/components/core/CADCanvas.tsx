@@ -41,7 +41,10 @@ function CADCanvasContent() {
     const list: Device3DProps[] = [];
 
     Object.values(state.features).forEach((f) => {
-      if (!f || f.geom_type !== 'POINT') return;
+      if (!f) return;
+      const geom = String(f.geom_type || '').toUpperCase();
+      if (geom.includes('LINE') || geom.includes('POLYLINE') || geom.includes('POLYGON') || geom === 'NETWORKLINK') return;
+
       const coords = getPointCoordinates(f);
       if (!coords) return;
       const [lng, lat] = coords;
@@ -64,8 +67,8 @@ function CADCanvasContent() {
   }, [state?.features]);
 
   return (
-    <div ref={containerRef} className="relative flex-1 overflow-hidden group bg-transparent pointer-events-auto">
-      {/* 2D Map Layer View */}
+    <div ref={containerRef} className="relative flex-1 overflow-hidden group bg-[#0b0f19] pointer-events-auto">
+      {/* 2D CAD Canvas Layer View */}
       <div className={`absolute inset-0 z-0 pointer-events-auto transition-opacity duration-300 ${show3DMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <MapLayer
           center={INITIAL_CENTER}
