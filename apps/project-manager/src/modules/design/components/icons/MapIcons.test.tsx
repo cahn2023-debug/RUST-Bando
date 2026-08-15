@@ -45,4 +45,12 @@ describe('MapIcons', () => {
     expect(svg).not.toContain('style=');
     expect(svg).not.toContain('filter=');
   });
+
+  it.each(['info_cabinet', 'light_cabinet'])('renders cabinet icon %s through the shared SVG contract', (type) => {
+    const svg = getIconSvgString(type, '#f97316', 32, 4);
+
+    expect(svg).toContain('<svg');
+    expect(svg).toContain('#f97316');
+    expect(svg).toContain('>4</text>');
+  });
 });

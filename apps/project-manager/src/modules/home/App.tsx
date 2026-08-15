@@ -226,6 +226,7 @@ export default function App() {
           selectedPopupLocation: trigger.type === 'location' ? trigger.location || null : null,
           editingFeatureId: isVector ? feature.id : null,
           previewMetadata: null,
+          previewMetadataById: {},
           selectionSet: new Set([feature.id]),
           zoomToTrigger: trigger,
         });

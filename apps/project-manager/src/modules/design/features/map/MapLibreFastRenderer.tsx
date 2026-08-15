@@ -332,6 +332,7 @@ export function MapLibreFastRenderer({
         hoverId: s.hoverId,
         groupThemePreview: s.groupThemePreview,
         previewMetadata: s.previewMetadata,
+        previewMetadataById: s.previewMetadataById,
         showFeatureGroups: s.showFeatureGroups,
         mapRevision: s.state?.mapRevision || 0,
         initialBounds: s.state?.initialBounds as BootstrapBounds,
@@ -368,7 +369,7 @@ export function MapLibreFastRenderer({
 
     // Destructure slices for use throughout the component
     const { features, rawFeatures, featureDetailsCache, mapState, isLargeProject, featureGroups,
-        selectedFeatureId, hoverId, groupThemePreview, previewMetadata, showFeatureGroups,
+        selectedFeatureId, hoverId, groupThemePreview, previewMetadata, previewMetadataById, showFeatureGroups,
         mapRevision, initialBounds, viewportRevision, viewportFeatureLimit } = renderSlice;
     const { editingFeatureId, drawingMode, currentDrawingPoints, snappedPoint } = editSlice;
     const { projectId, zoomToTrigger, mapHiddenIds } = uiSlice;
@@ -440,11 +441,13 @@ export function MapLibreFastRenderer({
         featureNumberKey(featureNumberMap),
         stableJsonKey(groupThemePreview),
         stableJsonKey(previewMetadata),
+        stableJsonKey(previewMetadataById),
     ].join('::'), [
         featureGroups,
         featureNumberMap,
         groupThemePreview,
         previewMetadata,
+        previewMetadataById,
         isLargeProject,
         effectiveHiddenIds,
         reportCaptureFocusIds,
@@ -466,6 +469,7 @@ export function MapLibreFastRenderer({
             featureNumberMap,
             groupThemePreview,
             previewMetadata,
+            previewMetadataById,
         });
         const lodPolicy = { ...result.lodPolicy, clusterPoints: showFeatureGroups };
         return {
@@ -478,6 +482,7 @@ export function MapLibreFastRenderer({
         featureNumberMap,
         groupThemePreview,
         previewMetadata,
+        previewMetadataById,
         effectiveHiddenIds,
         reportCaptureFocusIds,
         renderCacheKey,

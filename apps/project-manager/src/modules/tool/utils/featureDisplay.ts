@@ -1,20 +1,34 @@
 import { Circle, MapPin } from "lucide-react";
-import { Intersection, PolylineIcon, CameraCCTV, CameraPTZ, CameraSpeed, CameraLPR } from '../../design/components/icons/MapIcons';
+import { Intersection, PolylineIcon, CameraCCTV, CameraPTZ, CameraSpeed, CameraLPR, InfoCabinetIcon, LightCabinetIcon } from '../../design/components/icons/MapIcons';
 import { getParsedMetadata, safeString } from "./featureMetadata";
 import type { FeatureProperties, IconType } from '@CONTRACT/types';
 import {
   DEFAULT_FEATURE_COLOR,
   DEFAULT_LINE_COLOR,
+  FEATURE_SYMBOL_DEFINITIONS,
+  getFeatureSymbolDefinition,
+  getObjectTypeForIcon,
+  isKnownIconValue,
+  isKnownObjectType,
   normalizeFeatureColor,
   normalizeIconKey,
 } from './featureSymbolStyle';
 
-export { normalizeIconKey };
+export { getObjectTypeForIcon, normalizeIconKey };
 
 /**
  * Camera icon types
  */
-export const CAMERA_ICONS = ['camera', 'cctv', 'ptz', 'speed', 'lpr'];
+export const CAMERA_ICONS = FEATURE_SYMBOL_DEFINITIONS
+    .filter(({ id }) => ['cctv', 'ptz', 'speed', 'lpr'].includes(id))
+    .flatMap(({ aliases }) => aliases);
+
+/**
+ * Cabinet icon types
+ */
+export const CABINET_ICONS = FEATURE_SYMBOL_DEFINITIONS
+    .filter(({ id }) => ['info_cabinet', 'light_cabinet'].includes(id))
+    .flatMap(({ aliases }) => aliases);
 
 /**
  * Intersection icon identifier
@@ -25,17 +39,21 @@ export type FeatureSymbolData = {
     iconKey: IconType;
     objectType: string;
     label: string;
+    isUnmapped: boolean;
+    mappingWarning?: string;
 };
 
 /**
  * Display names for various object types
  */
 export const DISPLAY_TYPES = {
-    INTERSECTION: 'Nút giao',
-    CCTV: 'CCTV',
-    PTZ: 'PTZ',
-    SPEED: 'SPEED',
-    LPR: 'LPR',
+    INTERSECTION: getFeatureSymbolDefinition('intersection').label,
+    CCTV: getFeatureSymbolDefinition('cctv').label,
+    PTZ: getFeatureSymbolDefinition('ptz').label,
+    SPEED: getFeatureSymbolDefinition('speed').label,
+    LPR: getFeatureSymbolDefinition('lpr').label,
+    INFO_CABINET: getFeatureSymbolDefinition('info_cabinet').label,
+    LIGHT_CABINET: getFeatureSymbolDefinition('light_cabinet').label,
     CABINET: 'Tủ thiết bị',
     PILLAR: 'Cột/Trụ',
     BRIDGE: 'Cầu/Hầm',
@@ -44,15 +62,24 @@ export const DISPLAY_TYPES = {
     POLYGON: 'Vùng',
 } as const;
 
-export const SYMBOL_ICON_OPTIONS: Array<{ id: IconType; label: string; component: any }> = [
-    { id: 'default', label: 'Mặc định', component: MapPin },
-    { id: 'intersection', label: DISPLAY_TYPES.INTERSECTION, component: Intersection },
-    { id: 'cctv', label: DISPLAY_TYPES.CCTV, component: CameraCCTV },
-    { id: 'ptz', label: DISPLAY_TYPES.PTZ, component: CameraPTZ },
-    { id: 'speed', label: DISPLAY_TYPES.SPEED, component: CameraSpeed },
-    { id: 'lpr', label: DISPLAY_TYPES.LPR, component: CameraLPR },
-    { id: 'point_circle', label: DISPLAY_TYPES.POINT, component: Circle },
-];
+const ICON_COMPONENTS: Record<IconType, any> = {
+    default: MapPin,
+    cctv: CameraCCTV,
+    ptz: CameraPTZ,
+    speed: CameraSpeed,
+    lpr: CameraLPR,
+    info_cabinet: InfoCabinetIcon,
+    light_cabinet: LightCabinetIcon,
+    intersection: Intersection,
+    point_circle: Circle,
+};
+
+export const SYMBOL_ICON_OPTIONS = FEATURE_SYMBOL_DEFINITIONS.map((definition) => ({
+    id: definition.id,
+    label: definition.label,
+    objectType: definition.objectType,
+    component: ICON_COMPONENTS[definition.id],
+}));
 
 /**
  * Checks if an icon key represents a camera
@@ -60,25 +87,6 @@ export const SYMBOL_ICON_OPTIONS: Array<{ id: IconType; label: string; component
 export const isCameraIcon = (icon?: string): boolean => {
     if (!icon) return false;
     return CAMERA_ICONS.includes(icon.toLowerCase());
-};
-
-export const getObjectTypeForIcon = (icon: IconType): string => {
-    switch (icon) {
-        case 'cctv':
-            return 'cctv';
-        case 'ptz':
-            return 'ptz';
-        case 'speed':
-            return 'speed';
-        case 'lpr':
-            return 'lpr';
-        case 'intersection':
-            return 'intersection';
-        case 'point_circle':
-            return 'point';
-        default:
-            return 'point';
-    }
 };
 
 export const canonicalizeObjectType = (type: unknown): string => {
@@ -165,6 +173,9 @@ export const normalizeFeatureSymbolData = (
     providedMetadata?: any
 ): FeatureSymbolData => {
     const meta = providedMetadata || getParsedMetadata(feature as any);
+    const properties = feature?.properties && typeof feature.properties === 'object'
+        ? feature.properties as Record<string, unknown>
+        : {};
     const geomType = safeString(feature?.geom_type || '').toUpperCase();
     const iconKey = getEffectiveIcon(feature, meta, groupType, groupName);
     const effectiveType = canonicalizeObjectType(getEffectiveType(feature, meta));
@@ -176,12 +187,28 @@ export const normalizeFeatureSymbolData = (
     const objectType = !isLegacyPointType(effectiveType)
         ? effectiveType
         : fallbackObjectType;
-    const label = getDisplayTypeForObjectType(objectType, geomType);
+    const rawIcon = safeString(meta.icon || properties.icon || properties.iconKey).trim();
+    const rawType = safeString(meta.objectType || meta.type || properties.objectType || properties.type).trim();
+    const explicitWarning = safeString(meta.mappingWarning || properties.mappingWarning).trim();
+    const isGeometryMapped = geomType === 'LINESTRING' || geomType === 'POLYLINE' || geomType === 'POLYGON';
+    const isUnmapped = !isGeometryMapped && (
+        !!explicitWarning
+        || (!!rawIcon && !isKnownIconValue(rawIcon))
+        || (!!rawType && !isLegacyPointType(rawType) && !isKnownObjectType(canonicalizeObjectType(rawType)))
+    );
+    const mappingWarning = explicitWarning || (isUnmapped
+        ? `Chưa ánh xạ biểu tượng/loại đối tượng: ${rawIcon || rawType || 'không xác định'}`
+        : undefined);
+    const label = isUnmapped && (rawType || rawIcon)
+        ? rawType || rawIcon
+        : getDisplayTypeForObjectType(objectType, geomType);
 
     return {
         iconKey,
         objectType,
         label,
+        isUnmapped,
+        mappingWarning,
     };
 };
 
@@ -201,6 +228,8 @@ export const getFeatureDisplayType = (feature: any, groupType?: string, groupNam
     const lowerName = safeString(feature.name || '').toLowerCase();
 
     const isPoint = geomType === 'POINT' || geomType === '' || geomType === 'DEFAULT';
+
+    if (symbol.isUnmapped) return symbol.label;
 
     if (isPoint) {
         if (icon === INTERSECTION_ICON) return DISPLAY_TYPES.INTERSECTION;
@@ -281,6 +310,12 @@ export const getFeatureDisplayInfo = (feature: any, groupType?: string, groupNam
         else if (displayType === DISPLAY_TYPES.SPEED || iconKey === 'speed') IconComponent = CameraSpeed;
         else if (displayType === DISPLAY_TYPES.LPR || iconKey === 'lpr') IconComponent = CameraLPR;
         else IconComponent = CameraCCTV;
+    } else if (iconKey === 'info_cabinet' || displayType === DISPLAY_TYPES.INFO_CABINET) {
+        IconComponent = InfoCabinetIcon;
+        colorClass = "text-yellow-400";
+    } else if (iconKey === 'light_cabinet' || displayType === DISPLAY_TYPES.LIGHT_CABINET) {
+        IconComponent = LightCabinetIcon;
+        colorClass = "text-orange-400";
     } else if (displayType === DISPLAY_TYPES.CABINET) {
         colorClass = "text-cad-warn";
     }
@@ -295,6 +330,8 @@ export const getFeatureDisplayInfo = (feature: any, groupType?: string, groupNam
         icon: IconComponent,
         iconKey: iconKey,
         objectType: symbol.objectType,
+        isUnmapped: symbol.isUnmapped,
+        mappingWarning: symbol.mappingWarning,
         isIntersection: displayType === DISPLAY_TYPES.INTERSECTION,
         isCamera: displayType === DISPLAY_TYPES.CCTV || displayType === DISPLAY_TYPES.PTZ || displayType === DISPLAY_TYPES.SPEED || displayType === DISPLAY_TYPES.LPR,
         isLine,

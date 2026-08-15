@@ -96,7 +96,7 @@ export const buildFeaturePropertiesForPersistence = (
   const nextColor = getMetadataStyleValue(normalizedMetadata, 'color');
   const nextSize = getMetadataStyleValue(normalizedMetadata, 'size');
 
-  return {
+  const nextProperties = {
     ...(properties || {}),
     icon: nextIcon,
     iconKey: nextIcon,
@@ -104,6 +104,13 @@ export const buildFeaturePropertiesForPersistence = (
     ...(hasMeaningfulValue(nextColor) ? { color: nextColor as FeatureProperties[string] } : {}),
     ...(hasMeaningfulValue(nextSize) ? { size: nextSize as FeatureProperties[string] } : {}),
   };
+
+  if (!hasMeaningfulValue(normalizedMetadata.mappingWarning)) {
+    delete (nextProperties as Record<string, unknown>).mappingWarning;
+    delete (nextProperties as Record<string, unknown>).unmappedIcon;
+  }
+
+  return nextProperties;
 };
 
 export const buildFeatureCreatedPayload = ({

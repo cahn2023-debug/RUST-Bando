@@ -20,6 +20,7 @@ export const createSelectionSlice: StateCreator<DesignSyncStore, [], [], Selecti
                 selectedPopupLocation: null,
                 editingFeatureId: null,
                 previewMetadata: null,
+                previewMetadataById: {},
                 selectionSet: new Set()
             });
             return;
@@ -53,6 +54,7 @@ export const createSelectionSlice: StateCreator<DesignSyncStore, [], [], Selecti
                 selectedPopupLocation: location || null,
                 editingFeatureId: isVector ? id : null,
                 previewMetadata: null,
+                previewMetadataById: {},
                 selectionSet: newSelectionSet
             });
         } else {
@@ -61,6 +63,7 @@ export const createSelectionSlice: StateCreator<DesignSyncStore, [], [], Selecti
                 selectedPopupLocation: location || null,
                 editingFeatureId: null,
                 previewMetadata: null,
+                previewMetadataById: {},
                 selectionSet: keepSelection ? get().selectionSet : new Set()
             });
         }

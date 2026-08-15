@@ -99,6 +99,9 @@ const cleanupDeletedFeatures = (
         hoverId: state.hoverId && deletedIds.has(state.hoverId) ? null : state.hoverId,
         editingFeatureId: state.editingFeatureId && deletedIds.has(state.editingFeatureId) ? null : state.editingFeatureId,
         previewMetadata: state.previewMetadata?.id && deletedIds.has(state.previewMetadata.id) ? null : state.previewMetadata,
+        previewMetadataById: Object.fromEntries(
+            Object.entries(state.previewMetadataById || {}).filter(([id]) => !deletedIds.has(id)),
+        ),
         selectionSet,
         boxSelection: nextBoxSelection,
     };

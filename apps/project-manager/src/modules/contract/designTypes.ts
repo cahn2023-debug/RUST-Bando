@@ -21,7 +21,7 @@ export type FeaturePropertyValue =
 
 export type FeatureProperties = Record<string, FeaturePropertyValue>;
 
-export type IconType = 'default' | 'cctv' | 'ptz' | 'speed' | 'lpr' | 'intersection' | 'point_circle';
+export type IconType = 'default' | 'cctv' | 'ptz' | 'speed' | 'lpr' | 'intersection' | 'point_circle' | 'info_cabinet' | 'light_cabinet';
 
 export type NetworkFeatureEndpointMetadata = {
   type: 'feature';

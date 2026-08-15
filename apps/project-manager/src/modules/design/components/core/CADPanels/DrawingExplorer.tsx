@@ -252,6 +252,7 @@ export function DrawingExplorer() {
   const dispatchEvents = useDesignSync(st => st.dispatchEvents);
   const zoomTo = useDesignSync(st => st.zoomTo);
   const selectionSet = useDesignSync(st => st.selectionSet);
+  const previewMetadataById = useDesignSync(st => st.previewMetadataById || {});
   const toggleSelection = useDesignSync(st => st.toggleSelection);
   const selectAll = useDesignSync(st => st.selectAll);
   const deleteSelectedFeatures = useDesignSync(st => st.deleteSelectedFeatures);
@@ -760,6 +761,7 @@ export function DrawingExplorer() {
                     <FeatureItem
                       feature={feature} level={item.level} levelOffset={item.levelOffset}
                       selected={selectionSet.has(item.id) || selectedFeatureId === item.id}
+                      previewMetadata={previewMetadataById[item.id]}
                       onSelect={(e) => handleSelectFeatureFromPanel(feature, index, e)}
                       onZoomTo={() => zoomTo(item.id, 'feature')}
                       onMouseDown={(e) => handleVirtualDragStart(e, 'feature', item.id)}

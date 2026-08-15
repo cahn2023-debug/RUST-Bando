@@ -39,6 +39,7 @@ export interface FeatureItemProps {
   showNotes?: boolean;
   showQr?: boolean;
   showCode?: boolean;
+  previewMetadata?: { metadata: any };
 }
 
 export const FeatureItem = React.memo(({
@@ -75,6 +76,7 @@ export const FeatureItem = React.memo(({
   showNotes = true,
   showQr = true,
   showCode = true,
+  previewMetadata,
 }: FeatureItemProps) => {
   return (
     <div className="flex flex-col" data-drag-id={dragId} data-drag-type={dragType}>
@@ -147,7 +149,7 @@ export const FeatureItem = React.memo(({
               )}
 
               <div className="flex w-5 shrink-0 items-center justify-center">
-                <FeatureIcon feature={feature} selected={selected} groupType={groupType} groupName={groupName} />
+                <FeatureIcon feature={feature} selected={selected} groupType={groupType} groupName={groupName} previewMetadata={previewMetadata} />
               </div>
 
               <span

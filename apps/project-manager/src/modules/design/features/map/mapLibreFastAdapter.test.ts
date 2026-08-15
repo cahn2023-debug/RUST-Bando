@@ -308,6 +308,26 @@ describe('mapLibreFastAdapter', () => {
         expect(lprPreview.collection.features[0].properties.iconImageId).toContain('design-point-lpr');
     });
 
+    it('applies batch previews independently to each selected feature', () => {
+        const first = pointFeature('batch-first', [105.8, 21.02], {
+            metadata: JSON.stringify({ icon: 'point_circle', size: 24 }),
+        });
+        const second = pointFeature('batch-second', [105.81, 21.03], {
+            metadata: JSON.stringify({ icon: 'point_circle', size: 24 }),
+        });
+
+        const { collection } = buildMapLibreFeatureCollection({
+            features: [first, second],
+            previewMetadataById: {
+                [first.id]: { id: first.id, metadata: { icon: 'lpr', size: 24 } },
+                [second.id]: { id: second.id, metadata: { icon: 'ptz', size: 24 } },
+            },
+            zoom: 20,
+        });
+
+        expect(collection.features.map((item) => item.properties.iconKey)).toEqual(['lpr', 'ptz']);
+    });
+
     it('uses native MapLibre labels for ordinary points without a custom icon', () => {
         const { collection } = buildMapLibreFeatureCollection({
             features: [pointFeature('ordinary-point', [105.8, 21.02], {

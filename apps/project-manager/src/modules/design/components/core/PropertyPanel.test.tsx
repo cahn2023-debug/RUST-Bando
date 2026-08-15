@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   setSelectedGroup: vi.fn(),
   setActiveParentFeature: vi.fn(),
   setPreview: vi.fn(),
+  setPreviewBatch: vi.fn(),
   setEditingFeatureId: vi.fn(),
   togglePalette: vi.fn(),
   startCamera: vi.fn(),
@@ -68,6 +69,7 @@ const mockUseDesignSync = vi.hoisted(() => {
     setSelectedGroup: mocks.setSelectedGroup,
     setActiveParentFeature: mocks.setActiveParentFeature,
     setPreview: mocks.setPreview,
+    setPreviewBatch: mocks.setPreviewBatch,
     previewMetadata: null,
     editingFeatureId: null,
     setEditingFeatureId: mocks.setEditingFeatureId,
@@ -266,6 +268,67 @@ describe('PropertyPanel clipboard images', () => {
       setLineDash: vi.fn(),
     } as unknown as CanvasRenderingContext2D);
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/png;base64,edited');
+  });
+
+  it('shows mixed icon state and stages a preview for every selected feature', () => {
+    const secondFeature = {
+      ...selectedFeature,
+      id: 'feature-2',
+      name: 'Camera B',
+      metadata: JSON.stringify({ icon: 'ptz' }),
+    };
+    mockUseDesignSync.mockReturnValue({
+      state: { ...designState, features: { [selectedFeature.id]: selectedFeature, [secondFeature.id]: secondFeature } },
+      selectedFeatureId: selectedFeature.id,
+      selectFeature: mocks.selectFeature,
+      dispatchEvent: mocks.dispatchEvent,
+      dispatchEvents: mocks.dispatchEvents,
+      queueEvent: mocks.queueEvent,
+      queueEvents: mocks.queueEvents,
+      setDrawingMode: mocks.setDrawingMode,
+      setSelectedGroup: mocks.setSelectedGroup,
+      setActiveParentFeature: mocks.setActiveParentFeature,
+      setPreview: mocks.setPreview,
+      setPreviewBatch: mocks.setPreviewBatch,
+      previewMetadata: null,
+      previewMetadataById: {},
+      editingFeatureId: null,
+      setEditingFeatureId: mocks.setEditingFeatureId,
+      projectId: 'project-1',
+      selectionSet: new Set([selectedFeature.id, secondFeature.id]),
+    });
+
+    render(<PropertyPanel />);
+
+    expect(screen.getByText('2 đối tượng được chọn')).toBeInTheDocument();
+    expect(screen.getByText('KHÁC NHAU')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'LPR · lpr' }));
+
+    expect(mocks.setPreviewBatch).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.objectContaining({ id: selectedFeature.id, metadata: expect.objectContaining({ icon: 'lpr', type: 'lpr' }) }),
+      expect.objectContaining({ id: secondFeature.id, metadata: expect.objectContaining({ icon: 'lpr', type: 'lpr' }) }),
+    ]));
+
+    mockUseDesignSync.mockImplementation(() => ({
+      state: designState,
+      selectedFeatureId: selectedFeature.id,
+      selectFeature: mocks.selectFeature,
+      dispatchEvent: mocks.dispatchEvent,
+      dispatchEvents: mocks.dispatchEvents,
+      queueEvent: mocks.queueEvent,
+      queueEvents: mocks.queueEvents,
+      setDrawingMode: mocks.setDrawingMode,
+      setSelectedGroup: mocks.setSelectedGroup,
+      setActiveParentFeature: mocks.setActiveParentFeature,
+      setPreview: mocks.setPreview,
+      setPreviewBatch: mocks.setPreviewBatch,
+      previewMetadata: null,
+      previewMetadataById: {},
+      editingFeatureId: null,
+      setEditingFeatureId: mocks.setEditingFeatureId,
+      projectId: 'project-1',
+      selectionSet: new Set<string>(),
+    }));
   });
 
   it('pastes one clipboard image into media.imageUrls as a draft', async () => {

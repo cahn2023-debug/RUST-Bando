@@ -99,14 +99,19 @@ const simplifyLineCoordinates = (points: [number, number][], tolerance: number):
 const getFeatureMetadataWithGroupPreview = (
     feature: FeatureState,
     groupThemePreview?: MapLibreGroupThemePreview | null,
-    previewMetadata?: MapLibrePreviewMetadata | null
+    previewMetadata?: MapLibrePreviewMetadata | null,
+    previewMetadataById?: Record<string, MapLibrePreviewMetadata>
 ) => {
     const metadata = getParsedMetadata(feature);
     const groupPreview = groupThemePreview && feature.group_id === groupThemePreview.groupId
         ? (groupThemePreview.config ?? {})
         : {};
-    const isPreviewedFeature = Boolean(previewMetadata && (feature.id === previewMetadata.id || feature.id.startsWith(`${previewMetadata.id}::`)));
-    const featurePreview = isPreviewedFeature ? (previewMetadata?.metadata || {}) : {};
+    const baseFeatureId = feature.id.includes('::') ? feature.id.split('::')[0] : feature.id;
+    const activePreview = previewMetadataById
+        ? (previewMetadataById[feature.id] || previewMetadataById[baseFeatureId] || null)
+        : previewMetadata;
+    const isPreviewedFeature = Boolean(activePreview && (feature.id === activePreview.id || feature.id.startsWith(`${activePreview.id}::`)));
+    const featurePreview = isPreviewedFeature ? (activePreview?.metadata || {}) : {};
 
     return {
         ...metadata,
@@ -387,18 +392,23 @@ const toRenderFeatures = (
     featureNumberMap: Record<string, string | number>,
     groupThemePreview?: MapLibreGroupThemePreview | null,
     previewMetadata?: MapLibrePreviewMetadata | null,
+    previewMetadataById?: Record<string, MapLibrePreviewMetadata>,
     childPath: string[] = [],
     simplifyVectors = false,
     zoom = 16
 ): MapLibreRenderFeature[] => {
     const selected = feature.id === selectedFeatureId;
-    const metadata = getFeatureMetadataWithGroupPreview(feature, groupThemePreview, previewMetadata);
+    const metadata = getFeatureMetadataWithGroupPreview(feature, groupThemePreview, previewMetadata, previewMetadataById);
     const group = feature.group_id ? featureGroups[feature.group_id] ?? null : null;
     const renderStyleHash = getRenderStyleHash(feature, metadata, group);
-    const isPreviewedFeature = Boolean(previewMetadata && (feature.id === previewMetadata.id || feature.id.startsWith(`${previewMetadata.id}::`)));
+    const baseFeatureId = feature.id.includes('::') ? feature.id.split('::')[0] : feature.id;
+    const activePreview = previewMetadataById
+        ? (previewMetadataById[feature.id] || previewMetadataById[baseFeatureId] || null)
+        : previewMetadata;
+    const isPreviewedFeature = Boolean(activePreview && (feature.id === activePreview.id || feature.id.startsWith(`${activePreview.id}::`)));
     const previewVersion = groupThemePreview ? JSON.stringify(groupThemePreview) : '';
-    const previewMetaHash = isPreviewedFeature ? getMetadataHash(previewMetadata?.metadata) : '';
-    const featureName = (isPreviewedFeature && previewMetadata?.name !== undefined) ? previewMetadata.name : feature.name;
+    const previewMetaHash = isPreviewedFeature ? getMetadataHash(activePreview?.metadata) : '';
+    const featureName = (isPreviewedFeature && activePreview?.name !== undefined) ? activePreview.name : feature.name;
     const cacheKey = `${selected ? 1 : 0}:${featureNumberMap[feature.id] || ''}:${previewVersion}:${previewMetaHash}:${renderStyleHash}:${featureName}:${simplifyVectors ? 1 : 0}:${zoom < 14 ? 0 : 1}`;
 
     let featureCache = featureRenderCache.get(feature);
@@ -431,7 +441,7 @@ const toRenderFeatures = (
                 geom_type: String(geometry?.type || ''),
                 coordinates: geometry,
             } as FeatureState;
-            const children = toRenderFeatures(childFeature, selectedFeatureId, featureGroups, featureNumberMap, groupThemePreview, previewMetadata, [feature.id, `g${index}`], simplifyVectors, zoom);
+            const children = toRenderFeatures(childFeature, selectedFeatureId, featureGroups, featureNumberMap, groupThemePreview, previewMetadata, previewMetadataById, [feature.id, `g${index}`], simplifyVectors, zoom);
             if (children.length === 0) {
                 console.warn('[mapLibreFastAdapter] Skipped invalid GeometryCollection child:', feature.id, index);
             }
@@ -554,6 +564,7 @@ export const buildMapLibreFeatureCollection = ({
     featureNumberMap = {},
     groupThemePreview = null,
     previewMetadata = null,
+    previewMetadataById,
 }: BuildMapLibreFeatureCollectionInput): {
     collection: MapLibreRenderFeatureCollection;
     lodPolicy: MapLibreLodPolicy;
@@ -580,6 +591,7 @@ export const buildMapLibreFeatureCollection = ({
             featureNumberMap || {},
             groupThemePreview,
             previewMetadata,
+            previewMetadataById,
             [],
             lodPolicy.simplifyVectors,
             zoom

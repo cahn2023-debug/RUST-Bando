@@ -7,10 +7,11 @@ import {
   Layers, Zap, Radio, Construction, Pencil, RotateCw, Circle, Square, MoveUpRight, Plus, Minus
 } from "lucide-react";
 import { IconSelector } from '@DESIGN/components/ui/IconSelector';
+import { getMapIconConfigForIcon } from '@DESIGN/mapIconManifest';
 import { Button } from '@DESIGN/components/ui/Button';
 import { ImageEditorModal } from '@DESIGN/components/ui/ImageEditorModal';
 import { designLogic } from '@TOOL/utils/designLogic';
-import { getFeatureDisplayInfo, safeString, getCleanName, isCameraIcon, getParsedMetadata, getPointCoordinates } from '@TOOL/utils/featureUtils';
+import { getFeatureDisplayInfo, safeString, getCleanName, isCameraIcon, getParsedMetadata, getPointCoordinates, getObjectTypeForIcon } from '@TOOL/utils/featureUtils';
 import { useCamera } from '@IMPLEMENT/hooks/useCamera';
 import { DeleteConfirmationModal } from '@DESIGN/components/ui/DeleteConfirmationModal';
 import { cn } from '@SHARED/utils/cn';
@@ -38,7 +39,6 @@ import {
   POINT_SYMBOL_SIZE_MIN,
   normalizeFeatureColor,
   normalizeFeatureSize,
-  normalizeIconKey,
 } from '@TOOL/utils/featureSymbolStyle';
 
 interface SegmentItem {
@@ -263,6 +263,28 @@ const preparePropertyMetadata = (metaInput: unknown, properties?: FeaturePropert
   };
 };
 
+const buildIconMetadata = (metadata: FeatureMetadata, icon: IconType): FeatureMetadata => {
+  const objectType = getObjectTypeForIcon(icon);
+  const iconConfig = getMapIconConfigForIcon(icon);
+  const cleanMetadata = { ...metadata } as FeatureMetadata & Record<string, unknown>;
+  delete cleanMetadata.mappingWarning;
+  delete cleanMetadata.unmappedIcon;
+  const iconGis: Record<string, unknown> = iconConfig?.length_m !== undefined
+    ? { length_m: iconConfig.length_m, width_m: iconConfig.width_m, height_m: iconConfig.height_m }
+    : {};
+
+  return {
+    ...cleanMetadata,
+    icon,
+    type: objectType,
+    objectType,
+    gis: {
+      ...(asRecord(metadata.gis) || {}),
+      ...iconGis,
+    } as FeatureMetadata['gis'],
+  };
+};
+
 export const PropertyPanel: React.FC = () => {
   const { onPin, onClose, isPinned, dragHandleProps } = usePaletteContext() || {};
   const {
@@ -277,7 +299,9 @@ export const PropertyPanel: React.FC = () => {
     setSelectedGroup,
     setActiveParentFeature,
     setPreview,
+    setPreviewBatch,
     previewMetadata,
+    previewMetadataById,
     editingFeatureId,
     setEditingFeatureId,
     projectId,
@@ -309,6 +333,19 @@ export const PropertyPanel: React.FC = () => {
   const feature = selectedFeatureId
     ? state?.features?.[selectedFeatureId] || featureDetailsCache[selectedFeatureId] || visibleFeatures[selectedFeatureId] || null
     : null;
+
+  const selectedFeatures = useMemo(() => Array.from(selectionSet)
+    .map((id) => state?.features?.[id] || featureDetailsCache[id] || visibleFeatures[id] || null)
+    .filter((item): item is NonNullable<typeof item> => !!item), [selectionSet, state?.features, featureDetailsCache, visibleFeatures]);
+  const isMultiSelection = selectionSet.size > 1;
+  const selectedIconKeys = useMemo(() => selectedFeatures.map((item) => (
+    getFeatureDisplayInfo(item, undefined, undefined, previewMetadataById?.[item.id]?.metadata).iconKey
+  )), [previewMetadataById, selectedFeatures]);
+  const bulkIcon = selectedIconKeys.length > 0 && selectedIconKeys.every((icon) => icon === selectedIconKeys[0])
+    ? selectedIconKeys[0]
+    : null;
+  const bulkIconMixed = selectedIconKeys.length > 1 && bulkIcon === null;
+  const bulkPreviewDirty = isMultiSelection && selectedFeatures.some((item) => !!previewMetadataById?.[item.id]);
 
   useEffect(() => {
     if (selectedFeatureId && projectId && !feature) {
@@ -342,7 +379,9 @@ export const PropertyPanel: React.FC = () => {
   // from it so labels stay wired to their control across re-renders.
   const uid = useId();
   const projectSettings = useMemo(() => normalizeProjectSettings(state?.settings), [state?.settings]);
-  const displayInfo = feature && group ? getFeatureDisplayInfo(feature, group.type, group.name, localMeta) : null;
+  const displayInfo = feature
+    ? getFeatureDisplayInfo(feature, group?.type, group?.name, localMeta)
+    : null;
   const isIntersectionFeature = !!displayInfo?.isIntersection;
   const isPolyline = isLineGeometry(feature?.geom_type);
   const isCameraFeature = !!displayInfo?.isCamera || isCameraIcon(asStringValue(localMeta.icon || localMeta.type));
@@ -504,6 +543,47 @@ export const PropertyPanel: React.FC = () => {
       setPreview(selectedFeatureId, next, localName);
     }
   }, [isPolyline, localMeta, localName, selectedFeatureId, setPreview]);
+
+  const openCameraPalettes = useCallback(() => {
+    const deviceConfig = paletteConfigs['device-config'];
+    const cameraView = paletteConfigs['camera-view'];
+
+    if (deviceConfig && !deviceConfig.isVisible) {
+      togglePalette('device-config');
+    }
+    if (cameraView && !cameraView.isVisible) {
+      togglePalette('camera-view');
+    }
+  }, [paletteConfigs, togglePalette]);
+
+  const handleIconChange = useCallback((newIcon: IconType) => {
+    const nextMeta = buildIconMetadata(localMeta, newIcon);
+
+    setLocalMeta(nextMeta);
+    if (selectedFeatureId) {
+      setPreview(selectedFeatureId, nextMeta, localName);
+    }
+    if (isCameraIcon(newIcon)) {
+      openCameraPalettes();
+    }
+  }, [localMeta, localName, selectedFeatureId, setPreview, openCameraPalettes]);
+
+  const handleBulkIconChange = useCallback((newIcon: IconType) => {
+    const previews = selectedFeatures.map((selected) => {
+      const metadata = buildIconMetadata(
+        preparePropertyMetadata(getParsedMetadata(selected), selected.properties as FeatureProperties),
+        newIcon,
+      );
+      return { id: selected.id, metadata, name: selected.name };
+    });
+
+    if (setPreviewBatch) {
+      setPreviewBatch(previews);
+    } else if (previews[0]) {
+      setPreview(previews[0].id, previews[0].metadata, previews[0].name);
+    }
+    if (isCameraIcon(newIcon)) openCameraPalettes();
+  }, [openCameraPalettes, selectedFeatures, setPreview, setPreviewBatch]);
 
   const orderFieldLabel = useMemo(
     () => getOrderFieldLabel(localMeta as Record<string, unknown>, feature?.properties as FeatureProperties | undefined),
@@ -794,36 +874,6 @@ export const PropertyPanel: React.FC = () => {
     );
   };
 
-  const openCameraPalettes = () => {
-    const deviceConfig = paletteConfigs['device-config'];
-    const cameraView = paletteConfigs['camera-view'];
-
-    if (deviceConfig && !deviceConfig.isVisible) {
-      togglePalette('device-config');
-    }
-    if (cameraView && !cameraView.isVisible) {
-      togglePalette('camera-view');
-    }
-  };
-
-  const handleIconChange = (icon: IconType) => {
-    const normalizedIcon = normalizeIconKey(icon);
-    const nextMeta = {
-      ...(localMeta || {}),
-      icon: normalizedIcon,
-      type: getTypeForIcon(normalizedIcon),
-    } as FeatureMetadata;
-
-    setLocalMeta(nextMeta);
-    if (selectedFeatureId) {
-      setPreview(selectedFeatureId, nextMeta, localName);
-    }
-
-    if (isCameraIcon(normalizedIcon)) {
-      openCameraPalettes();
-    }
-  };
-
   // Camera integration
   const {
     isCameraOpen,
@@ -1030,6 +1080,40 @@ export const PropertyPanel: React.FC = () => {
     }
   };
 
+  const handleBulkSave = async () => {
+    const previews = selectedFeatures
+      .map((selected) => previewMetadataById?.[selected.id])
+      .filter((preview): preview is NonNullable<typeof preview> => !!preview);
+    if (previews.length === 0 || isSaving) return;
+    if (!(await confirmUserAction(`Xác nhận lưu biểu tượng cho ${previews.length} đối tượng?`))) return;
+
+    setIsSaving(true);
+    try {
+      await queueEvents(previews.map((preview) => {
+        const selected = selectedFeatures.find((item) => item.id === preview.id);
+        const metadata = preparePropertyMetadata(preview.metadata, selected?.properties as FeatureProperties | undefined);
+        return {
+          type: 'FeatureUpdated' as const,
+          payload: {
+            id: preview.id,
+            name: preview.name || selected?.name,
+            metadata: JSON.stringify(metadata),
+            properties: buildFeaturePropertiesForPersistence(selected?.properties as FeatureProperties | undefined, metadata),
+          },
+        };
+      }));
+      if (setPreviewBatch) setPreviewBatch([]);
+      else setPreview(null, null);
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
+    } catch (error) {
+      void error;
+      alert('Lỗi khi lưu biểu tượng hàng loạt. Vui lòng thử lại.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleToggleOrigin = async () => {
     if (!selectedFeatureId || !state?.features) return;
     const events = buildToggleOriginEvents(state.features, selectedFeatureId);
@@ -1069,22 +1153,37 @@ export const PropertyPanel: React.FC = () => {
               className="text-cad-text-muted hover:bg-cad-elevated hover:text-cad-text-primary rounded"
             />
         </div>
-        <div className="p-4 overflow-y-auto flex-1 flex flex-col items-center justify-center text-center opacity-70">
-          <div className="w-16 h-16 bg-cad-elevated rounded-full flex items-center justify-center mb-4 text-cad-accent">
-            <Layers className="w-8 h-8" />
+        <div className="p-4 overflow-y-auto flex-1 space-y-4">
+          <div className="flex items-center gap-3 rounded-lg border border-cad-accent/20 bg-cad-accent/5 p-3">
+            <Layers className="w-6 h-6 text-cad-accent shrink-0" />
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-primary">{selectionSet.size} đối tượng được chọn</p>
+              <p className="text-[9px] mt-1 text-cad-text-secondary">Thay đổi biểu tượng sẽ xem trước trên toàn bộ tập chọn.</p>
+            </div>
           </div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-cad-text-primary">Multi-Selection Active</p>
-          <p className="text-[9px] mt-2 mb-4 max-w-[200px] text-cad-text-secondary">
-            Please use the <strong>Bulk Edit</strong> palette to modify multiple items.
-          </p>
-          <div className="flex gap-2">
+          <IconSelector
+            value={bulkIcon}
+            mixed={bulkIconMixed}
+            onChange={handleBulkIconChange}
+            className="pt-1"
+          />
+          <div className="flex items-center justify-between gap-2 border-t border-cad-border pt-3">
             <Button
               onClick={() => selectFeature(null)}
               variant="secondary"
               size="sm"
               className="px-3 text-[8px] font-bold uppercase rounded-sm"
             >
-              Deselect All
+              Bỏ chọn
+            </Button>
+            <Button
+              onClick={handleBulkSave}
+              variant="accent"
+              size="sm"
+              disabled={!bulkPreviewDirty || isSaving || isSaved}
+              className="px-3 text-[8px] font-bold uppercase rounded-sm"
+            >
+              {isSaved ? 'Đã lưu' : isSaving ? 'Đang lưu...' : 'Lưu biểu tượng'}
             </Button>
           </div>
         </div>
@@ -1497,11 +1596,22 @@ export const PropertyPanel: React.FC = () => {
             </div>
 
             {!isPolyline && (
-              <IconSelector
-                value={((getMetaValue('icon', 'icon') as IconType) || (isIntersectionFeature ? 'intersection' : 'default'))}
-                onChange={handleIconChange}
-                className="pt-2"
-              />
+              <>
+                <IconSelector
+                  value={((getMetaValue('icon', 'icon') as IconType) || (isIntersectionFeature ? 'intersection' : 'default'))}
+                  onChange={handleIconChange}
+                  className="pt-2"
+                />
+                {displayInfo?.isUnmapped && (
+                  <div
+                    className="flex items-start gap-2 rounded border border-cad-warn/30 bg-cad-warn/10 px-2 py-1.5 text-[9px] text-cad-warn"
+                    title={displayInfo.mappingWarning}
+                  >
+                    <span aria-hidden="true">⚠</span>
+                    <span>{displayInfo.mappingWarning || 'Đối tượng chưa có mapping chuẩn.'}</span>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </section>
@@ -1681,11 +1791,9 @@ export const PropertyPanel: React.FC = () => {
             <Settings className="w-3 h-3" /> Object Metadata
           </div>
           <div className="bg-cad-bg p-3 rounded border border-cad-accent/10 space-y-3">
-            <DesignField
+            <ReadOnlyField
               label="Object Type"
-              icon={<Info className="w-3 h-3" />}
               value={getObjectTypeFieldValue(localMeta, displayInfo)}
-              onChange={v => updateNestedMeta('type', v)}
             />
             <DesignField
               label="Survey Notes"

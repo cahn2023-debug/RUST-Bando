@@ -10,10 +10,12 @@ export const createUIControlSlice: StateCreator<DesignSyncStore, [], [], UIContr
     showNotes: true,
     showQr: true,
     showCode: true,
+    show3DMode: false,
     isAnyDialogOpen: false,
     zoomExtendTrigger: 0,
     zoomToTrigger: null,
     previewMetadata: null,
+    previewMetadataById: {},
     groupThemePreview: null,
     searchResultMarker: null,
     printArea: null,
@@ -24,6 +26,10 @@ export const createUIControlSlice: StateCreator<DesignSyncStore, [], [], UIContr
     setShowDORILayers: (show) => {
         set({ showDORILayers: show });
         emit('sync-dori-layers', { show });
+    },
+
+    setShow3DMode: (show) => {
+        set({ show3DMode: show });
     },
 
     setShowDORIHeatmap: (show) => {
@@ -66,8 +72,15 @@ export const createUIControlSlice: StateCreator<DesignSyncStore, [], [], UIContr
             const previousName = state.previewMetadata?.id === id ? state.previewMetadata.name : undefined;
             const nextPreview = id && metadata ? { id, metadata, name: name ?? previousName } : null;
             emit('sync-preview-metadata', nextPreview || { id, metadata });
-            return { previewMetadata: nextPreview };
+            return { previewMetadata: nextPreview, previewMetadataById: nextPreview ? { [nextPreview.id]: nextPreview } : {} };
         });
+    },
+
+    setPreviewBatch: (previews) => {
+        const previewMetadataById = Object.fromEntries(previews.map((preview) => [preview.id, preview]));
+        const firstPreview = previews[0] || null;
+        set({ previewMetadata: firstPreview, previewMetadataById });
+        emit('sync-preview-metadata', firstPreview || { id: null, metadata: null });
     },
 
     setGroupThemePreview: (groupId, config) => {

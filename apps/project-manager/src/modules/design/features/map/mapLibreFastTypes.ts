@@ -75,4 +75,5 @@ export interface BuildMapLibreFeatureCollectionInput {
     featureNumberMap?: Record<string, string | number>;
     groupThemePreview?: MapLibreGroupThemePreview | null;
     previewMetadata?: MapLibrePreviewMetadata | null;
+    previewMetadataById?: Record<string, MapLibrePreviewMetadata>;
 }

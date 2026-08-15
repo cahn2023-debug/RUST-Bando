@@ -9,6 +9,8 @@ import {
 } from '@SHARED/utils/designIpc';
 import type { ProjectBootstrap } from '@SHARED/utils/designIpc';
 import { normalizeMapStateForDisplay } from '../../../../tool/utils/normalizeDisplay';
+import { buildIconMappingMigrationPlan } from '../../../../tool/utils/featureIconMappingMigration';
+import { persistIconMappingSnapshot } from '../../../../tool/utils/featureIconMappingSnapshot';
 
 
 let lastInitializedKey: string | null = null;
@@ -137,6 +139,7 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             unsubscribeFirestore: null,
             pendingSync: false,
             previewMetadata: null,
+            previewMetadataById: {},
             boxSelection: null,
             printArea: null,
             currentDrawingPoints: [],
@@ -167,6 +170,12 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             if (options?.bootstrap) {
                 const tStart = performance.now();
                 const initialShell = mapStateFromBootstrap(options.bootstrap);
+                const migrationPlan = buildIconMappingMigrationPlan(
+                    Object.values(initialShell.features || {}),
+                    initialShell.feature_groups || {},
+                );
+                const migrationSnapshot = await persistIconMappingSnapshot(projectId, projectPath, migrationPlan);
+                if (migrationSnapshot) logger.info(`[IconMapping] BAK snapshot created: ${migrationSnapshot.path}`);
                 const normalizedState = normalizeMapStateForDisplay(initialShell);
                 const shellCommitMs = performance.now() - tStart;
                 set({
@@ -182,6 +191,9 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                         shellCommitMs
                     }
                 });
+                if (migrationPlan.events.length > 0 && get().dispatchEvents) {
+                    await get().dispatchEvents(migrationPlan.events);
+                }
                 lastInitializedKey = currentInitKey;
                 lastInitializedAt = Date.now();
                 logger.info(`[Store] Bootstrap shell ready in ${shellCommitMs.toFixed(1)}ms for project ${projectId}`);
@@ -267,6 +279,13 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
             const tDone = performance.now();
             logger.info(`[Store] ✅ Hydration completed in ${(tDone - tStart).toFixed(1)}ms for project ${projectId}`);
 
+            const migrationPlan = buildIconMappingMigrationPlan(
+                Object.values(state.features || {}),
+                state.feature_groups || {},
+            );
+            const migrationSnapshot = await persistIconMappingSnapshot(projectId, projectPath, migrationPlan);
+            if (migrationSnapshot) logger.info(`[IconMapping] BAK snapshot created: ${migrationSnapshot.path}`);
+
             // Standardize state using the canonical helper
             const normalizedState = normalizeMapStateForDisplay(state);
             const loadedFeatureCount = Object.keys(normalizedState.features || {}).length;
@@ -289,6 +308,9 @@ export const createInitializationSlice: StateCreator<DesignSyncStore, [], [], In
                 projectPath,
                 lastSync: Date.now()
             });
+            if (migrationPlan.events.length > 0 && get().dispatchEvents) {
+                await get().dispatchEvents(migrationPlan.events);
+            }
             lastInitializedKey = currentInitKey;
             lastInitializedAt = Date.now();
 

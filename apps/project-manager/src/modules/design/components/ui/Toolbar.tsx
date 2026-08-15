@@ -1,5 +1,5 @@
 import React from 'react';
-import { ListTodo, Columns, CalendarDays, Plus, Settings, Layers, Eye } from 'lucide-react';
+import { ListTodo, Columns, CalendarDays, Plus, Settings, Layers, Eye, Box } from 'lucide-react';
 import { useLayoutStore } from '@CORE/stores/useLayoutStore';
 import { useDesignSync } from '@IMPLEMENT/stores/useDesignSync';
 import { Button } from '@DESIGN/components/ui/Button';
@@ -74,13 +74,22 @@ function ToolbarButton({ active, onClick, icon: Icon, label, tooltip, activeColo
 }
 
 function DesignToolbarTools({ togglePalette }: { togglePalette: (id: string) => void }) {
-  const { showFeatureGroups, setShowFeatureGroups, showDORILayers, setShowDORILayers } = useDesignSync();
+  const { showFeatureGroups, setShowFeatureGroups, showDORILayers, setShowDORILayers, show3DMode, setShow3DMode } = useDesignSync();
 
   return (
     <div className="flex items-center gap-2">
       <div className="text-[10px] font-black text-cad-text-muted uppercase tracking-[0.2em] px-2 py-1 rounded bg-cad-elevated border border-cad-border mr-2">
         Design Mode
       </div>
+
+      <ToolbarButton
+        active={show3DMode}
+        onClick={() => setShow3DMode(!show3DMode)}
+        icon={Box}
+        label="3D View"
+        tooltip={show3DMode ? "Chuyển sang Chế độ 2D CAD Canvas" : "Chuyển sang Không gian 3D Three.js"}
+        activeColorClass="text-amber-400 border-amber-400/40 bg-amber-400/10"
+      />
 
       <ToolbarButton
         active={showFeatureGroups}

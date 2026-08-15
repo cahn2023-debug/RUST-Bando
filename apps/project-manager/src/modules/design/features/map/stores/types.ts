@@ -141,6 +141,7 @@ export type UIControlSlice = {
     showNotes: boolean;
     showQr: boolean;
     showCode: boolean;
+    show3DMode: boolean;
     isAnyDialogOpen: boolean;
     zoomExtendTrigger: number;
     zoomToTrigger: {
@@ -150,6 +151,7 @@ export type UIControlSlice = {
         timestamp: number
     } | null;
     previewMetadata: { id: string, metadata: any, name?: string } | null;
+    previewMetadataById?: Record<string, { id: string, metadata: any, name?: string }>;
     groupThemePreview: { groupId: string, config: any } | null;
     searchResultMarker: { lat: number, lng: number, name: string } | null;
     printArea: [number, number, number, number] | null;
@@ -163,12 +165,14 @@ export type UIControlSlice = {
     setShowNotes: (show: boolean) => void;
     setShowQr: (show: boolean) => void;
     setShowCode: (show: boolean) => void;
+    setShow3DMode: (show: boolean) => void;
     setAnyDialogOpen: (open: boolean) => void;
     triggerZoomExtend: () => void;
     zoomTo: (id: string, type: 'feature' | 'group' | 'layer' | 'region' | 'location', location?: [number, number]) => void;
     /** Toggle map visibility for a layer/group (only affects map, not Explorer tree) */
     toggleMapHidden: (id: string) => void;
     setPreview: (id: string | null, metadata: any | null, name?: string) => void;
+    setPreviewBatch?: (previews: Array<{ id: string, metadata: any, name?: string }>) => void;
     setGroupThemePreview: (groupId: string | null, config: any | null) => void;
     setSearchResultMarker: (marker: UIControlSlice['searchResultMarker']) => void;
     setPrintArea: (bounds: [number, number, number, number] | null) => void;
