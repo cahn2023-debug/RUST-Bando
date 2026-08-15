@@ -1,6 +1,5 @@
 import { useRef, useEffect, useMemo } from "react";
 import { MapLayer } from "@DESIGN/features/map/MapLayer";
-import { CoordinatePanel } from "@DESIGN/components/core/CoordinatePanel";
 import { useDesignSync } from "@IMPLEMENT/stores/useDesignSync";
 import { useCanvasInteraction } from "@IMPLEMENT/hooks/useCanvasInteraction";
 import { useDrawingInteraction } from "@DESIGN/hooks/useDrawingInteraction";
@@ -87,10 +86,6 @@ function CADCanvasContent() {
           />
         </div>
       )}
-
-      <div className="pointer-events-auto z-20 relative">
-        <CoordinatePanel />
-      </div>
     </div>
   );
 }

@@ -11,7 +11,7 @@ export const confirmUserAction = async (
 ): Promise<boolean> => {
   try {
     if (typeof globalThis !== 'undefined' && typeof globalThis.confirm === 'function') {
-      const result = globalThis.confirm(message);
+      const result: unknown = globalThis.confirm(message);
       if (result instanceof Promise) {
         return (await result.catch(() => false)) === true;
       }

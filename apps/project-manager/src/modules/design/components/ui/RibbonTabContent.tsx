@@ -2,7 +2,7 @@ import React from "react";
 import {
     Save, FolderUp, RefreshCw, Layers, Settings, Zap, Cpu,
     Undo2, Redo2, Sliders, Camera, Video, Calculator,
-    MousePointer2, Move, MapPin, Globe, BarChart2, Printer, FileDown,
+    MousePointer2, Move, MapPin, BarChart2, Printer, FileDown,
     Network, Briefcase, Activity, FileText
 } from "lucide-react";
 import { ToolGroup, ToolButton, RibbonSeparator } from "./RibbonComponents";
@@ -63,7 +63,6 @@ export const DesignRibbonTools = ({
     showSystemConfig, setShowSystemConfig, systemConfigRef,
     togglePalette, activePaletteId,
     drawingMode, setDrawingMode, selectedGroupId,
-    toggleCoordinatePanel, isCoordinatePanelOpen,
     onOpenStandalone, onExport, onOpenReport
 }: CommonRibbonProps & {
     onImport: () => void;
@@ -73,7 +72,6 @@ export const DesignRibbonTools = ({
     drawingMode: 'none' | 'point' | 'polyline' | 'image' | 'intersection' | 'move' | 'print_area';
     setDrawingMode: (m: 'none' | 'point' | 'polyline' | 'image' | 'intersection' | 'move' | 'print_area') => void;
     selectedGroupId: string | null;
-    toggleCoordinatePanel: () => void; isCoordinatePanelOpen: boolean;
     onOpenStandalone: (view: any) => void; onExport: () => void; onOpenReport: () => void;
 }) => {
     const { finishDrawingSession } = useDrawingInteraction();

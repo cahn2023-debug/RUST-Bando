@@ -49,8 +49,6 @@ export function Ribbon({
   const { t } = useTranslation();
   const undo = useDesignSync((s) => s.undo);
   const redo = useDesignSync((s) => s.redo);
-  const isCoordinatePanelOpen = useDesignSync((s) => s.isCoordinatePanelOpen);
-  const toggleCoordinatePanel = useDesignSync((s) => s.toggleCoordinatePanel);
   const drawingMode = useDesignSync((s) => s.drawingMode);
   const setDrawingMode = useDesignSync((s) => s.setDrawingMode);
   const selectedGroupId = useDesignSync((s) => s.selectedGroupId);
@@ -282,8 +280,6 @@ export function Ribbon({
             drawingMode={drawingMode}
             setDrawingMode={setDrawingMode}
             selectedGroupId={selectedGroupId}
-            toggleCoordinatePanel={toggleCoordinatePanel}
-            isCoordinatePanelOpen={isCoordinatePanelOpen}
             onOpenStandalone={openStandaloneWindow}
             onOpenReport={() => setIsReportOpen(true)}
             onExport={async () => {

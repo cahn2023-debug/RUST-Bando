@@ -7,7 +7,6 @@ import {
     DORIOverlay,
     FOVLayer,
     InteractivePPM,
-    StreetViewControl,
     ZoomExtendControl,
     ZoomToHandler,
 } from '@DESIGN/features/map/MapLayerComponents';
@@ -67,7 +66,6 @@ export function MapLayer({
             <FOVLayer />
             <InteractivePPM />
             <MapCaptureHandler />
-            <StreetViewControl />
             <ZoomExtendControl />
             <ZoomToHandler />
         </div>

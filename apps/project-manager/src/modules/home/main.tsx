@@ -12,17 +12,10 @@ import App from "./App";
 // Lazy load components to optimize per-window bundle usage
 const AnalysisWindow = lazyWithRetry(() => import("@IMPLEMENT/features/analysis/AnalysisWindow"), { moduleName: "AnalysisWindow" });
 const PrintWindow = lazyWithRetry(() => import("@DESIGN/features/print/PrintWindow"), { moduleName: "PrintWindow" });
-const StreetViewPage = lazyWithRetry(() => import("@DESIGN/features/map/MapLayerComponents/StreetViewPage"), { moduleName: "StreetViewPage" });
 
 const rootElement = document.getElementById("root") as HTMLElement;
-const pathname = window.location.pathname;
 const searchParams = new URLSearchParams(window.location.search);
 let view = searchParams.get('view');
-
-// 🌐 Google Maps Style Path Detection (@lat,lng...)
-if (pathname.includes('/@')) {
-  view = 'streetview';
-}
 
 // Disable default context menu globally
 window.addEventListener('contextmenu', (e) => e.preventDefault(), false);
@@ -60,8 +53,6 @@ const renderContent = () => {
       return <AnalysisWindow />;
     case 'print':
       return <PrintWindow />;
-    case 'streetview':
-      return <StreetViewPage />;
     default:
       return <App />;
   }
