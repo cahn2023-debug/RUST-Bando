@@ -279,7 +279,7 @@ export function CADCanvasEngine({
   };
 
   // Wheel Zoom towards Mouse Cursor
-  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+  const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -302,7 +302,18 @@ export function CADCanvasEngine({
 
     setCenter(([lat, lng]) => [lat + dLat, lng + dLng]);
     setZoom(newZoom);
-  };
+  }, [viewport, zoom]);
+
+  // React delegates wheel events through a passive listener in some runtimes.
+  // Register this handler natively so preventDefault() can reliably suppress
+  // page scrolling while zooming the CAD canvas.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', handleWheel);
+  }, [handleWheel]);
 
   // Double Click: Zoom in or Finish Polyline
   const handleDoubleClick = () => {
@@ -325,7 +336,6 @@ export function CADCanvasEngine({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onWheel={handleWheel}
         onDoubleClick={handleDoubleClick}
       />
     </div>
